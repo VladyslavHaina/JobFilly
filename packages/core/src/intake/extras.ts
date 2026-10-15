@@ -2,15 +2,17 @@ import {
   AI_BATCH_SIZE,
   CORE_PROFILE_KEYS,
   type CoreProfileKey,
+  type ExtraQuestion,
   type IntakeExtraInput,
   type IntakeProposal,
   isExtraKey,
+  MAX_EXTRA_QUESTIONS,
   type StoredMessage,
 } from "@jobfilly/schema";
 
 // The input of intake.v1, the one call that proposes the wording of up to five extra questions
 // (F6.1, TBD-20): the evidence messages of every answered core question, as the model reads mail,
-// and the current answers.
+// and the current answers; and the check of what the model proposes.
 
 /** Message-IDs that back at least one answered core question, each once, in form order. */
 export function extraEvidenceIds(proposal: IntakeProposal): string[] {
@@ -58,4 +60,26 @@ export function buildIntakeExtraInput(
     return { key, value: entry?.value ?? [], confidence: entry?.confidence ?? null };
   });
   return { items, answers };
+}
+
+/**
+ * The model's extra questions that were found in the mail (F6.1). Each keeps only the evidence it
+ * was shown in `input.items`, each Message-ID once; a question left without evidence is dropped,
+ * a repeated slug keeps its first question, and at most five remain. So the form never shows a
+ * question the mail doesn't back, nor links to a message that doesn't exist.
+ */
+export function foundExtraQuestions(
+  questions: readonly ExtraQuestion[],
+  input: IntakeExtraInput,
+): ExtraQuestion[] {
+  const shown = new Set(input.items.map((i) => i.messageId));
+  const slugs = new Set<string>();
+  const found: ExtraQuestion[] = [];
+  for (const q of questions) {
+    const evidence = [...new Set(q.evidence.filter((id) => shown.has(id)))];
+    if (evidence.length === 0 || slugs.has(q.slug)) continue;
+    slugs.add(q.slug);
+    found.push({ ...q, evidence });
+  }
+  return found.slice(0, MAX_EXTRA_QUESTIONS);
 }

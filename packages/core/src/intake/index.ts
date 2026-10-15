@@ -2,5 +2,5 @@
 // one extra-questions call, and the entries Confirm saves. Pure: no mail, database or model here.
 
 export { aggregateIntake } from "./aggregate";
-export { buildIntakeExtraInput, extraEvidenceIds } from "./extras";
+export { buildIntakeExtraInput, extraEvidenceIds, foundExtraQuestions } from "./extras";
 export { confirmedEntries, type PatchResult, patchEntries } from "./profile";

@@ -1,16 +1,18 @@
 import {
   CORE_PROFILE_KEYS,
   type Envelope,
+  type ExtraQuestion,
   IntakeExtraInputSchema,
   type IntakeInput,
   type StoredMessage,
 } from "@jobfilly/schema";
 import { describe, expect, it } from "vitest";
 import { aggregateIntake } from "./aggregate";
-import { buildIntakeExtraInput, extraEvidenceIds } from "./extras";
+import { buildIntakeExtraInput, extraEvidenceIds, foundExtraQuestions } from "./extras";
 
 // The input of intake.v1 (TBD-20): the answered entries' evidence messages newest first, at most
-// 20, with the stored snippet as text; and every core answer in core-key order.
+// 20, with the stored snippet as text; and every core answer in core-key order. What the model
+// proposes is kept only when the mail it was shown backs it (F6.1).
 
 const BASE = Date.UTC(2026, 8, 30, 12);
 const ago = (n: number) => new Date(BASE - n * 3_600_000).toISOString();
@@ -178,5 +180,59 @@ describe("buildIntakeExtraInput", () => {
     expect(input.items.map((i) => i.messageId)).toEqual(
       Array.from({ length: 20 }, (_, i) => jobId(i)),
     );
+  });
+});
+
+describe("foundExtraQuestions (F6.1)", () => {
+  const question = (slug: string, evidence: string[]): ExtraQuestion => ({
+    slug,
+    label: `Question ${slug}?`,
+    options: ["Yes", "No"],
+    evidence,
+  });
+  const input = () => {
+    const { proposal, messages } = maria();
+    return buildIntakeExtraInput(proposal, messages);
+  };
+
+  it("keeps a question backed by messages it was shown, as the model worded it", () => {
+    const q = question("relocation", [replyId(3), replyId(1)]);
+    expect(foundExtraQuestions([q], input())).toEqual([q]);
+  });
+
+  it("drops a question without evidence, and evidence it wasn't shown", () => {
+    const found = foundExtraQuestions(
+      [
+        question("notice-period", []),
+        question("invented", ["<made-up@nowhere.example>"]),
+        question("b2b", ["<made-up@nowhere.example>", replyId(5), replyId(5)]),
+        // A job message that exists but wasn't among the items.
+        question("visa", [jobId(10)]),
+      ],
+      input(),
+    );
+    expect(found).toEqual([question("b2b", [replyId(5)])]);
+  });
+
+  it("keeps the first question of a repeated slug, and at most five", () => {
+    const backed = (slug: string) => question(slug, [replyId(1)]);
+    const first = { ...backed("relocation"), label: "First wording?" };
+    const found = foundExtraQuestions(
+      [
+        question("relocation", ["<made-up@nowhere.example>"]),
+        first,
+        backed("relocation"),
+        ...["a", "b", "c", "d", "e"].map(backed),
+      ],
+      input(),
+    );
+    expect(found.map((q) => q.slug)).toEqual(["relocation", "a", "b", "c", "d"]);
+    expect(found[0]).toEqual(first);
+  });
+
+  it("keeps nothing for Tom's thin inbox, which shows the model no items", () => {
+    const proposal = aggregateIntake({ replies: [], jobs: [] });
+    const empty = buildIntakeExtraInput(proposal, []);
+    expect(foundExtraQuestions([question("relocation", [jobId(1)])], empty)).toEqual([]);
   });
 });
