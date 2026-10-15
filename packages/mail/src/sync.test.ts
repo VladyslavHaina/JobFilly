@@ -112,6 +112,25 @@ describe("fetchSince (F1.1, F1.3)", () => {
     ]);
   });
 
+  it("tells when each message arrived: its INTERNALDATE, not the Date header", async () => {
+    const box = mailbox([1]);
+    // A sender whose Date header is days off; the server gives no INTERNALDATE for UID 2.
+    box.contents.INBOX?.messages.push({
+      uid: 2,
+      internalDate: null,
+      source: message(2).replace("12 Oct 2026", "9 Oct 2026"),
+    });
+    const result = await mailClientWith(conn, secure, fakeServer(box).factory).fetchSince({
+      folder: "inbox",
+      uidValidity: 7,
+      afterUid: 0,
+    });
+    expect(result.messages.map((m) => [m.date, m.receivedAt])).toEqual([
+      ["2026-10-12T08:01:00.000Z", "2026-10-12T08:00:05.000Z"],
+      ["2026-10-09T08:02:00.000Z", "2026-10-09T08:02:00.000Z"],
+    ]);
+  });
+
   it("reads Sent from the folder the server marks as Sent", async () => {
     const box = mailbox([]);
     box.contents.Sent?.messages.push({ uid: 2, internalDate: null, source: message(2) });

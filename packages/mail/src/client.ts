@@ -11,6 +11,7 @@ import type {
   MailTestResult,
   MessageRef,
   OriginalMessage,
+  SyncedEnvelope,
 } from "@jobfilly/schema";
 import { buildDraftMime } from "./drafts/index";
 import { FAILURE_MESSAGES, failureReason, MailError } from "./errors";
@@ -66,7 +67,7 @@ export interface MailClient {
   fetchBody(ref: MessageRef): Promise<{ text: string } | null>;
   /**
    * Continuous sync (F1): the envelopes of one folder after `afterUid` under `uidValidity` (null
-   * before the first sync), in UID order. When the folder's UIDVALIDITY changed, every message
+   * before the first sync), in UID order, each with its arrival time (`receivedAt`). When the folder's UIDVALIDITY changed, every message
    * comes back with `changed` set (FetchSinceResult). Reads only; never changes a flag.
    */
   fetchSince(query: {
@@ -205,21 +206,24 @@ export function mailClientWith(
     return drafts;
   }
 
-  /** The envelopes of these UIDs of the open folder, in UID order. */
+  /**
+   * The envelopes of these UIDs of the open folder, in UID order, each with when it arrived (its
+   * INTERNALDATE, else the envelope's date).
+   */
   async function envelopesOf(
     s: ImapSession,
     uids: number[],
     info: { folder: MailFolder; folderPath: string; uidValidity: number },
-  ): Promise<Envelope[]> {
-    const envelopes: Envelope[] = [];
+  ): Promise<SyncedEnvelope[]> {
+    const envelopes: SyncedEnvelope[] = [];
     for await (const message of s.fetch(uids, { maxBytes: ENVELOPE_SOURCE_BYTES })) {
-      envelopes.push(
-        await envelopeFromSource(message.source, {
-          ...info,
-          uid: message.uid,
-          internalDate: message.internalDate,
-        }),
-      );
+      const envelope = await envelopeFromSource(message.source, {
+        ...info,
+        uid: message.uid,
+        internalDate: message.internalDate,
+      });
+      const receivedAt = message.internalDate?.toISOString() ?? envelope.date;
+      envelopes.push({ ...envelope, receivedAt });
     }
     return envelopes.sort((a, b) => a.uid - b.uid);
   }
@@ -339,9 +343,7 @@ export function mailClientWith(
           folderPath: path,
           uidValidity: current,
         });
-        // Arrival by the envelope's date until the INTERNALDATE is read here.
-        const received = messages.map((m) => ({ ...m, receivedAt: m.date }));
-        return { uidValidity: current, changed, messages: received };
+        return { uidValidity: current, changed, messages };
       }),
 
     fetchOriginal: (ref) =>
