@@ -3,6 +3,7 @@ import {
   type Envelope,
   isMsgId,
   type MailFolder,
+  type OriginalMessage,
   SNIPPET_MAX_LENGTH,
   syntheticMessageId,
 } from "@jobfilly/schema";
@@ -86,7 +87,10 @@ export interface SourceInfo {
 }
 
 export async function envelopeFromSource(source: Buffer, info: SourceInfo): Promise<Envelope> {
-  const mail = await simpleParser(source, PARSE_OPTIONS);
+  return envelopeOf(await simpleParser(source, PARSE_OPTIONS), info);
+}
+
+function envelopeOf(mail: ParsedMail, info: SourceInfo): Envelope {
   const headerDate = mail.date && !Number.isNaN(mail.date.getTime()) ? mail.date : null;
   const date = headerDate ?? info.internalDate ?? new Date(0);
   const inReplyTo = messageIds(rawHeader(mail, "in-reply-to"))[0] ?? null;
@@ -114,6 +118,27 @@ export async function envelopeFromSource(source: Buffer, info: SourceInfo): Prom
     precedence: rawHeader(mail, "precedence"),
     autoSubmitted: rawHeader(mail, "auto-submitted"),
     snippet: snippetOf(mail.text ?? ""),
+  };
+}
+
+/**
+ * What a draft replies to (F6.3): the threading headers and the sanitised text to quote, read in
+ * one parse of the whole message. Never stored.
+ */
+export async function originalFromSource(
+  source: Buffer,
+  info: SourceInfo,
+): Promise<OriginalMessage> {
+  const mail = await simpleParser(source, PARSE_OPTIONS);
+  const envelope = envelopeOf(mail, info);
+  return {
+    messageId: envelope.messageId,
+    references: envelope.references,
+    inReplyTo: envelope.inReplyTo,
+    subject: envelope.subject,
+    from: envelope.from,
+    date: envelope.date,
+    text: sanitiseText(mail.text ?? ""),
   };
 }
 

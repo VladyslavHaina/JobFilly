@@ -22,12 +22,31 @@ const MESSAGE = [
   "",
 ].join("\r\n");
 
-function respond(socket: Socket, line: string, state: { selected: boolean }) {
+interface ResponderState {
+  selected: boolean;
+  /** Every command line received, the literals' bytes left out. */
+  commands: string[];
+  /** The bytes of an APPEND literal still to come, and the tag to answer once it is in. */
+  literal: number;
+  appendTag: string | null;
+  appended: string[];
+}
+
+function respond(socket: Socket, line: string, state: ResponderState) {
   const [tag, rawCommand = "", ...rest] = line.split(" ");
   const command = rawCommand.toUpperCase();
   const args = rest.join(" ");
   const send = (...lines: string[]) => socket.write(lines.map((l) => `${l}\r\n`).join(""));
+  state.commands.push(line);
   switch (command) {
+    case "APPEND": {
+      // A synchronizing literal: the server says go ahead, then the message's bytes follow.
+      state.literal = Number(/\{(\d+)\}$/.exec(line)?.[1] ?? 0);
+      state.appendTag = tag ?? null;
+      return send("+ go ahead");
+    }
+    case "CREATE":
+      return send(`${tag} OK created`);
     case "CAPABILITY":
       return send("* CAPABILITY IMAP4rev1", `${tag} OK done`);
     case "LOGIN": {
@@ -54,11 +73,12 @@ function respond(socket: Socket, line: string, state: { selected: boolean }) {
         "* 1 EXISTS",
         "* OK [UIDVALIDITY 42] ok",
         "* OK [UIDNEXT 8] ok",
-        `${tag} OK [READ-ONLY] done`,
+        `${tag} OK [${command === "EXAMINE" ? "READ-ONLY" : "READ-WRITE"}] done`,
       );
     case "UID": {
       const sub = rest[0]?.toUpperCase();
       if (sub === "SEARCH") return send("* SEARCH 7", `${tag} OK done`);
+      if (sub === "STORE" || sub === "EXPUNGE") return send(`${tag} OK done`);
       if (sub === "FETCH") {
         const body = Buffer.from(MESSAGE);
         const section = /BODY\.PEEK\[\]<0\.\d+>/.test(args) ? "BODY[]<0>" : "BODY[]";
@@ -80,18 +100,39 @@ function respond(socket: Socket, line: string, state: { selected: boolean }) {
 
 const servers: Server[] = [];
 
+const sessions: ResponderState[] = [];
+
 async function scriptedImap(): Promise<number> {
   const server = createServer((socket) => {
-    const state = { selected: false };
+    const state: ResponderState = {
+      selected: false,
+      commands: [],
+      literal: 0,
+      appendTag: null,
+      appended: [],
+    };
+    sessions.push(state);
     let buffer = "";
     socket.on("error", () => {});
     socket.write("* OK [CAPABILITY IMAP4rev1] scripted responder ready\r\n");
     socket.on("data", (chunk) => {
       buffer += chunk.toString("latin1");
-      for (let i = buffer.indexOf("\r\n"); i >= 0; i = buffer.indexOf("\r\n")) {
+      for (;;) {
+        if (state.literal > 0) {
+          if (buffer.length < state.literal) return;
+          state.appended.push(buffer.slice(0, state.literal));
+          buffer = buffer.slice(state.literal);
+          state.literal = 0;
+        }
+        const i = buffer.indexOf("\r\n");
+        if (i < 0) return;
         const line = buffer.slice(0, i);
         buffer = buffer.slice(i + 2);
-        if (line) respond(socket, line, state);
+        if (state.appendTag !== null) {
+          // The line the literal ended: the append is complete.
+          socket.write(`${state.appendTag} OK [APPENDUID 42 9] appended\r\n`);
+          state.appendTag = null;
+        } else if (line) respond(socket, line, state);
       }
     });
   });
@@ -103,6 +144,7 @@ async function scriptedImap(): Promise<number> {
 }
 
 afterEach(async () => {
+  sessions.splice(0);
   await Promise.all(servers.splice(0).map((s) => new Promise((r) => s.close(r))));
 });
 
@@ -146,6 +188,46 @@ describe("the imapflow session", () => {
     } finally {
       await client.close();
     }
+  });
+
+  it("syncs by UID, and creates Drafts, appends a draft with \\Draft and deletes it", async () => {
+    const port = await scriptedImap();
+    const client = createMailClient(connection(port), { allowInsecure: true });
+    try {
+      const synced = await client.fetchSince({ folder: "inbox", uidValidity: 42, afterUid: 6 });
+      expect(synced).toMatchObject({ uidValidity: 42, changed: false, messages: [{ uid: 7 }] });
+      // The responder answers UID 8:* with the newest message, 7, as a server does.
+      expect(
+        await client.fetchSince({ folder: "inbox", uidValidity: 42, afterUid: 7 }),
+      ).toMatchObject({ messages: [] });
+
+      const ref = await client.saveDraft({
+        original: {
+          messageId: "<wired-1@agency.example>",
+          references: [],
+          inReplyTo: null,
+          subject: "Backend Engineer",
+          from: { address: "lena.vogel@agency.example", name: "Lena Vogel" },
+          date: "2026-09-28T08:15:00.000Z",
+          text: "Hi Maria, would you have time for a call?",
+        },
+        reply: { subject: "Re: Backend Engineer", body: "Hi Lena, yes." },
+        attachment: null,
+      });
+      expect(ref).toMatchObject({ path: "Drafts", uid: 9, uidValidity: 42 });
+      await client.deleteDraft(ref);
+    } finally {
+      await client.close();
+    }
+    const [state] = sessions;
+    const commands = state?.commands.map((c) => c.split(" ").slice(1).join(" ")) ?? [];
+    expect(commands).toContain("UID SEARCH UID 7:*");
+    expect(commands).toContain("CREATE Drafts");
+    expect(commands.find((c) => c.startsWith("APPEND"))).toMatch(/^APPEND Drafts \(\\Draft\)/);
+    expect(commands).toContain("SELECT Drafts");
+    expect(commands.find((c) => c.startsWith("UID STORE"))).toMatch(/^UID STORE 9 \+FLAGS/);
+    expect(state?.appended[0]).toContain("In-Reply-To: <wired-1@agency.example>");
+    expect(state?.appended[0]).toContain("Hi Lena, yes.");
   });
 
   it("maps a refused login to wrong_password without the password", async () => {
