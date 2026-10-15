@@ -26,7 +26,6 @@ import {
 import { setCvOverride } from "../cvs/override";
 import type { AppDeps } from "../deps";
 import { open } from "../secrets";
-import { notImplemented } from "./not-implemented";
 
 // The job inbox: list (with the Hidden filter, F3.4), detail, body on demand, category correction
 // (F5), and an editor's CV choice for one role (F2.3, delegated to cvs/override.ts).
@@ -141,10 +140,7 @@ export function messageRoutes(deps: AppDeps) {
             cvId: c.req.valid("json").cvId,
             userId: c.get("user").id,
           });
-          if (!result.ok) {
-            if (result.error === "not_implemented") return notImplemented(c);
-            return c.json(NOT_FOUND, 404);
-          }
+          if (!result.ok) return c.json(NOT_FOUND, 404);
           return c.json(result.cvChoice);
         },
       )

@@ -120,11 +120,12 @@ describe("the workspace route modules", () => {
     // MVP 2: the pinned routes, their guards in place before the slices write the handlers. The
     // CV choice of a role takes an editor and checks its body first.
     ["PUT", `messages/${messageId}/roles/0/cv`, "editor", 400],
-    ["GET", "cvs", "viewer", 501],
-    ["POST", "cvs", "editor", 501],
-    ["PATCH", `cvs/${ID}`, "editor", 501],
-    ["DELETE", `cvs/${ID}`, "editor", 501],
-    ["GET", `cvs/${ID}/file`, "viewer", 501],
+    // CVs: an upload without a file and empty tags are 400s, and there is no such CV.
+    ["GET", "cvs", "viewer", 200],
+    ["POST", "cvs", "editor", 400],
+    ["PATCH", `cvs/${ID}`, "editor", 400],
+    ["DELETE", `cvs/${ID}`, "editor", 404],
+    ["GET", `cvs/${ID}/file`, "viewer", 404],
     // An empty mark.
     ["PUT", "senders/marks", "editor", 400],
     ["GET", `profiles/${ID}/rules`, "viewer", 501],
