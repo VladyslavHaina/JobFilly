@@ -37,6 +37,7 @@ const readRepo = (path: string) => readFileSync(join(ROOT, path), "utf8");
 type Service = Record<string, any>;
 const compose = parse(readRepo(COMPOSE_FILE), { merge: true }) as {
   services: Record<string, Service>;
+  networks?: Record<string, Service>;
   volumes?: Record<string, unknown>;
 };
 const services = compose.services;
@@ -44,7 +45,7 @@ const services = compose.services;
 describe("docker/compose.e2e.yaml", () => {
   it("has the services of the test stack", () => {
     expect(Object.keys(services).sort()).toEqual(
-      ["app-a", "app-b", "fake-ai", "imap", "postgres", "proxy", "seed"].sort(),
+      ["app-a", "app-b", "dns", "fake-ai", "imap", "postgres", "proxy", "rdap", "seed"].sort(),
     );
   });
 
@@ -98,8 +99,22 @@ describe("docker/compose.e2e.yaml", () => {
       expect(key.toString("base64")).toBe(env.JOBFILLY_SECRET_KEY);
     });
 
-    it("starts once the database is healthy", () => {
-      expect(app.depends_on).toEqual({ postgres: { condition: "service_healthy" } });
+    it("starts once the database is healthy and the DNS and RDAP services have started", () => {
+      expect(app.depends_on).toEqual({
+        postgres: { condition: "service_healthy" },
+        dns: { condition: "service_started" },
+        rdap: { condition: "service_started" },
+      });
+    });
+
+    it("syncs every 15 seconds and reads domain ages from the fake RDAP service (MVP 2)", () => {
+      expect(app.environment.JOBFILLY_SYNC_INTERVAL_SECONDS).toBe("15");
+      expect(app.environment.JOBFILLY_RDAP_URL).toBe("http://rdap:8080");
+      expect(services.rdap?.environment.PORT).toBe("8080");
+    });
+
+    it("resolves through the dns service, at its fixed address", () => {
+      expect(app.dns).toEqual([services.dns?.networks.default.ipv4_address]);
     });
   });
 
@@ -128,6 +143,9 @@ describe("docker/compose.e2e.yaml", () => {
     expect(opts).toContain("-Dgreenmail.setup.test.imap");
     expect(opts).toContain("-Dgreenmail.hostname=0.0.0.0");
     expect(opts).toContain("-Dgreenmail.users.login=email");
+    // The REST API the seed's inspect smtp and reset-uidvalidity use, on every address.
+    expect(opts).toContain("-Dgreenmail.api.hostname=0.0.0.0");
+    expect(opts).toContain("-Dgreenmail.api.port=8080");
     expect(opts).not.toContain("-Dgreenmail.auth.disabled");
     const users = opts
       .find((o) => o.startsWith("-Dgreenmail.users="))
@@ -144,8 +162,8 @@ describe("docker/compose.e2e.yaml", () => {
     for (const u of users ?? []) expect(u.password).toMatch(/^E2E-SECRET-/);
   });
 
-  it("builds seed and fake-ai from docker/e2e.Dockerfile", () => {
-    for (const name of ["seed", "fake-ai"]) {
+  it("builds seed, fake-ai and rdap from docker/e2e.Dockerfile", () => {
+    for (const name of ["seed", "fake-ai", "rdap"]) {
       const service = services[name] ?? {};
       expect(service.build, name).toEqual({ context: "..", dockerfile: "docker/e2e.Dockerfile" });
       expect(service.user, name).toBe("node");
@@ -160,6 +178,7 @@ describe("docker/compose.e2e.yaml", () => {
       IMAP_HOST: "imap",
       IMAP_PORT: "3143",
       FIXTURES_DIR: "e2e/fixtures",
+      GREENMAIL_API_URL: "http://imap:8080",
     });
     expect(seed.depends_on).toEqual(["imap"]);
   });
@@ -178,6 +197,46 @@ describe("docker/compose.e2e.yaml", () => {
   });
 });
 
+describe("the dns service (MVP 2)", () => {
+  const dns = services.dns ?? {};
+  const subnet = compose.networks?.default?.ipam?.config?.[0]?.subnet as string;
+
+  it("runs a pinned CoreDNS with the Corefile and the fixture zones, read-only", () => {
+    expect(dns.image).toMatch(/^coredns\/coredns:\d+\.\d+\.\d+$/);
+    expect(dns.command).toEqual(["-conf", "/etc/coredns/Corefile"]);
+    expect(dns.read_only).toBe(true);
+    expect(dns.volumes).toEqual([
+      "../e2e/dns/Corefile:/etc/coredns/Corefile:ro",
+      "../e2e/dns/zones:/zones:ro",
+    ]);
+    expect(existsSync(join(E2E, "dns", "Corefile"))).toBe(true);
+    expect(readdirSync(join(E2E, "dns", "zones")).length).toBeGreaterThan(0);
+  });
+
+  it("serves the zones from the directory the Corefile names and forwards everything else", () => {
+    const corefile = readFileSync(join(E2E, "dns", "Corefile"), "utf8");
+    expect(corefile).toContain("directory /zones");
+    expect(corefile).toMatch(/forward \. \/etc\/resolv\.conf/);
+  });
+
+  it("has a fixed address inside the stack network's own subnet", () => {
+    const ip = dns.networks?.default?.ipv4_address as string;
+    expect(subnet).toMatch(/^\d+\.\d+\.\d+\.0\/24$/);
+    expect(ip.split(".").slice(0, 3)).toEqual(subnet.split(".").slice(0, 3));
+    expect(ip.endsWith(".0") || ip.endsWith(".255") || ip.endsWith(".1")).toBe(false);
+  });
+});
+
+describe("the rdap service (MVP 2)", () => {
+  it("starts the fake RDAP service from e2e/rdap/main.ts on port 8080, unpublished", () => {
+    const rdap = services.rdap ?? {};
+    expect(rdap.command).toEqual(["node", "e2e/rdap/main.ts"]);
+    expect(rdap.environment).toEqual({ PORT: "8080" });
+    expect(rdap.read_only).toBe(true);
+    expect(rdap.ports).toBeUndefined();
+  });
+});
+
 describe("the e2e image's entry points and fixtures", () => {
   // The e2e image runs from /repo with e2e/ at /repo/e2e, as in the repository (e2e.Dockerfile),
   // so the paths compose gives seed and fake-ai resolve against the repository root.
@@ -186,6 +245,7 @@ describe("the e2e image's entry points and fixtures", () => {
   const starts: [string, string[] | undefined][] = [
     ["seed", services.seed?.entrypoint],
     ["fake-ai", services["fake-ai"]?.command],
+    ["rdap", services.rdap?.command],
   ];
 
   it("runs from /repo with e2e/ copied to /repo/e2e", () => {

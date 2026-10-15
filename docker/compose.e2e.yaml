@@ -27,11 +27,22 @@ x-app: &app
     # Not the default 8787, so the image is shown to listen on $PORT.
     PORT: "9090"
     JOBFILLY_ALLOW_INSECURE_MAIL: "true"
+    # MVP 2: a sync every 15 seconds, and domain ages from the fake RDAP service.
+    JOBFILLY_SYNC_INTERVAL_SECONDS: "15"
+    JOBFILLY_RDAP_URL: http://rdap:8080
+  # Docker's resolver answers the stack's service names and forwards every other name here, so
+  # the sender check's MX lookups reach the fixture zone, never the internet.
+  dns:
+    - 10.253.53.53
   depends_on:
     postgres:
       condition: service_healthy
+    dns:
+      condition: service_started
+    rdap:
+      condition: service_started
 
-# The seed and the fake AI: e2e/ only, never app code.
+# The seed, the fake AI and the fake RDAP service: e2e/ only, never app code.
 x-e2e-node: &e2e-node
   build:
     context: ..
@@ -80,7 +91,8 @@ services:
       retries: 30
 
   # GreenMail keeps all mail in memory: pause it to simulate an outage, never stop it.
-  # Plain-text IMAP on 3143 and SMTP on 3025; logins are the full addresses.
+  # Plain-text IMAP on 3143 and SMTP on 3025; logins are the full addresses. Its REST API on 8080
+  # serves the seed's inspect smtp and reset-uidvalidity.
   imap:
     image: greenmail/standalone:2.1.14
     environment:
@@ -89,6 +101,8 @@ services:
         -Dgreenmail.setup.test.smtp
         -Dgreenmail.hostname=0.0.0.0
         -Dgreenmail.users.login=email
+        -Dgreenmail.api.hostname=0.0.0.0
+        -Dgreenmail.api.port=8080
         -Dgreenmail.users=maria.santos:E2E-SECRET-maria-imap@inbox.example,tom.okafor:E2E-SECRET-tom-imap@inbox.example
 
   # Run on demand only (`run --rm seed <command>`), so `up` doesn't start it.
@@ -100,6 +114,7 @@ services:
       IMAP_HOST: imap
       IMAP_PORT: "3143"
       FIXTURES_DIR: e2e/fixtures
+      GREENMAIL_API_URL: http://imap:8080
     depends_on:
       - imap
 
@@ -112,6 +127,34 @@ services:
       FIXTURES_DIR: e2e/fixtures
       FAKE_AI_DELAY_MS: "300"
       FAKE_AI_SLOW_TEST_MS: ${FAKE_AI_SLOW_TEST_MS:-0}
+
+  # MVP 2's domain checks without the internet (F5). CoreDNS answers the fixtures' sender domains
+  # from e2e/dns/zones and forwards every other name to Docker's resolver. It has a fixed address
+  # because a container's `dns` takes an address, not a name; only one test stack runs at a time.
+  dns:
+    image: coredns/coredns:1.12.1
+    command: ["-conf", "/etc/coredns/Corefile"]
+    read_only: true
+    volumes:
+      - ../e2e/dns/Corefile:/etc/coredns/Corefile:ro
+      - ../e2e/dns/zones:/zones:ro
+    networks:
+      default:
+        ipv4_address: 10.253.53.53
+
+  # The fake RDAP service, set up in the app as JOBFILLY_RDAP_URL=http://rdap:8080: a sender
+  # domain's age from e2e/rdap/domains.json.
+  rdap:
+    <<: *e2e-node
+    command: ["node", "e2e/rdap/main.ts"]
+    environment:
+      PORT: "8080"
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 10.253.53.0/24
 
 volumes:
   pgdata:
