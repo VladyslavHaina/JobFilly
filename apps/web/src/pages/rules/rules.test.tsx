@@ -91,6 +91,20 @@ describe("RulesList", () => {
     ).toBe("false");
   });
 
+  it("names a rule by the same plain words in its row and on its Remove button", async () => {
+    // The server stores a rule given no description with the words of its conditions, so a
+    // rule added with "" reaches the list as these words.
+    setup("editor", [ASIA]);
+    const [asia] = await rows();
+    const scope = within(asia as HTMLElement);
+    expect(scope.getByText("Hide roles whose hours are outside UTC−1 to UTC+3")).toBeTruthy();
+    expect(
+      scope.getByRole("button", {
+        name: 'Remove the rule "Hide roles whose hours are outside UTC−1 to UTC+3"',
+      }),
+    ).toBeTruthy();
+  });
+
   it("lets an editor switch a rule off", async () => {
     const requests = setup("editor");
     const [asia] = await rows();
