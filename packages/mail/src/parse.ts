@@ -1,6 +1,7 @@
 import {
   type Address,
   type Envelope,
+  isMsgId,
   type MailFolder,
   SNIPPET_MAX_LENGTH,
   syntheticMessageId,
@@ -89,9 +90,13 @@ export async function envelopeFromSource(source: Buffer, info: SourceInfo): Prom
   const headerDate = mail.date && !Number.isNaN(mail.date.getTime()) ? mail.date : null;
   const date = headerDate ?? info.internalDate ?? new Date(0);
   const inReplyTo = messageIds(rawHeader(mail, "in-reply-to"))[0] ?? null;
+  // A Message-ID is the sender's text: one of any other shape than <...> is not kept (F3.5).
+  const headerId = rawHeader(mail, "message-id");
   return {
     messageId:
-      rawHeader(mail, "message-id") ?? syntheticMessageId(info.folder, info.uidValidity, info.uid),
+      headerId !== null && isMsgId(headerId)
+        ? headerId
+        : syntheticMessageId(info.folder, info.uidValidity, info.uid),
     folder: info.folder,
     folderPath: info.folderPath,
     uidValidity: info.uidValidity,
