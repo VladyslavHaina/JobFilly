@@ -93,8 +93,10 @@ export async function editDraft(
     });
     if (!saved) {
       // Another change won since the draft was read: the copy this edit made goes again, so the
-      // one the winner left is the only one.
-      await inMailbox(session, log, (client) => client.deleteDraft(replaced.value));
+      // one the winner left is the only one. That copy has a Message-ID of its own, so deleting it
+      // by Message-ID (no UID known) can't take the winner's.
+      const removed = await inMailbox(session, log, (client) => client.deleteDraft(replaced.value));
+      if (!removed.ok) log.warn("draft.copy_left", { draftId: draft.id, reason: "delete_failed" });
       return CHANGED;
     }
     log.info("draft.updated", { draftId: draft.id });

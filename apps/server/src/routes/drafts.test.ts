@@ -1,6 +1,7 @@
 import { addMember } from "@jobfilly/db";
 import { DecisionListSchema, DraftListSchema, DraftSchema } from "@jobfilly/schema";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { editDraft } from "../drafts/edit";
 import { requestReevaluation } from "../profile/changes";
 import { seedUser, type TestClient } from "../testing";
 import { createHarness, draftAnswer, type Harness } from "../testing/replies";
@@ -31,6 +32,8 @@ const RELOCATE_QUESTION = {
   question: "Would you relocate to Ireland?",
   choices: ["Yes", "No"],
 };
+
+const WINNER = { subject: "Re: A role for you", body: "Hello Jonas,\n\nMonday works.\n\nMaria" };
 
 async function decisions() {
   const res = await maria.get(`/api/workspaces/${h.ws}/decisions`);
@@ -118,6 +121,43 @@ describe("editing and discarding (F6.4)", () => {
     expect([200, 409]).toContain(edit?.status);
     expect(h.mailbox.drafts()).toEqual([]);
     expect(await h.live(BERLIN)).toBeNull();
+  });
+
+  it("logs draft.copy_left when the losing edit's copy can't be deleted", async () => {
+    const draft = await drafted(BERLIN);
+    const port = h.deps.mail;
+    let armed = true;
+    h.deps.mail = {
+      connect(conn, options) {
+        const client = port.connect(conn, options);
+        return {
+          ...client,
+          async replaceDraft(ref, input) {
+            const replaced = await client.replaceDraft(ref, input);
+            if (armed) {
+              armed = false;
+              // Another editor's save wins meanwhile; then the mailbox can't delete this copy.
+              const won = await editDraft(h.deps, h.ws, draft.id, WINNER, h.deps.log);
+              expect(won.ok).toBe(true);
+              h.mailbox.failNext("deleteDraft");
+            }
+            return replaced;
+          },
+        };
+      },
+    };
+    const lost = await editDraft(
+      h.deps,
+      h.ws,
+      draft.id,
+      { subject: "s", body: "Lost" },
+      h.deps.log,
+    );
+    expect(lost).toMatchObject({ ok: false, error: "conflict" });
+    expect(events("draft.copy_left")).toEqual([
+      expect.objectContaining({ level: "warn", draftId: draft.id, reason: "delete_failed" }),
+    ]);
+    expect(await h.live(BERLIN)).toMatchObject({ status: "edited", body: WINNER.body });
   });
 
   it("keeps the edit out when the mailbox can't take it, and says so", async () => {

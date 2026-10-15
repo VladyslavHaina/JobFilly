@@ -1,6 +1,6 @@
-import { createHash, randomUUID } from "node:crypto";
+import { createHash } from "node:crypto";
 import { getCvFile, getMailboxConnection, getMessageRef } from "@jobfilly/db";
-import { MailUnavailableError } from "@jobfilly/mail";
+import { MailUnavailableError, newDraftMessageId } from "@jobfilly/mail";
 import {
   CV_MIME_TYPES,
   type DraftAttachment,
@@ -64,25 +64,33 @@ export async function attachmentFor(
 }
 
 /**
- * A new draft's own Message-ID header, on the mailbox address's domain, chosen before the append
- * and kept on the draft row (saveDraftText), so a retry can find the copy an attempt left.
+ * A new draft's own Message-ID header (packages/mail's newDraftMessageId, on the mailbox
+ * address's domain), chosen before the append and kept on the draft row (saveDraftText), so a
+ * retry can find the copy an attempt left.
  */
-export async function newDraftMessageId(deps: AppDeps, ws: string): Promise<string> {
-  const address = (await getMailboxConnection(deps.db, ws))?.address ?? "";
-  const domain = /^[^\s@<>]+@([^\s@<>]+\.[^\s@<>]+)$/.exec(address)?.[1] ?? "jobfilly.invalid";
-  return `<${randomUUID()}@${domain}>`;
+export async function draftMessageIdFor(deps: AppDeps, ws: string): Promise<string> {
+  return newDraftMessageId((await getMailboxConnection(deps.db, ws))?.address ?? "");
 }
 
+/** UIDVALIDITY 0 is never a folder's (RFC 3501): a ref with it names a copy by Message-ID. */
+const UNKNOWN_UIDVALIDITY = 0;
+
 /**
- * Where a copy with this Message-ID may be although its UID was never recorded: UIDVALIDITY 0
- * is never a folder's (RFC 3501), so deleting it finds the copy by its Message-ID.
+ * Where a copy with this Message-ID may be although its UID was never recorded: deleting it
+ * finds every copy with that Message-ID.
  */
 export const copyByMessageId = (path: string, draftMessageId: string): DraftRef => ({
   path,
   uid: 0,
-  uidValidity: 0,
+  uidValidity: UNKNOWN_UIDVALIDITY,
   draftMessageId,
 });
+
+/**
+ * Whether a ref names its copy by UID. One that doesn't (packages/mail gives UIDVALIDITY 0 when a
+ * server without UIDPLUS didn't tell the UID and the lookup found none) is deleted by Message-ID.
+ */
+export const knowsUid = (ref: DraftRef): boolean => ref.uidValidity !== UNKNOWN_UIDVALIDITY;
 
 /** SHA-256 of what the mailbox copy holds of ours: the subject, the body and the attachment. */
 export function contentHash(input: Pick<DraftMailInput, "reply" | "attachment">): string {

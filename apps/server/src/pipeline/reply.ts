@@ -1,4 +1,4 @@
-import { groupNeeds, planReply, type RoleNeed, roleNeeds } from "@jobfilly/core";
+import { groupNeeds, isOpen, planReply, type RoleNeed, roleNeeds } from "@jobfilly/core";
 import { keepWaiting, type RoleDecision, recordNeeds, roleDecisions } from "@jobfilly/db";
 import type { DecisionNeed } from "@jobfilly/schema";
 import { requestDraft } from "../drafts/request";
@@ -12,9 +12,12 @@ import type { ReplyStage } from "./stages";
 //   answers (answeredFor, by group key) or a decision answered for this role is not asked again
 //   (F7.6).
 // - Only a role replyEligibility would otherwise let through is asked about (F7.1); one that is
-//   held stops waiting on what the match or the rules raised. Questions a draft raised wait for
-//   their answer, so Draft a reply's questions aren't lost to the role's score; once they are
-//   answered the held role gets its draft with origin `on_demand`, as Draft a reply asked.
+//   held (its score dropped, a hide, no_draft or ask_first rule, a risky or unchecked sender)
+//   stops waiting on what the match, the rules or an automatic draft raised. Only the questions
+//   Draft a reply's draft raised (source draft_on_demand) keep waiting, so they aren't lost to
+//   the role's score; once they are answered the held role gets its draft with origin
+//   `on_demand`, as Draft a reply asked (F6.5). An answer to an automatic draft's question on a
+//   held role makes no draft (F6.1).
 // - Needs of every role are grouped by group key and recorded together (F7.3); a new decision
 //   logs decision.created once.
 // - A role to draft is claimed (claimDraft) and draft.create writes it; the claim makes sure two
@@ -24,19 +27,21 @@ import type { ReplyStage } from "./stages";
 // It touches neither the mailbox nor the model: draft.create does, off the evaluation.
 
 const resolved = (r: RoleDecision) => r.state === "resolved" && r.decisionStatus === "answered";
+const fromDraft = (r: RoleDecision) => r.source === "draft" || r.source === "draft_on_demand";
+const fromDraftAReply = (r: { source: RoleDecision["source"] }) => r.source === "draft_on_demand";
 
 /**
  * Draft a reply's questions were answered (F6.5, F7.4): the role the policy holds gets the draft
- * the user asked for, as Draft a reply would. Only Draft a reply raises questions on such a role,
- * as automatic drafts are made only for roles the policy lets through, and it is drafted once:
- * never when it has had a draft, or the user chose "Don't ask for this message" on one of the
- * draft's questions (F7.5).
+ * the user asked for, as Draft a reply would. Only questions an on_demand claim raised count: an
+ * automatic draft's question was asked while the policy let the role through, and answering it
+ * once the role is held asks for no draft (F6.1). It is drafted once: never when it has had a
+ * draft, or the user chose "Don't ask for this message" on one of those questions (F7.5).
  */
-function answeredForDraft(
+function answeredForDraftAReply(
   mine: readonly RoleDecision[],
   history: { hadDraft: boolean; dismissed: boolean },
 ): boolean {
-  const asked = mine.filter((r) => r.source === "draft");
+  const asked = mine.filter(fromDraftAReply);
   return !history.hadDraft && asked.some(resolved) && !asked.some((r) => r.state === "dismissed");
 }
 
@@ -58,13 +63,13 @@ export const replyStage: ReplyStage = async (input, ctx) => {
     const mine = decided.filter((r) => r.position === evaluation.position);
     const answeredHere = new Set(mine.filter(resolved).map((r) => r.groupKey));
     const recorded: RoleNeed[] = mine
-      .filter((r) => r.state === "waiting" && r.source === "draft" && r.decisionStatus === "open")
+      .filter((r) => r.state === "waiting" && fromDraft(r) && r.decisionStatus === "open")
       .map((r) => ({
         groupKey: r.groupKey,
         profileKey: r.profileKey,
         question: r.question,
         choices: r.choices,
-        source: "draft",
+        source: r.source,
       }));
     const needs = roleNeeds({ evaluation, recorded, profile, answeredHere });
     const history = input.draftHistory.get(evaluation.position) ?? {
@@ -86,9 +91,13 @@ export const replyStage: ReplyStage = async (input, ctx) => {
     });
 
     if (plan.kind === "hold") {
-      const kept = needs.filter((n) => n.source === "draft").map((n) => n.groupKey);
+      // Read from what was recorded, not `needs`: a match need with the same group key would
+      // stand in for Draft a reply's question there.
+      const kept = recorded
+        .filter((n) => fromDraftAReply(n) && isOpen(n, profile, answeredHere))
+        .map((n) => n.groupKey);
       changed += await keepWaiting(deps.db, ws, role, kept);
-      if (kept.length === 0 && answeredForDraft(mine, history)) {
+      if (kept.length === 0 && answeredForDraftAReply(mine, history)) {
         toDraft.push({ position: evaluation.position, origin: "on_demand" });
       }
       continue;

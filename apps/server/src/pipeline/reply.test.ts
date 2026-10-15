@@ -22,6 +22,18 @@ import { reevaluateWorkspace } from "./reevaluate";
 const BERLIN = "<berlin@talentbruecke.example>";
 const REMOTE = "<remote-eu@agency.example>";
 const key = (id: string, attempt = 1, position = 0) => `${id}#${position}#${attempt}`;
+const RELOCATE = {
+  profileKey: "extra.relocate",
+  groupKey: "extra.relocate",
+  question: "Would you relocate to Ireland?",
+  choices: ["Yes", "No"],
+};
+const NO_DRAFT: RuleEffect = {
+  ruleId: "00000000-0000-4000-8000-0000000000e2",
+  action: "no_draft",
+  reason: "Held by your rule (no_draft)",
+  need: null,
+};
 
 let h: Harness;
 beforeEach(async () => {
@@ -182,16 +194,7 @@ describe("the reply stage", () => {
 describe("questions a draft can't answer (F6.2, F7.1)", () => {
   it("release the claim and become decisions; after the answer the role gets its draft", async () => {
     await h.deliver(REMOTE);
-    h.ai.answers.draft[key(REMOTE)] = draftAnswer({
-      questions: [
-        {
-          profileKey: "extra.relocate",
-          groupKey: "extra.relocate",
-          question: "Would you relocate to Ireland?",
-          choices: ["Yes", "No"],
-        },
-      ],
-    });
+    h.ai.answers.draft[key(REMOTE)] = draftAnswer({ questions: [RELOCATE] });
     await h.evaluate(REMOTE);
     await h.drain();
     expect(await h.live(REMOTE)).toBeNull();
@@ -227,6 +230,74 @@ describe("questions a draft can't answer (F6.2, F7.1)", () => {
       expect.objectContaining({ key: "extra.relocate", value: ["Yes"] }),
     );
   });
+
+  /** An automatic draft of REMOTE that asks the relocation question; returns its decision. */
+  async function automaticDraftAsks() {
+    await h.deliver(REMOTE);
+    h.ai.answers.draft[key(REMOTE)] = draftAnswer({ questions: [RELOCATE] });
+    await h.evaluate(REMOTE);
+    await h.drain();
+    const [decision] = await listDecisions(h.deps.db, h.ws);
+    expect(decision?.waiting).toEqual([expect.objectContaining({ messageId: REMOTE })]);
+    expect(await roleDecisions(h.deps.db, h.ws, [{ messageId: REMOTE, position: 0 }])).toEqual([
+      expect.objectContaining({ state: "waiting", source: "draft" }),
+    ]);
+    return decision;
+  }
+
+  /** What makes the policy hold REMOTE back from now on; its next re-evaluation sees it. */
+  const holds: Record<string, () => Promise<void>> = {
+    "its score drops below the threshold": async () => {
+      h.roles.set(`${REMOTE}#0`, { score: 50 });
+      await requestReevaluation(h.deps, h.ws, { all: true }, "test");
+    },
+    "a no_draft rule applies": async () => {
+      h.roles.set(`${REMOTE}#0`, { ruleEffects: [NO_DRAFT] });
+      await requestReevaluation(h.deps, h.ws, { all: true }, "test");
+    },
+    "the sender is now high risk": async () => {
+      h.setSender(REMOTE, "high_risk");
+      await requestReevaluation(
+        h.deps,
+        h.ws,
+        { senderAddress: "recruiter@agency.example" },
+        "test",
+      );
+    },
+  };
+
+  it.each(Object.keys(holds))(
+    "of an automatic draft leave the inbox once %s (F7.1)",
+    async (hold) => {
+      await automaticDraftAsks();
+      await holds[hold]?.();
+      await h.drain();
+      expect(await listDecisions(h.deps.db, h.ws)).toEqual([]);
+      expect(await roleDecisions(h.deps.db, h.ws, [{ messageId: REMOTE, position: 0 }])).toEqual(
+        [],
+      );
+      expect(await h.live(REMOTE)).toBeNull();
+    },
+  );
+
+  it.each(Object.keys(holds))(
+    "of an automatic draft, answered as %s, make no draft (F6.1)",
+    async (hold) => {
+      const decision = await automaticDraftAsks();
+      // The answer comes in before the change's re-evaluation has run.
+      await holds[hold]?.();
+      h.ai.answers.draft[key(REMOTE)] = draftAnswer();
+      const res = await (await h.client()).post(
+        `/api/workspaces/${h.ws}/decisions/${decision?.id}/answer`,
+        { value: "Yes", useForSimilar: true },
+      );
+      expect(res.status).toBe(200);
+      await h.drain();
+      expect(await h.live(REMOTE)).toBeNull();
+      expect(h.mailbox.drafts()).toEqual([]);
+      expect(h.ai.calls.draft).toBe(1);
+    },
+  );
 
   it("come from match needs only for a role that would otherwise get a reply (F7.1)", async () => {
     await h.deliver("<zurich@x.example>", { roles: [{ needs: [CHF_NEED] }] });
@@ -406,6 +477,44 @@ describe("a mailbox that can't take the draft", () => {
     await h.drain();
     expect(h.mailbox.drafts()).toHaveLength(1);
     expect((await h.live(BERLIN))?.status).toBe("in_mailbox");
+    expect(h.ai.calls.draft).toBe(1);
+  });
+
+  it("keeps the winner's copy when a run that lost its claim doesn't know its copy's UID (F6.4)", async () => {
+    await h.deliver(BERLIN);
+    h.ai.answers.draft[key(BERLIN)] = draftAnswer();
+    await h.evaluate(BERLIN);
+    const payload = { workspaceId: h.ws, messageId: BERLIN, position: 0, origin: "auto" as const };
+    // This run's append lands, but the server (no UIDPLUS) tells no UID. Before it records the
+    // copy, another run of the claim (the sweep's, after this one looked dead) saves its own,
+    // with the same kept Message-ID.
+    const port = h.deps.mail;
+    let armed = true;
+    h.deps.mail = {
+      connect(conn, options) {
+        const client = port.connect(conn, options);
+        return {
+          ...client,
+          async saveDraft(input: DraftMailInput) {
+            const ref = await client.saveDraft(input);
+            if (!armed) return ref;
+            armed = false;
+            await createDraft(h.deps, payload);
+            return { ...ref, uid: 0, uidValidity: 0 };
+          },
+        };
+      },
+    };
+    await createDraft(h.deps, payload);
+    const copies = h.mailbox.drafts();
+    expect(copies).toHaveLength(1);
+    expect(await h.live(BERLIN)).toMatchObject({
+      status: "in_mailbox",
+      mailbox: { uid: copies[0]?.uid, draftMessageId: copies[0]?.draftMessageId },
+    });
+    expect(events("draft.copy_left")).toEqual([
+      expect.objectContaining({ level: "warn", reason: "uid_unknown" }),
+    ]);
     expect(h.ai.calls.draft).toBe(1);
   });
 

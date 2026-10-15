@@ -43,9 +43,10 @@ import {
   contentHash,
   copyByMessageId,
   DraftMailboxError,
+  draftMessageIdFor,
   isMailboxError,
+  knowsUid,
   mailboxReason,
-  newDraftMessageId,
   originalFor,
 } from "./mailbox";
 
@@ -59,6 +60,7 @@ import {
 //    regenerated once (Attempt: 2), then the draft fails with kind content, never retried
 //    automatically. No answer at all fails it with kind ai. Draft a reply's questions are asked
 //    even when the user chose "Don't ask for this message" before: they asked for this reply.
+//    They are recorded with source draft_on_demand, an automatic draft's with source draft.
 // 3. The text is kept on the row with the Message-ID its copy will have, then saved to the
 //    mailbox with the chosen CV attached when the message asks for one (draft.v1's attachCv). A
 //    failure before or in the append fails the draft with kind mailbox and leaves the text, so the
@@ -69,7 +71,8 @@ import {
 //
 // The leftover copy is found through deleteDraft with UIDVALIDITY 0, which no folder has, so
 // packages/mail looks the copy up by its Message-ID (the mailbox slice's client does this for a
-// draft whose UID it never learned).
+// draft whose UID it never learned). This relies on saveDraft giving the copy the Message-ID
+// chosen here (MailClient.saveDraft).
 
 const AI_REASONS: Record<AiError["kind"], string> = {
   auth: "The AI provider didn't accept the key",
@@ -164,10 +167,13 @@ async function writeReply(
     const needs = needsFromQuestions(out.questions).filter((n) => isOpen(n, profile, answeredHere));
     if (needs.length > 0) {
       const now = deps.clock.now();
+      // Draft a reply's questions are told apart: only they keep waiting, and get the draft once
+      // answered, when the policy holds the role (the reply stage).
+      const onDemand = draft.origin === "on_demand";
       const groups = groupNeeds(
         needs.map((n) => ({
           ...n,
-          source: "draft",
+          source: onDemand ? ("draft_on_demand" as const) : ("draft" as const),
           messageId: role.messageId,
           position: role.position,
         })),
@@ -178,9 +184,7 @@ async function writeReply(
         draft.id,
         groups,
         now,
-        {
-          reopen: draft.origin === "on_demand",
-        },
+        { reopen: onDemand },
       );
       if (released) {
         for (const d of created)
@@ -287,8 +291,16 @@ export async function createDraft(
       now: deps.clock.now(),
     });
     if (!saved) {
-      // Another run of this claim (the sweep took a stale one back) recorded its own copy.
-      await client.deleteDraft(ref).catch(() => {});
+      // Another run of this claim (the sweep took a stale one back) recorded its own copy, with
+      // this same kept Message-ID. Only a ref with the copy's UID may go: one without (a server
+      // without UIDPLUS, UIDVALIDITY 0) is found by Message-ID and would take the winner's copy.
+      if (!knowsUid(ref)) {
+        log.warn("draft.copy_left", { draftId: draft.id, reason: "uid_unknown" });
+        return;
+      }
+      await client.deleteDraft(ref).catch(() => {
+        log.warn("draft.copy_left", { draftId: draft.id, reason: "delete_failed" });
+      });
       return;
     }
     log.info("draft.saved_to_mailbox", { draftId: draft.id, attached: mail.attachment !== null });
@@ -348,7 +360,7 @@ async function prepare(
       await done.fail(written.failure, written.reason);
       return null;
     }
-    const draftMessageId = await newDraftMessageId(deps, ws);
+    const draftMessageId = await draftMessageIdFor(deps, ws);
     await saveDraftText(deps.db, ws, draft.id, {
       ...written,
       draftMessageId,

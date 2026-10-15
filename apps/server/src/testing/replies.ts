@@ -104,6 +104,8 @@ export interface Harness {
   stages: Stages;
   /** How each role is evaluated, by "<Message-ID>#<position>". */
   roles: Map<string, RoleSetup>;
+  /** The sender check a message gets from now on (re-checked once its checks are stale). */
+  setSender(messageId: string, setup: SenderSetup): void;
   /** A job message in the mailbox and the database, with the setup of its roles. */
   deliver(
     messageId: string,
@@ -232,6 +234,9 @@ export async function createHarness(options: { entries?: ProfileEntry[] } = {}):
     profileId: created.profile.id,
     stages,
     roles,
+    setSender: (messageId, setup) => {
+      senders.set(messageId, setup);
+    },
     async deliver(messageId, input = {}) {
       const setups = input.roles ?? [{}];
       setups.forEach((setup, position) => {

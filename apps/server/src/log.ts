@@ -66,7 +66,11 @@ export type LogEvent =
   // message's body was gone from the mailbox (its sender check is stored incomplete).
   | "pipeline.stage_failed"
   | "pipeline.sweep_failed"
-  | "pipeline.message_gone";
+  | "pipeline.message_gone"
+  // Operational: a mailbox copy a change made, which should have gone again (it lost a race),
+  // couldn't be deleted safely (reason delete_failed or uid_unknown), so it may still be in the
+  // Drafts folder beside the draft's own copy.
+  | "draft.copy_left";
 
 export type LogFields = Record<string, unknown>;
 
