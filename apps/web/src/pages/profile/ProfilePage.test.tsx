@@ -1,4 +1,4 @@
-import type { Profile, ProfileEntry, Role } from "@jobfilly/schema";
+import type { CurrentScan, Profile, ProfileEntry, Role } from "@jobfilly/schema";
 import { cleanup, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -61,13 +61,37 @@ const PROFILE: Profile = {
   ],
 };
 
-function profileApi(options: { role?: Role; profiles?: Profile[] } = {}) {
+const scanState = (status: "running" | "stopped" | null): CurrentScan => ({
+  progress: status && {
+    scanId: "00000000-0000-4000-8000-0000000000c1",
+    kind: "first",
+    status,
+    stopReason: status === "stopped" ? "confident" : null,
+    handledWithoutAi: 300,
+    likely: 260,
+    analyzed: 40,
+    jobFound: 35,
+    answersFirm: 5,
+    notAnalyzed: 220,
+    calls: 40,
+    tokens: 12000,
+  },
+  stopMessage: status === "stopped" ? "Stopped: confident after 40 of 260 likely job emails" : null,
+  totalTokens: status ? 12000 : 0,
+});
+
+function profileApi(
+  options: { role?: Role; profiles?: Profile[]; scan?: "running" | "stopped" | null } = {},
+) {
   const ws = testWorkspace({ role: options.role ?? "editor" });
   let profiles = structuredClone(options.profiles ?? [PROFILE]);
   const requests = fakeApi({
     "GET /api/auth/session": { user: TEST_USER },
     "GET /api/workspaces": { items: [ws] },
     "GET /api/invites": { items: [] },
+    "GET /api/workspaces/:id/scans/current": scanState(
+      options.scan === undefined ? "stopped" : options.scan,
+    ),
     "GET /api/workspaces/:id/profiles": () => ({ items: profiles }),
     "PATCH /api/workspaces/:id/profiles/:profileId": (req: FakeRequest) => {
       const patch = req.body as { name?: string; entries?: { key: string; value: unknown }[] };
@@ -151,6 +175,57 @@ describe("the profile page (F6.5)", () => {
     expect(
       (await screen.findByRole("link", { name: "Open the intake form" })).getAttribute("href"),
     ).toBe(paths.intake(ws.id));
+    expect(screen.getByText("confirm them to save it.", { exact: false })).toBeTruthy();
+  });
+});
+
+describe("before there is a profile (S4)", () => {
+  it("tells a viewer who confirms the intake form, and lets them see it", async () => {
+    const { ws } = profileApi({ profiles: [], role: "viewer" });
+    renderApp(paths.profile(ws.id));
+    expect(
+      (await screen.findByRole("link", { name: "See the intake form" })).getAttribute("href"),
+    ).toBe(paths.intake(ws.id));
+    expect(
+      screen.getByText("It is saved when an editor or admin confirms the intake form.", {
+        exact: false,
+      }),
+    ).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "Open the intake form" })).toBeNull();
+  });
+
+  it("while the first scan runs, says why and links to the scan", async () => {
+    const { ws } = profileApi({ profiles: [], scan: "running" });
+    renderApp(paths.profile(ws.id));
+    expect((await screen.findByRole("link", { name: "Go to the scan" })).getAttribute("href")).toBe(
+      paths.scan(ws.id),
+    );
+    expect(
+      screen.getByText("the form fills itself in once the first scan has stopped.", {
+        exact: false,
+      }),
+    ).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "Open the intake form" })).toBeNull();
+  });
+
+  it("before any scan, sends an admin to start it and tells the others who does", async () => {
+    const admin = profileApi({ profiles: [], scan: null, role: "admin" });
+    renderApp(paths.profile(admin.ws.id));
+    expect(
+      (await screen.findByRole("link", { name: "Start the first scan" })).getAttribute("href"),
+    ).toBe(paths.scan(admin.ws.id));
+    cleanup();
+    vi.unstubAllGlobals();
+
+    const viewer = profileApi({ profiles: [], scan: null, role: "viewer" });
+    renderApp(paths.profile(viewer.ws.id));
+    expect((await screen.findByRole("link", { name: "See the scan" })).getAttribute("href")).toBe(
+      paths.scan(viewer.ws.id),
+    );
+    expect(
+      screen.getByText("An admin of this workspace starts it.", { exact: false }),
+    ).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "Start the first scan" })).toBeNull();
   });
 });
 

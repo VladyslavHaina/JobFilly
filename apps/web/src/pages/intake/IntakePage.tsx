@@ -27,6 +27,7 @@ import {
   useIntakeForm,
   useProfiles,
 } from "./queries";
+import { ScanFirst } from "./ScanFirst";
 
 // The intake form (F6): the scan's proposals with how sure the app is and why, the evidence behind
 // each, corrections by clicking, up to five extra questions found in the mail, and Confirm, which
@@ -283,9 +284,7 @@ export function IntakePage({ workspaceId }: { workspaceId: string }) {
         {header}
         <Alert tone="info" title="Not ready yet">
           The form fills itself in once the first scan has stopped.{" "}
-          <Link className="font-medium underline" to={paths.scan(workspaceId)}>
-            Go to the scan
-          </Link>
+          <ScanFirst workspaceId={workspaceId} firstScan={gate.firstScan} />
         </Alert>
       </section>
     );

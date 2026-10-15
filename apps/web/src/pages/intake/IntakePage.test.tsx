@@ -169,6 +169,8 @@ const stopped: CurrentScan = {
   totalTokens: 12000,
 };
 
+const NO_SCAN: CurrentScan = { progress: null, stopMessage: null, totalTokens: 0 };
+
 interface Options {
   role?: Role;
   entries?: IntakeProposalEntry[];
@@ -244,7 +246,7 @@ function intakeApi(options: Options = {}) {
 }
 
 const card = (label: string) => screen.findByRole("region", { name: label });
-/** For a wait that crosses a navigation and a fetch: generous, so CPU load can't fail it. */
+/** The PUT requests sent so far. */
 const puts = (requests: FakeRequest[]) => requests.filter((r) => r.method === "PUT");
 
 describe("the intake form (F6.1, F6.2)", () => {
@@ -254,10 +256,42 @@ describe("the intake form (F6.1, F6.2)", () => {
     const { ws, requests } = intakeApi({ scan: running });
     renderApp(paths.intake(ws.id));
     expect(await screen.findByText("Not ready yet")).toBeTruthy();
+    expect(
+      screen.getByText("The first scan is still reading your mail.", { exact: false }),
+    ).toBeTruthy();
     expect(screen.getByRole("link", { name: "Go to the scan" }).getAttribute("href")).toBe(
       paths.scan(ws.id),
     );
     expect(requests.some((r) => r.path.endsWith("/intake"))).toBe(false);
+  });
+
+  it("before any scan, sends an admin to start it", async () => {
+    const { ws, requests } = intakeApi({ scan: NO_SCAN });
+    renderApp(paths.intake(ws.id));
+    expect(await screen.findByText("Not ready yet")).toBeTruthy();
+    expect(
+      screen.getByText("Start it once your mailbox and AI are set up.", { exact: false }),
+    ).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Start the first scan" }).getAttribute("href")).toBe(
+      paths.scan(ws.id),
+    );
+    expect(requests.some((r) => r.path.endsWith("/intake"))).toBe(false);
+  });
+
+  it("before any scan, tells an editor or viewer who starts it", async () => {
+    for (const role of ["editor", "viewer"] as const) {
+      const { ws } = intakeApi({ scan: NO_SCAN, role });
+      renderApp(paths.intake(ws.id));
+      expect(
+        await screen.findByText("An admin of this workspace starts it.", { exact: false }),
+      ).toBeTruthy();
+      expect(screen.getByRole("link", { name: "See the scan" }).getAttribute("href")).toBe(
+        paths.scan(ws.id),
+      );
+      expect(screen.queryByRole("link", { name: "Start the first scan" })).toBeNull();
+      cleanup();
+      vi.unstubAllGlobals();
+    }
   });
 
   it("is pre-filled with every core question, how sure the app is and why", async () => {

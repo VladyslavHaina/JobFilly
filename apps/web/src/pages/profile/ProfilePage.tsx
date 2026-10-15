@@ -6,7 +6,7 @@ import {
   type ProfileValue,
 } from "@jobfilly/schema";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, type ReactNode, useState } from "react";
 import { Link } from "react-router";
 import { ApiError, api } from "../../api";
 import { Alert, Button, Card, Loading, PageHeader, TextField } from "../../components";
@@ -15,7 +15,8 @@ import { paths } from "../../paths";
 import { formatFullDate } from "../inbox/format";
 import { AnswerEditor } from "../intake/answers";
 import { Evidence } from "../intake/Evidence";
-import { profilesApi, profilesKey, useProfiles } from "../intake/queries";
+import { profilesApi, profilesKey, useFormOpen, useProfiles } from "../intake/queries";
+import { ScanFirst } from "../intake/ScanFirst";
 
 // The confirmed profile (F6.5): every entry with where it came from — the scan, or you — and a
 // name that can be changed. Editors change answers with the same clicks as the intake form;
@@ -137,27 +138,56 @@ function Entries({ profile }: { profile: Profile }) {
   );
 }
 
+/**
+ * Why there is no profile yet, and the next step: the first scan has to stop before the intake
+ * form fills itself in, and confirming that form, which an editor or admin does, saves it.
+ */
+function NoProfileYet({ workspaceId }: { workspaceId: string }) {
+  const { can } = useWorkspace();
+  const gate = useFormOpen(workspaceId);
+  let body: ReactNode;
+  if (gate.pending) body = null;
+  else if (!gate.open) {
+    body = (
+      <>
+        No profile yet. It is saved when the intake form is confirmed, and the form fills itself in
+        once the first scan has stopped.{" "}
+        <ScanFirst workspaceId={workspaceId} firstScan={gate.firstScan} />
+      </>
+    );
+  } else {
+    body = (
+      <>
+        {can.edit
+          ? "No profile yet. Check the answers on the intake form and confirm them to save it."
+          : "No profile yet. It is saved when an editor or admin confirms the intake form."}{" "}
+        <Link className="font-medium underline" to={paths.intake(workspaceId)}>
+          {can.edit ? "Open the intake form" : "See the intake form"}
+        </Link>
+      </>
+    );
+  }
+  return (
+    <section>
+      <PageHeader title="Profile" />
+      {body ? (
+        <Card>
+          <p className="text-sm text-stone-700">{body}</p>
+        </Card>
+      ) : (
+        <Loading />
+      )}
+    </section>
+  );
+}
+
 export function ProfilePage({ workspaceId }: { workspaceId: string }) {
   const { can } = useWorkspace();
   const profiles = useProfiles(workspaceId);
   if (profiles.isPending) return <Loading />;
   if (profiles.isError) return <Alert>{errorText(profiles.error)}</Alert>;
   const profile = profiles.data[0];
-  if (!profile) {
-    return (
-      <section>
-        <PageHeader title="Profile" />
-        <Card>
-          <p className="text-sm text-stone-700">
-            No profile yet. It is saved when the intake form is confirmed.{" "}
-            <Link className="font-medium text-indigo-700 underline" to={paths.intake(workspaceId)}>
-              Open the intake form
-            </Link>
-          </p>
-        </Card>
-      </section>
-    );
-  }
+  if (!profile) return <NoProfileYet workspaceId={workspaceId} />;
   return (
     <section>
       <PageHeader

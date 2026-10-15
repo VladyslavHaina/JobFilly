@@ -15,21 +15,31 @@ export const profilesKey = (workspaceId: string) =>
 export const intakeApi = (workspaceId: string) => `${apiPaths.workspace(workspaceId)}/intake`;
 export const profilesApi = (workspaceId: string) => `${apiPaths.workspace(workspaceId)}/profiles`;
 
+/** Where the first scan is while the form is closed: none started yet, or not stopped yet. */
+export type FirstScan = "none" | "running";
+
 /**
- * Whether the first scan has stopped, which opens the form. While the scan runs the form isn't
- * asked for, so nothing fails on the way.
+ * Whether the first scan has stopped, which opens the form, and if not, where that scan is.
+ * While the scan runs the form isn't asked for, so nothing fails on the way.
  */
-export function useFormOpen(workspaceId: string) {
+export function useFormOpen(workspaceId: string): {
+  pending: boolean;
+  open: boolean;
+  firstScan: FirstScan | null;
+} {
   const scan = useQuery({
     queryKey: [...queryKeys.area(workspaceId, "scan"), "current"],
     queryFn: () => api(`${apiPaths.workspace(workspaceId)}/scans/current`, CurrentScanSchema),
   });
   const progress = scan.data?.progress;
-  if (scan.isPending) return { pending: true, open: false } as const;
+  if (scan.isPending) return { pending: true, open: false, firstScan: null };
   // Without the scan's state, ask the form itself: it answers not_ready while the scan runs.
-  if (scan.isError) return { pending: false, open: true } as const;
-  const open = !!progress && !(progress.kind === "first" && progress.status !== "stopped");
-  return { pending: false, open } as const;
+  if (scan.isError) return { pending: false, open: true, firstScan: null };
+  if (!progress) return { pending: false, open: false, firstScan: "none" };
+  if (progress.kind === "first" && progress.status !== "stopped") {
+    return { pending: false, open: false, firstScan: "running" };
+  }
+  return { pending: false, open: true, firstScan: null };
 }
 
 export function useIntakeForm(workspaceId: string, enabled: boolean) {
