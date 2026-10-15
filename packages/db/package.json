@@ -2,20 +2,23 @@
   "name": "@jobfilly/db",
   "version": "0.0.0",
   "private": true,
-  "description": "SQLite (libSQL) storage through Drizzle: schema, migrations, queries.",
+  "description": "PostgreSQL storage through Drizzle: tables, migrations, workspace-scoped queries, the job queue and LISTEN/NOTIFY.",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./testing": "./src/testing.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p ."
   },
   "dependencies": {
     "@jobfilly/schema": "workspace:*",
-    "@libsql/client": "^0.18.0",
-    "drizzle-orm": "^0.45.3"
+    "drizzle-orm": "^0.45.3",
+    "pg": "^8.23.1"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@types/pg": "^8.23.1",
     "drizzle-kit": "^0.31.11"
   }
 }
