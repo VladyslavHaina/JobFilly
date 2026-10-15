@@ -59,6 +59,9 @@ Rules:
 - Sessions: the cookie `jf_session` (HttpOnly, SameSite=Lax, Secure behind HTTPS) holds a random
   id of at least 128 bits; Postgres stores only its SHA-256 hash, with idle and absolute expiry.
   Any replica validates any session, so no sticky sessions are needed.
+- Access ends at once, live streams included: removing a member or ending a session (sign-out,
+  a new sign-in, expiry) closes that member's or session's open event streams on every replica
+  (see "Background work and live updates").
 - State-changing requests must come from the server's own origin (`Origin` check against
   `PUBLIC_URL`).
 
@@ -86,17 +89,24 @@ Rules:
 - Live updates reach the browser over Server-Sent Events
   (`GET /api/workspaces/:workspaceId/events`). Replicas publish events through Postgres
   `LISTEN/NOTIFY`, so a browser connected to any replica sees work done on any other.
+- Each stream belongs to one member's session in one workspace. Removing a member or ending a
+  session sends an access change (`member.removed`, `session.ended`) on the same NOTIFY channel,
+  so every replica closes the matching streams in order with the events: nothing published after
+  the change reaches them. Each stream also re-checks its session and membership when it opens
+  and on every heartbeat, for whatever ends without a notification.
 - Job handlers get the job's payload, its last checkpoint, the previous instance (after a
   takeover), `saveCheckpoint`, `renewLease` and an abort signal; `apps/server/src/jobs/registry.ts`
   maps each job type to its handler.
 - One model call runs outside the queue: intake.v1, which proposes the intake form's extra
   questions once per workspace. The first `GET /intake` after the first scan stops claims it
   through the workspace's `intake_extras` row (insert-or-skip) and makes the call after the
-  response; everyone else sees `pending` until an `intake.updated` event. Confirm waits for it
-  (409 while pending). Its outcome, `done` or `failed`, is final. A replica that gets `SIGTERM`
-  while the model answers abandons the call without writing anything, and one caller takes over a
-  claim left pending for more than 2 minutes, so during a rolling update Confirm can be held that
-  long.
+  response, as background work the replica tracks; everyone else sees `pending` until an
+  `intake.updated` event. Confirm waits for it (409 while pending). Its outcome, `done` or
+  `failed`, is final. An answer that arrives during shutdown is still stored with its usage, as
+  the database closes only after the call has finished. When shutdown reaches the job hand-back
+  step first, it aborts the call and releases the claim, and the next `GET /intake` on any
+  replica takes it over at once. A claim left by a replica that died is taken over by one caller
+  once it is 2 minutes old.
 
 ## AI
 
@@ -137,12 +147,14 @@ Every MVP keeps these true; the Helm chart after MVP 3 relies on them.
   them once (one `db.migrated` line). `node dist/index.js migrate` runs them alone, for a migration
   job. Migrations stay backward compatible with the previous release — add first, remove in a
   later release — because old and new replicas run side by side during a rolling update.
-- On `SIGTERM`, in this order: readiness turns 503 at once; the replica keeps serving for a 5-second
-  drain so load balancers stop routing to it; it stops accepting connections and closes open
-  live-update streams (browsers reconnect to another replica); in-flight requests finish within 20
-  seconds; running jobs hand back their leases (an intake.v1 call still waiting for the model is
-  abandoned, see "Background work and live updates"); the process exits 0. Orchestrators must allow at
-  least 30 seconds (`stop_grace_period`, `terminationGracePeriodSeconds`).
+- On `SIGTERM`, in this order: readiness turns 503 at once; the replica keeps serving for a
+  5-second drain so load balancers stop routing to it; it stops accepting connections and closes
+  open live-update streams (browsers reconnect to another replica); in-flight requests finish
+  within 20 seconds; running jobs hand back their leases, and background work still running (an
+  intake.v1 call waiting for the model) is aborted and releases its claim, within 5 seconds
+  (see "Background work and live updates"); the database closes; the process exits 0.
+  Orchestrators must allow at least 30 seconds (`stop_grace_period`,
+  `terminationGracePeriodSeconds`).
 - Runs as a non-root user with a read-only root filesystem and listens on `$PORT`.
 
 ## Logs
