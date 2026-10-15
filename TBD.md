@@ -1991,7 +1991,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Merge it first, with --no-ff (a dry-run git merge-tree shows no conflicts), then pnpm check, fixing only what the merge breaks. MVP 2 can't serve its criteria without the profile, and the branch holds finished and reviewed MVP 1 work. Rebuilding it would duplicate that work and diverge from it.
 - **If you decide otherwise:** The foundation would have to build its own profile storage and page, and MVP 1's F6 would stay missing.
 - **Refs:** branch mvp-1-fix-r4-intake-live-merge; TBD-35; TBD-150; TBD-151; apps/server/src/routes/profiles.ts; packages/db/src/queries/profiles.ts
-- **Status:** open
+- **Status:** superseded by TBD-186
 
 ## TBD-159 · Six slices: drafts and decisions together; the assistant waits for rules-match
 - **Kind:** decision
@@ -2004,7 +2004,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** The foundation takes F1. The slices are cvs, sender-check, rules-match, replies (F6 and F7), assistant (F8, depends on rules-match) and e2e-fixtures (no criteria). The reply-or-ask decision is one point in the pipeline, so giving it one owner removes a fragile contract between two slices. A preview built against a stub engine would prove nothing.
 - **If you decide otherwise:** Splitting replies needs a pinned decide-stage signature between drafts and decisions. Removing the dependency means the preview tests only become meaningful after integration.
 - **Refs:** docs/mvp/MVP-2.md F6, F7, F8
-- **Status:** open
+- **Status:** superseded by TBD-187
 
 ## TBD-160 · The foundation owns all four new AI tasks and their wire samples
 - **Kind:** decision
@@ -2016,7 +2016,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** The foundation implements the four tasks with these key lines: CV-SHA256, Message-ID with Role, Message-ID with Attempt, and Turn. It also writes their wire samples. Prompt wording is tuned in fix rounds. One owner for the wire contract keeps packages/ai and the fake AI in step, and it lets the e2e-fixtures slice build answers at the same time as the others.
 - **If you decide otherwise:** The wire files would need per-task ownership, and every prompt change would touch e2e/fixtures/wire.
 - **Refs:** docs/ARCHITECTURE.md › AI; e2e/fixtures/wire/wire.test.ts; packages/ai/src/prompt.ts
-- **Status:** open
+- **Status:** superseded by TBD-189
 
 ## TBD-161 · The analysis pipeline as a foundation orchestrator with stage files owned by slices
 - **Kind:** decision
@@ -2028,7 +2028,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** The orchestrator and a re-evaluation job for missing or stale evaluations (which also covers the first scan's backlog) are in the foundation. The stage types are pinned in pipeline/stages.ts. The slices stay disjoint and can be tested on their own, and one mechanism serves new mail, the backlog, profile and rule changes, decision answers and undo.
 - **If you decide otherwise:** The slices would all edit the sync job.
 - **Refs:** apps/server/src/pipeline; F1.1; F1.6; F3.5; F4.6; F7.4; F8.3
-- **Status:** open
+- **Status:** superseded by TBD-190
 
 ## TBD-162 · Policy keys and the new profile sources
 - **Kind:** decision
@@ -2040,7 +2040,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Valid keys outside the intake form, with POLICY_DEFAULTS applied when they aren't set. ProfileSource gains decision and assistant. The intake form MVP 1 validated stays unchanged, and every profile value stays a list.
 - **If you decide otherwise:** The intake form and its fixtures would change.
 - **Refs:** packages/schema/src/profile.ts
-- **Status:** open
+- **Status:** superseded by TBD-207
 
 ## TBD-163 · Only one sync per mailbox through a dedupe key on jobs
 - **Kind:** decision
@@ -2052,7 +2052,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** The dedupe key. Replicas stay interchangeable, and the existing lease takeover covers a replica that is killed.
 - **If you decide otherwise:** An advisory-lock leader with its own failover.
 - **Refs:** packages/db/src/tables.ts jobs; F1.2
-- **Status:** open
+- **Status:** superseded by TBD-202
 
 ## TBD-164 · Sync starts after the first scan and reads the Inbox only
 - **Kind:** decision
@@ -2064,7 +2064,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** After the first scan stops, INBOX UIDs above the highest stored UID. This avoids racing the first scan and double analysis, and the scan already covers everything before it.
 - **If you decide otherwise:** The sync and the scan would need coordination over the same UIDs.
 - **Refs:** F1.1; apps/server/src/sync
-- **Status:** open
+- **Status:** superseded by TBD-204
 
 ## TBD-165 · The domain lookup cache is workspace-scoped in Postgres
 - **Kind:** decision
@@ -2077,7 +2077,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Workspace-scoped table. It keeps the workspace-scoping rule, and replicas share the cache.
 - **If you decide otherwise:** Add an exception to ARCHITECTURE for a shared cache.
 - **Refs:** docs/ARCHITECTURE.md › Workspaces; F5
-- **Status:** open
+- **Status:** superseded by TBD-205
 
 ## TBD-166 · New dependencies: unpdf and mammoth for CV text; fixture CVs without dependencies
 - **Kind:** decision
@@ -2089,7 +2089,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** unpdf and mammoth in apps/server (knip-ignored until the cvs slice imports them); no new e2e dependencies. Both are pure-JavaScript and need no native modules or install scripts. Adding them up front keeps pnpm-lock.yaml out of the parallel slices.
 - **If you decide otherwise:** Swap the libraries in apps/server/src/cvs.
 - **Refs:** apps/server/package.json; knip.jsonc; pnpm-workspace.yaml minimumReleaseAge
-- **Status:** open
+- **Status:** superseded by TBD-206
 
 ## TBD-167 · Proposals in their own assistant_proposals table
 - **Kind:** decision
@@ -2101,7 +2101,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** A separate table. Apply, discard and editing before Apply need a row with its own id and status.
 - **If you decide otherwise:** Store proposals inside messages and look them up by message id.
 - **Refs:** F8.2; F8.3
-- **Status:** open
+- **Status:** superseded by TBD-208
 
 ## TBD-168 · Existing AI settings get the new per-task models from their extract model
 - **Kind:** decision
@@ -2113,7 +2113,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Migration backfill; the schema requires every task. Every task always has a model, and MVP 1 workspaces keep working without anyone opening Settings.
 - **If you decide otherwise:** Optional keys, with fallback logic in packages/ai.
 - **Refs:** packages/schema/src/ai.ts AiModelsSchema; ai_settings.models
-- **Status:** open
+- **Status:** superseded by TBD-209
 
 ## TBD-169 · Merge MVP 1's unmerged intake/profile/live branch into mvp-2 first, and record that fix round 4 is unrecorded
 - **Kind:** decision
@@ -2126,7 +2126,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Merge it first with --no-ff as its own commit (a dry-run git merge-tree shows no conflicts), then run pnpm check, fixing only what the merge breaks. TBD.md records that fix round 4 and this branch's verification have no entry. The foundation verifiers review the merge diff separately from the contract diff. MVP 2 can't serve its criteria without the confirmed profile. Reviewing the merge on its own keeps 6.5k unreviewed lines from hiding inside the foundation diff.
 - **If you decide otherwise:** The foundation would have to build its own profile storage and page, and MVP 1's F6 would stay missing on mvp-2.
 - **Refs:** branch mvp-1-fix-r4-intake-live-merge; TBD-150; TBD-151; docs/mvp/MVP-1.md Sign-off; apps/server/src/routes/profiles.ts
-- **Status:** open
+- **Status:** superseded by TBD-186
 
 ## TBD-170 · Six slices: a mailbox slice for the F1 runtime; CVs and the sender check together; drafts and decisions stay one slice, made smaller
 - **Kind:** decision
@@ -2139,7 +2139,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** mailbox; cvs-senders; rules-match; replies, made smaller; assistant (depends on rules-match); e2e-fixtures. Replies loses the reply policy table (now replyEligibility in the foundation), MIME and Drafts-folder I/O (now mailbox), and fact-based need derivation (now verdict.need from rules-match). All IMAP work has one owner. The draft-or-ask point keeps one owner, so there is no fragile contract between drafts and decisions. Replies drops from 14 criteria across 7 code areas to 12, with no mail-package work.
 - **If you decide otherwise:** Splitting replies needs a pinned reply → decide stage contract and a seventh slot, which means merging two other areas.
 - **Refs:** docs/mvp/README.md Plan phase (3–6 slices); docs/mvp/MVP-2.md F1, F6, F7
-- **Status:** open
+- **Status:** superseded by TBD-187
 
 ## TBD-171 · F1.1 and F1.6 are proven with fake stages at slice level and re-checked by an integration test
 - **Kind:** decision
@@ -2151,7 +2151,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** The slice-level proof uses fake stages. After all merges, the integrator writes apps/server/src/pipeline/pipeline.integration.test.ts with real stages and fakes only at the ports. A dependent slice would serialize the build behind four slices for two criteria. The integration test proves the real chain once all stages exist, and S2 and S7 walk it.
 - **If you decide otherwise:** Add a seventh, final slice for these two criteria, or accept that they are proven only by the walkthrough.
 - **Refs:** F1.1; F1.6; apps/server/src/pipeline/evaluate.ts
-- **Status:** open
+- **Status:** superseded by TBD-188
 
 ## TBD-172 · The foundation owns all four new AI tasks and their wire samples
 - **Kind:** decision
@@ -2163,7 +2163,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** The foundation implements the four tasks with the key lines CV-SHA256, Message-ID+Role, Message-ID+Attempt and Turn, and writes their wire samples. Prompt wording is tuned in fix rounds. One owner of the wire contract keeps packages/ai and the fake AI in step, and lets e2e-fixtures build answers in parallel.
 - **If you decide otherwise:** The wire files would need per-task ownership.
 - **Refs:** docs/ARCHITECTURE.md › AI; e2e/fixtures/wire/wire.test.ts; packages/ai/src/prompt.ts
-- **Status:** open
+- **Status:** superseded by TBD-189
 
 ## TBD-173 · The pipeline backbone in the foundation: orchestrator, re-evaluation and the profile change service
 - **Kind:** decision
@@ -2175,7 +2175,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** The orchestrator, the pipeline.reevaluate job and requestReevaluation with scopes all, roles, messages, sender address and sender domain. Each trigger is pinned to its owner: intake confirm (foundation), cv.read and CV delete (cvs-senders), sender marks (cvs-senders), rules (rules-match), answers (replies), apply and undo (assistant). One mechanism serves new mail, the backlog and every change, and the slices stay disjoint.
 - **If you decide otherwise:** The slices would all edit the sync job.
 - **Refs:** apps/server/src/pipeline; apps/server/src/profile/changes.ts; F1.6; F2.3; F3.5; F4.6; F5.4; F7.4; F8.3
-- **Status:** open
+- **Status:** superseded by TBD-190
 
 ## TBD-174 · With no confirmed profile, only the sender check runs; the backlog is matched when the intake is confirmed
 - **Kind:** decision
@@ -2188,7 +2188,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Without a profile, only the sender stage runs and the roles stay in listToEvaluate. Intake confirm calls requestReevaluation({all}). F1.6 then actually happens in the end-to-end flow. Sender verdicts appear early because they don't depend on the profile.
 - **If you decide otherwise:** Matching would need a default profile, which would mean guessing.
 - **Refs:** apps/server/src/routes/intake.ts confirm; F1.6; CLAUDE.md 'Unknown means ask'
-- **Status:** open
+- **Status:** superseded by TBD-198
 
 ## TBD-175 · Fuzzy match answers are stored, so re-scoring is pure
 - **Kind:** decision
@@ -2200,7 +2200,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Store them. The input hash covers exactly what match.v1 sees, so rule, pay and policy changes re-score without AI calls, and the preview never calls the AI. It meets the one-minute criteria, keeps AI cost flat, and makes the preview deterministic.
 - **If you decide otherwise:** Re-scoring time and cost grow with the backlog, and the preview needs its own AI budget.
 - **Refs:** packages/db match_ai_answers; F3.5; F4.6; F8.2
-- **Status:** open
+- **Status:** superseded by TBD-199
 
 ## TBD-176 · The sender check reads message signals from per-language phrase lists in data files and the transient body
 - **Kind:** decision
@@ -2213,7 +2213,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Data files with en, de and pt phrase lists, plus the transient body. A message in a language without lists gets complete=false, so it is never 'looks fine'. It is deterministic and hermetic, costs no AI calls, works for the backlog, and stays within the no-market-specific-code rule.
 - **If you decide otherwise:** Add a signals field to extract.v1 and re-run extraction for the backlog.
 - **Refs:** packages/core/src/sender/data; apps/server/src/pipeline/stages.ts StageContext.body; F5.1; F5.3; F5.5
-- **Status:** open
+- **Status:** superseded by TBD-200
 
 ## TBD-177 · Decision needs are carried on match verdicts and rule effects; reply eligibility is a shared pure function
 - **Kind:** decision
@@ -2225,7 +2225,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Needs on verdicts and effects; replyEligibility in the foundation. The only module that knows why something is unknown says so, and neither replies nor the assistant recomputes facts or depends on another parallel slice.
 - **If you decide otherwise:** Replies duplicates the match's fact logic, and the assistant waits for replies.
 - **Refs:** packages/schema/src/match.ts, decisions.ts; packages/core/src/policy/reply.ts; F7.1; F7.3; F8.2; F8.5
-- **Status:** open
+- **Status:** superseded by TBD-201
 
 ## TBD-178 · Job dedupe: one waiting and one running per key
 - **Kind:** decision
@@ -2238,7 +2238,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Queued-only uniqueness plus a single-flight claim, and pipeline.reevaluate keeps going while anything is stale. Each mailbox still has at most one sync running, every change gets a later re-evaluation, and replicas stay interchangeable.
 - **If you decide otherwise:** Changes made during a re-evaluation wait for the next trigger.
 - **Refs:** packages/db/src/queries/jobs.ts; apps/server/src/jobs/queue.ts; F1.2; F4.6
-- **Status:** open
+- **Status:** superseded by TBD-202
 
 ## TBD-179 · One live draft per role, enforced by the database
 - **Kind:** decision
@@ -2250,7 +2250,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** The partial unique index plus a saving claim state. Only the process that inserts the row writes to the mailbox. It holds across replicas and still allows a new draft after a discard.
 - **If you decide otherwise:** Use an advisory lock per role.
 - **Refs:** packages/db drafts; packages/schema/src/drafts.ts status saving; F6.4
-- **Status:** open
+- **Status:** superseded by TBD-203
 
 ## TBD-180 · Sync starts after the first scan and reads the Inbox only
 - **Kind:** decision
@@ -2262,7 +2262,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** After the first scan stops, INBOX UIDs above the highest stored UID. This avoids racing the first scan and analysing messages twice.
 - **If you decide otherwise:** The sync and the scan would need coordination over the same UIDs.
 - **Refs:** F1.1; apps/server/src/sync
-- **Status:** open
+- **Status:** superseded by TBD-204
 
 ## TBD-181 · The domain lookup cache is workspace-scoped in Postgres
 - **Kind:** decision
@@ -2275,7 +2275,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Workspace-scoped table. It keeps the workspace-scoping rule, and replicas share the cache.
 - **If you decide otherwise:** Add an exception to ARCHITECTURE.
 - **Refs:** docs/ARCHITECTURE.md › Workspaces; F5
-- **Status:** open
+- **Status:** superseded by TBD-205
 
 ## TBD-182 · Dependencies and knip: unpdf and mammoth up front; the integrator removes ignore entries
 - **Kind:** decision
@@ -2287,7 +2287,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** The first option. The fixture generator hand-writes the PDFs and a store-only DOCX zip, so e2e gets no new dependencies. pnpm-lock.yaml and knip.jsonc stay out of the parallel slices, and pnpm unused runs at integration anyway.
 - **If you decide otherwise:** Swap the libraries in apps/server/src/cvs.
 - **Refs:** apps/server/package.json; knip.jsonc; pnpm-workspace.yaml minimumReleaseAge
-- **Status:** open
+- **Status:** superseded by TBD-206
 
 ## TBD-183 · Policy keys and the new profile sources
 - **Kind:** decision
@@ -2299,7 +2299,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Valid keys outside the intake form, with POLICY_DEFAULTS, and ProfileSource gains decision and assistant. The validated intake form stays unchanged.
 - **If you decide otherwise:** The intake form and its fixtures would change.
 - **Refs:** packages/schema/src/profile.ts
-- **Status:** open
+- **Status:** superseded by TBD-207
 
 ## TBD-184 · Proposals in their own assistant_proposals table
 - **Kind:** decision
@@ -2311,7 +2311,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** A separate table. A proposal needs its own id and status.
 - **If you decide otherwise:** Look proposals up by message id.
 - **Refs:** F8.2; F8.3
-- **Status:** open
+- **Status:** superseded by TBD-208
 
 ## TBD-185 · Existing AI settings get the new per-task models from their extract model
 - **Kind:** decision
@@ -2323,7 +2323,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** The migration backfill; the schema requires every task. Every task always has a model.
 - **If you decide otherwise:** Optional keys, with a fallback in packages/ai.
 - **Refs:** packages/schema/src/ai.ts; ai_settings.models
-- **Status:** open
+- **Status:** superseded by TBD-209
 
 ## TBD-186 · Merge all three unmerged MVP 1 fix-round-4 branches into mvp-2 first, and record that fix round 4 is unrecorded
 - **Kind:** decision
