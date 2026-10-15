@@ -139,6 +139,13 @@ describe("the invitee (F1.6)", () => {
     });
   });
 
+  it("answers 404, not 500, to an id that isn't a UUID", async () => {
+    expect((await mariaApi.get("/api/invites/xyz?token=t")).status).toBe(404);
+    expect((await mariaApi.post("/api/invites/xyz/accept", {})).status).toBe(404);
+    expect((await mariaApi.post("/api/invites/xyz/decline", {})).status).toBe(404);
+    expect(deps.logs.filter((l) => l.event === "http.error")).toEqual([]);
+  });
+
   it("needs a session", async () => {
     expect((await testClient(app, deps).get("/api/invites")).status).toBe(401);
   });

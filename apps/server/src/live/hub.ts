@@ -1,6 +1,10 @@
 import type { Notifier, Unlisten } from "@jobfilly/db";
-import { type LiveEvent, LiveEventSchema } from "@jobfilly/schema";
-import { z } from "zod";
+import {
+  type LiveEnvelope,
+  LiveEnvelopeSchema,
+  type LiveEvent,
+  LiveEventSchema,
+} from "@jobfilly/schema";
 import type { Logger } from "../log";
 
 // Live updates (ARCHITECTURE › Background work and live updates). publish() sends an event
@@ -8,8 +12,6 @@ import type { Logger } from "../log";
 // workspace it holds, so a browser connected to any replica sees work done on any other.
 
 const LIVE_CHANNEL = "jobfilly_live";
-
-const EnvelopeSchema = z.object({ workspaceId: z.uuid(), event: LiveEventSchema });
 
 type LiveListener = (event: LiveEvent) => void;
 
@@ -37,9 +39,9 @@ export function createLiveHub(notifier: Notifier, log: Logger): LiveHub {
   let unlisten: Unlisten | null = null;
 
   const deliver = (payload: string) => {
-    let parsed: z.infer<typeof EnvelopeSchema>;
+    let parsed: LiveEnvelope;
     try {
-      parsed = EnvelopeSchema.parse(JSON.parse(payload));
+      parsed = LiveEnvelopeSchema.parse(JSON.parse(payload));
     } catch (error) {
       log.warn("live.error", { error });
       return;
@@ -58,7 +60,10 @@ export function createLiveHub(notifier: Notifier, log: Logger): LiveHub {
       unlisten ??= await notifier.listen(LIVE_CHANNEL, deliver);
     },
     async publish(workspaceId, event) {
-      const payload = JSON.stringify({ workspaceId, event: LiveEventSchema.parse(event) });
+      const payload = JSON.stringify({
+        workspaceId,
+        event: LiveEventSchema.parse(event),
+      } satisfies LiveEnvelope);
       await notifier.notify(LIVE_CHANNEL, payload);
     },
     subscribe(workspaceId, listener, onClose) {

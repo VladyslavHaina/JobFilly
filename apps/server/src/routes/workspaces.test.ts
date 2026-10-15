@@ -111,6 +111,17 @@ describe("members (F1.8, F1.9)", () => {
     expect((await mariaApi.delete(`${members(ws.workspaceId)}/${tom.id}`)).status).toBe(204);
     expect((await tomApi.get(members(ws.workspaceId))).status).toBe(404);
   });
+
+  it("answers 404, not 500, to an id that isn't a UUID", async () => {
+    const ws = maria.workspaceId;
+    const bad = ["xyz", "%3Ca%40b.example%3E"];
+    for (const id of bad) {
+      expect((await mariaApi.patch(`${members(ws)}/${id}`, { role: "viewer" })).status).toBe(404);
+      expect((await mariaApi.delete(`${members(ws)}/${id}`)).status).toBe(404);
+      expect((await mariaApi.delete(`${invites(ws)}/${id}`)).status).toBe(404);
+    }
+    expect(deps.logs.filter((l) => l.event === "http.error")).toEqual([]);
+  });
 });
 
 describe("invites (F1.6)", () => {

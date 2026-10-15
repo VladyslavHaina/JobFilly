@@ -14,11 +14,20 @@ import {
   CreateInviteInputSchema,
   INVITE_TTL_DAYS,
   type InviteList,
+  InviteParamsSchema,
   type MemberList,
+  MemberParamsSchema,
   type WorkspaceList,
 } from "@jobfilly/schema";
 import { Hono } from "hono";
-import { NOT_FOUND, requireRole, type SignedInEnv, validJson, type WorkspaceEnv } from "../access";
+import {
+  NOT_FOUND,
+  requireRole,
+  type SignedInEnv,
+  validJson,
+  validParam,
+  type WorkspaceEnv,
+} from "../access";
 import { hashToken, newToken, requireUser } from "../auth/session";
 import { DAY } from "../clock";
 import type { AppDeps } from "../deps";
@@ -48,20 +57,26 @@ export function membersRoutes(deps: AppDeps) {
     .get("/", requireRole("viewer"), async (c) =>
       c.json({ items: await listMembers(deps.db, c.get("workspaceId")) } satisfies MemberList),
     )
-    .patch("/:userId", requireRole("admin"), validJson(ChangeRoleInputSchema), async (c) => {
+    .patch(
+      "/:userId",
+      requireRole("admin"),
+      validParam(MemberParamsSchema),
+      validJson(ChangeRoleInputSchema),
+      async (c) => {
+        const workspaceId = c.get("workspaceId");
+        const memberId = c.req.valid("param").userId;
+        const { role } = c.req.valid("json");
+        const result = await setMemberRole(deps.db, workspaceId, memberId, role);
+        if (result === "owner") return c.json(OWNER, 409);
+        if (result === "not_found") return c.json(NOT_FOUND, 404);
+        c.get("log").info("workspace.role_changed", { memberId, role });
+        await deps.live.publish(workspaceId, { type: "workspace.updated", data: {} });
+        return c.json({ items: await listMembers(deps.db, workspaceId) } satisfies MemberList);
+      },
+    )
+    .delete("/:userId", requireRole("admin"), validParam(MemberParamsSchema), async (c) => {
       const workspaceId = c.get("workspaceId");
-      const memberId = c.req.param("userId");
-      const { role } = c.req.valid("json");
-      const result = await setMemberRole(deps.db, workspaceId, memberId, role);
-      if (result === "owner") return c.json(OWNER, 409);
-      if (result === "not_found") return c.json(NOT_FOUND, 404);
-      c.get("log").info("workspace.role_changed", { memberId, role });
-      await deps.live.publish(workspaceId, { type: "workspace.updated", data: {} });
-      return c.json({ items: await listMembers(deps.db, workspaceId) } satisfies MemberList);
-    })
-    .delete("/:userId", requireRole("admin"), async (c) => {
-      const workspaceId = c.get("workspaceId");
-      const result = await removeMember(deps.db, workspaceId, c.req.param("userId"));
+      const result = await removeMember(deps.db, workspaceId, c.req.valid("param").userId);
       if (result === "owner") return c.json(OWNER, 409);
       if (result === "not_found") return c.json(NOT_FOUND, 404);
       await deps.live.publish(workspaceId, { type: "workspace.updated", data: {} });
@@ -101,12 +116,12 @@ export function workspaceInvitesRoutes(deps: AppDeps) {
       await deps.live.publish(workspaceId, { type: "workspace.updated", data: {} });
       return c.json({ invite, link: link.toString() } satisfies CreatedInvite, 201);
     })
-    .delete("/:inviteId", requireRole("admin"), async (c) => {
+    .delete("/:inviteId", requireRole("admin"), validParam(InviteParamsSchema), async (c) => {
       const workspaceId = c.get("workspaceId");
       const revoked = await revokeInvite(
         deps.db,
         workspaceId,
-        c.req.param("inviteId"),
+        c.req.valid("param").inviteId,
         deps.clock.now(),
       );
       if (!revoked) return c.json(NOT_FOUND, 404);
