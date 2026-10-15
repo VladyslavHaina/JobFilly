@@ -30,17 +30,21 @@ import {
 
 // The intake form (F6): the scan's proposals with how sure the app is and why, the evidence behind
 // each, corrections by clicking, up to five extra questions found in the mail, and Confirm, which
-// saves the answers as the profile. Low-confidence and empty answers stand out. Viewers see it
-// all, disabled.
+// saves the answers as the profile. Low-confidence and empty answers stand out, unanswered extra
+// questions too. Viewers see it all, disabled.
 
 const errorText = (error: unknown) =>
   error instanceof ApiError ? error.message : "That didn't work. Try again.";
 
-const BADGES: Record<Exclude<Confidence, null> | "none" | "you", { text: string; tone: string }> = {
+const BADGES: Record<
+  Exclude<Confidence, null> | "none" | "open" | "you",
+  { text: string; tone: string }
+> = {
   high: { text: "High confidence", tone: "bg-emerald-50 text-emerald-800 ring-emerald-200" },
   medium: { text: "Medium confidence", tone: "bg-sky-50 text-sky-800 ring-sky-200" },
   low: { text: "Low confidence", tone: "bg-amber-50 text-amber-900 ring-amber-300" },
   none: { text: "Not enough evidence", tone: "bg-amber-50 text-amber-900 ring-amber-300" },
+  open: { text: "Not answered yet", tone: "bg-amber-50 text-amber-900 ring-amber-300" },
   you: { text: "Set by you", tone: "bg-indigo-50 text-indigo-800 ring-indigo-200" },
 };
 
@@ -106,6 +110,20 @@ function describe(entry: IntakeProposalEntry, edit: IntakeEdit | undefined) {
   return { badge: entry.confidence, why, attention: null };
 }
 
+/**
+ * What an extra question's card says. The mail raises the question without answering it, so the
+ * answer is empty, and stands out, until the user gives one.
+ */
+function describeExtra(question: ExtraQuestion, edit: IntakeEdit | undefined) {
+  if (edit) return { badge: "you" as const, why: null, attention: null };
+  const n = question.evidence.length;
+  return {
+    badge: "open" as const,
+    why: `raised in ${n} ${n === 1 ? "email" : "emails"}`,
+    attention: "Your mail raises this but doesn't answer it. Pick an answer if it matters to you.",
+  };
+}
+
 function Extras(props: {
   form: IntakeForm;
   edits: Map<string, IntakeEdit>;
@@ -127,9 +145,7 @@ function Extras(props: {
           <AnswerCard
             key={q.slug}
             label={q.label}
-            badge={edits.has(key) ? "you" : null}
-            why={null}
-            attention={null}
+            {...describeExtra(q, edits.get(key))}
             evidence={q.evidence}
           >
             <AnswerEditor
@@ -153,22 +169,35 @@ function Form({ form, confirmed }: { form: IntakeForm; confirmed: boolean }) {
   const navigate = useNavigate();
   const edits = new Map(form.edits.map((e) => [e.key, e]));
   const disabled = !can.edit || confirmed;
+  const extrasPending = form.extras.status === "pending";
+  const formKey = intakeKey(workspaceId);
+  const showEdit = (edit: IntakeEdit) =>
+    client.setQueryData<IntakeForm>(formKey, (current) =>
+      current
+        ? { ...current, edits: [...current.edits.filter((e) => e.key !== edit.key), edit] }
+        : current,
+    );
+  // The form's writes go one at a time in click order (one mutation scope), since the server keeps
+  // the last write. Each click shows at once, so the next click builds on it rather than on what
+  // the server last confirmed; a failed write brings back what the server has.
+  const writes = { id: `intake-form-${workspaceId}` };
 
   const save = useMutation({
+    scope: writes,
     mutationFn: (input: { key: ProfileKey; value: ProfileValue }) =>
       api(`${intakeApi(workspaceId)}/answers/${encodeURIComponent(input.key)}`, IntakeEditSchema, {
         method: "PUT",
         body: { value: input.value },
       }),
-    onSuccess: (edit) => {
-      client.setQueryData<IntakeForm>(intakeKey(workspaceId), (current) =>
-        current
-          ? { ...current, edits: [...current.edits.filter((e) => e.key !== edit.key), edit] }
-          : current,
-      );
+    onMutate: (input) => {
+      void client.cancelQueries({ queryKey: formKey });
+      showEdit({ ...input, source: "you", updatedBy: null, updatedAt: new Date().toISOString() });
     },
+    onSuccess: showEdit,
+    onError: () => client.invalidateQueries({ queryKey: formKey }),
   });
   const confirm = useMutation({
+    scope: writes,
     mutationFn: () =>
       api(`${intakeApi(workspaceId)}/confirm`, ProfileSchema, { method: "POST", body: {} }),
     onSuccess: async (profile) => {
@@ -204,11 +233,17 @@ function Form({ form, confirmed }: { form: IntakeForm; confirmed: boolean }) {
       {!confirmed && (
         <Card className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-stone-600">
-            {can.edit
-              ? `Confirm saves these answers as your profile, “${DEFAULT_PROFILE_NAME}”. You can rename it later.`
-              : "Only editors and admins can change and confirm the answers."}
+            {!can.edit
+              ? "Only editors and admins can change and confirm the answers."
+              : extrasPending
+                ? "You can confirm once the questions from your mail have shown up."
+                : `Confirm saves these answers as your profile, “${DEFAULT_PROFILE_NAME}”. You can rename it later.`}
           </p>
-          <Button disabled={!can.edit} busy={confirm.isPending} onClick={() => confirm.mutate()}>
+          <Button
+            disabled={!can.edit || extrasPending}
+            busy={confirm.isPending}
+            onClick={() => confirm.mutate()}
+          >
             Confirm
           </Button>
           {confirm.error && <Alert>{errorText(confirm.error)}</Alert>}

@@ -158,6 +158,8 @@ interface Options {
   extras?: IntakeForm["extras"];
   scan?: CurrentScan;
   profiles?: Profile[];
+  /** Holds each PUT until it resolves, to click again while a write is on its way. */
+  beforePut?: () => Promise<void>;
 }
 
 /** A fake API for the form: it keeps edits and makes the profile on Confirm, like the server. */
@@ -177,10 +179,11 @@ function intakeApi(options: Options = {}) {
     "GET /api/invites": { items: [] },
     "GET /api/workspaces/:id/scans/current": options.scan ?? stopped,
     "GET /api/workspaces/:id/intake": () => structuredClone(state.form),
-    "PUT /api/workspaces/:id/intake/answers/:key": (
+    "PUT /api/workspaces/:id/intake/answers/:key": async (
       req: FakeRequest,
       p: Record<string, string>,
     ) => {
+      await options.beforePut?.();
       const edit: IntakeEdit = {
         key: p.key as IntakeEdit["key"],
         value: (req.body as { value: IntakeEdit["value"] }).value,
@@ -301,17 +304,41 @@ describe("the intake form (F6.1, F6.2)", () => {
     expect((await card("Places you'd work onsite or hybrid")).dataset.attention).toBeUndefined();
   });
 
+  it("makes an unanswered extra question stand out until it is answered (F6.3)", async () => {
+    const { ws } = intakeApi();
+    renderApp(paths.intake(ws.id));
+    const extra = await card(QUESTION.label);
+    expect(extra.dataset.attention).toBe("true");
+    expect(within(extra).getByText("Not answered yet")).toBeTruthy();
+    expect(within(extra).getByText("raised in 1 email")).toBeTruthy();
+    expect(
+      within(extra).getByText(
+        "Your mail raises this but doesn't answer it. Pick an answer if it matters to you.",
+      ),
+    ).toBeTruthy();
+    await userEvent.setup().click(within(extra).getByRole("button", { name: "Yes" }));
+    await waitFor(() => expect(extra.dataset.attention).toBeUndefined());
+    expect(within(extra).getByText("Set by you")).toBeTruthy();
+    expect(within(extra).queryByText("Not answered yet")).toBeNull();
+  });
+
   it("shows the extra questions once they are found", async () => {
     const { ws, state } = intakeApi({ extras: { status: "pending", questions: [] } });
     const { queryClient } = renderApp(paths.intake(ws.id));
     expect(await screen.findByText("Looking for more questions in your mail…")).toBeTruthy();
     expect(screen.queryByRole("region", { name: QUESTION.label })).toBeNull();
+    // Confirming now would save the profile without them, so it waits.
+    expect(screen.getByRole("button", { name: "Confirm" })).toHaveProperty("disabled", true);
+    expect(
+      screen.getByText("You can confirm once the questions from your mail have shown up."),
+    ).toBeTruthy();
     state.form.extras = { status: "done", questions: [QUESTION] };
     // What useLiveInvalidation does on intake.updated.
     await queryClient.invalidateQueries({ queryKey: ["w", ws.id, "intake"] });
     const extra = within(await card(QUESTION.label));
     expect(extra.getByRole("button", { name: "Yes", pressed: false })).toBeTruthy();
     expect(screen.queryByText("Looking for more questions in your mail…")).toBeNull();
+    expect(screen.getByRole("button", { name: "Confirm" })).toHaveProperty("disabled", false);
   });
 });
 
@@ -357,6 +384,85 @@ describe("corrections (F6.4, S4)", () => {
     ]);
     expect(keyboard).not.toHaveBeenCalled();
     expect(type).not.toHaveBeenCalled();
+  });
+
+  it("keep every quick click: each builds on the one before, and they are saved in order", async () => {
+    const held: (() => void)[] = [];
+    const { ws, requests, state } = intakeApi({
+      beforePut: () => new Promise<void>((resolve) => held.push(resolve)),
+    });
+    renderApp(paths.intake(ws.id));
+    const user = userEvent.setup();
+    const release = async (n: number) => {
+      await waitFor(() => expect(held).toHaveLength(n));
+      held[n - 1]?.();
+    };
+
+    const places = within(await card("Places you'd work onsite or hybrid"));
+    await user.click(
+      places.getByRole("button", { name: "Remove Amsterdam, Netherlands (hybrid)" }),
+    );
+    // Before the first PUT has answered.
+    await user.click(places.getByRole("button", { name: "Remove Berlin, Germany (hybrid)" }));
+    expect(places.queryByText("Amsterdam, Netherlands (hybrid)")).toBeNull();
+    expect(places.queryByText("Berlin, Germany (hybrid)")).toBeNull();
+    const replyTo = within(await card("Mail that should get a reply"));
+    await user.click(replyTo.getByRole("button", { name: "Recruiter outreach" }));
+    await user.click(replyTo.getByRole("button", { name: "Interview" }));
+    // One write at a time: the next starts once the one before has answered.
+    await waitFor(() => expect(puts(requests)).toHaveLength(1));
+    for (let n = 1; n <= 4; n++) await release(n);
+
+    await waitFor(() => expect(puts(requests)).toHaveLength(4));
+    expect(puts(requests).map((r) => r.body)).toEqual([
+      { value: [{ country: "DE", city: "Berlin", mode: "hybrid" }] },
+      { value: [] },
+      { value: ["recruiter_outreach"] },
+      { value: ["recruiter_outreach", "interview"] },
+    ]);
+    await waitFor(() =>
+      expect(state.form.edits.map((e) => [e.key, e.value])).toEqual([
+        ["places", []],
+        ["reply_to", ["recruiter_outreach", "interview"]],
+      ]),
+    );
+    expect(places.queryByText("Amsterdam, Netherlands (hybrid)")).toBeNull();
+    expect(places.queryByText("Berlin, Germany (hybrid)")).toBeNull();
+    expect(replyTo.getByRole("button", { name: "Recruiter outreach", pressed: true })).toBeTruthy();
+    expect(replyTo.getByRole("button", { name: "Interview", pressed: true })).toBeTruthy();
+  });
+
+  it("choose no pay period or work mode for the user", async () => {
+    const { ws, requests } = intakeApi({
+      entries: CORE_PROFILE_KEYS.map(empty),
+      extras: { status: "done", questions: [] },
+    });
+    renderApp(paths.intake(ws.id));
+    const user = userEvent.setup();
+
+    const pay = within(await card("Minimum pay"));
+    expect(pay.getByLabelText("Period")).toHaveProperty("value", "");
+    await user.type(pay.getByLabelText("Amount"), "450");
+    await user.type(pay.getByLabelText("Currency code"), "EUR");
+    await user.click(pay.getByRole("button", { name: "Add" }));
+    expect(await pay.findByText("Choose a period")).toBeTruthy();
+
+    const places = within(await card("Places you'd work onsite or hybrid"));
+    expect(places.getByLabelText("Work mode")).toHaveProperty("value", "");
+    await user.type(places.getByLabelText("Country code"), "NL");
+    await user.click(places.getByRole("button", { name: "Add" }));
+    expect(await places.findByText("Choose onsite or hybrid")).toBeTruthy();
+    expect(puts(requests)).toEqual([]);
+
+    await user.selectOptions(pay.getByLabelText("Period"), "day");
+    await user.click(pay.getByRole("button", { name: "Add" }));
+    await waitFor(() =>
+      expect(puts(requests).at(-1)?.body).toEqual({
+        value: [{ amount: 450, currency: "EUR", period: "day", asWritten: "450 EUR per day" }],
+      }),
+    );
+    expect(pay.queryByText("Choose a period")).toBeNull();
+    expect(pay.getByLabelText("Period")).toHaveProperty("value", "");
   });
 
   it("let Tom type into his empty answers (F6.6)", async () => {

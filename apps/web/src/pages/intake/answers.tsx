@@ -217,8 +217,10 @@ function PlacesEditor({ value, disabled, onChange }: EditorProps) {
   const places = value as Places;
   const [city, setCity] = useState("");
   const [country, setCountry] = useState("");
-  const [mode, setMode] = useState<"hybrid" | "onsite">("hybrid");
+  // No work mode is chosen for the user: they pick one for each place they add.
+  const [mode, setMode] = useState<Places[number]["mode"] | "">("");
   const [error, setError] = useState<string | null>(null);
+  const [modeError, setModeError] = useState<string | null>(null);
   return (
     <div className="flex flex-col gap-3">
       <Chips
@@ -230,14 +232,14 @@ function PlacesEditor({ value, disabled, onChange }: EditorProps) {
         label="Add a place"
         disabled={disabled}
         onSubmit={() => {
-          if (!CountryCodeSchema.safeParse(upper(country)).success) {
-            setError("Use the two-letter country code, like DE or GB");
-            return;
-          }
+          const countryOk = CountryCodeSchema.safeParse(upper(country)).success;
+          setError(countryOk ? null : "Use the two-letter country code, like DE or GB");
+          setModeError(mode ? null : "Choose onsite or hybrid");
+          if (!countryOk || !mode) return;
           onChange([...places, { country: upper(country), city: city.trim() || null, mode }]);
           setCity("");
           setCountry("");
-          setError(null);
+          setMode("");
         }}
       >
         <TextField
@@ -258,8 +260,10 @@ function PlacesEditor({ value, disabled, onChange }: EditorProps) {
           label="Work mode"
           value={mode}
           disabled={disabled}
-          onChange={(e) => setMode(e.target.value as "hybrid" | "onsite")}
+          error={modeError}
+          onChange={(e) => setMode(e.target.value as Places[number]["mode"] | "")}
         >
+          <option value="">Choose…</option>
           <option value="hybrid">Hybrid</option>
           <option value="onsite">Onsite</option>
         </SelectField>
@@ -302,8 +306,10 @@ function MinPayEditor({ value, disabled, onChange }: EditorProps) {
   const pays = value as MinPay;
   const [amount, setAmount] = useState("");
   const [currency, setCurrency] = useState("");
-  const [period, setPeriod] = useState<PayPeriod>("year");
+  // No pay period is chosen for the user: hours, days and years are all common.
+  const [period, setPeriod] = useState<PayPeriod | "">("");
   const [error, setError] = useState<string | null>(null);
+  const [periodError, setPeriodError] = useState<string | null>(null);
   return (
     <div className="flex flex-col gap-3">
       <Chips
@@ -316,19 +322,22 @@ function MinPayEditor({ value, disabled, onChange }: EditorProps) {
         disabled={disabled}
         onSubmit={() => {
           const n = Number(amount.replace(/[\s,]/g, ""));
-          if (!amount.trim() || !Number.isFinite(n) || n < 0) {
-            setError("Enter the amount as a number");
-            return;
-          }
-          if (!CurrencyCodeSchema.safeParse(upper(currency)).success) {
-            setError("Use the three-letter currency code, like EUR or GBP");
-            return;
-          }
+          const amountOk = amount.trim() !== "" && Number.isFinite(n) && n >= 0;
+          const currencyOk = CurrencyCodeSchema.safeParse(upper(currency)).success;
+          setError(
+            !amountOk
+              ? "Enter the amount as a number"
+              : !currencyOk
+                ? "Use the three-letter currency code, like EUR or GBP"
+                : null,
+          );
+          setPeriodError(period ? null : "Choose a period");
+          if (!amountOk || !currencyOk || !period) return;
           const asWritten = `${amount.trim()} ${upper(currency)} ${PERIOD_LABELS[period]}`;
           onChange([...pays, { amount: n, currency: upper(currency), period, asWritten }]);
           setAmount("");
           setCurrency("");
-          setError(null);
+          setPeriod("");
         }}
       >
         <TextField
@@ -350,8 +359,10 @@ function MinPayEditor({ value, disabled, onChange }: EditorProps) {
           label="Period"
           value={period}
           disabled={disabled}
-          onChange={(e) => setPeriod(e.target.value as PayPeriod)}
+          error={periodError}
+          onChange={(e) => setPeriod(e.target.value as PayPeriod | "")}
         >
+          <option value="">Choose…</option>
           {PayPeriodSchema.options.map((p) => (
             <option key={p} value={p}>
               {PERIOD_LABELS[p]}
