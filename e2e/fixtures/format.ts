@@ -33,7 +33,8 @@ import { fileURLToPath } from "node:url";
 //   ai/<persona>/match.json                  AnswerFile<MatchAnswer>, keyed by matchKey:
 //                                            "<Message-ID>#<position>" ("Message-ID:", "Role:")
 //   ai/<persona>/draft.json                  AnswerFile<DraftAnswer>, keyed by draftKey:
-//                                            "<Message-ID>#<attempt>" ("Message-ID:", "Attempt:")
+//                                            "<Message-ID>#<position>#<attempt>" ("Message-ID:",
+//                                            "Role:", "Attempt:")
 //   ai/assistant.json                        AssistantAnswerFile: by the user's message text (the
 //                                            prompt's "message" block), then by turn ("Turn:")
 //   assistant/requests.json                  AssistantRequest[]: the ten requests of the quality
@@ -457,14 +458,14 @@ export interface AssistantRequest {
   expected: unknown[] | null;
 }
 
-/** @public The key of ai/<persona>/match.json. */
+/** The key of ai/<persona>/match.json. */
 export function matchKey(messageId: string, position: number): string {
   return `${messageId}#${position}`;
 }
 
-/** @public The key of ai/<persona>/draft.json. */
-export function draftKey(messageId: string, attempt: 1 | 2): string {
-  return `${messageId}#${attempt}`;
+/** The key of ai/<persona>/draft.json. */
+export function draftKey(messageId: string, position: number, attempt: 1 | 2): string {
+  return `${messageId}#${position}#${attempt}`;
 }
 
 /** @public What expected.json adds to a message in MVP 2. */

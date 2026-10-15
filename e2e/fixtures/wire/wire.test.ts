@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { draftKey, matchKey } from "../format.ts";
 
 // The wire contract between packages/ai and the fake AI (TBD-10, TBD-20). For each task id:
 //   <taskId>.input.json     the argument packages/ai gets: AiMailItem[] for classify.v1 and
@@ -196,6 +197,35 @@ describe.each(MVP2_TASKS)("the %s request", (taskId) => {
       if (line === "" || line.startsWith("| ")) continue;
       expect(line).toMatch(/^=== (end )?[a-z ]+ ===$/);
     }
+  });
+});
+
+describe("the answer keys of ai/<persona>/match.json and draft.json", () => {
+  /** How the fake AI keys an answer: the values of the key lines, in order, joined by "#". */
+  function keyFromPrompt(taskId: string): string {
+    const lines = userOf(taskId).split("\n");
+    const keyLines = lines.slice(1, lines.indexOf(""));
+    return keyLines.map((l) => l.slice(l.indexOf(": ") + 2)).join("#");
+  }
+
+  it("match.v1: the prompt's key lines give matchKey of its input", () => {
+    const input = read("match.v1.input.json") as { messageId: string; position: number };
+    expect(keyFromPrompt("match.v1")).toBe(matchKey(input.messageId, input.position));
+  });
+
+  it("draft.v1: the prompt's key lines give draftKey of its input", () => {
+    const input = read("draft.v1.input.json") as {
+      mail: Item;
+      position: number;
+      attempt: 1 | 2;
+    };
+    expect(keyFromPrompt("draft.v1")).toBe(
+      draftKey(input.mail.messageId, input.position, input.attempt),
+    );
+  });
+
+  it("keeps two roles of one message apart", () => {
+    expect(draftKey("<m@x>", 0, 1)).not.toBe(draftKey("<m@x>", 1, 1));
   });
 });
 
