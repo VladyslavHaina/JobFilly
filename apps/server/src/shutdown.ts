@@ -6,10 +6,11 @@ import type { RunningServer } from "./node";
 import type { Scheduler } from "./sync/scheduler";
 
 // Graceful shutdown on SIGTERM, in the order of ARCHITECTURE › Kubernetes readiness: the
-// scheduler stops starting syncs and sweeps; readiness turns 503 at once; a drain so load balancers stop routing here; stop accepting connections and
-// close the live-update streams (browsers reconnect elsewhere); in-flight requests get up to 20
-// seconds; running jobs hand back their leases while background work (the intake.v1 call) is
-// aborted and releases its claim, both while the database is still open; then the caller exits 0.
+// scheduler stops starting syncs and sweeps; readiness turns 503 at once; a drain so load
+// balancers stop routing here; stop accepting connections and close the live-update streams
+// (browsers reconnect elsewhere); in-flight requests get up to 20 seconds; running jobs hand back
+// their leases while background work (the intake.v1 call) is aborted and releases its claim,
+// both while the database is still open; then the caller exits 0.
 
 export interface ShutdownTargets {
   health: Health;
