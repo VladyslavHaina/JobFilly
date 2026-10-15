@@ -1,10 +1,10 @@
 import type { DatabaseConnection } from "@jobfilly/db";
 import { openTestDatabase } from "@jobfilly/db/testing";
-import { type MovableClock, movableClock } from "../clock";
 import type { Config } from "../config";
 import { type AiPort, type AppDeps, createDeps, type MailPort } from "../deps";
 import type { JobRegistry } from "../jobs/queue";
 import { createLogger, type LogEvent } from "../log";
+import { type MovableClock, movableClock } from "./clock";
 
 // AppDeps for tests: a migrated in-memory PGlite database, a clock that only moves when told,
 // a captured log, and mail and AI ports that refuse to work until a test sets a fake. Nothing
