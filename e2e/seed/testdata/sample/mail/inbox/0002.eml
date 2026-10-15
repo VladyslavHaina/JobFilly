@@ -1,0 +1,7 @@
+From: Alerts <alerts@jobs.example>
+To: sample@inbox.example
+Subject: New jobs for you
+Message-ID: <inbox-2@sample.example>
+Content-Type: text/plain; charset=utf-8
+
+Three new roles.

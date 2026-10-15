@@ -1,0 +1,20 @@
+[
+  {
+    "file": "inbox/0001.eml",
+    "folder": "inbox",
+    "messageId": "<inbox-1@sample.example>",
+    "minutesAgo": 17280
+  },
+  {
+    "file": "sent/0001.eml",
+    "folder": "sent",
+    "messageId": "<sent-1@sample.example>",
+    "minutesAgo": 1440
+  },
+  {
+    "file": "inbox/0002.eml",
+    "folder": "inbox",
+    "messageId": "<inbox-2@sample.example>",
+    "minutesAgo": 90
+  }
+]
