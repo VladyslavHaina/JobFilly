@@ -66,13 +66,13 @@ export const CHF_NEED: NeedSpec = {
 };
 
 /** How the recording match stage evaluates one role. */
-export interface RoleSetup {
+interface RoleSetup {
   score?: number;
   needs?: NeedSpec[];
   cvId?: string | null;
 }
 
-export const entry = (key: ProfileEntry["key"], value: ProfileEntry["value"]): ProfileEntry => ({
+const entry = (key: ProfileEntry["key"], value: ProfileEntry["value"]): ProfileEntry => ({
   key,
   label: key,
   value,
