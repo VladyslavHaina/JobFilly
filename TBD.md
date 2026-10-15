@@ -1639,3 +1639,317 @@ These make sign-off possible; without them the build goes on and records an open
 - **If you decide otherwise:** If the UI gains a user locale, pass it to both formatPay and parseAmount. The tests already cover a comma-decimal locale (de).
 - **Refs:** apps/web/src/pages/inbox/format.ts (parseAmount); apps/web/src/pages/intake/answers.tsx (MinPayEditor)
 - **Status:** open
+
+## TBD-131 · Walk S2 through Settings > AI instead of the onboarding step
+- **Kind:** decision
+- **Where:** MVP 1 · Validate (S2)
+- **Context:** S1 ended on Settings > Mailbox, after its walker left the 'Pick your AI' onboarding step. No visible link leads back to onboarding, and the protocol forbids typing internal URLs.
+- **Options:**
+  1. Type the onboarding URL by hand
+  2. Walk S2 in Settings > AI and continue through the Scan nav link
+  3. Mark S2 not walked
+- **Chosen:** Walk S2 in Settings > AI and continue through the Scan nav link. Settings > AI is the same 'Pick your AI' form (same accessible form name and fields), and visible links reach it. Typing a URL would break the protocol. The missing route back is recorded as a finding.
+- **If you decide otherwise:** If the owner wants the onboarding path itself walked, S1 must end on the onboarding step and S2 must start from there. Or the app needs a visible way back into onboarding, for example a setup prompt on the empty inbox.
+- **Refs:** docs/mvp/MVP-1.md S2; docs/mvp/README.md Validation protocol 1; e2e/reports/mvp-1/20261015T113934Z-r2-walkthrough/s1-07-saved-next-step.png
+- **Status:** open
+
+## TBD-132 · Pressed 'Start scan again' after the first scan failed
+- **Kind:** decision
+- **Where:** MVP 1 · Validate (S3)
+- **Context:** The first scan failed after 3.3 s, before a second view on the other replica could be opened, so F4.6 could not be observed at all.
+- **Options:**
+  1. Stop after the first failure
+  2. Open the app-b direct view, then press 'Start scan again' through the proxy to try to see a live update across replicas
+- **Chosen:** Opened the app-b direct view, then pressed 'Start scan again' through the proxy. It is an ordinary user action, and it was the only way to collect any evidence about live updates across replicas and the one-replica rule in this run.
+- **If you decide otherwise:** Maria's workspace now holds two failed first scans (c0ad366e… on app-a, 2d694adf… on app-b) instead of one. Later scenarios on this stack start from that state. A fresh stack is needed for a clean S3 after the intake merge anyway.
+- **Refs:** app.log 11:55:08.694Z and 11:56:06.895Z scan.started lines; e2e/reports/mvp-1/20261015T113934Z-r2-walkthrough/s3-04-proxy-view-after-second-start.png
+- **Status:** open
+
+## TBD-133 · Did not press 'Analyze them' to work around the failed first scan
+- **Kind:** decision
+- **Where:** MVP 1 · Validate (S5)
+- **Context:** S5 depends on the analysis from S3's first scan, which failed because of the aggregateIntake stub. 'Analyze them' is a visible admin button, but it is S8's step and would change the state S8 and S9 start from.
+- **Options:**
+  1. Press Analyze them to try to fill the inbox
+  2. Walk S5 against the state S3 left and report the blocked steps
+- **Chosen:** Walk S5 against the state S3 left; every step that does not need analysis was walked, and the rest are reported as failed with the root cause. The protocol has later scenarios start from the state earlier ones leave. An extra scan run here would spoil S8 (budget stop and 'not analyzed' count shrinking) and S9. It would most likely also fail on the same stub.
+- **If you decide otherwise:** A walker would press Analyze them first. That changes the not-analyzed count S8 relies on, and F5.3 compares whatever got analysed.
+- **Refs:** docs/mvp/MVP-1.md S5, S8; packages/core/src/intake/index.ts; apps/server/src/deps.ts
+- **Status:** open
+
+## TBD-134 · Correction target for the 'correct one category' step
+- **Kind:** decision
+- **Where:** MVP 1 · Validate (S5)
+- **Context:** Only 40 stage-one job alerts and the 235 non-job messages were in the app, all categorised correctly. Any correction makes a correct category 'wrong'.
+- **Options:**
+  1. Correct a job alert to Other job mail
+  2. Correct a non-job message to a job category
+  3. Correct and then revert
+- **Chosen:** <maria-0002@linkedin.com> was changed from Job alert to Other job mail and left that way. It shows persistence on a visible job-inbox row. The F5.3 compare leaves out categories a person corrected in S5 and S6, so it does not disturb later checks.
+- **If you decide otherwise:** A different message would carry the correction. There is no functional effect on later scenarios.
+- **Refs:** e2e/specs/mvp-1/99-f5.3-stored-equals-expected.spec.ts header comment
+- **Status:** open
+
+## TBD-135 · Set up Tom's AI through Settings > AI rather than the onboarding step
+- **Kind:** decision
+- **Where:** MVP 1 · Validate (S7)
+- **Context:** S7 says Tom 'sets up the AI in his own workspace'. After reconnecting the mailbox from Settings > Mailbox, the onboarding flow was no longer in view.
+- **Options:**
+  1. Settings > AI
+  2. Navigate back into the onboarding 'Pick your AI' step
+- **Chosen:** Settings > AI, reached by clicking the visible 'AI' settings link. It uses the same 'Pick your AI' form (test, 'Your mail is read by…' line, Saved.). It is the visible path a person would take from where Tom was, and the criterion only requires the AI to be set up in his own workspace.
+- **If you decide otherwise:** The onboarding route would exercise the same form component and endpoints. No change to the result is expected.
+- **Refs:** docs/mvp/MVP-1.md S7; e2e/reports/mvp-1/20261015T113934Z-r2-walkthrough/s7-04-tom-ai-saved.png
+- **Status:** open
+
+## TBD-136 · Extra screenshots for a scenario with no camera marks
+- **Kind:** decision
+- **Where:** MVP 1 · Validate (S8)
+- **Context:** S8 has no camera-marked step, but the result needs visual evidence for a failing criterion.
+- **Options:**
+  1. Take no screenshots
+  2. Save evidence screenshots named s8-*
+- **Chosen:** Saved s8-01-budget-5-saved.png, s8-02-inbox-before-analyze-345.png, s8-03-analyze-run-failed-not-budget.png and s8-04-budget-back-300.png in /Users/admin/Desktop/Repos/newrepo/JobFilly/e2e/reports/mvp-1/20261015T113934Z-r2-walkthrough. The validation protocol says to report with evidence. The run folder is git-ignored, so the extra screenshots add nothing to the tree.
+- **If you decide otherwise:** Remove the four s8-*.png files; the log lines alone still prove the failure.
+- **Refs:** docs/mvp/README.md 'Validation protocol' 1 and 6
+- **Status:** open
+
+## TBD-137 · Budget restored to 300 even though the budget stop never happened
+- **Kind:** decision
+- **Where:** MVP 1 · Validate (S8)
+- **Context:** The scenario ends by setting the budget back to 300; S9 depends on a normal budget.
+- **Options:**
+  1. Leave the budget at 5
+  2. Restore it to 300 through Settings > AI
+- **Chosen:** Restored it to 300 with Save; 'Saved.' showed, and ai.settings_saved was logged at 12:15:54.696Z on app-b (s8-04-budget-back-300.png). Keeps the stack in the state the scenario leaves it in, so later scenarios are not affected.
+- **If you decide otherwise:** S9 would stop for budget after 5 calls instead of running to 'done'.
+- **Refs:** docs/mvp/MVP-1.md S8, S9
+- **Status:** open
+
+## TBD-138 · Still perform the kill/restart infrastructure step although the run had already failed
+- **Kind:** decision
+- **Where:** MVP 1 · Validate (S9)
+- **Context:** S9 says to kill the scan's replica while the run is in progress, but the Analyze run failed 35 ms after scan.started, before anyone (or any script) could kill it.
+- **Options:**
+  1. Stop the scenario at the failure
+  2. Kill and restart the replica anyway to cover what can still be observed (proxy failover, sessions surviving the restart, F1.3)
+  3. Press Analyze them again repeatedly hoping to catch it mid-run
+- **Chosen:** Killed app-a (the instance of the latest scan.started) once, then restarted it and did 20 page loads as Maria. This keeps to the scenario's listed infrastructure steps and still gives real evidence for F1.3. Pressing again would only reproduce the same immediate failure, and those extra presses are not in the scenario.
+- **If you decide otherwise:** F1.3 would have no S9 evidence from this run. F4.8 stays unproven either way until aggregateIntake is implemented.
+- **Refs:** app.log 12:17:36.865Z scan.started app-a; kill at 12:17:55Z; server.ready app-a 12:18:12.948Z
+- **Status:** open
+
+## TBD-139 · Which email to use for Maria's sign-in
+- **Kind:** decision
+- **Where:** MVP 1 · Validate (S10)
+- **Context:** S10 says only 'she signs in again', and the email typed at registration in S1 is not written in the scenario. The rules forbid reading the database during the walkthrough.
+- **Options:**
+  1. Use the persona address from e2e/fixtures (maria.santos@inbox.example), which the F5.3 spec also uses
+  2. Search app.log for the email
+- **Chosen:** maria.santos@inbox.example with E2E-SECRET-maria-login. It is the persona's canonical address in the fixtures and in the specs. app.log does not log emails, as intended. The sign-in succeeded and landed in 'Maria's workspace' (fe531aa2-…), the same workspace S1 created.
+- **If you decide otherwise:** If S1 had registered a different address, the re-sign-in would show 'Email or password is incorrect' and the step would need the S1 email.
+- **Refs:** e2e/specs/mvp-1/99-f5.3-stored-equals-expected.spec.ts:20, e2e/fixtures/format.ts (PERSONA_ADDRESSES)
+- **Status:** open
+
+## TBD-140 · How to place both the slow request and the live stream on app-b
+- **Kind:** decision
+- **Where:** MVP 1 · Validate (S11)
+- **Context:** The proxy round-robins every request, and the scenario needs a slow request and a live-update stream open on app-b at the moment of SIGTERM. Writes through the direct :8082 port fail the Origin check by design, and a person cannot choose a replica.
+- **Options:**
+  1. Use one tab and retry until both land on app-b
+  2. Open the same page in a second browser tab (a person's action) so the two streams and two Test requests spread over both replicas, then confirm placement from the logs
+  3. Drive app-b directly on :8082
+- **Chosen:** A second tab of Settings › AI, with Test clicked in both tabs and SIGTERM sent right away. The logs confirmed tab 1's stream and tab 0's Test POST were both on app-b. It stays within human actions through the proxy, it is deterministic enough, and it avoids repeated 15-second retries.
+- **If you decide otherwise:** The codified spec could pin placement differently, for example by retrying until the logs show app-b, but this changes no app behaviour.
+- **Refs:** S11, F7.4, TBD-15/TBD-33; e2e/reports/mvp-1/20261015T113934Z-r2-walkthrough/s11-01..03*.png
+- **Status:** open
+
+## TBD-141 · How to get the intake-profile slice onto mvp-1
+- **Kind:** decision
+- **Where:** MVP 1 · Fix round 3
+- **Context:** aggregateIntake on mvp-1 is still the throwing stub, so every scan fails and S3-S9 are blocked. The real slice is on three unmerged branches: mvp-1-intake-profile (de9cac6), mvp-1-fix-r1-intake-profile (8bd9b4e) and mvp-1-fix-r2-intake-live (ba9f264), which contains the other two plus the live-access and shutdown fixes from round 2. It is 59 commits behind mvp-1, and git merge-tree finds only two test-file conflicts.
+- **Options:**
+  1. Continue mvp-1-fix-r2-intake-live: merge mvp-1 into it, resolve, verify, then let the integrator merge it
+  2. Merge the older mvp-1-intake-profile only
+  3. Rebuild the slice from scratch on mvp-1
+- **Chosen:** Continue mvp-1-fix-r2-intake-live, and add a server-level test that drives a scan through the real aggregateIntake. It is the newest branch and already holds the round 1 and round 2 intake fixes and the live-stream revocation. Merging it keeps reviewed work, and the conflicts are small. The scan tests passed only because they used the stand-in in jobs/scan/fakes.ts. A test through createDeps with the real aggregateIntake stops the slice from going missing again unnoticed.
+- **If you decide otherwise:** Merging only the older branch would drop the round 1 and round 2 fixes (live revocation, shutdown of the intake.v1 call, locale pay parsing). A rebuild would throw away verified work and cost a round.
+- **Refs:** packages/core/src/intake/index.ts; apps/server/src/deps.ts:116; apps/server/src/jobs/scan/run.ts:195,337; apps/server/src/jobs/scan/fakes.ts:185; branches mvp-1-fix-r2-intake-live ba9f264
+- **Status:** open
+
+## TBD-142 · F5.3 proof spec when the scenario specs aren't codified yet
+- **Kind:** decision
+- **Where:** MVP 1 · Fix round 3
+- **Context:** The 99-f5.3 proof reads the state S1-S9 create. In MVP 1's walkthrough round, `pnpm e2e:specs` ran with only 00-stack and 99-f5.3 present, so the proof got 401 before any persona existed. In the confirm run, the codified S1-S9 specs run first and the proof is meaningful.
+- **Options:**
+  1. Guard: skip the proof, with a stated reason, while the S1-S9 spec files it needs are absent, and run it as soon as they exist (pinned in stack.test.ts)
+  2. Leave it, and accept a known failure in every walkthrough-round spec run
+  3. Move the proof out of specs/ into a separate command the workflow would have to call
+- **Chosen:** Guard on the presence of the named scenario spec files, with an explicit skip reason; never skip once they exist. The failure is an ordering artefact, not an app defect, and it hides real regressions in specs.log. The guard depends only on whether the files exist, not on the outcome, so the proof can't be silenced once the scenarios are codified, and the confirm run still requires it to pass. During walkthrough rounds, S5 covers F5.3. The workflow files are not the build's to edit, so a separate command would not be run.
+- **If you decide otherwise:** Each walkthrough round reports two false spec failures, and triage keeps re-raising them. Moving the proof would mean changing .claude/workflows.
+- **Refs:** e2e/specs/mvp-1/99-f5.3-stored-equals-expected.spec.ts; e2e/stack.test.ts:206; .claude/workflows/build-mvp.js:345-352
+- **Status:** open
+
+## TBD-143 · Wording and storage of a failed scan's cause
+- **Kind:** decision
+- **Where:** MVP 1 · Fix round 3
+- **Context:** Every failed run says 'Check the mailbox and AI settings, then try again.' even for an internal error, which sends users in circles. Only the log knows cause=error. Telling causes apart in the UI means keeping the cause class with the scan, which is a new column and migration.
+- **Options:**
+  1. Store a cause class (mailbox, ai, internal) on the scan and word the stop message for each one
+  2. Make the single failed message neutral ('something went wrong') with no cause
+  3. Keep the current text
+- **Chosen:** Store the cause class and word the message for each cause. An internal fault says the problem is on JobFilly's side and that the settings are fine. Users would notice the difference. It points them to the right fix when mailbox or AI is at fault, and avoids a pointless settings hunt when the fault is internal. F4.4 asks that the stop be said in plain words. 'failed' is not one of F4.4's four reasons, so this only words the failure honestly and doesn't change the criterion.
+- **If you decide otherwise:** A neutral message loses useful guidance for real mailbox or AI faults. Keeping the current text keeps a finding that four scenarios reported.
+- **Refs:** packages/core/src/scan/tracker.ts:110; apps/server/src/jobs/scan/run.ts:224-237,372; packages/db/src/queries/scans.ts
+- **Status:** open
+
+## TBD-144 · Search over likely job mail that isn't analysed yet
+- **Kind:** decision
+- **Where:** MVP 1 · Fix round 3
+- **Context:** S5: searching for a recruiter whose mail is still unanalysed returns 'No messages match.' with no explanation. F5.1 and F5.5 describe the job inbox as job messages, which are known only after analysis.
+- **Options:**
+  1. Keep search over analysed job mail, and make empty or partial results say how many likely job emails aren't analysed and how to analyse them
+  2. Include unanalysed likely-job messages in search results
+  3. Leave as is
+- **Chosen:** Keep the search scope and explain it in the inbox, with the count and the way to Analyze them. Unanalysed mail has no category or facts, so mixing it into the job inbox would blur F5.1's 'job messages' and the category filter. Saying what is left out removes the dead end without a server or schema change.
+- **If you decide otherwise:** Searching unanalysed mail would change the messages API and the list's meaning for every user, and would need a server change in a file the intake task merges.
+- **Refs:** apps/web/src/pages/inbox/InboxPage.tsx; apps/web/src/pages/scan/NotAnalyzedBanner.tsx; docs/mvp/MVP-1.md F5.1, F5.5
+- **Status:** open
+
+## TBD-145 · Strip SQL and parameters from logged database errors at the logger
+- **Kind:** decision
+- **Where:** MVP 1 · Fix round 3
+- **Context:** db.connection_error logs Drizzle's 'Failed query: <SQL> params: <values>'. If a write that carries content fails, the content would reach stdout, which breaks ARCHITECTURE › Logs and F7.6. It was not observed in this run.
+- **Options:**
+  1. Sanitize database errors in the logger's error serializer (name, pg code, cause message only)
+  2. Change each call site to log a hand-picked field
+  3. Leave it, because it was not observed
+- **Chosen:** Sanitize in the logger's error serializer, so every call site, present and future, is covered. One choke point is harder to bypass than seven call sites, and it also cuts the 1 KB-per-second noise during outages.
+- **If you decide otherwise:** Fixing each call site leaves the next new call site exposed. Leaving it keeps a latent leak of user content.
+- **Refs:** apps/server/src/log.ts:110; apps/server/src/jobs/queue.ts:194,204,225,228; apps/server/src/index.ts:24,38,84
+- **Status:** open
+
+## TBD-146 · Keep the pg cause's message even though some pg messages quote a value
+- **Kind:** decision
+- **Where:** MVP 1 · Fix round 3 (db-error-logging)
+- **Context:** The task says to log the name, the pg code and the cause's message. Some Postgres messages quote input, for example 'invalid input syntax for type uuid: "..."'. The detail field ('Key (email)=(...) already exists') does too, but it is dropped.
+- **Options:**
+  1. Log the cause's message with the existing masking (as specified)
+  2. Drop the cause's message and log only the name and code
+- **Chosen:** Log the cause's message, masked for emails and Message-IDs; never log detail, where, query or params. This follows the fix task. The message is what tells an operator why the query failed (such as a connection reset or a constraint name). The bulk leak, the parameter list and the SQL, is closed.
+- **If you decide otherwise:** If even the occasional quoted scalar in a pg message is unacceptable, change redactError in apps/server/src/log.ts to drop `message` for failed queries and keep only name and code.
+- **Refs:** apps/server/src/log.ts (redactError), apps/server/src/log.test.ts
+- **Status:** open
+
+## TBD-147 · Reuse the current-scan query, not the NotAnalyzedBanner component, inside InboxPage
+- **Kind:** decision
+- **Where:** MVP 1 · Fix round 3 (inbox-search-unanalysed)
+- **Context:** The task said to reuse the current-scan query and NotAnalyzedBanner by importing them. But routes.tsx (which this task may not change) already renders NotAnalyzedBanner above InboxPage on the inbox routes. NotAnalyzedBanner also says neither 'aren't included' nor 'an admin can run it'.
+- **Options:**
+  1. Render NotAnalyzedBanner again inside InboxPage's empty state
+  2. Add a filter-specific note in InboxPage built on the same useCurrentScan/useScanAction/likelyJobEmails from pages/scan/queries
+- **Chosen:** A LeftOutNote in InboxPage, built on the same current-scan query and scan action from pages/scan/queries. Rendering the banner again would put two identical banners on the page, each with its own Analyze them button. It also couldn't say the mail is left out of the results or tell non-admins who can run it, which the fix requires. Sharing the query keeps the count consistent with the banner and shares its cache and live updates.
+- **If you decide otherwise:** Importing NotAnalyzedBanner into InboxPage would mean removing it from routes.tsx (outside this task's paths) to avoid the duplicate, and changing its wording inside pages/scan.
+- **Refs:** apps/web/src/pages/inbox/InboxPage.tsx (LeftOutNote), apps/web/src/routes.tsx (Inbox), apps/web/src/pages/scan/NotAnalyzedBanner.tsx
+- **Status:** open
+
+## TBD-148 · Exact file names the codified MVP 1 scenario specs must use
+- **Kind:** decision
+- **Where:** MVP 1 · Fix round 3 (e2e-f53-proof-order)
+- **Context:** The guard has to list exact spec files, but no scenario specs exist yet; the codify step will create them. Their names also have to sort before 99-f5.3 under localeCompare.
+- **Options:**
+  1. NN-sN-<slug>.spec.ts with fixed slugs (01-s1-maria-registers, 03-s3-first-scan, 05-s5-job-inbox, 06-s6-inviting-tom, 07-s7-toms-thin-inbox, 08-s8-budget-stop, 09-s9-replica-dies), enforced by stack.test.ts
+  2. Match by scenario-id prefix only (e.g. any 'NN-sN-*') instead of exact names
+  3. Leave naming unenforced
+- **Chosen:** Fixed NN-sN-<slug>.spec.ts names listed in F53_PROOF_NEEDS. stack.test.ts requires every scenario spec in specs/mvp-1 to follow NN-sN-<slug>, and requires the specs for S1/S3/S5–S9 to use exactly the listed names. The task asks for the exact files. Without enforcement, a codifier picking other names would leave the proof skipped silently and for good. With it, pnpm check fails at once and points at the list.
+- **If you decide otherwise:** The codify agent either names its specs as listed or updates F53_PROOF_NEEDS and the pinned list in stack.test.ts together. If the guard matched by prefix instead, the naming test could be relaxed.
+- **Refs:** e2e/playwright.config.ts (F53_PROOF_NEEDS), e2e/stack.test.ts (describe 'e2e/specs/mvp-1')
+- **Status:** open
+
+## TBD-149 · Where the guard lives
+- **Kind:** decision
+- **Where:** MVP 1 · Fix round 3 (e2e-f53-proof-order)
+- **Context:** Only the spec, stack.test.ts and playwright.config.ts could be changed. The spec cannot be imported under Vitest because it calls test() at the top level.
+- **Options:**
+  1. Export the guard from playwright.config.ts and import it in both the spec and stack.test.ts
+  2. Duplicate the list in the spec and check it by parsing the spec's source in stack.test.ts
+  3. Use Playwright project dependencies
+- **Chosen:** Export F53_PROOF_NEEDS and f53ProofSkipReason from playwright.config.ts. This gives one source of truth that both Playwright and Vitest can import. Project dependencies would break the single name-ordered run across specs/mvp-1 and specs/mvp-2 (the proof must run before MVP 2 specs change the state), and they can't skip with a reason when files are missing.
+- **If you decide otherwise:** If a shared e2e fixture module is preferred, the helper can move to e2e/fixtures in a later change.
+- **Refs:** e2e/playwright.config.ts, e2e/specs/mvp-1/99-f5.3-stored-equals-expected.spec.ts
+- **Status:** open
+
+## TBD-150 · How the merged mvp-1 scan tests subscribe to live events
+- **Kind:** decision
+- **Where:** MVP 1 · Fix round 3 (intake-live-merge)
+- **Context:** After the merge, the branch's live hub requires a StreamOwner {workspaceId, userId, sessionId} so that streams can be revoked (F1.4, F1.9). mvp-1's apps/server/src/jobs/scan/scan.test.ts and routes/scans.test.ts call deps.live.subscribe(workspaceId, ...), so the server failed to typecheck. Both test files are outside this task's allowed paths.
+- **Options:**
+  1. Edit scan.test.ts and scans.test.ts to pass a fake owner (outside the allowed paths)
+  2. Let LiveHub.subscribe also take a bare workspace id as an in-process listener that belongs to no member, so no access change revokes it
+  3. Leave the typecheck broken
+- **Chosen:** Let subscribe take StreamOwner | string. A string registers a listener with userId and sessionId set to null, which member.removed and session.ended never match; closeAll() still closes it. It stays inside the allowed paths (apps/server/src/live/), keeps both sides' tests unchanged, and does not weaken revocation: the SSE route (live/routes.ts) still always passes the member's owner, and the new hub test shows a member's stream is revoked while the ownerless listener is not.
+- **If you decide otherwise:** If the owner prefers that every subscriber have an owner, change scan.test.ts:169 and scans.test.ts:49 to pass {workspaceId, userId, sessionId} as messages.test.ts and intake.test.ts already do, then drop the string overload in hub.ts.
+- **Refs:** apps/server/src/live/hub.ts (subscribe, Stream.owner); apps/server/src/live/hub.test.ts 'never closes a listener that belongs to no member'; commit bf19143
+- **Status:** open
+
+## TBD-151 · Role-dependent wording of the Intake and Profile empty states (S4)
+- **Kind:** decision
+- **Where:** MVP 1 · Fix round 3 (intake-live-merge)
+- **Context:** The Intake and Profile nav links led to dead ends before the first scan stopped or before any profile existed. Only admins can start a scan (scan page), and only editors and admins can confirm the intake form.
+- **Options:**
+  1. One message for every role
+  2. Wording by role and scan state, all linking to Scan or Intake
+- **Chosen:** No scan yet: an admin gets 'No scan has run yet. Start it once your mailbox and AI are set up.' with a link 'Start the first scan'; editors and viewers get 'An admin of this workspace starts it.' with a link 'See the scan'. First scan running: 'The first scan is still reading your mail.' with 'Go to the scan'. Profile page with the form open and no profile: an editor or admin gets 'Check the answers on the intake form and confirm them to save it.' with 'Open the intake form'; a viewer gets 'It is saved when an editor or admin confirms the intake form.' with 'See the intake form'. Users see this wording. It matches what each role can actually do, it reuses the scan page's existing phrasing ('Start it once your mailbox and AI are set up.' / 'An admin of this workspace…'), and it never offers an action the role can't take.
+- **If you decide otherwise:** Change the strings in apps/web/src/pages/intake/ScanFirst.tsx and NoProfileYet in apps/web/src/pages/profile/ProfilePage.tsx, and their tests.
+- **Refs:** apps/web/src/pages/intake/ScanFirst.tsx; apps/web/src/pages/intake/queries.ts useFormOpen (firstScan); apps/web/src/pages/profile/ProfilePage.tsx NoProfileYet; commit cbe2933
+- **Status:** open
+
+## TBD-152 · Which failures count as mailbox, AI or internal
+- **Kind:** decision
+- **Where:** MVP 1 · Fix round 3 (scan-failure-feedback)
+- **Context:** The task asks for a cause class per failed run. Some failure points are ambiguous: the AI client throwing, a stored secret that won't decrypt, and a batch where the model produced nothing usable.
+- **Options:**
+  1. A throw from the AI client counts as AI, since it happened during the call
+  2. A throw from the AI client counts as internal, because packages/ai returns every provider failure (auth, unreachable, provider_error) as a value
+  3. A secret that won't decrypt counts as a mailbox or AI fault
+  4. A secret that won't decrypt counts as internal (it was sealed under a different JOBFILLY_SECRET_KEY)
+- **Chosen:** AI: provider auth, unreachable or provider_error, no AI settings, failure to create the AI client, and a batch with no progress (log code no_progress). Mailbox: body or envelope read errors, no mailbox, failure to create the mail client. Internal: a throw from the AI client (log code ai_client_error), a secret that won't decrypt (secret_error), and any unexpected error (error). packages/ai turns provider and transport failures into values, so a throw from the client is a fault in JobFilly. Sending the user to Settings › AI for it would be misleading. A secret that won't decrypt comes from the server's key configuration, not from anything the user typed.
+- **If you decide otherwise:** Change the first argument of the RunFailed and fail() calls in apps/server/src/jobs/scan/run.ts and index.ts. The wording lives in FAILED in packages/core/src/scan/tracker.ts.
+- **Refs:** TBD-112; F4.4; apps/server/src/jobs/scan/run.ts; apps/server/src/jobs/scan/index.ts
+- **Status:** open
+
+## TBD-153 · New wording for a failed stop (replaces the message in TBD-112)
+- **Kind:** decision
+- **Where:** MVP 1 · Fix round 3 (scan-failure-feedback)
+- **Context:** TBD-112 recorded one message for every failed run: 'Check the mailbox and AI settings, then try again.' This task needs a message for each cause. TBD.md is outside this task's allowed paths.
+- **Options:**
+  1. Keep one generic message
+  2. Word the message for each cause, with a neutral fallback for a failed run stored without a cause
+- **Chosen:** Mailbox: 'Stopped: couldn't read your mailbox after X of N likely job emails. Check Settings › Mailbox, then try again.' AI: 'Stopped: the AI provider couldn't be used after X of N likely job emails. Check Settings › AI, then try again.' Internal: 'Stopped: something went wrong on JobFilly's side after X of N likely job emails. Your settings don't need changing; trying again later may help.' Failed with no cause stored: 'Stopped: couldn't go on after X of N likely job emails. Try again.'. It follows the task's instruction and uses the 'Settings › …' names the app already uses. The fallback makes no claim about where the fault was when the cause is unknown.
+- **If you decide otherwise:** Edit FAILED and the fallback in stopMessage in packages/core/src/scan/tracker.ts, and the expected strings in the tracker, worker, route and web tests.
+- **Refs:** TBD-112; packages/core/src/scan/tracker.ts
+- **Status:** open
+
+## TBD-154 · Fold the stop_cause column into the one MVP 1 migration
+- **Kind:** decision
+- **Where:** MVP 1 · Fix round 3 (scan-failure-feedback)
+- **Context:** Adding scans.stop_cause needs a schema change. packages/db/src/index.test.ts (outside my paths) asserts there is exactly one MVP 1 migration, and ARCHITECTURE says one migration per release step. MVP 1 has not been released.
+- **Options:**
+  1. Add a 0001 migration
+  2. Add the column and its check constraint to 0000_mvp1.sql and its snapshot
+- **Chosen:** Added to 0000_mvp1.sql and meta/0000_snapshot.json. drizzle-kit generate reports no schema changes. No release has applied 0000 yet, the existing migration test requires a single migration, and it follows the 'one migration per release step' rule.
+- **If you decide otherwise:** If an MVP 1 database already exists somewhere, add ALTER TABLE scans ADD COLUMN stop_cause text plus the check constraint as 0001, and update the migration count in packages/db/src/index.test.ts.
+- **Refs:** docs/ARCHITECTURE.md (migrations); packages/db/migrations/0000_mvp1.sql
+- **Status:** open
+
+## TBD-155 · Show the stop time so a repeated failure reads as the new run
+- **Kind:** decision
+- **Where:** MVP 1 · Fix round 3 (scan-failure-feedback)
+- **Context:** S8: a run that fails again must be visibly different from the earlier one. The stop message has to stay a server-computed string, and the live event schema must not change.
+- **Options:**
+  1. Put the time inside the server's stop message (the server doesn't know the user's time zone)
+  2. Add stoppedAt to the HTTP CurrentScan response and show it next to the message, formatted in the browser's locale and time zone
+- **Chosen:** CurrentScan gains stoppedAt (HTTP only; ScanProgress and the live events are unchanged). The Scan page and the banner show 'Ended <time>': time with seconds, plus the date when it wasn't today. The message stays the same server string everywhere, no time zone is hard-coded, and the live event schema owned by the other task is untouched. A scan.stopped event already triggers a refetch of /scans/current, so the time arrives with it.
+- **If you decide otherwise:** Remove stoppedAt from CurrentScanSchema and the route, and drop StopTime.tsx and its uses.
+- **Refs:** S8; packages/schema/src/scan.ts; apps/web/src/pages/scan/StopTime.tsx
+- **Status:** open

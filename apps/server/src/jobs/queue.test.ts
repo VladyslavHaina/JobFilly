@@ -176,12 +176,20 @@ describe("the job queue worker", () => {
       }),
     };
     const { deps, workspaceId } = await setup(async () => {});
+    // A real failed write as the driver reports it: Drizzle's message carries the SQL and every
+    // bound value, here a sentinel in the payload; the cause is pg's foreign-key violation.
+    const failedWrite: unknown = await enqueueJob(deps.db, "00000000-0000-4000-8000-000000000000", {
+      type: "test.job",
+      payload: { note: "PARAMSENTINEL-payload" },
+      now: deps.clock.now(),
+    }).catch((error: unknown) => error);
+    expect(String(failedWrite)).toContain("PARAMSENTINEL-payload");
     // The database as the queue sees it: every update fails while failWrites is set.
     const db = new Proxy(deps.db, {
       get(target, prop, receiver) {
         if (prop === "update" && failWrites) {
           return () => {
-            throw new Error("connection terminated");
+            throw failedWrite;
           };
         }
         return Reflect.get(target, prop, receiver);
@@ -201,7 +209,17 @@ describe("the job queue worker", () => {
       queue.start();
       await expect
         .poll(() => deps.logs.find((l) => l.event === "db.connection_error"))
-        .toMatchObject({ level: "warn", jobId: id, jobType: "test.job", workspaceId });
+        .toMatchObject({
+          level: "warn",
+          jobId: id,
+          jobType: "test.job",
+          workspaceId,
+          error: { code: "23503" },
+        });
+      // The log line keeps the pg code but never the SQL or the bound values.
+      const logged = JSON.stringify(deps.logs.filter((l) => l.event === "db.connection_error"));
+      expect(logged).not.toContain("PARAMSENTINEL");
+      expect(logged).not.toContain("insert into");
       await queue.stop();
       // Let any stray rejection surface before checking.
       await new Promise((r) => setTimeout(r, 20));

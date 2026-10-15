@@ -167,6 +167,7 @@ CREATE TABLE "scans" (
 	"kind" text NOT NULL,
 	"status" text DEFAULT 'queued' NOT NULL,
 	"stop_reason" text,
+	"stop_cause" text,
 	"counts" jsonb NOT NULL,
 	"calls" integer DEFAULT 0 NOT NULL,
 	"input_tokens" integer DEFAULT 0 NOT NULL,
@@ -175,7 +176,8 @@ CREATE TABLE "scans" (
 	"started_at" timestamp with time zone NOT NULL,
 	"stopped_at" timestamp with time zone,
 	CONSTRAINT "scans_kind_check" CHECK (kind in ('first', 'analyze_rest')),
-	CONSTRAINT "scans_status_check" CHECK (status in ('queued', 'running', 'stopped'))
+	CONSTRAINT "scans_status_check" CHECK (status in ('queued', 'running', 'stopped')),
+	CONSTRAINT "scans_stop_cause_check" CHECK (stop_cause is null or stop_cause in ('mailbox', 'ai', 'internal'))
 );
 --> statement-breakpoint
 CREATE TABLE "sessions" (

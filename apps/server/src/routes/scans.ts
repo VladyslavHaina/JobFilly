@@ -49,7 +49,7 @@ function progressOf(scan: Scan): ScanProgress {
 
 function messageOf(scan: Scan): string | null {
   if (scan.status !== "stopped" || !scan.stopReason) return null;
-  return stopMessage(scan.stopReason, scan.counts.analyzed, scan.counts.likely);
+  return stopMessage(scan.stopReason, scan.counts.analyzed, scan.counts.likely, scan.stopCause);
 }
 
 async function current(deps: AppDeps, workspaceId: string, scan: Scan | null) {
@@ -57,6 +57,7 @@ async function current(deps: AppDeps, workspaceId: string, scan: Scan | null) {
   return {
     progress: scan ? progressOf(scan) : null,
     stopMessage: scan ? messageOf(scan) : null,
+    stoppedAt: scan?.stoppedAt ?? null,
     totalTokens: usage.inputTokens + usage.outputTokens,
   } satisfies CurrentScan;
 }

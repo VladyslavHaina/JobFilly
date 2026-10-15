@@ -34,6 +34,8 @@ export interface FakeMail {
   fetched: { folder: string; since: Date }[];
   bodies: string[];
   closed: number;
+  /** From now on, reading envelopes or bodies throws, the way packages/mail does on a fault. */
+  failing: { envelopes: boolean; bodies: boolean };
 }
 
 export function fakeMail(envelopes: readonly Envelope[]): FakeMail {
@@ -42,6 +44,7 @@ export function fakeMail(envelopes: readonly Envelope[]): FakeMail {
     fetched: [],
     bodies: [],
     closed: 0,
+    failing: { envelopes: false, bodies: false },
     port: {
       connect(conn) {
         fake.connections.push(conn);
@@ -50,12 +53,14 @@ export function fakeMail(envelopes: readonly Envelope[]): FakeMail {
             return { ok: true, folders: ["INBOX", "Sent"], sentPath: "Sent" };
           },
           async fetchEnvelopes({ folder, since }) {
+            if (fake.failing.envelopes) throw new Error("fake mailbox failure");
             fake.fetched.push({ folder, since });
             return envelopes
               .filter((e) => e.folder === folder && Date.parse(e.date) >= since.getTime())
               .sort((a, b) => Date.parse(b.date) - Date.parse(a.date));
           },
           async fetchBody(ref) {
+            if (fake.failing.bodies) throw new Error("fake mailbox failure");
             const e = envelopes.find(
               (x) => x.folderPath === ref.folderPath && x.uid === ref.uid,
             ) as Envelope;

@@ -3,6 +3,7 @@ import {
   type Scan,
   type ScanCounts,
   type ScanKind,
+  type StopCause,
   type StopReason,
 } from "@jobfilly/schema";
 import { and, desc, eq, ne } from "drizzle-orm";
@@ -26,6 +27,7 @@ function toScan(row: ScanRow): Scan {
     kind: row.kind,
     status: row.status,
     stopReason: row.stopReason,
+    stopCause: row.stopCause,
     counts: row.counts,
     calls: row.calls,
     inputTokens: row.inputTokens,
@@ -125,17 +127,23 @@ export async function updateScanProgress(
   return rows.length > 0;
 }
 
-/** Stops the scan with its reason; false when it had already stopped (the first stop wins). */
+/**
+ * Stops the scan with its reason; false when it had already stopped (the first stop wins). A
+ * failed run also keeps what it ran into (`cause`), which its stop message names; any other
+ * reason stores no cause.
+ */
 export async function stopScan(
   db: Database,
   workspaceId: string,
   scanId: string,
   stopReason: StopReason,
   at: Date,
+  cause: StopCause | null = null,
 ): Promise<boolean> {
+  const stopCause = stopReason === "failed" ? cause : null;
   const rows = await db
     .update(scans)
-    .set({ status: "stopped", stopReason, stoppedAt: at })
+    .set({ status: "stopped", stopReason, stopCause, stoppedAt: at })
     .where(
       and(eq(scans.workspaceId, workspaceId), eq(scans.id, scanId), ne(scans.status, "stopped")),
     )
