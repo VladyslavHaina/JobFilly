@@ -6,5 +6,5 @@ export {
   type MailClient,
   type MailClientOptions,
 } from "./client";
-export { FAILURE_MESSAGES, MailError } from "./errors";
+export { FAILURE_MESSAGES } from "./errors";
 export { MAIL_PRESETS } from "./presets";
