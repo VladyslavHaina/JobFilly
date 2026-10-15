@@ -19,7 +19,6 @@ import {
 } from "@jobfilly/db";
 import {
   type AssistantClarify,
-  type AssistantOutput,
   AssistantOutputSchema,
   type AssistantSend,
   type AssistantState,
@@ -30,7 +29,6 @@ import {
   type Proposal,
   type User,
 } from "@jobfilly/schema";
-import { z } from "zod";
 import { aiClientFor } from "../ai-usage";
 import type { AppDeps } from "../deps";
 import type { Logger } from "../log";
@@ -63,6 +61,9 @@ const fail = (status: Failure["status"], error: string, message?: string): Failu
 });
 const NOT_FOUND = fail(404, "not_found");
 const DECIDED = fail(409, "decided", "This proposal was already applied or discarded.");
+
+/** A proposal made only of rule and entry changes, or none: the only kind ever stored. */
+const PROPOSAL = AssistantOutputSchema.shape.proposal;
 
 /** What the reply says when the model's proposal can't be one (F8.7). */
 const OUTSIDE =
@@ -163,15 +164,15 @@ export async function sendMessage(
     entries: (profile?.entries ?? []).map((e) => ({ key: e.key, label: e.label, value: e.value })),
     rules,
   });
-  const answer = result.ok ? AssistantOutputSchema.safeParse(result.data) : null;
-  // The proposal is checked on its own: a change outside rules and entries refuses it alone.
-  const reply = answer?.success ? answer.data : result.ok ? outsideOnly(result.data) : null;
-  if (!reply) return fail(502, "ai_failed", "The assistant couldn't answer. Try again.");
+  if (!result.ok) return fail(502, "ai_failed", "The assistant couldn't answer. Try again.");
 
-  let text = reply.reply;
-  const clarify: AssistantClarify | null = reply.clarify;
-  let proposal: { summary: string; changes: Change[] } | null = clarify ? null : reply.proposal;
-  if (answer && !answer.success) text = `${text}\n\n${OUTSIDE}`;
+  let text = result.data.reply;
+  const clarify: AssistantClarify | null = result.data.clarify;
+  // packages/ai lets through a proposal with changes outside rules and entries (a mailbox, a
+  // member…): it is refused here, alone, and the reply says so.
+  const inScope = PROPOSAL.safeParse(clarify ? null : result.data.proposal);
+  let proposal: { summary: string; changes: Change[] } | null = inScope.data ?? null;
+  if (!inScope.success) text = `${text}\n\n${OUTSIDE}`;
   if (proposal && proposal.changes.length === 0) proposal = null;
   if (proposal && !profile) {
     text = `${text}\n\n${NO_PROFILE}`;
@@ -231,17 +232,6 @@ export async function sendMessage(
   }
   await deps.live.publish(ws, { type: "assistant.updated", data: {} });
   return { ok: true, data: { threadId: saved.threadId, reply: text, clarify, proposal: card } };
-}
-
-/**
- * An answer whose proposal isn't a list of rule and entry changes (a change to a mailbox, a
- * member, a message…) keeps its reply and question and loses the proposal; an answer that is
- * wrong anywhere else is no answer.
- */
-function outsideOnly(data: unknown): AssistantOutput | null {
-  const loose = AssistantOutputSchema.extend({ proposal: z.unknown() }).safeParse(data);
-  if (!loose.success) return null;
-  return { reply: loose.data.reply, clarify: loose.data.clarify, proposal: null };
 }
 
 /** The member's own proposal, or null: nobody acts on another member's conversation. */

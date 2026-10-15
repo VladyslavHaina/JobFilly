@@ -1,3 +1,4 @@
+import { createAiClient } from "@jobfilly/ai";
 import { replyEligibility } from "@jobfilly/core";
 import {
   claimDraft,
@@ -533,19 +534,87 @@ describe("history and Undo after Apply (F8.4)", () => {
 });
 
 describe("what the assistant can't do (F8.7)", () => {
-  it("refuses a proposal that changes anything but rules and profile entries", async () => {
-    ai.answers.assistant["connect my work mailbox"] = {
-      reply: "Here is a proposal.",
-      clarify: null,
-      proposal: {
-        summary: "Change the mailbox",
-        changes: [{ op: "update", target: "mailbox", key: "host", value: ["imap.evil.example"] }],
-      },
-    } as unknown as AssistantOutput;
+  const mailboxAnswer = {
+    reply: "Here is a proposal.",
+    clarify: null,
+    proposal: {
+      summary: "Change the mailbox",
+      changes: [{ op: "update", target: "mailbox", key: "host", value: ["imap.evil.example"] }],
+    },
+  };
+
+  /**
+   * The real packages/ai client on a fake OpenAI-compatible provider answering every request
+   * with `answer`: the answer goes through the same checks as in production.
+   */
+  function realClientAnswering(answer: unknown) {
+    const requests: string[] = [];
+    deps.ai = {
+      client: (settings) =>
+        createAiClient(settings, {
+          fetch: async (url) => {
+            requests.push(String(url));
+            return Response.json({
+              id: `chatcmpl-${requests.length}`,
+              object: "chat.completion",
+              created: 1790000000,
+              model: TEST_AI_MODELS.assistant,
+              choices: [
+                {
+                  index: 0,
+                  message: { role: "assistant", content: JSON.stringify(answer) },
+                  finish_reason: "stop",
+                },
+              ],
+              usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+            });
+          },
+        }),
+    };
+    return requests;
+  }
+
+  it("refuses a proposal that changes anything but rules and profile entries, reply kept", async () => {
+    const requests = realClientAnswering(mailboxAnswer);
+    const turn = await send(maria, "connect my work mailbox");
+    expect(requests).toEqual(["http://fake-ai.test/v1/chat/completions"]);
+    expect(turn.proposal).toBeNull();
+    expect(turn.reply).toBe(
+      "Here is a proposal.\n\nI can only propose changes to your rules and profile entries, so nothing was proposed.",
+    );
+    expect(deps.logs.some((l) => l.event === "assistant.proposal_created")).toBe(false);
+    const state = AssistantStateSchema.parse(await (await maria.get(`${base()}/assistant`)).json());
+    expect(state.thread?.messages.map((m) => m.text)).toEqual([
+      "connect my work mailbox",
+      turn.reply,
+    ]);
+    expect(state.thread?.proposals).toEqual([]);
+  });
+
+  it("answers no reply to a malformed rule change, after the client's one retry", async () => {
+    const requests = realClientAnswering(
+      proposalAnswer([{ op: "add", target: "rule", rule: { description: "x" } } as never]),
+    );
+    const res = await maria.post(`${base()}/assistant`, { threadId: null, text: "hide them" });
+    expect(res.status).toBe(502);
+    expect(requests).toHaveLength(2);
+    const state = AssistantStateSchema.parse(await (await maria.get(`${base()}/assistant`)).json());
+    expect(state.thread).toBeNull();
+  });
+
+  it("gets the same outcomes from the fake AI port, which checks answers the same way", async () => {
+    ai.answers.assistant["connect my work mailbox"] = mailboxAnswer;
     const turn = await send(maria, "connect my work mailbox");
     expect(turn.proposal).toBeNull();
     expect(turn.reply).toContain("I can only propose changes to your rules and profile entries");
-    expect(deps.logs.some((l) => l.event === "assistant.proposal_created")).toBe(false);
+    ai.answers.assistant["hide them"] = proposalAnswer([
+      { op: "add", target: "rule", rule: { description: "x" } } as never,
+    ]);
+    const res = await maria.post(`${base()}/assistant`, {
+      threadId: turn.threadId,
+      text: "hide them",
+    });
+    expect(res.status).toBe(502);
   });
 
   it("refuses a change that doesn't apply to the profile", async () => {

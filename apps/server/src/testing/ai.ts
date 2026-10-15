@@ -1,28 +1,31 @@
 import type { AiClient } from "@jobfilly/ai";
-import type {
-  AiError,
-  AiTask,
-  AssistantOutput,
-  BatchResult,
-  Category,
-  CvReadOutput,
-  DraftOutput,
-  IntakeExtraOutput,
-  JobFacts,
-  MatchAiOutput,
-  Preferences,
-  TaskId,
-  TaskResult,
-  Usage,
+import {
+  type AiError,
+  type AiTask,
+  type AssistantAnswer,
+  AssistantAnswerSchema,
+  type BatchResult,
+  type Category,
+  type CvReadOutput,
+  type DraftOutput,
+  type IntakeExtraOutput,
+  type JobFacts,
+  type MatchAiOutput,
+  type Preferences,
+  type TaskId,
+  type TaskResult,
+  type Usage,
 } from "@jobfilly/schema";
+import type { ZodType } from "zod";
 import type { AiPort } from "../deps";
 
 // A fake AI behind the AiPort, keyed like the test stack's fake AI (tests only): classify,
 // extract and prefs by Message-ID, cv.v1 by the CV's content hash, match.v1 by
 // "<Message-ID>#<position>", draft.v1 by "<Message-ID>#<position>#<attempt>", assistant.v1 by
 // the user's text (or "<turn>#<text>" for one turn). A call it has no answer for fails the way a
-// provider does (provider_error), so a missing answer is never silent. One Usage per call;
-// per-task call counts; failNext(task) fails that task's next call once.
+// provider does (provider_error), so a missing answer is never silent; an assistant.v1 answer
+// that doesn't fit AssistantAnswerSchema, the check packages/ai makes, fails as invalid_output.
+// One Usage per call; per-task call counts; failNext(task) fails that task's next call once.
 
 export interface FakeAiAnswers {
   classify?: Record<string, Category>;
@@ -32,7 +35,7 @@ export interface FakeAiAnswers {
   cv?: Record<string, CvReadOutput>;
   match?: Record<string, MatchAiOutput>;
   draft?: Record<string, DraftOutput>;
-  assistant?: Record<string, AssistantOutput>;
+  assistant?: Record<string, AssistantAnswer>;
 }
 
 export interface FakeAiClient {
@@ -86,13 +89,21 @@ export function createFakeAi(answers: FakeAiAnswers = {}): FakeAiClient {
 
   const usage = (task: TaskId): Usage[] => [{ task, inputTokens: 100, outputTokens: 20 }];
 
-  /** One call of a single-answer task. */
-  function single<T>(task: AiTask, taskId: TaskId, key: string, answer: T | undefined) {
+  /** One call of a single-answer task; an answer that fails `check` is invalid_output. */
+  function single<T>(
+    task: AiTask,
+    taskId: TaskId,
+    key: string,
+    answer: T | undefined,
+    check?: ZodType,
+  ) {
     fake.calls[task] += 1;
     fake.log.push({ task: taskId, key });
-    const kind = failing.get(task);
+    const failed = failing.get(task);
+    failing.delete(task);
+    const invalid = answer !== undefined && check && !check.safeParse(answer).success;
+    const kind = failed ?? (invalid ? "invalid_output" : undefined);
     if (kind) {
-      failing.delete(task);
       return Promise.resolve<TaskResult<T>>({
         ok: false,
         error: { kind, message: "fake failure" },
@@ -175,7 +186,9 @@ export function createFakeAi(answers: FakeAiAnswers = {}): FakeAiClient {
     assistant: (input) => {
       const turnKey = `${input.turn}#${input.text}`;
       const answer = all.assistant[turnKey] ?? all.assistant[input.text];
-      return single("assistant", "assistant.v1", turnKey, answer);
+      // Checked like packages/ai checks it: an answer the real client would reject (after its
+      // retry) fails here too, so no test reaches a state production can't.
+      return single("assistant", "assistant.v1", turnKey, answer, AssistantAnswerSchema);
     },
   };
   return fake;
