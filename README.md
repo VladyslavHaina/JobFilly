@@ -26,8 +26,9 @@ pnpm e2e                     # a fresh test stack (Docker), every Playwright spe
 pnpm e2e:stack up|down       # start or remove a test stack
 pnpm e2e:specs [--mvp <n>]   # run the specs against the running stack
 
-# self-hosted, on http://127.0.0.1:8787 (app + PostgreSQL)
-JOBFILLY_SECRET_KEY=$(openssl rand -base64 32) docker compose -f docker/compose.yaml up --build
+# self-hosted, on http://127.0.0.1:8787 (app + PostgreSQL); keep both values for later starts
+JOBFILLY_SECRET_KEY=$(openssl rand -base64 32) POSTGRES_PASSWORD=$(openssl rand -hex 24) \
+  docker compose -f docker/compose.yaml up --build
 ```
 
 The server reads its configuration from the environment and stops with one clear message when

@@ -1,12 +1,14 @@
 # The app and PostgreSQL. Start with:
-#   JOBFILLY_SECRET_KEY=$(openssl rand -base64 32) docker compose -f docker/compose.yaml up --build
-# Keep the same key afterwards: it encrypts the stored mail passwords and AI keys.
+#   JOBFILLY_SECRET_KEY=$(openssl rand -base64 32) POSTGRES_PASSWORD=$(openssl rand -hex 24) \
+#     docker compose -f docker/compose.yaml up --build
+# Keep both afterwards: the key encrypts the stored mail passwords and AI keys, and the database
+# keeps the password it was first created with. The password is hex so it fits DATABASE_URL as is.
 services:
   postgres:
     image: postgres:17
     environment:
       POSTGRES_USER: jobfilly
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-jobfilly}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD, e.g. $(openssl rand -hex 24)}
       POSTGRES_DB: jobfilly
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -21,7 +23,7 @@ services:
       context: ..
       dockerfile: docker/Dockerfile
     environment:
-      DATABASE_URL: postgres://jobfilly:${POSTGRES_PASSWORD:-jobfilly}@postgres:5432/jobfilly
+      DATABASE_URL: postgres://jobfilly:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD, e.g. $(openssl rand -hex 24)}@postgres:5432/jobfilly
       JOBFILLY_SECRET_KEY: ${JOBFILLY_SECRET_KEY:?set JOBFILLY_SECRET_KEY, e.g. $(openssl rand -base64 32)}
       PUBLIC_URL: ${PUBLIC_URL:-http://127.0.0.1:8787}
       PORT: "8787"
