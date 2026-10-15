@@ -80,6 +80,9 @@ Rules:
 - CV files are stored in Postgres (size-limited), so replicas need no shared disk.
 - Secrets (mail passwords, OAuth tokens, AI keys) are encrypted with AES-256-GCM using
   `JOBFILLY_SECRET_KEY` before they are stored. They are never returned by the API or logged.
+  Every place that hands a workspace's AI key to the AI port (the AI settings routes, the scan job,
+  the intake.v1 call) opens it with `openAiKey` in `apps/server/src/secrets.ts`, so a key that was
+  never stored and one cleared on purpose (stored sealed as "") both read as no key.
 
 ## Background work and live updates
 
@@ -90,14 +93,22 @@ Rules:
 - Live updates reach the browser over Server-Sent Events
   (`GET /api/workspaces/:workspaceId/events`). Replicas publish events through Postgres
   `LISTEN/NOTIFY`, so a browser connected to any replica sees work done on any other.
-- Each stream belongs to one member's session in one workspace. Removing a member or ending a
-  session sends an access change (`member.removed`, `session.ended`) on the same NOTIFY channel,
-  so every replica closes the matching streams in order with the events: nothing published after
-  the change reaches them. Each stream also re-checks its session and membership when it opens
-  and on every heartbeat, for whatever ends without a notification.
+- Each stream belongs to one member's session in one workspace: every subscriber to the live hub
+  (`apps/server/src/live/hub.ts`) passes its owner (workspace, user and session), and there is no
+  ownerless listener, in production or in tests. Removing a member or ending a session sends an
+  access change (`member.removed`, `session.ended`) on the same NOTIFY channel; the replica that
+  made the change closes its matching streams at once, and every other replica closes them as the
+  notification arrives, in order with the events: nothing published after the change reaches
+  them. Each stream also re-checks its session and membership when it opens and on every
+  heartbeat, for whatever ends without a notification.
 - Job handlers get the job's payload, its last checkpoint, the previous instance (after a
   takeover), `saveCheckpoint`, `renewLease` and an abort signal; `apps/server/src/jobs/registry.ts`
   maps each job type to its handler.
+- The intake form's proposed answers are not stored: `aggregateIntake` (`packages/core`) computes
+  them from the scan's stored findings on each `GET /intake`, and the scan job runs the same
+  aggregation after every batch to track whether the answers still change (`deps.intake`, so
+  tests can swap it). Confirm saves them as the profile "My job search", with each entry's
+  sources.
 - One model call runs outside the queue: intake.v1, which proposes the intake form's extra
   questions once per workspace. The first `GET /intake` after the first scan stops claims it
   through the workspace's `intake_extras` row (insert-or-skip) and makes the call after the
