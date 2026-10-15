@@ -48,7 +48,7 @@ function itemWords(key: ProfileKey, item: ProfileItem): string {
 }
 
 /** A profile value in plain words: its items joined, "none" for an empty list. */
-export function valueWords(key: ProfileKey, value: ProfileValue): string {
+function valueWords(key: ProfileKey, value: ProfileValue): string {
   const items = (value as ProfileItem[]).map((item) => itemWords(key, item));
   return items.length > 0 ? items.join("; ") : "none";
 }
