@@ -7,9 +7,11 @@ import {
   CategorySchema,
   ClaimedJobSchema,
   ClassifyOutputSchema,
+  ConfirmIntakeInputSchema,
   CreateInviteInputSchema,
   DEFAULT_BUDGET_PER_RUN,
   EnvelopeSchema,
+  ExtraQuestionSchema,
   IntakeExtraInputSchema,
   IntakeExtraOutputSchema,
   IntakeProposalSchema,
@@ -26,6 +28,8 @@ import {
   PreferencesSchema,
   ProfileEntrySchema,
   ProfileKeySchema,
+  ProfilePatchSchema,
+  profileValueSchema,
   RegisterInputSchema,
   roleAtLeast,
   StageOneOutcomeSchema,
@@ -230,6 +234,33 @@ describe("profile", () => {
       places: [{ country: "DE", city: "Berlin", mode: "hybrid" }],
       extra: { b2b: "accepts B2B" },
     });
+  });
+
+  it("refuses a NUL character, which Postgres can't store, in words a model or a user wrote", () => {
+    const nul = "Berlin\u0000";
+    const question = { slug: "b2b", label: "B2B?", options: ["Yes"], evidence: ["<r1@x>"] };
+    expect(ExtraQuestionSchema.safeParse(question).success).toBe(true);
+    for (const bad of [
+      { ...question, label: nul },
+      { ...question, options: [nul] },
+      { ...question, evidence: [nul] },
+    ]) {
+      expect(ExtraQuestionSchema.safeParse(bad).success).toBe(false);
+    }
+    for (const bad of [
+      { target_roles: [nul] },
+      { places: [{ country: "DE", city: nul, mode: "hybrid" }] },
+      { remote: [{ scope: nul, timeZones: null }] },
+      { min_pay: [{ amount: 1, currency: "EUR", period: "year", asWritten: nul }] },
+      { work_permits: [{ country: null, text: nul }] },
+      { extra: { b2b: nul } },
+    ]) {
+      expect(PreferencesSchema.safeParse(bad).success, JSON.stringify(bad)).toBe(false);
+    }
+    expect(profileValueSchema("extra.b2b").safeParse([nul]).success).toBe(false);
+    expect(ConfirmIntakeInputSchema.safeParse({ name: nul }).success).toBe(false);
+    expect(ProfilePatchSchema.safeParse({ name: nul }).success).toBe(false);
+    expect(ConfirmIntakeInputSchema.parse({ name: "  Jobs " })).toEqual({ name: "Jobs" });
   });
 });
 

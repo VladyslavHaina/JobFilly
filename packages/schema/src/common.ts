@@ -5,6 +5,13 @@ import { z } from "zod";
 /** An ISO 8601 timestamp with an offset, as JSON carries dates. */
 export const IsoDateTimeSchema = z.iso.datetime({ offset: true });
 
+/**
+ * Words that can be stored: Postgres refuses the NUL character in text and jsonb, so a string
+ * holding one is refused where it enters, whether a model or a user wrote it. A refinement, not a
+ * pattern, so the JSON Schema the models are given stays as it is.
+ */
+export const TextSchema = z.string().refine((s) => !s.includes("\u0000"), "no NUL characters");
+
 /** ISO 3166-1 alpha-2 country code, upper case ("DE"). */
 export const CountryCodeSchema = z.string().regex(/^[A-Z]{2}$/, "an ISO 3166-1 alpha-2 code");
 
