@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { CountryCodeSchema, IsoDateTimeSchema } from "./common";
+import { CountryCodeSchema, IdSchema, IsoDateTimeSchema } from "./common";
 import { EnvelopeSchema } from "./mailbox";
 import { StageOneVerdictSchema } from "./messages";
 import { IntakeProposalSchema } from "./profile";
@@ -77,6 +77,9 @@ export const CurrentScanSchema = z.object({
   totalTokens: z.number().int().nonnegative(),
 });
 export type CurrentScan = z.infer<typeof CurrentScanSchema>;
+
+/** POST /scans/:scanId/cancel. */
+export const ScanParamsSchema = z.object({ scanId: IdSchema });
 
 /** The payload of a 'scan.run' job in the queue. */
 export const ScanRunPayloadSchema = z.object({ scanId: z.uuid(), workspaceId: z.uuid() });
