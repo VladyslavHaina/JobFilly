@@ -1,4 +1,4 @@
-import type { PayPeriod, TimeZoneRange } from "@jobfilly/schema";
+import { formatOffset, type PayPeriod, type TimeZoneRange } from "@jobfilly/schema";
 
 // Small wording and comparison helpers shared by the rules engine and the match: how a UTC offset,
 // a time-zone range and an amount read in plain words, and how words are compared (case and
@@ -21,16 +21,6 @@ function rangeMinutes(range: TimeZoneRange): [number, number] {
   const a = offsetMinutes(range.from);
   const b = offsetMinutes(range.to);
   return a <= b ? [a, b] : [b, a];
-}
-
-/** "UTC+03:00" reads "UTC+3", "UTC-01:00" "UTC−1" (a real minus sign), "UTC+05:30" "UTC+5:30". */
-export function formatOffset(offset: string): string {
-  const m = /^UTC([+-])(\d{2}):(\d{2})$/.exec(offset);
-  if (!m) return offset;
-  const hours = String(Number(m[2]));
-  const minutes = m[3] === "00" ? "" : `:${m[3]}`;
-  const sign = m[1] === "-" && `${hours}${minutes}` !== "0" ? "−" : "+";
-  return `UTC${sign}${hours}${minutes}`;
 }
 
 /** "UTC−1 to UTC+3", or one offset when both ends are the same. */

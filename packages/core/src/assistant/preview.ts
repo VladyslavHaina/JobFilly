@@ -1,7 +1,6 @@
 import type {
   Category,
   Change,
-  ChangeLine,
   DraftStatus,
   Impact,
   JobFacts,
@@ -21,7 +20,6 @@ import {
   type ChangeError,
   type ProfileContent,
 } from "../profile/changes";
-import { changeLines } from "./words";
 
 // The impact preview of a proposal (F8.2, F8.5): the profile and rules with the changes applied
 // (the pinned Change semantics of applyChanges), run against the current roles with the real
@@ -65,28 +63,9 @@ export interface ImpactPreviewInput {
   now: Date;
 }
 
-/** What the change does to one role. */
-export interface RoleImpact {
-  messageId: string;
-  position: number;
-  hidden: { before: boolean; after: boolean };
-  score: { before: number; after: number };
-  /** It would have got an automatic draft, and won't. */
-  draftNotCreated: boolean;
-  /** The change affects it and its draft is already in the mailbox, where it stays. */
-  draftInMailbox: boolean;
-}
-
+/** The snapshots a proposal stores (its plain words are changeLines of them) and its impact. */
 export type ImpactPreview =
-  | {
-      ok: true;
-      before: ProfileSnapshot;
-      after: ProfileSnapshot;
-      lines: ChangeLine[];
-      impact: Impact;
-      /** Only the roles the change affects. */
-      roles: RoleImpact[];
-    }
+  | { ok: true; before: ProfileSnapshot; after: ProfileSnapshot; impact: Impact }
   | { ok: false; error: ChangeError };
 
 /** The draft statuses of a draft that is in the mailbox's Drafts folder. */
@@ -152,7 +131,6 @@ export function previewImpact(input: ImpactPreviewInput): ImpactPreview {
     draftsNotCreated: 0,
     draftsInMailbox: 0,
   };
-  const roles: RoleImpact[] = [];
   for (const role of input.roles) {
     const was = outcome(role, input.content.entries, input.content.rules, input.now);
     const will = outcome(role, applied.entries, applied.rules, input.now);
@@ -162,28 +140,11 @@ export function previewImpact(input: ImpactPreviewInput): ImpactPreview {
       was.effects !== will.effects ||
       was.eligible !== will.eligible;
     if (!affected) continue;
-    const draftNotCreated = was.eligible && !will.eligible;
-    const draftInMailbox = role.draft !== null && IN_MAILBOX.has(role.draft.status);
     if (!was.hidden && will.hidden) impact.hides += 1;
     if (was.hidden && !will.hidden) impact.shows += 1;
     if (was.score !== will.score) impact.scoreMoves += 1;
-    if (draftNotCreated) impact.draftsNotCreated += 1;
-    if (draftInMailbox) impact.draftsInMailbox += 1;
-    roles.push({
-      messageId: role.messageId,
-      position: role.position,
-      hidden: { before: was.hidden, after: will.hidden },
-      score: { before: was.score, after: will.score },
-      draftNotCreated,
-      draftInMailbox,
-    });
+    if (was.eligible && !will.eligible) impact.draftsNotCreated += 1;
+    if (role.draft !== null && IN_MAILBOX.has(role.draft.status)) impact.draftsInMailbox += 1;
   }
-  return {
-    ok: true,
-    before: applied.before,
-    after: applied.after,
-    lines: changeLines(applied.before, applied.after),
-    impact,
-    roles,
-  };
+  return { ok: true, before: applied.before, after: applied.after, impact };
 }

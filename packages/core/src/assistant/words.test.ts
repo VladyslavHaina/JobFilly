@@ -1,6 +1,6 @@
 import type { Change, Rule, RuleDraft } from "@jobfilly/schema";
 import { describe, expect, it } from "vitest";
-import { changeLines, changeSummary, rewordEdited } from "./words";
+import { changeLines, changeSummary, editedSummary, rewordEdited } from "./words";
 
 // A proposal and the profile history in plain words (F8.2, F8.4): the summary of edited changes,
 // rule descriptions that follow an edit of their conditions, and before and after lines.
@@ -72,6 +72,23 @@ describe("changeSummary", () => {
   });
 });
 
+describe("editedSummary", () => {
+  const proposal = {
+    summary: "Ich blende Rollen in asiatischen Zeitzonen aus",
+    changes: [{ op: "add", target: "rule", rule: asia }] satisfies Change[],
+  };
+
+  it("keeps the model's words while the changes are as proposed", () => {
+    expect(editedSummary(proposal, proposal.changes, [])).toBe(proposal.summary);
+  });
+
+  it("says what the edited changes do", () => {
+    const rule = { ...withRange("UTC+04:00"), description: "No hours from UTC+4 on" };
+    const edited: Change[] = [{ op: "add", target: "rule", rule }];
+    expect(editedSummary(proposal, edited, [])).toBe("No hours from UTC+4 on");
+  });
+});
+
 describe("changeLines", () => {
   it("words entries and rules that come, go and change", () => {
     const lines = changeLines(
@@ -108,6 +125,52 @@ describe("changeLines", () => {
         label: "Rule",
         before: "Hide roles whose working hours are UTC+5 or later",
         after: "Hide roles whose working hours are UTC+5 or later (off)",
+      },
+    ]);
+  });
+
+  it("words time-zone ranges, amounts and a new rule", () => {
+    const lines = changeLines(
+      {
+        entries: [
+          { key: "languages", value: ["English"] },
+          { key: "remote", value: [{ scope: "Worldwide", timeZones: null }] },
+          { key: "min_pay", value: null },
+        ],
+        rules: [{ id: stored.id, rule: null }],
+      },
+      {
+        entries: [
+          { key: "languages", value: ["German"] },
+          {
+            key: "remote",
+            value: [
+              { scope: "Worldwide", timeZones: null },
+              { scope: "EU", timeZones: { from: "UTC-01:00", to: "UTC+03:00" } },
+            ],
+          },
+          {
+            key: "min_pay",
+            value: [{ amount: 120000, currency: "CHF", period: "year", asWritten: "CHF 120k" }],
+          },
+        ],
+        rules: [{ id: stored.id, rule: stored }],
+      },
+    );
+    expect(lines).toEqual([
+      { target: "entry", label: "Working languages", before: "English", after: "German" },
+      {
+        target: "entry",
+        label: "Remote work",
+        before: "Worldwide",
+        after: "Worldwide; EU (UTC−1 to UTC+3)",
+      },
+      { target: "entry", label: "Minimum pay", before: null, after: "CHF 120,000 per year" },
+      {
+        target: "rule",
+        label: "Rule",
+        before: null,
+        after: "Hide roles whose working hours are UTC+5 or later",
       },
     ]);
   });

@@ -18,7 +18,7 @@ import {
   type RuleSubject,
   ruleName,
 } from "./engine";
-import { formatOffset, formatRange } from "./words";
+import { formatRange } from "./words";
 
 // The rules engine (F3.1–F3.3): plain words, the same outcome for the same input naming the rule,
 // a rule never applied on a fact the mail doesn't state, and every op against every fact.
@@ -143,11 +143,7 @@ describe("rules in plain words (F3.1)", () => {
     expect(ruleName(rule([outsideEu]))).toBe("Hide roles whose hours are outside UTC−1 to UTC+3");
   });
 
-  it("writes offsets the short way", () => {
-    expect(formatOffset("UTC+00:00")).toBe("UTC+0");
-    expect(formatOffset("UTC-00:00")).toBe("UTC+0");
-    expect(formatOffset("UTC+05:30")).toBe("UTC+5:30");
-    expect(formatOffset("UTC-10:00")).toBe("UTC−10");
+  it("writes ranges the short way", () => {
     expect(formatRange({ from: "UTC+08:00", to: "UTC+08:00" })).toBe("UTC+8");
     expect(formatRange({ from: "UTC+03:00", to: "UTC-01:00" })).toBe("UTC−1 to UTC+3");
   });

@@ -16,7 +16,7 @@ import { type PreviewRole, previewImpact } from "./preview";
 // The impact preview (F8.2, F8.5): the change applied with the pinned Change semantics, the real
 // rules engine and match over the current roles before and after, with their stored match.v1
 // answers (the preview has no model to call), the reply policy with each role's draft history,
-// and plain words before and after for each entry and rule.
+// and the snapshots before and after of each entry and rule the change names.
 
 const NOW = new Date("2026-10-15T12:00:00Z");
 const DAY = 24 * 60 * 60 * 1000;
@@ -149,14 +149,38 @@ describe("previewImpact (F8.2, F8.5)", () => {
       // Only Singapore's: the CET role's draft is in the mailbox too, but the rule leaves it be.
       draftsInMailbox: 1,
     });
-    expect(result.roles.map((r) => r.messageId)).toEqual([
-      "<sg-1@apac.example>",
-      "<sg-2@apac.example>",
-      "<syd@apac.example>",
-      "<tokyo@apac.example>",
-    ]);
-    const sydney = result.roles.find((r) => r.messageId === "<syd@apac.example>");
-    expect(sydney).toMatchObject({ hidden: { before: false, after: true }, draftNotCreated: true });
+    // Sydney alone: hidden, and its automatic draft won't be created.
+    const sydney = preview(
+      [{ op: "add", target: "rule", rule: asiaRule() }],
+      [],
+      [roles[2] as PreviewRole],
+    );
+    expect(sydney.ok && sydney.impact).toEqual({
+      hides: 1,
+      shows: 0,
+      scoreMoves: 0,
+      draftsNotCreated: 1,
+      draftsInMailbox: 0,
+    });
+  });
+
+  it("counts an edited draft as in the mailbox once the change affects its role", () => {
+    const cet = (from: string, to: string): Change[] => [
+      {
+        op: "add",
+        target: "rule",
+        rule: { ...asiaRule(), when: [{ fact: "timeZones", op: "within", value: { from, to } }] },
+      },
+    ];
+    const eu = [roles[4] as PreviewRole];
+    expect(preview(cet("UTC+00:00", "UTC+02:00"), [], eu)).toMatchObject({
+      ok: true,
+      impact: { hides: 1, draftsNotCreated: 0, draftsInMailbox: 1 },
+    });
+    expect(preview(cet("UTC+05:00", "UTC+14:00"), [], eu)).toMatchObject({
+      ok: true,
+      impact: { hides: 0, draftsInMailbox: 0 },
+    });
   });
 
   it("never hides a role whose hours aren't stated (F3.2)", () => {
@@ -179,9 +203,13 @@ describe("previewImpact (F8.2, F8.5)", () => {
     const result = preview([{ op: "add", target: "rule", rule: asiaRule("cap_score") }]);
     if (!result.ok) throw new Error("expected a preview");
     expect(result.impact).toMatchObject({ hides: 0, scoreMoves: 4, draftsNotCreated: 1 });
-    for (const r of result.roles) expect(r.score.after).toBeLessThanOrEqual(40);
-    const sydney = result.roles.find((r) => r.messageId === "<syd@apac.example>");
-    expect(sydney?.score.before).toBeGreaterThanOrEqual(70);
+    // Sydney scored over the threshold of 70: capped, its score moves and its draft won't come.
+    const sydney = preview(
+      [{ op: "add", target: "rule", rule: asiaRule("cap_score") }],
+      [],
+      [roles[2] as PreviewRole],
+    );
+    expect(sydney.ok && sydney.impact).toMatchObject({ scoreMoves: 1, draftsNotCreated: 1 });
   });
 
   it("counts a draft that won't be created when a profile entry stops a good match", () => {
@@ -206,7 +234,7 @@ describe("previewImpact (F8.2, F8.5)", () => {
     expect(updated.impact.scoreMoves).toBe(roles.length);
   });
 
-  it("words each entry and rule before and after", () => {
+  it("gives each entry and rule the change names, before and after", () => {
     const result = preview([
       { op: "add", target: "rule", rule: asiaRule() },
       { op: "update", target: "entry", key: "languages", value: ["German"] },
@@ -224,22 +252,31 @@ describe("previewImpact (F8.2, F8.5)", () => {
       },
     ]);
     if (!result.ok) throw new Error("expected a preview");
-    expect(result.lines).toEqual([
-      { target: "entry", label: "Working languages", before: "English", after: "German" },
-      {
-        target: "entry",
-        label: "Remote work",
-        before: "Worldwide",
-        after: "Worldwide; EU (UTC−1 to UTC+3)",
-      },
-      { target: "entry", label: "Minimum pay", before: null, after: "CHF 120,000 per year" },
-      {
-        target: "rule",
-        label: "Rule",
-        before: null,
-        after: "Hide roles whose working hours are UTC+5 or later",
-      },
-    ]);
+    expect(result.before).toEqual({
+      entries: [
+        { key: "languages", value: ["English"] },
+        { key: "remote", value: [{ scope: "Worldwide", timeZones: null }] },
+        { key: "min_pay", value: null },
+      ],
+      rules: [{ id: NEW_RULE, rule: null }],
+    });
+    expect(result.after).toMatchObject({
+      entries: [
+        { key: "languages", value: ["German"] },
+        {
+          key: "remote",
+          value: [
+            { scope: "Worldwide", timeZones: null },
+            { scope: "EU", timeZones: { from: "UTC-01:00", to: "UTC+03:00" } },
+          ],
+        },
+        {
+          key: "min_pay",
+          value: [{ amount: 120000, currency: "CHF", period: "year", asWritten: "CHF 120k" }],
+        },
+      ],
+      rules: [{ id: NEW_RULE, rule: asiaRule() }],
+    });
   });
 
   it("gives back the change's error and no impact when it doesn't apply", () => {

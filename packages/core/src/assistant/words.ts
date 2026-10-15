@@ -121,6 +121,18 @@ export function changeSummary(changes: readonly Change[], rules: readonly Rule[]
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
+/**
+ * A proposal's summary after an edit of its changes (F8.2): the model's own words while the
+ * changes are as proposed, else the edited changes in plain words.
+ */
+export function editedSummary(
+  proposal: { summary: string; changes: readonly Change[] },
+  changes: readonly Change[],
+  rules: readonly Rule[],
+): string {
+  return same(changes, proposal.changes) ? proposal.summary : changeSummary(changes, rules);
+}
+
 /** Whether two rules have the same conditions and action (and so the same plain words). */
 function sameRule(a: Pick<RuleDraft, "when" | "then">, b: Pick<RuleDraft, "when" | "then">) {
   return same(a.when, b.when) && a.then === b.then;
