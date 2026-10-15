@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { z } from "zod";
 import {
   AI_PROVIDERS,
   AiEventSchema,
@@ -14,6 +15,8 @@ import {
   CreateInviteInputSchema,
   DEFAULT_BUDGET_PER_RUN,
   EnvelopeSchema,
+  ExtraAnswerSchema,
+  ExtractOutputSchema,
   IntakeExtraInputSchema,
   IntakeExtraOutputSchema,
   IntakeProposalSchema,
@@ -30,6 +33,7 @@ import {
   MemberParamsSchema,
   MessageRefSchema,
   PreferencesSchema,
+  PrefsOutputSchema,
   ProfileEntrySchema,
   ProfileKeySchema,
   RegisterInputSchema,
@@ -39,6 +43,7 @@ import {
   StageOneVerdictSchema,
   syntheticMessageId,
   TASK_IDS,
+  TASK_OUTPUT_SCHEMAS,
   taskResultSchema,
 } from "./index";
 
@@ -191,6 +196,54 @@ describe("job facts", () => {
       JobFactsSchema.safeParse({ ...facts, timeZones: { from: "UTC-01:00", to: "UTC+03:00" } })
         .success,
     ).toBe(true);
+  });
+});
+
+describe("extra facts as a model writes them", () => {
+  const answer = {
+    messageId: "<a@x.example>",
+    roles: [{ ...facts, extra: [{ key: "start", value: "November" }] }],
+  };
+
+  it("are a list of {key, value} read back into the record", () => {
+    expect(ExtractOutputSchema.parse(answer).roles[0]?.extra).toEqual({ start: "November" });
+    expect(ExtraAnswerSchema.parse([])).toEqual({});
+    const prefs = {
+      items: [
+        { messageId: "<r@x>", preferences: { extra: [{ key: "b2b", value: "accepts B2B" }] } },
+      ],
+    };
+    expect(PrefsOutputSchema.parse(prefs).items[0]?.preferences).toEqual({
+      extra: { b2b: "accepts B2B" },
+    });
+  });
+
+  it("are invalid as a record, or with a key given twice", () => {
+    const asRecord = { ...answer, roles: [{ ...facts, extra: { start: "November" } }] };
+    expect(ExtractOutputSchema.safeParse(asRecord).success).toBe(false);
+    const twice = [
+      { key: "start", value: "November" },
+      { key: "start", value: "December" },
+    ];
+    expect(ExtraAnswerSchema.safeParse(twice).success).toBe(false);
+  });
+
+  it("leave no open record in any task's schema, so no provider can hold extra to {}", () => {
+    // Anthropic closes every object of the schema it is sent: a record there could only be {}.
+    // The schema sent is the input side, what the model writes (as the AI SDK converts it).
+    const records: string[] = [];
+    const walk = (node: unknown, path: string) => {
+      if (typeof node !== "object" || node === null) return;
+      const schema = node as Record<string, unknown>;
+      if (typeof schema.additionalProperties === "object" || "propertyNames" in schema) {
+        records.push(path);
+      }
+      for (const [key, value] of Object.entries(schema)) walk(value, `${path}/${key}`);
+    };
+    for (const taskId of TASK_IDS) {
+      walk(z.toJSONSchema(TASK_OUTPUT_SCHEMAS[taskId], { target: "draft-7", io: "input" }), taskId);
+    }
+    expect(records).toEqual([]);
   });
 });
 

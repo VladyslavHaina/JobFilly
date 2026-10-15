@@ -1,10 +1,12 @@
 import { z } from "zod";
-import { JobFactsSchema } from "./facts";
+import { JobFactsAnswerSchema } from "./facts";
 import { CategorySchema } from "./messages";
-import { ExtraQuestionSchema, MAX_EXTRA_QUESTIONS, PreferencesSchema } from "./profile";
+import { ExtraQuestionSchema, MAX_EXTRA_QUESTIONS, PreferencesAnswerSchema } from "./profile";
 
 // The structured outputs the model must return, one per task id. packages/ai validates every
-// answer against these (per item for batched tasks) and never patches an invalid one up.
+// answer against these (per item for batched tasks) and never patches an invalid one up. The
+// model writes the input shape (the JSON Schema sent to the provider is made from it); parsing
+// gives the output shape, where `extra` lists are the { key: value } records of the app.
 
 /** classify.v1: a category per message of the batch. */
 export const ClassifyOutputSchema = z.object({
@@ -15,13 +17,13 @@ export type ClassifyOutput = z.infer<typeof ClassifyOutputSchema>;
 /** extract.v1: the facts of every role one message contains (a job alert lists several). */
 export const ExtractOutputSchema = z.object({
   messageId: z.string(),
-  roles: z.array(JobFactsSchema),
+  roles: z.array(JobFactsAnswerSchema),
 });
 export type ExtractOutput = z.infer<typeof ExtractOutputSchema>;
 
 /** prefs.v1: the preferences each of the user's own replies states. */
 export const PrefsOutputSchema = z.object({
-  items: z.array(z.object({ messageId: z.string(), preferences: PreferencesSchema })),
+  items: z.array(z.object({ messageId: z.string(), preferences: PreferencesAnswerSchema })),
 });
 export type PrefsOutput = z.infer<typeof PrefsOutputSchema>;
 

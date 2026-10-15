@@ -49,3 +49,20 @@ export const JobFactsSchema = z.object({
   extra: z.record(z.string(), z.string()),
 });
 export type JobFacts = z.infer<typeof JobFactsSchema>;
+
+/**
+ * Extra facts as a model writes them (extract.v1, prefs.v1): a list of {key, value}, read back
+ * into the { key: value } record. An open record can't be asked of every provider: Anthropic's
+ * structured output closes every object, which would hold `extra` to {} without any error. A
+ * list of closed objects means the same thing to every provider. A key given twice makes the
+ * answer invalid, so no value silently wins.
+ */
+export const ExtraAnswerSchema = z
+  .array(z.object({ key: z.string(), value: z.string() }))
+  .refine((entries) => new Set(entries.map((e) => e.key)).size === entries.length, {
+    message: "Each extra key at most once",
+  })
+  .transform((entries) => Object.fromEntries(entries.map((e) => [e.key, e.value])));
+
+/** One role's facts as the model writes them: `extra` as a list; parsed, they are JobFacts. */
+export const JobFactsAnswerSchema = JobFactsSchema.extend({ extra: ExtraAnswerSchema });
