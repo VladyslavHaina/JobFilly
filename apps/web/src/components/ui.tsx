@@ -50,7 +50,7 @@ export function Button({
   );
 }
 
-export function Spinner() {
+function Spinner() {
   return (
     <span
       aria-hidden

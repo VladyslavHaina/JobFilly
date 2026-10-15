@@ -13,7 +13,7 @@ import { paths } from "../../paths";
 const ROLE_WORDS = { viewer: "a viewer", editor: "an editor", admin: "an admin" } as const;
 
 /** "Maria invited you to “Maria's workspace” as a viewer". */
-export function invitationText(invitation: PendingInvitation): string {
+function invitationText(invitation: PendingInvitation): string {
   const inviter = invitation.invitedBy.trim().split(/\s+/)[0] || invitation.invitedBy;
   return `${inviter} invited you to “${invitation.workspaceName}” as ${ROLE_WORDS[invitation.role]}`;
 }
@@ -26,7 +26,7 @@ export function usePendingInvitations() {
 }
 
 /** Accepting opens the workspace; declining just removes the invitation. */
-export function useAnswerInvitation(token?: string) {
+function useAnswerInvitation(token?: string) {
   const client = useQueryClient();
   const navigate = useNavigate();
   const accept = useMutation({

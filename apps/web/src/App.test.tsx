@@ -1,7 +1,15 @@
 import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fakeApi, json, renderApp, TEST_USER, testWorkspace } from "./components/testing";
+import {
+  fakeApi,
+  json,
+  renderApp,
+  renderInWorkspace,
+  TEST_USER,
+  testWorkspace,
+} from "./components/testing";
+import { MembersPage } from "./pages/members";
 import { paths } from "./paths";
 
 // The slice-owned pages are replaced by probes that show the props the routes pass them.
@@ -373,7 +381,7 @@ describe("members (F1.6, F1.8)", () => {
 
   it("a viewer sees the members but can't manage them", async () => {
     signedIn({ "GET /api/workspaces/:id/members": { items: members } });
-    renderApp(paths.members(other.id));
+    renderInWorkspace(<MembersPage />, { role: "viewer" });
     expect(await screen.findByText("Tom Okafor")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Send invite" })).toBeNull();
     expect(screen.queryByLabelText("Role for Tom Okafor")).toBeNull();

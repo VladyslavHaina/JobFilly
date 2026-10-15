@@ -27,7 +27,7 @@ export interface WorkspaceState {
 
 const WorkspaceContext = createContext<WorkspaceState | null>(null);
 
-export function workspaceState(workspace: WorkspaceSummary): WorkspaceState {
+function workspaceState(workspace: WorkspaceSummary): WorkspaceState {
   return {
     workspace,
     workspaceId: workspace.id,
