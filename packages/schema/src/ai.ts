@@ -65,6 +65,27 @@ export const AiSettingsResponseSchema = z.object({ settings: AiSettingsPublicSch
 export type AiSettingsResponse = z.infer<typeof AiSettingsResponseSchema>;
 
 /**
+ * One provider as GET /ai/providers serves it to the settings form (F3.2): its name, where its API
+ * lives when no base URL is given, what it needs, and the models pre-selected per task. The
+ * catalogue itself is packages/ai's; every default can be changed in Settings › AI, and none is
+ * used unless the workspace saves it.
+ */
+export const AiProviderSchema = z.object({
+  id: AiProviderIdSchema,
+  label: z.string(),
+  /** The API's host when no base URL is set; null when the user must give one. */
+  defaultHost: z.string().nullable(),
+  keyRequired: z.boolean(),
+  baseUrlRequired: z.boolean(),
+  defaultModels: AiModelsSchema,
+});
+export type AiProvider = z.infer<typeof AiProviderSchema>;
+
+/** GET /ai/providers: the short list of providers, in the order the form shows them. */
+export const AiProviderListSchema = z.object({ items: z.array(AiProviderSchema) });
+export type AiProviderList = z.infer<typeof AiProviderListSchema>;
+
+/**
  * What the settings form and packages/ai know about each provider: its name, where its API lives
  * when no base URL is given, what it needs, and the models pre-selected per task (F3.2). Every
  * default can be changed in Settings › AI; none is used unless the workspace saves it.
@@ -136,6 +157,18 @@ export function aiProvider(id: AiProviderId): AiProviderInfo {
 const authorityOf = (url: string) => /^[a-z][a-z\d+.-]*:\/\/([^/\\?#]*)/i.exec(url.trim())?.[1];
 
 /**
+ * The host[:port] a base URL sends requests to, lower-cased, for the privacy line "Your mail is
+ * read by <provider> (<host>)" (F3.2); "" while the URL doesn't have that shape. The user part is
+ * never shown: a saved base URL never has one (AiSettingsInputSchema refuses it), but the form
+ * shows the line while the user is still typing. The server and the form both use this, so the
+ * line reads the same before and after saving.
+ */
+export function baseUrlHost(baseUrl: string): string {
+  const authority = authorityOf(baseUrl) ?? "";
+  return authority.slice(authority.lastIndexOf("@") + 1).toLowerCase();
+}
+
+/**
  * The data of the one privacy line "Your mail is read by <provider> (<host>)" (F3.2): the base
  * URL's host when one is set, else the provider's own. `host` is "" when it can't be known yet.
  */
@@ -144,14 +177,7 @@ export function aiReadBy(
   baseUrl: string | null,
 ): { provider: string; host: string } {
   const info = aiProvider(provider);
-  if (!baseUrl) return { provider: info.label, host: info.defaultHost ?? "" };
-  // The user part is never shown. A saved base URL never has one (AiSettingsInputSchema refuses
-  // it), but the form shows this line while the user is still typing.
-  const authority = authorityOf(baseUrl) ?? "";
-  return {
-    provider: info.label,
-    host: authority.slice(authority.lastIndexOf("@") + 1).toLowerCase(),
-  };
+  return { provider: info.label, host: baseUrl ? baseUrlHost(baseUrl) : (info.defaultHost ?? "") };
 }
 
 /**

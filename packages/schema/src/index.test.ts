@@ -5,8 +5,10 @@ import {
   AiEventSchema,
   AiModelsSchema,
   AiProviderIdSchema,
+  AiProviderListSchema,
   AiSettingsInputSchema,
   aiReadBy,
+  baseUrlHost,
   batchResultSchema,
   CATEGORIES,
   CategorySchema,
@@ -332,6 +334,36 @@ describe("AI", () => {
       "proxy.example",
     );
     expect(aiReadBy("openai-compatible", null).host).toBe("");
+  });
+
+  it("reads the host that a base URL sends the mail to, never its user part", () => {
+    expect(baseUrlHost("http://fake-ai:8080/v1")).toBe("fake-ai:8080");
+    expect(baseUrlHost("https://user:E2E-SECRET-x@Proxy.example/v1")).toBe("proxy.example");
+    // Not of the scheme://authority shape (and refused on save), so no host is shown, nor its secret.
+    expect(baseUrlHost("https:\\\\user:E2E-SECRET-x@proxy.example/v1")).toBe("");
+    // While the user is still typing.
+    expect(baseUrlHost("http")).toBe("");
+    expect(baseUrlHost("http://")).toBe("");
+  });
+
+  it("serves a provider with a default model for each task and a nullable default host", () => {
+    const provider = {
+      id: "openai-compatible",
+      label: "OpenAI-compatible endpoint",
+      defaultHost: null,
+      keyRequired: false,
+      baseUrlRequired: true,
+      defaultModels: { classify: "m", extract: "m", prefs: "m", intake: "m" },
+    };
+    expect(AiProviderListSchema.safeParse({ items: [provider] }).success).toBe(true);
+    const { intake: _i, ...threeModels } = provider.defaultModels;
+    expect(
+      AiProviderListSchema.safeParse({ items: [{ ...provider, defaultModels: threeModels }] })
+        .success,
+    ).toBe(false);
+    expect(
+      AiProviderListSchema.safeParse({ items: [{ ...provider, id: "some-vendor" }] }).success,
+    ).toBe(false);
   });
 
   it("refuses a base URL that carries a user name or password", () => {
