@@ -166,10 +166,11 @@ const stopped: CurrentScan = {
     tokens: 12000,
   },
   stopMessage: "Stopped: confident after 40 of 260 likely job emails",
+  stoppedAt: "2026-10-01T10:30:00.000Z",
   totalTokens: 12000,
 };
 
-const NO_SCAN: CurrentScan = { progress: null, stopMessage: null, totalTokens: 0 };
+const NO_SCAN: CurrentScan = { progress: null, stopMessage: null, stoppedAt: null, totalTokens: 0 };
 
 interface Options {
   role?: Role;

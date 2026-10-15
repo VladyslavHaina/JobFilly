@@ -77,6 +77,7 @@ const scanState = (status: "running" | "stopped" | null): CurrentScan => ({
     tokens: 12000,
   },
   stopMessage: status === "stopped" ? "Stopped: confident after 40 of 260 likely job emails" : null,
+  stoppedAt: status === "stopped" ? "2026-10-01T10:30:00.000Z" : null,
   totalTokens: status ? 12000 : 0,
 });
 
