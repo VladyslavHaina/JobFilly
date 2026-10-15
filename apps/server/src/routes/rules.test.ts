@@ -200,6 +200,22 @@ describe("the rules list", () => {
     });
   });
 
+  it("shows a rule stored with no description in the plain words of its conditions", async () => {
+    const rule = await addRule("");
+    const res = await viewer.get(rulesUrl());
+    const [item] = RuleListSchema.parse(await res.json()).items;
+    expect(item).toMatchObject({
+      id: rule.id,
+      description: "Hide roles whose hours are outside UTC−1 to UTC+3",
+    });
+    // The roles it hides name it by the same words.
+    await seedRemoteMail("asia", 1, ASIA);
+    await drain();
+    expect((await list(viewer, "?hidden=true")).items[0]?.hidden).toEqual({
+      reason: 'Hidden by your rule "Hide roles whose hours are outside UTC−1 to UTC+3"',
+    });
+  });
+
   it("answers 404 for a profile that isn't the workspace's, and to outsiders", async () => {
     await addRule("A rule");
     expect((await editor.get(rulesUrl("8f0e1c62-0000-4000-8000-000000000000"))).status).toBe(404);
@@ -248,55 +264,66 @@ describe("switching a rule on or off, and removing it (F3.5)", () => {
     expect((await outsider.patch(`${rulesUrl()}/${rule.id}`, { enabled: false })).status).toBe(404);
   });
 
-  it("re-scores a backlog of 300 roles within a minute, with no model call and no mailbox", async () => {
-    const rule = await addRule("No Asian hours");
-    await seedRemoteMail("asia", 50, ASIA);
-    await seedRemoteMail("cet", 50, CET);
-    await drain();
-    expect(ai.calls.match).toBe(300);
-    expect((await list(viewer, "?hidden=true")).items).toHaveLength(50);
-    expect((await list(viewer)).items).toHaveLength(50);
+  it(
+    "re-scores a backlog of 300 roles within a minute, with no model call and no mailbox",
+    async () => {
+      const rule = await addRule("No Asian hours");
+      await seedRemoteMail("asia", 50, ASIA);
+      await seedRemoteMail("cet", 50, CET);
+      await drain();
+      expect(ai.calls.match).toBe(300);
+      expect((await list(viewer, "?hidden=true")).items).toHaveLength(50);
+      expect((await list(viewer)).items).toHaveLength(50);
 
-    // From here on the mailbox is down, and every model call and mailbox access is counted.
-    const aiCalls = { ...ai.calls };
-    const mailCalls = { ...mailbox.calls };
-    mailbox.pause();
-    const switchedAt = deps.clock.now();
-    const started = Date.now();
-    expect((await editor.patch(`${rulesUrl()}/${rule.id}`, { enabled: false })).status).toBe(200);
+      // From here on the mailbox is down, and every model call and mailbox access is counted.
+      const aiCalls = { ...ai.calls };
+      const mailCalls = { ...mailbox.calls };
+      mailbox.pause();
+      const switchedAt = deps.clock.now();
+      // F3.5 times the switch and the re-evaluation only: the seeding, the first drain and the
+      // stale checks below are left out, and the test's own timeout is far longer than a minute.
+      let started = Date.now();
+      expect((await editor.patch(`${rulesUrl()}/${rule.id}`, { enabled: false })).status).toBe(200);
+      let elapsed = Date.now() - started;
 
-    // Until the re-evaluation has run, every score is stale: none is shown as current.
-    const ids = [
-      ...Array.from({ length: 50 }, (_, i) => `<asia-${i}@agency.example>`),
-      ...Array.from({ length: 50 }, (_, i) => `<cet-${i}@agency.example>`),
-    ];
-    const stale = await getEvaluations(deps.db, ws.workspaceId, ids);
-    expect(stale).toHaveLength(300);
-    expect(stale.every((e) => e.stale)).toBe(true);
-    const during = [...(await list(viewer)).items, ...(await list(viewer, "?hidden=true")).items];
-    expect(during).toHaveLength(100);
-    expect(during.every((m) => m.fit?.stale === true)).toBe(true);
+      // Until the re-evaluation has run, every score is stale: none is shown as current.
+      const ids = [
+        ...Array.from({ length: 50 }, (_, i) => `<asia-${i}@agency.example>`),
+        ...Array.from({ length: 50 }, (_, i) => `<cet-${i}@agency.example>`),
+      ];
+      const stale = await getEvaluations(deps.db, ws.workspaceId, ids);
+      expect(stale).toHaveLength(300);
+      expect(stale.every((e) => e.stale)).toBe(true);
+      const during = [...(await list(viewer)).items, ...(await list(viewer, "?hidden=true")).items];
+      expect(during).toHaveLength(100);
+      expect(during.every((m) => m.fit?.stale === true)).toBe(true);
 
-    deps.clock.advance(5_000);
-    await drain();
-    expect(Date.now() - started).toBeLessThan(MINUTE);
+      deps.clock.advance(5_000);
+      started = Date.now();
+      await drain();
+      elapsed += Date.now() - started;
+      expect(elapsed).toBeLessThan(MINUTE);
 
-    const after = await getEvaluations(deps.db, ws.workspaceId, ids);
-    expect(after).toHaveLength(300);
-    for (const e of after) {
-      expect(e.stale).toBe(false);
-      expect(e.hidden).toBeNull();
-      expect(new Date(e.evaluatedAt).getTime() - switchedAt.getTime()).toBeLessThanOrEqual(MINUTE);
-    }
-    expect(ai.calls).toEqual(aiCalls);
-    expect(mailbox.calls).toEqual(mailCalls);
-    expect(mailbox.calls.fetchOriginal).toBe(0);
+      const after = await getEvaluations(deps.db, ws.workspaceId, ids);
+      expect(after).toHaveLength(300);
+      for (const e of after) {
+        expect(e.stale).toBe(false);
+        expect(e.hidden).toBeNull();
+        expect(new Date(e.evaluatedAt).getTime() - switchedAt.getTime()).toBeLessThanOrEqual(
+          MINUTE,
+        );
+      }
+      expect(ai.calls).toEqual(aiCalls);
+      expect(mailbox.calls).toEqual(mailCalls);
+      expect(mailbox.calls.fetchOriginal).toBe(0);
 
-    const shown = await list(viewer);
-    expect(shown.items).toHaveLength(100);
-    expect(shown.items.every((m) => m.fit?.stale === false && m.hidden === null)).toBe(true);
-    expect((await list(viewer, "?hidden=true")).items).toEqual([]);
-  }, 60_000);
+      const shown = await list(viewer);
+      expect(shown.items).toHaveLength(100);
+      expect(shown.items.every((m) => m.fit?.stale === false && m.hidden === null)).toBe(true);
+      expect((await list(viewer, "?hidden=true")).items).toEqual([]);
+    },
+    5 * MINUTE,
+  );
 });
 
 describe("the Hidden filter (F3.3, F3.4)", () => {
