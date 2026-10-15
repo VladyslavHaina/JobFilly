@@ -5,8 +5,8 @@ import { loadConfig } from "./config";
 import { createDeps } from "./deps";
 import { createLogger } from "./log";
 import { startServer } from "./node";
-import { sweep } from "./pipeline/sweep";
 import { shutdown } from "./shutdown";
+import { startWork } from "./start";
 import { createScheduler } from "./sync/scheduler";
 
 // The server process. `node dist/index.js` serves the API and the UI; `node dist/index.js
@@ -91,10 +91,7 @@ for (;;) {
   }
 }
 if (!stopping) {
-  // One sweep at startup: a deployment whose profile was confirmed before MVP 2 ran gets its
-  // backlog evaluated without anyone doing anything (F1.6); then one every sync interval.
-  await sweep(deps).catch((error: unknown) => log.warn("pipeline.sweep_failed", { error }));
-  deps.queue.start();
-  scheduler.start();
+  // The startup sweep (F1.6), the queue and the scheduler.
+  await startWork(deps, scheduler);
   log.info("server.ready", { url: server.url });
 }

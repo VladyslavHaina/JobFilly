@@ -4,11 +4,13 @@ import { sweep } from "../pipeline/sweep";
 
 // The scheduler (F1): every JOBFILLY_SYNC_INTERVAL_SECONDS it starts each mailbox's sync and runs
 // the pipeline sweep, whatever the syncs did, so a failed evaluation or a draft that failed with
-// kind mailbox is retried within one interval. The mailbox slice adds the syncs to `tick` and
+// kind mailbox or ai is retried within one interval. The mailbox slice adds the syncs to `tick` and
 // keeps the sweep call (its test asserts it).
 
 export interface Scheduler {
   start(): void;
+  /** Whether it ticks (between start and stop). */
+  readonly running: boolean;
   /** One round: the syncs, then the sweep. Never throws; failures are logged. */
   tick(): Promise<void>;
   stop(): void;
@@ -44,6 +46,9 @@ export function createScheduler(
       }, intervalMs);
     },
     tick,
+    get running() {
+      return timer !== null;
+    },
     stop() {
       if (timer) clearInterval(timer);
       timer = null;
