@@ -19,10 +19,10 @@ import type { AiPort } from "../deps";
 
 // A fake AI behind the AiPort, keyed like the test stack's fake AI (tests only): classify,
 // extract and prefs by Message-ID, cv.v1 by the CV's content hash, match.v1 by
-// "<Message-ID>#<position>", draft.v1 by "<Message-ID>#<attempt>", assistant.v1 by the user's
-// text (or "<turn>#<text>" for one turn). A call it has no answer for fails the way a provider
-// does (provider_error), so a missing answer is never silent. One Usage per call; per-task call
-// counts; failNext(task) fails that task's next call once.
+// "<Message-ID>#<position>", draft.v1 by "<Message-ID>#<position>#<attempt>", assistant.v1 by
+// the user's text (or "<turn>#<text>" for one turn). A call it has no answer for fails the way a
+// provider does (provider_error), so a missing answer is never silent. One Usage per call;
+// per-task call counts; failNext(task) fails that task's next call once.
 
 export interface FakeAiAnswers {
   classify?: Record<string, Category>;
@@ -169,7 +169,7 @@ export function createFakeAi(answers: FakeAiAnswers = {}): FakeAiClient {
       return single("match", "match.v1", key, all.match[key]);
     },
     draft: (input) => {
-      const key = `${input.mail.messageId}#${input.attempt}`;
+      const key = `${input.mail.messageId}#${input.position}#${input.attempt}`;
       return single("draft", "draft.v1", key, all.draft[key]);
     },
     assistant: (input) => {

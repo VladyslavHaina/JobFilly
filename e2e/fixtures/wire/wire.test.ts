@@ -20,7 +20,7 @@ import { describe, expect, it } from "vitest";
 // right after the task line, which the fake AI reads:
 //   cv.v1         CV-SHA256: <hex>                     (input: CvReadInput)
 //   match.v1      Message-ID: <id>  Role: <position>   (input: MatchTaskInput)
-//   draft.v1      Message-ID: <id>  Attempt: <1|2>     (input: DraftTaskInput)
+//   draft.v1      Message-ID: <id>  Role: <position>  Attempt: <1|2>  (input: DraftTaskInput)
 //   assistant.v1  Turn: <n>                            (input: AssistantTaskInput)
 // Everything else at column 0 is a blank line or a "=== <name> ===" / "=== end <name> ===" block
 // delimiter; every content line (the CV, the mail, the profile, the user's words) starts with
@@ -172,7 +172,11 @@ function keyLinesOf(taskId: (typeof MVP2_TASKS)[number]): string[] {
     case "match.v1":
       return [`Message-ID: ${input.messageId}`, `Role: ${input.position}`];
     case "draft.v1":
-      return [`Message-ID: ${(input.mail as Item).messageId}`, `Attempt: ${input.attempt}`];
+      return [
+        `Message-ID: ${(input.mail as Item).messageId}`,
+        `Role: ${input.position}`,
+        `Attempt: ${input.attempt}`,
+      ];
     case "assistant.v1":
       return [`Turn: ${input.turn}`];
   }

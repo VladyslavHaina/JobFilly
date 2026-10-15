@@ -1,12 +1,13 @@
 import type { DraftTaskInput, TaskId } from "@jobfilly/schema";
 import { block, jsonLine, messageIdLines, type Prompt, systemMessage } from "../framing";
 
-// draft.v1: one reply draft (F6), keyed by the message's Message-ID and the attempt (2 when the
-// first answer held a template placeholder, F6.2).
+// draft.v1: one reply draft (F6) for one role, keyed by the message's Message-ID, the role's
+// position (drafts are per role: two roles of one message get two answers) and the attempt (2
+// when the first answer held a template placeholder, F6.2).
 //
-// Pinned by the foundation (no slice changes it): the header, the key lines "Message-ID: <id>"
-// and "Attempt: <1|2>" at column 0 (the fake AI's key), and the framing: the mail, the role, the
-// profile and the CV only ever as "| " lines inside their blocks.
+// Pinned by the foundation (no slice changes it): the header, the key lines "Message-ID: <id>",
+// "Role: <position>" and "Attempt: <1|2>" at column 0 (the fake AI's key), and the framing: the
+// mail, the role, the profile and the CV only ever as "| " lines inside their blocks.
 //
 // The instruction text below belongs to the replies slice, which tunes it and regenerates
 // e2e/fixtures/wire/draft.v1.*.json when it does.
@@ -25,6 +26,7 @@ export function draftPrompt(input: DraftTaskInput): Prompt {
   const user = [
     `task: ${TASK_ID}`,
     ...messageIdLines(mail.messageId),
+    `Role: ${input.position}`,
     `Attempt: ${input.attempt}`,
     "",
     ...block("mail", [

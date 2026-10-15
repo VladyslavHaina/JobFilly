@@ -175,7 +175,7 @@ describe("the fake AI", () => {
       cv: { [`${"a".repeat(64)}`]: cvAnswer },
       match: { "<m@x>#1": { titleFit: { verdict: "fits", reason: "r" }, skillCloseness: [] } },
       draft: {
-        "<m@x>#2": {
+        "<m@x>#0#2": {
           subject: "Re",
           body: "Hi",
           language: "en",
@@ -237,10 +237,12 @@ describe("the fake AI", () => {
     };
     expect((await client.draft(draft)).ok).toBe(false);
     expect((await client.draft({ ...draft, attempt: 2 })).ok).toBe(true);
+    // Another role of the same message has its own answers.
+    expect((await client.draft({ ...draft, position: 1, attempt: 2 })).ok).toBe(false);
     const turn = { turn: 3, text: "hide asia", history: [], entries: [], rules: [] };
     expect(await client.assistant(turn)).toMatchObject({ ok: true, data: { reply: "ok" } });
-    expect(ai.calls).toMatchObject({ cv: 1, match: 2, draft: 2, assistant: 1 });
-    expect(ai.log.map((l) => l.key)).toContain("<m@x>#2");
+    expect(ai.calls).toMatchObject({ cv: 1, match: 2, draft: 3, assistant: 1 });
+    expect(ai.log.map((l) => l.key)).toContain("<m@x>#0#2");
   });
 
   it("fails a task's next call once with failNext", async () => {

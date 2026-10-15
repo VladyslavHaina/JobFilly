@@ -27,9 +27,8 @@ export type ModelFor = (task: AiTask) => TaskModel;
  * `extra` now goes out as a list of closed {key, value} objects, and extract.v1 stays non-strict
  * until a run against OpenAI shows strict mode takes its patterns. assistant.v1's proposal holds
  * the Change union with every profile value shape, which strict mode may refuse the same way, so
- * it starts non-strict too. For those tasks OpenAI gets
- * the same JSON Schema without strict mode; the answer is still validated against the schema
- * here, as every answer is.
+ * it starts non-strict too. For those tasks OpenAI gets the same JSON Schema without strict mode;
+ * the answer is still validated against the schema here, as every answer is.
  */
 const NOT_STRICT: ReadonlySet<AiTask> = new Set(["extract", "prefs", "assistant"]);
 
