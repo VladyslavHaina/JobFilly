@@ -25,7 +25,5 @@ export function movableClock(start: Date): MovableClock {
   };
 }
 
-export const SECOND = 1000;
-export const MINUTE = 60 * SECOND;
-export const HOUR = 60 * MINUTE;
-export const DAY = 24 * HOUR;
+export const MINUTE = 60 * 1000;
+export const DAY = 24 * 60 * MINUTE;

@@ -12,7 +12,7 @@ import type { WorkspaceEnv } from "./env";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export const NOT_FOUND = { error: "not_found" } as const;
-export const FORBIDDEN = {
+const FORBIDDEN = {
   error: "forbidden",
   message: "Your role in this workspace doesn't allow this",
 } as const;

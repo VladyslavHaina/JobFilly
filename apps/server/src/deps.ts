@@ -79,12 +79,12 @@ export function createHealth(connection: DatabaseConnection): Health {
   };
 }
 
-export const mailPort: MailPort = {
+const mailPort: MailPort = {
   connect: (conn, options) => createMailClient(conn, options),
 };
 
 /** The AI port; invalid model output is reported as a redacted warning (ai.output_invalid). */
-export function aiPort(log: Logger): AiPort {
+function aiPort(log: Logger): AiPort {
   return {
     client: (settings) => createAiClient(settings, { onEvent: (e) => log.warn(e.event, { ...e }) }),
   };

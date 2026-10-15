@@ -20,4 +20,3 @@ function validator<Target extends keyof ValidationTargets, T extends ZodType>(
 
 export const validJson = <T extends ZodType>(schema: T) => validator("json", schema);
 export const validQuery = <T extends ZodType>(schema: T) => validator("query", schema);
-export const validParams = <T extends ZodType>(schema: T) => validator("param", schema);

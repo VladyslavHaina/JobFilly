@@ -7,8 +7,7 @@ import {
   SignInInputSchema,
 } from "@jobfilly/schema";
 import { Hono } from "hono";
-import type { AppEnv } from "../access/env";
-import { validJson } from "../access/validate";
+import { type AppEnv, validJson } from "../access";
 import { hashPassword, UNKNOWN_USER_HASH, verifyPassword } from "../auth/password";
 import { endSession, requireUser, startSession } from "../auth/session";
 import type { AppDeps } from "../deps";

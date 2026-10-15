@@ -1,6 +1,5 @@
 import { type Context, Hono } from "hono";
-import type { WorkspaceEnv } from "../access/env";
-import { requireRole } from "../access/membership";
+import { requireRole, type WorkspaceEnv } from "../access";
 import type { AppDeps } from "../deps";
 
 // The job inbox: list, detail, body on demand, category correction (F5; job-inbox slice).

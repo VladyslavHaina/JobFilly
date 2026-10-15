@@ -7,11 +7,11 @@ import type { Logger } from "../log";
 // through Postgres NOTIFY; every replica LISTENs and hands it to the SSE streams of that
 // workspace it holds, so a browser connected to any replica sees work done on any other.
 
-export const LIVE_CHANNEL = "jobfilly_live";
+const LIVE_CHANNEL = "jobfilly_live";
 
 const EnvelopeSchema = z.object({ workspaceId: z.uuid(), event: LiveEventSchema });
 
-export type LiveListener = (event: LiveEvent) => void;
+type LiveListener = (event: LiveEvent) => void;
 
 export interface LiveHub {
   /** Starts listening for events published by any replica. */

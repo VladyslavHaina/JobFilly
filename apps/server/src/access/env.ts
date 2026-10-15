@@ -3,7 +3,7 @@ import type { Logger } from "../log";
 
 // The Hono environments: what middleware puts on the request context for the handlers.
 
-export interface RequestVariables {
+interface RequestVariables {
   requestId: string;
   /** A logger carrying this request's requestId (and userId/workspaceId once known). */
   log: Logger;

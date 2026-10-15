@@ -1,6 +1,5 @@
 import { type Context, Hono } from "hono";
-import type { WorkspaceEnv } from "../access/env";
-import { requireRole } from "../access/membership";
+import { requireRole, type WorkspaceEnv } from "../access";
 import type { AppDeps } from "../deps";
 
 // The workspace's AI provider settings: read, save, test (F3; connect slice).

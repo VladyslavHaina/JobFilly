@@ -13,9 +13,9 @@ import { createLogger, type LogEvent } from "../log";
 /** The fixed JOBFILLY_SECRET_KEY of every test (32 bytes). */
 export const TEST_SECRET_KEY = new Uint8Array(32).fill(42);
 
-export const TEST_PUBLIC_URL = "http://jobfilly.test";
+const TEST_PUBLIC_URL = "http://jobfilly.test";
 
-export function testConfig(overrides: Partial<Config> = {}): Config {
+function testConfig(overrides: Partial<Config> = {}): Config {
   const publicUrl = overrides.publicUrl ?? new URL(TEST_PUBLIC_URL);
   return {
     databaseUrl: "postgres://test@pglite/test",
@@ -35,7 +35,7 @@ export function testConfig(overrides: Partial<Config> = {}): Config {
   };
 }
 
-export interface LogLine {
+interface LogLine {
   time: string;
   level: "debug" | "info" | "warn" | "error" | "fatal";
   instance: string;
@@ -59,9 +59,9 @@ const refuse = (what: string) => () => {
 };
 
 /** A mail port that fails until a test replaces deps.mail. */
-export const unsetMailPort: MailPort = { connect: refuse("mail") };
+const unsetMailPort: MailPort = { connect: refuse("mail") };
 /** An AI port that fails until a test replaces deps.ai. */
-export const unsetAiPort: AiPort = { client: refuse("ai") };
+const unsetAiPort: AiPort = { client: refuse("ai") };
 
 export interface TestDepsOptions {
   /** Where the clock starts (default 2026-10-01T10:00:00Z). */

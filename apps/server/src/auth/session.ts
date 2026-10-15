@@ -11,8 +11,8 @@ import type { AppDeps } from "../deps";
 // and 30 days after sign-in at most, by the injectable clock.
 
 export const SESSION_COOKIE = "jf_session";
-export const SESSION_IDLE_MS = 7 * DAY;
-export const SESSION_ABSOLUTE_MS = 30 * DAY;
+const SESSION_IDLE_MS = 7 * DAY;
+const SESSION_ABSOLUTE_MS = 30 * DAY;
 /** last_used_at is written at most this often, not on every request. */
 const TOUCH_EVERY_MS = MINUTE;
 
