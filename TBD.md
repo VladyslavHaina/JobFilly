@@ -7,7 +7,8 @@ it is.
 
 Only the build workflow's record step adds entries (agents working in parallel report them, one
 agent writes them), so the numbering stays continuous. Entries are never deleted; the owner sets
-their status.
+their status. When a decision is recorded again with a later choice, the earlier entry is marked
+"superseded by" the later one, so each open decision appears once, with one answer.
 
 ## Entry format
 
@@ -20,7 +21,7 @@ their status.
 - **Chosen:** what the build did, and why
 - **If you decide otherwise:** what would change
 - **Refs:** criteria, files, commits, run folders
-- **Status:** open | accepted | changed
+- **Status:** open | accepted | changed | superseded by TBD-<n>
 ```
 
 ## Needed from the owner
@@ -46,7 +47,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Validate each item and retry only the invalid or missing ones once. F3.4 speaks of 'the item', and users see far fewer false 'Couldn't analyze' labels. The retry is a model call and counts toward the budget, as F4's definition of a model call requires.
 - **If you decide otherwise:** packages/ai's batch validation and the scan worker's handling of failed items would change, and the fake-AI fixture for the invalid message would need a whole batch to fail.
 - **Refs:** F3.4, F4.4, F4.5; packages/ai, apps/server/src/jobs/scan, e2e/fixtures/ai
-- **Status:** open
+- **Status:** superseded by TBD-17
 
 ## TBD-2 · The name of the personal workspace
 - **Kind:** decision
@@ -58,7 +59,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Use the first word of the name, so 'Maria Santos' gets "Maria's workspace". It matches the spec's example and S1's expected text. The workspace can be renamed later, so this is easy to change.
 - **If you decide otherwise:** Change the workspace naming in the foundation's register handler and its test.
 - **Refs:** F1.1, S1; apps/server/src/routes/auth.ts
-- **Status:** open
+- **Status:** superseded by TBD-18
 
 ## TBD-3 · When the intake extra questions are asked for
 - **Kind:** decision
@@ -70,7 +71,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** The intake route calls it once and caches the result. The intake slice owns the call from end to end, so the scan and intake slices can be built in parallel without one writing the other's tables. The call is still made only once and its usage is still recorded and shown.
 - **If you decide otherwise:** The scan worker would make the call when the first scan stops and store the questions, the intake route would only read them, and the call would count toward the run budget.
 - **Refs:** F6.1, F3.6, F4.4; apps/server/src/routes/intake.ts, apps/server/src/jobs/scan
-- **Status:** open
+- **Status:** superseded by TBD-19
 
 ## TBD-4 · e2e becomes a pnpm workspace package
 - **Kind:** decision
@@ -82,7 +83,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Add e2e as a workspace package. ARCHITECTURE is updated, and e2e still imports no app or package code. It keeps the rule of putting dependencies in the package that uses them, and keeps the test-stack images small and on their own.
 - **If you decide otherwise:** Move the e2e dependencies to the root and drop e2e from pnpm-workspace.yaml and the vitest projects.
 - **Refs:** F7.8; pnpm-workspace.yaml, e2e/package.json, docs/ARCHITECTURE.md
-- **Status:** open
+- **Status:** superseded by TBD-21
 
 ## TBD-5 · How 'Couldn't analyze' works when classification is batched
 - **Kind:** decision
@@ -94,7 +95,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Validate each item and retry only the invalid or missing ones once. When the budget has no call left for the retry, those items stay pending (not_retried) instead of being marked Couldn't analyze, so a later Analyze them run can pick them up. F3.4 speaks of 'the item', and users see far fewer false 'Couldn't analyze' labels. The retry is a model call and counts toward the budget, as F4's definition of a model call requires, and S8's 'exactly 5 calls' stays exact.
 - **If you decide otherwise:** packages/ai's batch validation and the scan worker's handling of failed items would change, and the fake-AI fixture for the invalid message would need a whole batch to fail.
 - **Refs:** F3.4, F4.4, F4.5; packages/ai, apps/server/src/jobs/scan, e2e/fixtures/ai
-- **Status:** open
+- **Status:** superseded by TBD-17
 
 ## TBD-6 · The name of the personal workspace
 - **Kind:** decision
@@ -106,7 +107,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Use the first word of the name, so 'Maria Santos' gets "Maria's workspace". It matches the spec's example and S1's expected text. The workspace can be renamed later, so this is easy to change.
 - **If you decide otherwise:** Change the workspace naming in the foundation's register handler and its test.
 - **Refs:** F1.1, S1; apps/server/src/routes/auth.ts
-- **Status:** open
+- **Status:** superseded by TBD-18
 
 ## TBD-7 · When the intake extra questions are asked for, and how it stays one call
 - **Kind:** decision
@@ -118,7 +119,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** The intake route calls it once, claimed through the intake_extras row; anyone who can open the form (viewers too) may trigger it; usage is recorded with scan_id null; a claim stuck for more than 2 minutes can be taken over by one caller. The intake slice owns the call from end to end, so the scan and intake slices are built in parallel without one writing the other's tables. The claim row makes it exactly one call across replicas and tabs, and the call never holds a transaction open while the model answers.
 - **If you decide otherwise:** The scan worker would make the call when the first scan stops and store the questions, the intake route would only read them, the call would count toward the run budget, and intake_extras would lose its claim columns.
 - **Refs:** F6.1, F3.6, F4.4; apps/server/src/routes/intake.ts, packages/db intake_extras, apps/server/src/jobs/scan
-- **Status:** open
+- **Status:** superseded by TBD-19
 
 ## TBD-8 · e2e becomes a pnpm workspace package
 - **Kind:** decision
@@ -130,7 +131,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Add e2e as a workspace package (@playwright/test and imapflow). ARCHITECTURE is updated, and e2e still imports no app or package code. It keeps the rule of putting dependencies in the package that uses them, and keeps the test-stack images small and on their own.
 - **If you decide otherwise:** Move the e2e dependencies to the root and drop e2e from pnpm-workspace.yaml and the vitest projects.
 - **Refs:** F7.8; pnpm-workspace.yaml, e2e/package.json, docs/ARCHITECTURE.md
-- **Status:** open
+- **Status:** superseded by TBD-21
 
 ## TBD-9 · The test stack is built by the e2e-fixtures slice, not the foundation
 - **Kind:** decision
@@ -142,7 +143,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Move it to the e2e-fixtures slice, which now owns F7.8 and F5.3; the foundation pins the packages/ai <-> fake-AI wire contract as golden samples in e2e/fixtures/wire, and lists a commit order so a partial foundation still unblocks the slices. It shrinks the one serial step, puts the format, the fake-AI lookup and the fixtures under one owner, and the golden samples make the contract checkable on both sides before they meet.
 - **If you decide otherwise:** The foundation would build compose.e2e, the proxy, seed, fake AI and stack.ts again, and e2e-fixtures would only write persona content.
 - **Refs:** F7.8, F5.3; e2e/, docker/compose.e2e.yaml, docker/proxy, e2e/fixtures/wire
-- **Status:** open
+- **Status:** superseded by TBD-22
 
 ## TBD-10 · Prompt layout and escaping of untrusted mail (F3.5)
 - **Kind:** decision
@@ -154,7 +155,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Column-0 structure lines, verbatim Message-ID lines, every untrusted line prefixed with '| '; json_schema structured output read from the message content, never tool calls, for the openai-compatible provider. The prefix can't be defeated by any content and changes nothing else in the mail, Message-IDs stay exact for the fake AI and the stored ids, and JSON content is what every OpenAI-compatible server (Ollama, LM Studio) supports.
 - **If you decide otherwise:** The golden samples in e2e/fixtures/wire, the packages/ai prompt builder and the fake AI's parser change together.
 - **Refs:** F3.5, F3.4, S2, S3; packages/ai, e2e/fake-ai, e2e/fixtures/wire
-- **Status:** open
+- **Status:** superseded by TBD-25
 
 ## TBD-11 · Messages are named by their RFC Message-ID everywhere
 - **Kind:** decision
@@ -166,7 +167,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** The RFC Message-ID, with a unique key on (workspace_id, message_id). One id from the mailbox to the model to the UI means no mapping step, fixtures and ground truth line up directly, and the unique key makes re-running a batch harmless.
 - **If you decide otherwise:** Add a mapping from Message-ID to uuid in the inbox and intake routes and translate evidence ids.
 - **Refs:** F4.8, F5.3, F6.2; packages/schema, packages/db messages, apps/server/src/routes/messages.ts
-- **Status:** open
+- **Status:** superseded by TBD-26
 
 ## TBD-12 · Sender and subject search uses the pg_trgm extension
 - **Kind:** decision
@@ -178,7 +179,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** pg_trgm with a GIN index on search_text. It keeps search fast as mailboxes grow past MVP 1 sizes, and pg_trgm is a trusted extension available on standard Postgres images and managed services.
 - **If you decide otherwise:** Drop the extension and the GIN index from the migration and search with ILIKE; any Postgres that can't create the extension would need this.
 - **Refs:** F5.5; packages/db/migrations, packages/db/src/testing.ts, packages/db/src/queries/inbox.ts
-- **Status:** open
+- **Status:** superseded by TBD-28
 
 ## TBD-13 · How intake answers are aggregated, and what 'equal to expected.json' means
 - **Kind:** decision
@@ -190,7 +191,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Fixed shared rules; exact values and evidence over the full fixtures; on the stack and at the confident stop, exact values with evidence a subset of the ground truth. Neither slice reverse-fits the other's numbers, and the stop-point check proves S4 sees the right answers (Amsterdam, both minimum pays) whatever point the scan stops at.
 - **If you decide otherwise:** The generator, aggregateIntake and the fixture tests change together, and the S4 check might need the full evidence set.
 - **Refs:** F6.2, F6.3, F6.6, S4; packages/core/src/intake, e2e/fixtures/build
-- **Status:** open
+- **Status:** superseded by TBD-29
 
 ## TBD-14 · Confident-stop details: replies first, at least one answer, done wins
 - **Kind:** decision
@@ -202,7 +203,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Replies first, at least one answered core question, and done wins. It matches S7 ('stops with done') and keeps a confident stop meaningful; the user's own words are the strongest evidence.
 - **If you decide otherwise:** The tracker and the worker's ordering in the scan slice change, and Tom's fixture would need a different outcome.
 - **Refs:** F4.4, F4.5, S3, S7; packages/core/src/scan, apps/server/src/jobs/scan
-- **Status:** open
+- **Status:** superseded by TBD-32
 
 ## TBD-15 · A slow request for the shutdown scenario
 - **Kind:** decision
@@ -214,7 +215,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** The FAKE_AI_SLOW_TEST_MS variable on the fake AI. No production code changes, the delay stays under the 20 s in-flight limit, and normal runs are unaffected.
 - **If you decide otherwise:** Another long-running request would be needed in S11.
 - **Refs:** F7.4, S11; e2e/fake-ai, docker/compose.e2e.yaml
-- **Status:** open
+- **Status:** superseded by TBD-33
 
 ## TBD-16 · No extra mail dependencies; haproxy for the test-stack proxy
 - **Kind:** decision
@@ -226,7 +227,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** mailparser's text, a scripted responder in the tests, and the official haproxy image. Fewer dependencies under the 7-day release-age rule, and open-source nginx has no active health checks.
 - **If you decide otherwise:** The foundation would install the extra packages and the proxy config would change.
 - **Refs:** F2.1, F5.2, F7.8; packages/mail, docker/proxy
-- **Status:** open
+- **Status:** superseded by TBD-34
 
 ## TBD-17 · How 'Couldn't analyze' works when classification is batched
 - **Kind:** decision
