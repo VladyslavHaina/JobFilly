@@ -62,6 +62,26 @@ export const CvUploadFieldsSchema = z.object({
 export const CvTagsUpdateSchema = z.object({ tags: z.array(CvTagSchema).max(50) });
 export type CvTagsUpdate = z.infer<typeof CvTagsUpdateSchema>;
 
+/** A skill or a format hint as the user edits it: one short label. */
+const CvLabelSchema = TextSchema.trim().min(1).max(100);
+
+/**
+ * PATCH /cvs/:cvId: what the user leaves of what the AI suggested, and what they add (F2.1), as
+ * editable tags: the tags (AI tags kept or removed, own added), the skills (removed, or added
+ * when the CV's text contains them, F2.2) and the format hints. Each list replaces the CV's;
+ * a field left out stays as it is, and at least one is given.
+ */
+export const CvUpdateSchema = z
+  .object({
+    tags: z.array(CvTagSchema).max(50).optional(),
+    skills: z.array(CvLabelSchema).max(100).optional(),
+    formatHints: z.array(CvLabelSchema).max(20).optional(),
+  })
+  .refine((u) => u.tags !== undefined || u.skills !== undefined || u.formatHints !== undefined, {
+    message: "Give the tags, the skills or the format hints to change",
+  });
+export type CvUpdate = z.infer<typeof CvUpdateSchema>;
+
 /**
  * The CV the app would use for a role and why ("German backend role → Backend (DE)", F2.3):
  * chosen automatically, or by an editor for that role. cvId null: no CV fits, or none uploaded.

@@ -6,6 +6,7 @@ import {
   ConditionSchema,
   CvChoiceOverrideSchema,
   CvSchema,
+  CvUpdateSchema,
   DecisionAnswerSchema,
   DraftCreatePayloadSchema,
   DraftOutputSchema,
@@ -292,6 +293,18 @@ describe("evaluations, senders, drafts and decisions", () => {
     expect(CvSchema.safeParse(cv).success).toBe(false);
     expect(CvSchema.safeParse({ ...cv, sizeBytes: 1000 }).success).toBe(true);
     expect(CvChoiceOverrideSchema.safeParse({ cvId: null }).success).toBe(true);
+  });
+
+  it("edits a CV's tags, skills and format hints, each on its own (F2.1)", () => {
+    expect(CvUpdateSchema.safeParse({ skills: ["Go", " Kafka "] }).data).toEqual({
+      skills: ["Go", "Kafka"],
+    });
+    expect(CvUpdateSchema.safeParse({ formatHints: [] }).success).toBe(true);
+    expect(
+      CvUpdateSchema.safeParse({ tags: [{ label: "preferred", source: "you" }] }).success,
+    ).toBe(true);
+    expect(CvUpdateSchema.safeParse({}).success).toBe(false);
+    expect(CvUpdateSchema.safeParse({ skills: ["  "] }).success).toBe(false);
   });
 });
 
