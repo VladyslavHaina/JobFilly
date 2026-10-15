@@ -1,12 +1,13 @@
 import {
   type Draft,
+  type DraftListQuery,
   DraftListSchema,
   DraftSchema,
   type DraftStatus,
   type DraftUpdate,
 } from "@jobfilly/schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ApiError, api } from "../../api";
+import { api } from "../../api";
 import { queryKeys } from "../../hooks";
 
 // The drafts API (F6) for the Drafts page and the draft panel. Every query lives under the
@@ -18,14 +19,21 @@ const draftsPath = (workspaceId: string) =>
 const draftsKey = (workspaceId: string, messageId?: string) =>
   [...queryKeys.area(workspaceId, "drafts"), "list", messageId ?? "all"] as const;
 
+/** The query string of GET /drafts (DraftListQuerySchema), "" for every draft. */
+function draftListQuery(query: DraftListQuery): string {
+  const params = new URLSearchParams();
+  if (query.messageId !== undefined) params.set("messageId", query.messageId);
+  const text = params.toString();
+  return text ? `?${text}` : "";
+}
+
 /** The workspace's drafts, or one message's. */
 export function useDrafts(workspaceId: string, messageId?: string) {
   return useQuery({
     queryKey: draftsKey(workspaceId, messageId),
-    queryFn: async () => {
-      const query = messageId ? `?messageId=${encodeURIComponent(messageId)}` : "";
-      return (await api(`${draftsPath(workspaceId)}${query}`, DraftListSchema)).items;
-    },
+    queryFn: async () =>
+      (await api(`${draftsPath(workspaceId)}${draftListQuery({ messageId })}`, DraftListSchema))
+        .items,
   });
 }
 
@@ -65,8 +73,3 @@ export const STATUS_LABELS: Record<DraftStatus, string> = {
   discarded: "Discarded",
   failed: "Failed",
 };
-
-/** What went wrong, in the server's words when it gave some. */
-export function errorText(error: unknown): string {
-  return error instanceof ApiError ? error.message : "Something went wrong. Try again.";
-}

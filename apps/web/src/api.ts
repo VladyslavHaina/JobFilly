@@ -16,6 +16,13 @@ export class ApiError extends Error {
   }
 }
 
+const SOMETHING_WENT_WRONG = "Something went wrong. Try again.";
+
+/** What went wrong, in the server's words when it gave some. */
+export function errorText(error: unknown): string {
+  return error instanceof ApiError ? error.message : SOMETHING_WENT_WRONG;
+}
+
 export interface RequestOptions {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
@@ -34,7 +41,7 @@ async function send(path: string, options: RequestOptions, form?: FormData): Pro
   });
   if (!res.ok) {
     let code = `http_${res.status}`;
-    let message = "Something went wrong. Try again.";
+    let message = SOMETHING_WENT_WRONG;
     try {
       const parsed = ApiErrorSchema.safeParse(await res.json());
       if (parsed.success) {

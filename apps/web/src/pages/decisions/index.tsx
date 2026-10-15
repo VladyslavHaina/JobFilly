@@ -1,20 +1,15 @@
 import type { Decision, ProfileItem } from "@jobfilly/schema";
 import { useId, useState } from "react";
 import { Link } from "react-router";
+import { errorText } from "../../api";
 import { Alert, Badge, Button, Card, Loading, PageHeader, TextField } from "../../components";
 import { useWorkspace } from "../../hooks";
 import { paths } from "../../paths";
-import {
-  errorText,
-  useAnswer,
-  useDecisionCount,
-  useDecisions,
-  useDismiss,
-  useNotNow,
-} from "./queries";
+import { useAnswer, useDecisionCount, useDecisions, useDismiss, useNotNow } from "./queries";
 
 // The decision inbox in the UI (F7): each question once, the messages waiting on it, answers to
-// click plus a free-text option, and Use this answer for similar mail (F7.2); Not now and Don't
+// click plus a free-text option, and Use this answer for similar mail (F7.2; an ask_first rule's
+// question shows it switched off, with why: the rule asks for each message); Not now and Don't
 // ask for this message (F7.5); the open count in the navigation, kept live by decisions.updated
 // events. Viewers see everything but can't answer (F7.7).
 
@@ -40,6 +35,8 @@ function DecisionCard({ decision }: { decision: Decision }) {
   const error = answer.error ?? notNow.error ?? dismiss.error;
   const n = decision.waiting.length;
   const locked = !can.edit || busy;
+  // An ask_first rule's question has no profile key: the rule asks it for each message.
+  const perRule = decision.profileKey === null;
 
   return (
     <Card>
@@ -82,7 +79,7 @@ function DecisionCard({ decision }: { decision: Decision }) {
           className="flex flex-col gap-3"
           onSubmit={(e) => {
             e.preventDefault();
-            if (value !== null) answer.mutate({ value, useForSimilar: similar });
+            if (value !== null) answer.mutate({ value, useForSimilar: similar && !perRule });
           }}
         >
           <fieldset className="flex flex-col gap-2" disabled={locked}>
@@ -118,16 +115,21 @@ function DecisionCard({ decision }: { decision: Decision }) {
                 onChange={(e) => setText(e.target.value)}
               />
             )}
-            {decision.profileKey !== null && (
-              <label className="flex items-center gap-2 text-sm text-stone-800">
-                <input
-                  type="checkbox"
-                  checked={similar}
-                  disabled={locked}
-                  onChange={(e) => setSimilar(e.target.checked)}
-                />
-                Use this answer for similar mail
-              </label>
+            <label className="flex items-center gap-2 text-sm text-stone-800">
+              <input
+                type="checkbox"
+                checked={perRule ? false : similar}
+                disabled={locked || perRule}
+                aria-describedby={perRule ? `${name}-rule` : undefined}
+                onChange={(e) => setSimilar(e.target.checked)}
+              />
+              Use this answer for similar mail
+            </label>
+            {perRule && (
+              <p id={`${name}-rule`} className="text-xs text-stone-500">
+                One of your rules asks this for each message, so the answer is for the messages
+                above only. To stop being asked, switch the rule off on your profile.
+              </p>
             )}
           </fieldset>
           <div className="flex flex-wrap items-center gap-2">

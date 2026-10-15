@@ -1,4 +1,4 @@
-import type { Draft } from "@jobfilly/schema";
+import type { Decision, Draft } from "@jobfilly/schema";
 import { cleanup, configure, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
@@ -175,6 +175,42 @@ describe("the draft panel (F6.4, F6.5)", () => {
     renderInWorkspace(<DraftPanel workspaceId={W} messageId={BERLIN} position={0} />);
     expect(await screen.findByText("Couldn't reach the mail server")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Draft a reply" })).toBeTruthy();
+  });
+
+  it("names the question the reply waits on, with the way to Decisions (F7.2)", async () => {
+    const waiting: Decision = {
+      id: "00000000-0000-4000-8000-0000000000c2",
+      question: "Would you relocate to Ireland?",
+      profileKey: "extra.relocate",
+      groupKey: "extra.relocate",
+      choices: [{ label: "Yes", value: "Yes" }],
+      waiting: [
+        { messageId: "<dublin@x.example>", position: 0, subject: "Dublin" },
+        { messageId: BERLIN, position: 1, subject: "Berlin" },
+      ],
+      status: "open",
+      createdAt: "2026-10-15T12:00:00.000Z",
+    };
+    const other: Decision = {
+      ...waiting,
+      id: "00000000-0000-4000-8000-0000000000c3",
+      question: "Minimum pay in CHF per year?",
+      waiting: [{ messageId: BERLIN, position: 0, subject: "Berlin" }],
+    };
+    fakeApi({
+      [`GET ${BASE}`]: { items: [] },
+      [`GET /api/workspaces/${W}/decisions`]: { items: [waiting, other] },
+    });
+    renderInWorkspace(<DraftPanel workspaceId={W} messageId={BERLIN} position={1} />);
+    expect(
+      await screen.findByText(/Waiting for your answer: Would you relocate to Ireland\?/),
+    ).toBeTruthy();
+    expect(screen.getByText("No draft yet: the reply waits for your answer.")).toBeTruthy();
+    // Only this role's questions.
+    expect(screen.queryByText(/Minimum pay in CHF/)).toBeNull();
+    expect(screen.getByRole("link", { name: "Answer it in Decisions" }).getAttribute("href")).toBe(
+      `/w/${W}/decisions`,
+    );
   });
 
   it("is read-only for viewers", async () => {

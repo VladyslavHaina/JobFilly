@@ -121,6 +121,35 @@ describe("the Decisions page (F7.2)", () => {
     ]);
   });
 
+  it("says why a rule's question is answered for its messages only", async () => {
+    const rule: Decision = {
+      ...RELOCATE,
+      id: "00000000-0000-4000-8000-0000000000c3",
+      question: "Reply to this agency role?",
+      profileKey: null,
+      groupKey: "rule:00000000-0000-4000-8000-0000000000e1",
+    };
+    const seen = fakeApi({
+      [`GET ${BASE}`]: { items: [rule] },
+      [`POST ${BASE}/:id/answer`]: { ...rule, status: "answered", waiting: [] },
+    });
+    renderInWorkspace(<DecisionsPage workspaceId={W} />);
+    await screen.findByRole("heading", { name: "Reply to this agency role?" });
+    const similar = screen.getByRole("checkbox", {
+      name: "Use this answer for similar mail",
+    }) as HTMLInputElement;
+    expect(similar.checked).toBe(false);
+    expect(similar.disabled).toBe(true);
+    expect(screen.getByText(/One of your rules asks this for each message/)).toBeTruthy();
+    await userEvent.click(screen.getByRole("radio", { name: "Yes" }));
+    await userEvent.click(screen.getByRole("button", { name: "Answer" }));
+    await waitFor(() => expect(seen.some((r) => r.method === "POST")).toBe(true));
+    expect(seen.find((r) => r.method === "POST")?.body).toEqual({
+      value: "Yes",
+      useForSimilar: false,
+    });
+  });
+
   it("keeps a decision with Not now, and closes it for one message with Don't ask", async () => {
     let items = [CHF];
     const seen = fakeApi({

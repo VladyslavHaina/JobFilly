@@ -1,8 +1,9 @@
 import type { Draft } from "@jobfilly/schema";
 import { useState } from "react";
+import { errorText } from "../../api";
 import { Alert, Badge, Button, Dialog, Textarea, TextField } from "../../components";
 import { useWorkspace } from "../../hooks";
-import { errorText, STATUS_LABELS, useDiscardDraft, useEditDraft } from "./queries";
+import { STATUS_LABELS, useDiscardDraft, useEditDraft } from "./queries";
 
 // One draft (F6.4, F6.7): its status, the failed reason, the reply text, and for editors Edit
 // (saving replaces the copy in the mailbox) and Discard (deletes it there). Viewers read it; the

@@ -6,7 +6,7 @@ import {
   DecisionSchema,
 } from "@jobfilly/schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ApiError, api } from "../../api";
+import { api } from "../../api";
 import { queryKeys } from "../../hooks";
 
 // The decisions API (F7) for the inbox and the count in the navigation. Every query lives under
@@ -62,7 +62,3 @@ export const useNotNow = (workspaceId: string, decisionId: string) =>
 
 export const useDismiss = (workspaceId: string, decisionId: string) =>
   useDecisionAction(workspaceId, decisionId, "dismiss", (role: DecisionDismiss) => role);
-
-export function errorText(error: unknown): string {
-  return error instanceof ApiError ? error.message : "Something went wrong. Try again.";
-}
