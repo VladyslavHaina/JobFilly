@@ -339,3 +339,4 @@ On both personas, against `expected.json`:
 
 | Date | Status | Commit | Run folder | Real AI provider | Notes |
 | --- | --- | --- | --- | --- | --- |
+| 2026-10-15 | accepted with open items | b3d20f1 | e2e/reports/mvp-1/20261015T130905Z-r3-walkthrough | not run | Open in TBD.md for MVP 1: TBD-17 to TBD-155 (139 entries; TBD-35 is an open item, the rest are decisions awaiting review; TBD-1 to TBD-16 are superseded). The real-AI quality run was not done because no `JOBFILLY_E2E_AI_PROVIDER` was set. Fix rounds: 5 (including a deep round). Run folders: 20261015T084131Z-r0-walkthrough, 20261015T100402Z-r1-walkthrough, 20261015T113934Z-r2-walkthrough, 20261015T130905Z-r3-walkthrough (under e2e/reports/mvp-1/; the r0 folder is no longer on disk). No minor findings left. |
