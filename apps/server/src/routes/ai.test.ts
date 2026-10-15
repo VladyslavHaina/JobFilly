@@ -175,6 +175,21 @@ describe("reading and saving (F3.1, F3.2)", () => {
 });
 
 describe("the key (F3.3)", () => {
+  it("can't hide in the base URL: one with a user name or password is refused, never stored", async () => {
+    const baseUrl = "https://user:E2E-SECRET-in-url@proxy.example/v1";
+    const message =
+      "Leave the user name and password out of the base URL; put the secret in the API key field";
+    const saved = await admin.put(url, { ...form, baseUrl });
+    expect(saved.status).toBe(400);
+    expect(await saved.json()).toEqual({ error: "invalid", message });
+    const tested = await admin.post(`${url}/test`, { ...form, baseUrl });
+    expect(tested.status).toBe(400);
+    expect(await tested.json()).toEqual({ error: "invalid", message });
+    expect(ai.clients).toEqual([]);
+    expect(await getAiSettings(deps.db, owner.workspaceId)).toBeNull();
+    expect(deps.rawLogs.join("\n")).not.toContain("E2E-SECRET-in-url");
+  });
+
   it("is sealed with AES-256-GCM: never stored in clear, different each time, bound to the key", async () => {
     await admin.put(url, form);
     const first = await getAiSettings(deps.db, owner.workspaceId);
