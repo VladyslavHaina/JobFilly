@@ -88,7 +88,7 @@ Rules:
   (with `stale`), `sender_marks`, `domain_lookups` (the RDAP and MX cache, workspace-scoped),
   `drafts`, `decisions` and `decision_messages`, `assistant_threads`, `assistant_messages`,
   `assistant_proposals`, `profile_history`, `mailbox_sync` (per mailbox and folder: UIDVALIDITY,
-  last UID, last success, failing since, the back-off's next attempt), `jobs.dedupe_key` and
+  last UID, last success, failing since and why, the back-off's next attempt), `jobs.dedupe_key` and
   `messages.language` (the body's language as the sender stage detected it). The migration also
   gives saved AI settings a model for each new task, from their extract model.
 - A reference from one workspace-owned row to another includes `workspace_id`: `cvs`,
@@ -173,7 +173,12 @@ Rules:
   extracted by `pipeline/analyze.ts`, the scan's own classify-then-extract step, within the
   workspace's budget per run; the cursor stays before recent mail the model couldn't sort yet.
   A failed sync backs off from one interval, doubling to at most 15 minutes, and the mailbox
-  shows as failing since its first failure until a sync works again.
+  shows as failing since its first failure until a sync works again. The status carries a reason
+  code (`MailboxSyncStatus.reason`, stored in `mailbox_sync.last_error_reason`) that the UI
+  branches on; the words beside it come from packages/mail (`UNAVAILABLE_MESSAGES`).
+- Every caller of `MailPort.connect` passes the mailbox's stored address
+  (`MailClientOptions.address`): it is the From of every draft and the domain of its
+  Message-ID, as the IMAP user name need not be an address.
 - Each new job message, and every message whose evaluation or sender check is missing or stale,
   goes through `evaluateMessage` (`apps/server/src/pipeline/evaluate.ts`): the sender stage, then
   per role the cv-choice and match stages, then the reply stage. The stage contract is pinned in
