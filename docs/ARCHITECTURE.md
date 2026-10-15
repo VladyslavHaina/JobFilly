@@ -294,7 +294,10 @@ Every MVP keeps these true; the Helm chart after MVP 3 relies on them.
 - Migrations run at start under a Postgres advisory lock, so replicas starting together apply
   them once (one `db.migrated` line). `node dist/index.js migrate` runs them alone, for a migration
   job. Migrations stay backward compatible with the previous release — add first, remove in a
-  later release — because old and new replicas run side by side during a rolling update.
+  later release — because old and new replicas run side by side during a rolling update. For
+  the same reason, data an old replica writes stays readable: `ai_settings.models` is merged on
+  save, not replaced, and a task model missing from a row an MVP 1 replica wrote is read as the
+  extract model.
 - On `SIGTERM`, in this order: the scheduler stops starting syncs and sweeps; readiness turns 503
   at once; the replica keeps serving for a 5-second drain so load balancers stop routing to it;
   it stops accepting connections and closes open live-update streams (browsers reconnect to
