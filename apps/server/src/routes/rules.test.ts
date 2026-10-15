@@ -252,6 +252,48 @@ describe("switching a rule on or off, and removing it (F3.5)", () => {
     expect((await editor.delete(`${rulesUrl()}/${rule.id}`)).status).toBe(404);
   });
 
+  it("re-evaluates the roles once a rule is removed, with no model call and no mailbox", async () => {
+    const rule = await addRule("No Asian hours");
+    await seedRemoteMail("asia", 2, ASIA);
+    await drain();
+    const ids = ["<asia-0@agency.example>", "<asia-1@agency.example>"];
+    expect((await list(viewer, "?hidden=true")).items.map((m) => m.id)).toEqual(ids);
+    expect(await list(viewer)).toMatchObject({ items: [] });
+
+    const aiCalls = { ...ai.calls };
+    const mailCalls = { ...mailbox.calls };
+    mailbox.pause();
+    deps.clock.advance(1_000);
+    const removedAt = deps.clock.now();
+    expect((await editor.delete(`${rulesUrl()}/${rule.id}`)).status).toBe(204);
+
+    // Until the re-evaluation has run, every score is stale: none is shown as current.
+    const stale = await getEvaluations(deps.db, ws.workspaceId, ids);
+    expect(stale).toHaveLength(6);
+    expect(stale.every((e) => e.stale)).toBe(true);
+    const during = [...(await list(viewer)).items, ...(await list(viewer, "?hidden=true")).items];
+    expect(during).toHaveLength(2);
+    expect(during.every((m) => m.fit?.stale === true)).toBe(true);
+
+    deps.clock.advance(5_000);
+    await drain();
+    const after = await getEvaluations(deps.db, ws.workspaceId, ids);
+    expect(after).toHaveLength(6);
+    for (const e of after) {
+      expect(e.stale).toBe(false);
+      expect(e.hidden).toBeNull();
+      const since = new Date(e.evaluatedAt).getTime() - removedAt.getTime();
+      expect(since).toBeGreaterThanOrEqual(0);
+      expect(since).toBeLessThanOrEqual(MINUTE);
+    }
+    const shown = await list(viewer);
+    expect(shown.items.map((m) => m.id)).toEqual(ids);
+    expect(shown.items.every((m) => m.fit?.stale === false && m.hidden === null)).toBe(true);
+    expect((await list(viewer, "?hidden=true")).items).toEqual([]);
+    expect(ai.calls).toEqual(aiCalls);
+    expect(mailbox.calls).toEqual(mailCalls);
+  });
+
   it("refuses a bad body, another profile's rule and a rule that isn't there", async () => {
     const rule = await addRule("No Asian hours");
     expect((await editor.patch(`${rulesUrl()}/${rule.id}`, {})).status).toBe(400);
