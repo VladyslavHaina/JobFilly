@@ -125,7 +125,8 @@ describe("the workspace route modules", () => {
     ["PATCH", `cvs/${ID}`, "editor", 501],
     ["DELETE", `cvs/${ID}`, "editor", 501],
     ["GET", `cvs/${ID}/file`, "viewer", 501],
-    ["PUT", "senders/marks", "editor", 501],
+    // An empty mark.
+    ["PUT", "senders/marks", "editor", 400],
     ["GET", `profiles/${ID}/rules`, "viewer", 501],
     ["PATCH", `profiles/${ID}/rules/${ID}`, "editor", 501],
     ["DELETE", `profiles/${ID}/rules/${ID}`, "editor", 501],
