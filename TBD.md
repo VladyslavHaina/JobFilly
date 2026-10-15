@@ -2641,3 +2641,228 @@ These make sign-off possible; without them the build goes on and records an open
 - **If you decide otherwise:** —
 - **Refs:** —
 - **Status:** open
+
+## TBD-211 · Fix round 4 and its three branches have no record in TBD.md; they were merged into mvp-2 first
+- **Kind:** decision
+- **Where:** MVP 2 · Foundation
+- **Context:** TBD.md ends at the planning entries and has nothing on fix round 4 or on these branches passing verification. mvp-2 lacked MVP 1's intake form, profile page and profile queries, the inbox search fix and the F5.3 proof-order fix.
+- **Options:**
+  1. Merge all three branches first, each with --no-ff as its own commit
+  2. Leave out any branch whose verification isn't recorded
+- **Chosen:** Merged mvp-1-fix-r4-intake-live-merge (58aa202), mvp-1-fix-r4-inbox-search-unanalysed (d83196e) and mvp-1-fix-r4-e2e-f53-proof-order (4e0dec1), in that order, each as its own --no-ff commit and before any foundation commit. None conflicted. pnpm check (889 tests) and pnpm unused were green afterwards, with no fixes needed. MVP 2's rules, matching, reply policy, decisions and assistant all depend on the confirmed profile. Leaving the two small fixes out would lose them, or make them conflict later with this foundation's InboxPage slot edits and the e2e-fixtures slice's stack.test.ts.
+- **If you decide otherwise:** Revert the merge commit of whichever branch the owner rejects. Each foundation verifier should review each merge on its own (git diff mvp-2...<branch> for each of the three).
+- **Refs:** 58aa202, d83196e, 4e0dec1; TBD-186
+- **Status:** open
+
+## TBD-212 · packages/db's applyProfileChanges takes core's applyChanges as a parameter instead of importing packages/core
+- **Kind:** decision
+- **Where:** MVP 2 · Foundation
+- **Context:** The plan has applyProfileChanges apply core's applyChanges inside the db transaction. ARCHITECTURE says packages/db may import only packages/schema.
+- **Options:**
+  1. packages/db imports @jobfilly/core
+  2. The caller passes applyChanges in (meta.apply)
+- **Chosen:** The caller passes it in. The signature is applyProfileChanges(db, ws, profileId, changes, { source, userId, request, at, apply }), and the server's applyAndReevaluate passes core's applyChanges bound to its context. This keeps the package boundary as documented while still writing entries, rules and the history row in one transaction.
+- **If you decide otherwise:** Add @jobfilly/core to packages/db, call applyChanges directly, drop the `apply` field, and update the ARCHITECTURE package table.
+- **Refs:** packages/db/src/queries/profile-changes.ts; apps/server/src/profile/changes.ts; docs/ARCHITECTURE.md › The profile change service
+- **Status:** open
+
+## TBD-213 · An empty reply_to answer counts as not stated, so the default (recruiter outreach) applies
+- **Kind:** decision
+- **Where:** MVP 2 · Foundation
+- **Context:** replyEligibility defaults reply_to to recruiter outreach. The intake stores reply_to as [] when there wasn't enough evidence, so an empty list can't be told apart from 'reply to nothing'.
+- **Options:**
+  1. Empty means never reply automatically
+  2. Empty means not stated, so the default applies
+- **Chosen:** Empty means not stated: the default applies. An intake left empty for lack of evidence would otherwise turn off every automatic draft (F6.1). Users who want no automatic drafts can raise reply_threshold or use a no_draft rule.
+- **If you decide otherwise:** In packages/core/src/policy/reply.ts, replyTo(): use the entry's value whenever the entry exists, and update the policy test table.
+- **Refs:** packages/core/src/policy/reply.ts; F6.1
+- **Status:** open
+
+## TBD-214 · Contract fields added beyond the pinned list
+- **Kind:** decision
+- **Where:** MVP 2 · Foundation
+- **Context:** Several slice needs aren't covered by the pinned field lists, and only the foundation can change packages/schema.
+- **Options:**
+  1. Stick to exactly the pinned fields
+  2. Add the fields the slices will need
+- **Chosen:** Added these:
+  - Cv: countryHints and uploadedAt.
+  - Decision choices: {label, value} items, where the value is one profile item.
+  - Proposal: before and after ProfileSnapshots, so the card can show before and after (F8.2). ProfileHistoryEntry: the changes.
+  - AssistantTurn: threadId. Plus the AssistantThread and AssistantMessage shapes.
+  - MailboxPublic.sync: defaults to 'never', so the existing GET /mailboxes stays valid until the mailbox slice sets it.
+  - Data-file schemas for the sender phrase lists and free-mail domains.
+  - MessageInput.language: always null for now, since nothing detects a message's language.
+  Without these, the cvs-senders, replies and assistant slices would each need to change the schema themselves, which the plan rules out.
+- **If you decide otherwise:** Remove the field from packages/schema and its use in the db query.
+- **Refs:** packages/schema/src/{cv,decisions,assistant,mailbox,sender}.ts; packages/db/src/queries/evaluations.ts
+- **Status:** open
+
+## TBD-215 · Assistant route guards: viewers send messages and discard proposals; editing and applying a proposal take an editor
+- **Kind:** decision
+- **Where:** MVP 2 · Foundation
+- **Context:** F8.8 says viewers can chat but can't apply. Discard and edit weren't specified.
+- **Options:**
+  1. Discard and edit both need an editor
+  2. Discard needs only a viewer, edit needs an editor
+- **Chosen:** GET and POST /assistant: viewer. POST /assistant/proposals/:id/discard: viewer. PATCH /assistant/proposals/:id and POST …/apply: editor. Discarding changes no data and lets a viewer clear their own card. Editing is part of applying.
+- **If you decide otherwise:** Change requireRole on the discard route in apps/server/src/routes/assistant.ts and the matching row in app.test.ts.
+- **Refs:** apps/server/src/routes/assistant.ts; apps/server/src/app.test.ts
+- **Status:** open
+
+## TBD-216 · Data choices in the migration and draft history
+- **Kind:** decision
+- **Where:** MVP 2 · Foundation
+- **Context:** Several hard-to-reverse storage choices weren't pinned.
+- **Options:**
+  1. As chosen below
+  2. Alternatives noted per item
+- **Chosen:**
+  - role_evaluations and match_ai_answers hang off roles with ON DELETE CASCADE, so re-analysing a message drops its evaluations and they are made again.
+  - drafts, role_cv_choices, sender_checks and decision_messages hang off messages.
+  - 'Dismissed' in draftHistory is per role (message and position), matching DecisionDismiss.
+  - One open decision per (workspace, group_key).
+  - A deduped job handed back on shutdown while another job with the same key waits ends as 'done', because the waiting job does the same work.
+  - profile_history writes no row for a change list that changes nothing.
+  - Undo through restoreChanges re-adds a removed rule under a new id.
+  Each keeps one source of truth and avoids unique-index conflicts on hand-back.
+- **If you decide otherwise:** Each is a small change in packages/db/src/tables.ts (plus a new migration), draft-claims.ts or jobs.ts.
+- **Refs:** packages/db/migrations/0001_mvp2.sql; packages/db/src/queries/{draft-claims,jobs,profile-changes}.ts
+- **Status:** open
+
+## TBD-217 · Profile PATCH may set policy keys the profile doesn't have yet; other unknown keys are still refused
+- **Kind:** decision
+- **Where:** MVP 2 · Foundation
+- **Context:** reply_threshold and reply_window_days are valid profile keys but are never in a confirmed profile. MVP 1's PATCH refused any key the profile didn't have.
+- **Options:**
+  1. Refuse every key the profile doesn't have
+  2. Also allow the policy keys
+- **Chosen:** The policy keys are allowed (Change update creates the entry). Any other unknown key still gets 400. The profile page edits a policy entry with a number field. This lets the owner change the reply policy without inventing intake questions. Assistant proposals can set the policy keys the same way.
+- **If you decide otherwise:** Drop the isPolicyKey exception in apps/server/src/routes/profiles.ts.
+- **Refs:** apps/server/src/routes/profiles.ts; apps/web/src/pages/intake/answers.tsx
+- **Status:** open
+
+## TBD-218 · biome's noThenProperty is off for the whole repo
+- **Kind:** decision
+- **Where:** MVP 2 · Foundation
+- **Context:** The spec names a rule's action `then`. The lint fails on every object holding a rule.
+- **Options:**
+  1. Rename the field (changes the spec's shape)
+  2. Add a biome-ignore comment at each use
+  3. Turn the rule off in biome.json
+- **Chosen:** Turned it off in biome.json and explained why in the RuleDraftSchema comment: `then` is always a string, never a function, so nothing can mistake a rule for a promise. This keeps the spec's field name, and the parallel slices don't each need suppression comments.
+- **If you decide otherwise:** Turn the rule back on and add biome-ignore comments where rules are built.
+- **Refs:** biome.json; packages/schema/src/rules.ts
+- **Status:** open
+
+## TBD-219 · A message gone from the mailbox gets an incomplete sender check, redone when the message is seen again
+- **Kind:** decision
+- **Where:** MVP 2 · Foundation
+- **Context:** F1.6: a backlog message deleted from the mailbox never got a check. It kept its workspace in the sweep's work list and logged in to IMAP every interval. fetchBody returns null both for a deleted message and for a folder rebuilt under a new UIDVALIDITY.
+- **Options:**
+  1. Store an incomplete check (caution, message_gone) and make it stale when saveEnvelopes sees the message again
+  2. Add attempts/next_attempt_at columns to sender_checks with a cap and back-off
+  3. Both
+- **Chosen:** Store an incomplete check with the message_gone signal (MESSAGE_GONE_SIGNAL in packages/schema). It is never better than caution, and a check the stage returned for a gone message is forced to that. saveEnvelopes (the scan and sync path, a UIDVALIDITY re-index included) makes such checks stale so they are redone with the text. The stored language is kept as last detected. F5.3 says a check that couldn't be done is incomplete, never 'looks fine'. Users see an honest 'caution' badge instead of nothing, and the loop ends without a schema change for back-off. Re-staling on saveEnvelopes covers the false positive where the folder was rebuilt between syncs, which matters for upgraded deployments at the startup sweep.
+- **If you decide otherwise:** With attempts/back-off, sender_checks needs two columns, listToEvaluate must respect next_attempt_at, and a message gives up after the cap with no check at all, so the reply would wait forever.
+- **Refs:** F1.6, F5.3; apps/server/src/pipeline/evaluate.ts, stages.ts (MessageGoneError); packages/db/src/queries/messages.ts saveEnvelopes; sweep.test.ts
+- **Status:** open
+
+## TBD-220 · The sender stage reports the body's language; it is stored on messages.language
+- **Kind:** decision
+- **Where:** MVP 2 · Foundation
+- **Context:** MessageInput.language was always null, yet TBD-176 (phrase lists per language) and F2.3 (CV by language) depend on it, and re-scoring must not touch the mailbox.
+- **Options:**
+  1. Store a detected language on messages, filled by the sender stage that reads the body
+  2. Add a language to extract.v1's output (MVP 1 contract, fixtures, backlog not covered)
+  3. Remove the field and let stages derive it (cv-choice can't read the body)
+- **Chosen:** SenderStage now returns {check, language} (SenderStageResult). The pipeline stores the language with saveMessageLanguage on the new nullable messages.language column, and loadMessageInputs reads it. When it changes, the message's roles are marked stale and evaluated again in the same run. Only the sender stage reads the body. Storing what it detects keeps the cv-choice stage and every re-score mailbox-free, and covers the backlog without touching MVP 1's extract.v1 contract.
+- **If you decide otherwise:** An extract.v1 language would mean regenerating MVP 1 wire samples and fixtures and backfilling the backlog. Dropping the field would leave cv-choice without a language on re-scoring.
+- **Refs:** F2.3, TBD-176; apps/server/src/pipeline/stages.ts, evaluate.ts; packages/db tables.ts messages.language, evaluations.ts
+- **Status:** open
+
+## TBD-221 · draft.v1 gets a 'Role: <position>' key line (drafts stay per role)
+- **Kind:** decision
+- **Where:** MVP 2 · Foundation
+- **Context:** TBD-210 item 2: drafts are claimed per role, but draft.v1 was keyed only by Message-ID and Attempt, so two roles of one message couldn't be told apart.
+- **Options:**
+  1. Add 'Role: <position>' to draft.v1's key lines; fake key Message-ID#position#attempt
+  2. Pin at most one automatic draft per message in replyEligibility
+- **Chosen:** The Role key line, between Message-ID and Attempt, with the wire sample, the e2e wire test, packages/ai tests, the server's fake AI key and ARCHITECTURE updated. Per-role drafts are what the database (one live draft per role), the dedupe key and Draft a reply (F6.5) already assume. Changing the key line is mechanical and keeps every role's answer distinct. Whether two automatic drafts in one thread are wanted is left to replyEligibility, which can still restrict it.
+- **If you decide otherwise:** Revert the key line and add a per-message limit in packages/core replyEligibility with a test; the fake AI key goes back to Message-ID#attempt.
+- **Refs:** F6.1, F6.5, TBD-210 item 2; packages/ai/src/tasks/draft.ts; e2e/fixtures/wire/draft.v1.request.json; apps/server/src/testing/ai.ts
+- **Status:** open
+
+## TBD-222 · A failed draft.v1 call marks the draft failed with a new 'ai' kind, retried under the same 5-attempt cap
+- **Kind:** decision
+- **Where:** MVP 2 · Foundation
+- **Context:** TBD-210 item 1: no outcome was defined when draft.v1 itself fails (provider error, timeout, invalid output, no AI set up). The failure kinds were only mailbox and content.
+- **Options:**
+  1. New 'ai' failure kind retried by the sweep under DRAFT_MAX_ATTEMPTS
+  2. Release the claim (releaseDraftClaim) so the role stays never-drafted
+- **Chosen:** The 'ai' kind with a plain failureReason, retried like 'mailbox' (one shared cap). After the cap the draft stays failed and visible on the Drafts page, and Draft a reply takes it back. The user sees why there is no draft instead of a silent gap, retries are bounded, and no row is left in saving. Releasing the claim would hide the failure, and nothing would retry it until some later change made the role stale.
+- **If you decide otherwise:** Drop 'ai' from DraftFailureKind and the check constraint; draft.create calls releaseDraftClaim on an AI error, and the role gets an automatic draft only after the next change re-evaluates it.
+- **Refs:** F6.7, TBD-210 item 1; packages/schema/src/drafts.ts; packages/db/src/queries/draft-claims.ts; apps/server/src/drafts/jobs.ts
+- **Status:** open
+
+## TBD-223 · Every AI call goes through aiClientFor, which records usage
+- **Kind:** decision
+- **Where:** MVP 2 · Foundation
+- **Context:** TBD-210 item 4 / F1.5: usage was recorded by hand at three call sites, and the four new tasks had no shared recording point.
+- **Options:**
+  1. A wrapper over the client (aiClientFor) that records each result's usage
+  2. A recordUsage(deps, ws, result) helper each call site must call
+- **Chosen:** aiClientFor(deps, workspaceId, settings, {scanId}) in apps/server/src/ai-usage.ts wraps every AiClient method explicitly, so adding a task fails compilation until it is wrapped. The scan, POST /ai/test and intake.v1 use it. The scan's spend() only counts now. A recording error propagates (in the scan it surfaces as an internal failure). usagePerDay was added to packages/db. A wrapper can't be forgotten per call the way a helper can, failures and retries count automatically, and ARCHITECTURE now says nothing calls deps.ai.client directly.
+- **If you decide otherwise:** Use a helper, with a test per call site; or swallow recording errors (logged) so a database hiccup can't fail an AI step, at the cost of under-counting.
+- **Refs:** F1.5, TBD-210 item 4; apps/server/src/ai-usage.ts, ai-usage.test.ts; packages/db/src/queries/usage.ts
+- **Status:** open
+
+## TBD-224 · Workspace-composite foreign keys, with 0001_mvp2 regenerated in place
+- **Kind:** decision
+- **Where:** MVP 2 · Foundation
+- **Context:** References to CVs, profiles and assistant threads used single-column FKs, so rows could point into another workspace.
+- **Options:**
+  1. Regenerate 0001_mvp2 (MVP 2 isn't released) with unique (workspace_id, id) and composite FKs
+  2. Add a new 0002 migration
+  3. Check ownership in the query helpers only
+- **Chosen:** Regenerated 0001_mvp2 with drizzle-kit, keeping the journal timestamp. Hand edits: the profiles unique constraint placed before the FKs that reference it, ON DELETE SET NULL ("cv_id") on the two set-null FKs (Postgres 15+, the stack runs 17), and the existing ai_settings UPDATE. The database refuses cross-workspace links whatever a slice writes, and SET NULL (cv_id) keeps workspace_id NOT NULL rows valid. A second migration for unreleased tables would only add noise.
+- **If you decide otherwise:** Move these changes to a 0002 migration if any deployment already ran this branch's 0001, since the migrator won't re-apply an edited 0001.
+- **Refs:** CLAUDE.md workspace-scoped rule; packages/db/src/tables.ts; packages/db/migrations/0001_mvp2.sql; index.test.ts 'references across workspaces'
+- **Status:** open
+
+## TBD-225 · F3.3 sign-off run changed to a Gmail app-password account at the owner's request (bde24f3, ff5e1d9)
+- **Kind:** decision
+- **Where:** MVP 2 · Foundation
+- **Context:** Two commits made during the foundation rewrote MVP 3 F3.3 and the matching TBD.md 'Needed from the owner' line. Before, sign-off had one run with a real Outlook.com account. Now it has one run with a real Gmail test account connected with an app password over IMAP and SMTP, and OAuth has no real-account run. The audit asked whether a build agent made these spec edits. The main session's transcript shows the owner asked for them, but TBD.md had no record of that.
+- **Options:**
+  1. Revert both commits as spec edits by a build agent and file a proposal
+  2. Keep them and record the owner as the source
+- **Chosen:** Keep them, and have the record step add an entry: Kind decision, Where 'MVP 3 · Spec (owner change during the MVP 2 foundation)', Status 'changed', naming the owner as the source. Evidence: in the interactive main session the owner wrote at 2026-10-15T17:38:56Z "we don't care about outlook, the main provider will be gmail", at 17:40:56Z "how to create the gmail credentials?" and at 17:45:31Z "why console.cloud.google.com, is there not a easy way to have a mail client". bde24f3 (10:40:35 -0700) and ff5e1d9 (10:51:45 -0700) were committed on the main checkout's HEAD right after these messages. The owner asked for the change, so reverting it would undo what the owner wanted. The rule against spec edits covers the build, not the owner. What was missing was only the audit record, and TBD.md says only the record step writes entries.
+- **If you decide otherwise:** Revert bde24f3 and ff5e1d9, which brings back the Outlook.com real-account run in docs/mvp/MVP-3.md F3.3 and in TBD.md 'Needed from the owner'.
+- **Refs:** docs/mvp/MVP-3.md F3.3; TBD.md 'Needed from the owner'; commits bde24f3, ff5e1d9; ~/.claude/projects/-Users-admin-Desktop-Repos-newrepo-JobFilly/64cc6a3d-9ab6-4d3a-82c6-e8066af76703.jsonl
+- **Status:** open
+
+## TBD-226 · The e2e-fixtures slice registers its own e2e entry points in knip.jsonc (partly supersedes TBD-206)
+- **Kind:** decision
+- **Where:** MVP 2 · Foundation
+- **Context:** Under TBD-206 the foundation pre-registered rdap/main.ts and dns/main.ts and the slices never edited knip.jsonc. Because the files don't exist yet, knip reports them as configuration hints, and the audit flagged that.
+- **Options:**
+  1. Keep the entries pre-registered and let the integrator clean them up
+  2. Remove them, and let the slice that adds each entry-point file register it in the same change
+- **Chosen:** Removed both entries. The knip.jsonc comment now says slices edit the file only to add their own e2e entry points, in the same change that adds the file. The config should only name files that exist, and pnpm unused should stay free of hints. Only the e2e-fixtures slice touches that list, so merges stay low-risk.
+- **If you decide otherwise:** Put the entries back in knip.jsonc and have the integrator drop any entry whose file never appears.
+- **Refs:** knip.jsonc; TBD-206; docs/mvp/README.md > Clean as you go
+- **Status:** open
+
+## TBD-227 · AI settings tolerate rows written by MVP 1 replicas (adds to TBD-209)
+- **Kind:** decision
+- **Where:** MVP 2 · Foundation
+- **Context:** TBD-209 fills the new per-task models with a one-time migration backfill. During a rolling update, an MVP 1 replica can still save or insert a row with only four models after the migration has run.
+- **Options:**
+  1. Merge on save only
+  2. Fill on read only
+  3. Both
+- **Chosen:** Both. saveAiSettings merges with jsonb || (keys being saved win, keys only the stored row has are kept), and getAiSettings fills a missing cv, match, draft or assistant model from extract. Merging keeps the owner's chosen task models when an old replica saves. Filling on read covers a row that an old replica inserted for the first time, which merging can't fix. The schema still requires all eight keys at the API.
+- **If you decide otherwise:** Make the new keys optional in AiModelsSchema, with a fallback in packages/ai.
+- **Refs:** packages/db/src/queries/ai-settings.ts; packages/db/src/queries/ai-settings.test.ts; docs/ARCHITECTURE.md > Kubernetes readiness; TBD-209
+- **Status:** open
