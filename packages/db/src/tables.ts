@@ -20,6 +20,7 @@ import type {
   ScanKind,
   ScanStatus,
   StageOneVerdict,
+  StopCause,
   StopReason,
   TaskId,
   TlsMode,
@@ -175,6 +176,7 @@ export const aiSettings = pgTable("ai_settings", {
 });
 
 const SCAN_STATUSES = ["queued", "running", "stopped"] as const satisfies readonly ScanStatus[];
+const STOP_CAUSES = ["mailbox", "ai", "internal"] as const satisfies readonly StopCause[];
 
 export const scans = pgTable(
   "scans",
@@ -184,6 +186,8 @@ export const scans = pgTable(
     kind: text("kind").$type<ScanKind>().notNull(),
     status: text("status").$type<ScanStatus>().notNull().default("queued"),
     stopReason: text("stop_reason").$type<StopReason>(),
+    /** What a failed run ran into (mailbox, ai or internal); null for every other stop. */
+    stopCause: text("stop_cause").$type<StopCause>(),
     counts: jsonb("counts").$type<ScanCounts>().notNull(),
     calls: integer("calls").notNull().default(0),
     inputTokens: integer("input_tokens").notNull().default(0),
@@ -202,6 +206,7 @@ export const scans = pgTable(
       .where(sql`status in ('queued', 'running')`),
     check("scans_kind_check", oneOf("kind", ["first", "analyze_rest"])),
     check("scans_status_check", oneOf("status", SCAN_STATUSES)),
+    check("scans_stop_cause_check", sql`stop_cause is null or ${oneOf("stop_cause", STOP_CAUSES)}`),
   ],
 );
 

@@ -2,6 +2,7 @@ import {
   CoreProfileKeySchema,
   type IntakeProposal,
   type ScanKind,
+  type StopCause,
   type StopReason,
   type TrackerMemory,
   type TrackerState,
@@ -92,8 +93,26 @@ export function createConfidenceTracker(
 
 const emails = (n: number) => `${n} likely job email${n === 1 ? "" : "s"}`;
 
-/** The stop in plain words, e.g. "Stopped: confident after 140 of 260 likely job emails". */
-export function stopMessage(reason: StopReason, analyzed: number, likely: number): string {
+/** Why a failed run couldn't go on, and where to look, by what it ran into (TBD-112). */
+const FAILED: Record<StopCause, (progress: string) => string> = {
+  mailbox: (progress) =>
+    `Stopped: couldn't read your mailbox ${progress}. Check Settings › Mailbox, then try again.`,
+  ai: (progress) =>
+    `Stopped: the AI provider couldn't be used ${progress}. Check Settings › AI, then try again.`,
+  internal: (progress) =>
+    `Stopped: something went wrong on JobFilly's side ${progress}. Your settings don't need changing; trying again later may help.`,
+};
+
+/**
+ * The stop in plain words, e.g. "Stopped: confident after 140 of 260 likely job emails". A failed
+ * run names what it ran into (`cause`); one stored without a cause only says it couldn't go on.
+ */
+export function stopMessage(
+  reason: StopReason,
+  analyzed: number,
+  likely: number,
+  cause: StopCause | null = null,
+): string {
   const progress = `after ${analyzed} of ${emails(likely)}`;
   switch (reason) {
     case "confident":
@@ -107,6 +126,6 @@ export function stopMessage(reason: StopReason, analyzed: number, likely: number
     case "cancelled":
       return `Stopped: cancelled ${progress}`;
     case "failed":
-      return `Stopped: couldn't go on ${progress}. Check the mailbox and AI settings, then try again.`;
+      return cause ? FAILED[cause](progress) : `Stopped: couldn't go on ${progress}. Try again.`;
   }
 }
