@@ -1,6 +1,7 @@
 import {
   type Address,
   type Category,
+  LOOKUP_FAILED_SIGNAL,
   MESSAGE_GONE_SIGNAL,
   type MessageSignal,
   type SenderCheck,
@@ -65,7 +66,7 @@ export interface SenderCheckInput {
 }
 
 /** A domain registered less than this many days ago is young. */
-export const YOUNG_DOMAIN_DAYS = 180;
+const YOUNG_DOMAIN_DAYS = 180;
 
 /** How much a signal weighs: one strong sign makes high risk; three medium ones do too. */
 const STRONG = new Set(["asks_for_fee", "asks_for_id"]);
@@ -187,7 +188,7 @@ function domainSignals(domain: string, facts: DomainFacts, now: Date): SenderRea
   const out: SenderReason[] = [];
   if (facts.rdap === "failed") {
     out.push({
-      signal: "lookup_failed",
+      signal: LOOKUP_FAILED_SIGNAL,
       reason: `Couldn't look up when ${domain} was registered, so this check is incomplete`,
     });
   } else if (facts.rdap?.registeredAt) {
@@ -201,7 +202,7 @@ function domainSignals(domain: string, facts: DomainFacts, now: Date): SenderRea
   }
   if (facts.mx === "failed") {
     out.push({
-      signal: "lookup_failed",
+      signal: LOOKUP_FAILED_SIGNAL,
       reason: `Couldn't look up the mail servers of ${domain}, so this check is incomplete`,
     });
   } else if (facts.mx && facts.mx.length === 0) {
@@ -215,7 +216,7 @@ function domainSignals(domain: string, facts: DomainFacts, now: Date): SenderRea
 
 /** What couldn't be checked: these make the check incomplete. */
 const INCOMPLETE = new Set([
-  "lookup_failed",
+  LOOKUP_FAILED_SIGNAL,
   "language_not_checked",
   "no_domain",
   MESSAGE_GONE_SIGNAL,

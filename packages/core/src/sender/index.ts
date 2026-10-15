@@ -5,10 +5,8 @@ export {
   checkSender,
   type DomainFacts,
   isFreeMailDomain,
-  nameMatchesDomain,
   type SenderCheckInput,
   senderDomain,
-  YOUNG_DOMAIN_DAYS,
 } from "./check";
 export { loadFreeMailDomains, loadMessageSignals } from "./data";
 export { detectLanguage } from "./language";
