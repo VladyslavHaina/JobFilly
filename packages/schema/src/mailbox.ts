@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { IsoDateTimeSchema } from "./common";
+import { IdSchema, IsoDateTimeSchema } from "./common";
 
 export const TlsModeSchema = z.enum(["tls", "starttls", "none"]);
 export type TlsMode = z.infer<typeof TlsModeSchema>;
@@ -89,6 +89,10 @@ export type MailboxPublic = z.infer<typeof MailboxPublicSchema>;
 export const MailboxListSchema = z.object({ items: z.array(MailboxPublicSchema) });
 export type MailboxList = z.infer<typeof MailboxListSchema>;
 
+/** The path of /mailboxes/:mailboxId, for disconnecting. */
+export const MailboxParamsSchema = z.object({ mailboxId: IdSchema });
+export type MailboxParams = z.infer<typeof MailboxParamsSchema>;
+
 export const AddressSchema = z.object({ address: z.string(), name: z.string().nullable() });
 export type Address = z.infer<typeof AddressSchema>;
 
@@ -134,7 +138,19 @@ export const MessageRefSchema = EnvelopeSchema.pick({
 });
 export type MessageRef = z.infer<typeof MessageRefSchema>;
 
-/** The synthetic Message-ID of a message whose header is missing. */
+/**
+ * The msg-id shape (RFC 5322, with the UTF-8 of RFC 6532): one "<...>" with no whitespace, no
+ * angle bracket and no control, format (zero-width, bidi) or separator character inside. Only a
+ * Message-ID of this shape is kept from a header (packages/mail uses the synthetic one otherwise),
+ * so an id can never carry words or a line break into a prompt's structure lines (F3.5).
+ */
+const MSG_ID = /^<[^<>\s\p{C}\p{Z}]+>$/u;
+
+export function isMsgId(value: string): boolean {
+  return MSG_ID.test(value);
+}
+
+/** The synthetic Message-ID of a message whose header is missing or not of the msg-id shape. */
 export function syntheticMessageId(folder: MailFolder, uidValidity: number, uid: number): string {
   return `<${folder}.${uidValidity}.${uid}@jobfilly.invalid>`;
 }

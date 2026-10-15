@@ -9,19 +9,11 @@
     ".": {},
     "apps/server": {},
     "apps/web": {},
-    "packages/ai": {
-      "ignoreDependencies": ["@ai-sdk/anthropic", "@ai-sdk/google", "@ai-sdk/openai"]
-    },
+    "packages/ai": {},
     "packages/core": {},
     "packages/db": {},
     "packages/mail": {
-      "ignoreDependencies": [
-        "imapflow",
-        "mailparser",
-        "nodemailer",
-        "@types/mailparser",
-        "@types/nodemailer"
-      ]
+      "ignoreDependencies": ["nodemailer", "@types/nodemailer"]
     },
     // The test stack's entry points are started by stack.ts, compose and the e2e image, not
     // imported: the stack runner, the fake AI, the seed loader, the fixture generator, the
