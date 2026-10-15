@@ -8,6 +8,7 @@ import {
   type ClassifyAnswer,
   CORE_KEYS,
   type CoreKey,
+  comparedForF53,
   type EnvelopeEntry,
   type ExpectedAnswer,
   type ExpectedFile,
@@ -460,6 +461,46 @@ describe.each(PERSONAS)("%s's fixtures", (persona) => {
       if (isJobCategory(t.category)) expect(d.extract[id], id).toEqual({ roles: t.facts });
     }
     for (const id of sentIds) expect(isInvalid(d.prefs[id] as object)).toBe(false);
+  });
+
+  it("compare every message for F5.3 but own replies and the invalid one, which are checked elsewhere", () => {
+    const ids = d.envelopes.map((e) => e.messageId);
+    const compared = ids.filter((id) => comparedForF53(d.truth(id)));
+    const left = ids.filter((id) => !comparedForF53(d.truth(id)));
+    // The compared set is the whole Inbox but the invalid message, and the fake AI answers each
+    // of them with its ground truth: what the scan stores is what F5.3 compares.
+    expect(compared.sort()).toEqual(
+      d.envelopes
+        .filter((e) => e.folder === "inbox" && !d.truth(e.messageId).invalid)
+        .map((e) => e.messageId)
+        .sort(),
+    );
+    for (const id of compared) {
+      const t = d.truth(id);
+      if (t.stageOne === "not_job") continue; // stage one stores not_job without a model call
+      if (t.stageOne === "likely_job") expect(d.classify[id], id).toEqual({ category: t.category });
+      else expect(t.category, id).toBe("job_alert");
+      if (isJobCategory(t.category)) expect(d.extract[id], id).toEqual({ roles: t.facts });
+    }
+    // The rest: every Sent message, read for preferences and naming no role (F6.6), and the
+    // message the fake AI always answers invalidly, which reaches the model and ends "Couldn't
+    // analyze" (S5).
+    for (const id of left) {
+      const t = d.truth(id);
+      if (t.ownReply) {
+        expect(t.stageOne, id).toBe("own_reply");
+        expect(t.invalid, id).toBe(false);
+        expect(isInvalid(d.prefs[id] as object), id).toBe(false);
+        expect(t.facts ?? [], id).toEqual([]);
+      } else {
+        expect(t.invalid, id).toBe(true);
+        expect(t.stageOne, id).toBe("likely_job");
+        expect(d.classify[id], id).toEqual({ invalid: true });
+      }
+    }
+    const sent = d.envelopes.filter((e) => e.folder === "sent").length;
+    const invalid = ids.filter((id) => d.truth(id).invalid).length;
+    expect(left.length).toBe(sent + invalid);
   });
 
   it("propose at most five extra questions, worded as expected, with real evidence", () => {

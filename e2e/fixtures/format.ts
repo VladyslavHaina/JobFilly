@@ -12,7 +12,8 @@ import { fileURLToPath } from "node:url";
 //                                            nnnn counts from 0001, newest first per folder.
 //   <persona>/envelopes.json                 EnvelopeEntry[], one per .eml, newest first
 //   <persona>/expected.json                  ExpectedFile: the ground truth
-//   ai/<persona>/classify.json               AnswerFile<ClassifyAnswer>, every message
+//   ai/<persona>/classify.json               AnswerFile<ClassifyAnswer>, every message (own
+//                                            replies too, though the scan never classifies them)
 //   ai/<persona>/extract.json                AnswerFile<ExtractAnswer>, every job-category message
 //   ai/<persona>/prefs.json                  AnswerFile<PrefsAnswer>, every Sent message
 //   ai/<persona>/intake.json                 IntakeAnswer: the persona's extra questions
@@ -235,14 +236,33 @@ export interface ExpectedMessage {
   folder: Folder;
   /** The verdict the stage-one rules give from the headers alone. */
   stageOne: StageOneVerdict;
-  /** What the message is; own replies are other_job (about a role) or not_job. */
+  /**
+   * What the message is; own replies are other_job (about a role) or not_job. The scan never
+   * classifies an own reply (TBD-37: its row keeps category null and only gets its preferences
+   * read), so for own replies this is a description, never compared: see comparedForF53.
+   */
   category: Category;
-  /** Every role the message describes; [] for job mail naming none, null for not_job. */
+  /**
+   * Every role the message describes; [] for job mail naming none, null for not_job. No own reply
+   * names a role, so leaving them out of extraction loses no fact.
+   */
   facts: JobFacts[] | null;
-  /** One of the user's own replies, read for preferences. */
+  /** One of the user's own replies, read for preferences (prefs.v1) and never classified. */
   ownReply: boolean;
   /** The fake AI answers it with a schema-violating item every time ("Couldn't analyze"). */
   invalid: boolean;
+}
+
+/**
+ * The messages whose stored category and facts F5.3 compares with `category` and `facts`, and
+ * that the real-AI quality figures are counted over. Every other message is checked another way:
+ * - an own reply is never classified or extracted (TBD-37): its row ends with category null and
+ *   preferences read, and F6.6 checks those through the profile answers;
+ * - the invalid message ends "Couldn't analyze" with category null, which S5 checks.
+ * Everything else, the not_job mail stage one sorts out included, must equal expected.json.
+ */
+export function comparedForF53(m: ExpectedMessage): boolean {
+  return !m.ownReply && !m.invalid;
 }
 
 /**
