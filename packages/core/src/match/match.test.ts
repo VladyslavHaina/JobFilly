@@ -163,6 +163,82 @@ describe("matchRole (F4.1)", () => {
     expect(remote({ from: "UTC+02:00", to: "UTC+05:00" }, withHours)?.verdict).toBe("unknown");
   });
 
+  it("says a remote role fits only when the scope and places it states are yours", () => {
+    const remote = (overrides: Partial<JobFacts>, mine = maria) => {
+      const { match } = matchRole(
+        input({ facts: facts({ workMode: "remote", places: [], ...overrides }), profile: mine }),
+      );
+      return { match, verdict: byKey(match.verdicts, "remote") };
+    };
+    const good = matchRole(input()).match.score;
+
+    expect(remote({ remoteScope: "within the EU" }).verdict).toMatchObject({
+      verdict: "fits",
+      reason: "Remote, within the EU — fits your remote 'EU'",
+    });
+    expect(remote({}).verdict).toMatchObject({
+      verdict: "fits",
+      reason: "Remote — fits your remote 'EU'",
+    });
+
+    // Another scope: not compared, so neither a fit nor a conflict, and never capped.
+    const us = remote({ remoteScope: "US only", places: [{ country: "US", city: null }] });
+    expect(us.verdict).toMatchObject({
+      verdict: "unknown",
+      hard: false,
+      reason: "Remote, US only, US — not compared with your remote 'EU'",
+    });
+    expect(us.match.capped).toBe(false);
+    expect(us.match.score).toBeLessThan(good);
+    expect(remote({ remoteScope: "from anywhere" }).verdict).toMatchObject({
+      verdict: "unknown",
+      reason: "Remote, from anywhere — not compared with your remote 'EU'",
+    });
+
+    // A foreign place with no scope.
+    expect(remote({ places: [{ country: "SG", city: "Singapore" }] }).verdict).toMatchObject({
+      verdict: "unknown",
+      reason: "Remote, Singapore — not compared with your remote 'EU'",
+    });
+    // A place you accept, or one your remote scope names, is yours.
+    expect(remote({ places: [{ country: "DE", city: "Berlin" }] }).verdict?.verdict).toBe("fits");
+    const lisbon = {
+      entries: [
+        ...maria.entries.filter((e) => e.key !== "remote"),
+        entry("remote", [{ scope: "PT or Lisbon", timeZones: null }]),
+      ],
+    };
+    expect(remote({ places: [{ country: "PT", city: null }] }, lisbon).verdict?.verdict).toBe(
+      "fits",
+    );
+    expect(remote({ places: [{ country: null, city: "Lisbon" }] }, lisbon).verdict?.verdict).toBe(
+      "fits",
+    );
+
+    // Hours outside yours still conflict, whatever the scope.
+    const withHours = {
+      entries: [
+        ...maria.entries.filter((e) => e.key !== "remote"),
+        entry("remote", [{ scope: "EU", timeZones: { from: "UTC-01:00", to: "UTC+03:00" } }]),
+      ],
+    };
+    expect(
+      remote(
+        { remoteScope: "US only", timeZones: { from: "UTC-08:00", to: "UTC-05:00" } },
+        withHours,
+      ).verdict?.verdict,
+    ).toBe("conflicts");
+    expect(
+      remote(
+        { remoteScope: "US only", timeZones: { from: "UTC+01:00", to: "UTC+01:00" } },
+        withHours,
+      ).verdict,
+    ).toMatchObject({
+      verdict: "unknown",
+      reason: "Remote, US only — not compared with your remote 'EU'",
+    });
+  });
+
   it("is a pure function of facts, profile, rules, the CV choice and the match.v1 answer", () => {
     const one = input();
     expect(matchRole(one)).toEqual(matchRole(JSON.parse(JSON.stringify(one))));
@@ -193,6 +269,12 @@ const cases: [string, Partial<MatchRoleInput>, ProfileKey | "rule", string][] = 
     { facts: facts({ workMode: "onsite" }) },
     "places",
     "Berlin, onsite — you accept 'Berlin, hybrid' only",
+  ],
+  [
+    "onsite with no place named, where you accept only hybrid",
+    { facts: facts({ places: [], workMode: "onsite" }) },
+    "places",
+    "Onsite — you accept only hybrid ('Berlin, hybrid')",
   ],
   [
     "pay below the minimum in the same currency and period",
@@ -235,6 +317,30 @@ describe("hard conflicts (F4.2)", () => {
     expect(match.verdicts[0]).toMatchObject({ entryKey: key, verdict: "conflicts", hard: true });
     expect(match.verdicts[0]?.reason).toBe(reason);
     expect(match.verdicts.filter((v) => v.hard)).toHaveLength(1);
+  });
+
+  it("a work mode one of your places takes, with no place named, stays unknown and uncapped", () => {
+    const { match } = matchRole(input({ facts: facts({ places: [], workMode: "hybrid" }) }));
+    expect(match.capped).toBe(false);
+    expect(byKey(match.verdicts, "places")).toMatchObject({
+      verdict: "unknown",
+      hard: false,
+      reason: "Hybrid — place not stated",
+    });
+    const onsite = {
+      entries: [
+        ...maria.entries.filter((e) => e.key !== "places"),
+        entry("places", [{ country: "DE", city: "Munich", mode: "onsite" }]),
+      ],
+    };
+    const both = matchRole(
+      input({ profile: onsite, facts: facts({ places: [], workMode: "onsite" }) }),
+    ).match;
+    expect(both.capped).toBe(false);
+    expect(byKey(both.verdicts, "places")).toMatchObject({
+      verdict: "unknown",
+      reason: "Onsite — place not stated",
+    });
   });
 
   it("a cap_score rule caps the score at 40 and is listed first", () => {

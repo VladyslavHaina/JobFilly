@@ -9,6 +9,7 @@ import {
   type MatchVerdict,
   type NeedSpec,
   type Pay,
+  PROFILE_SKILLS_KEY,
   type ProfileEntry,
   type ProfileKey,
   type ProfileValues,
@@ -42,7 +43,7 @@ import { formatAmount, formatRange, norm, rangeDisjoint, rangeWithin } from "../
 //   pay 10, the other entries (contracts, languages, seniority, work permits, deal-breakers) 10.
 
 /** What the match reads of the chosen CV (the cv-choice stage's CvChoiceResult). */
-export interface MatchCv {
+interface MatchCv {
   cvId: string | null;
   skills: readonly string[];
 }
@@ -82,12 +83,9 @@ function entryValue<T>(profile: MatchRoleInput["profile"], key: ProfileKey): T[]
   return (profile.entries.find((e) => e.key === key)?.value ?? []) as T[];
 }
 
-/**
- * The profile's own skills: the words of its "skills" extra question, when it has one. The core
- * questions name no skills (the CVs do), so a profile without that question adds none.
- */
-export function profileSkills(profile: MatchRoleInput["profile"]): string[] {
-  return entryValue<string>(profile, "extra.skills");
+/** The profile's own skills (PROFILE_SKILLS_KEY); a profile without that entry adds none. */
+function profileSkills(profile: MatchRoleInput["profile"]): string[] {
+  return entryValue<string>(profile, PROFILE_SKILLS_KEY);
 }
 
 /** match.v1's input for one role: exactly what the model sees (and what its answer is keyed by). */
@@ -221,6 +219,39 @@ const samePlace = (role: JobFacts["places"][number], mine: Place) => {
 const modeAccepted = (roleMode: "onsite" | "hybrid", mine: Place["mode"]) =>
   roleMode === "hybrid" ? true : mine === "onsite";
 
+/** Whether one of your remote scopes plainly covers the role's: all its words are in the role's. */
+const scopeCovered = (roleScope: string, remote: readonly Remote[]) =>
+  remote.some((r) => {
+    const mine = tokens(r.scope);
+    const theirs = tokens(roleScope);
+    return mine.length > 0 && mine.every((t) => theirs.includes(t));
+  });
+
+/**
+ * Whether you plainly take a remote role stated for `place`: it is one of your places, or one of
+ * your remote scopes names its country code or its city ("DE", "Lisbon").
+ */
+function remotePlaceCovered(
+  place: JobFacts["places"][number],
+  remote: readonly Remote[],
+  places: readonly Place[],
+): boolean {
+  if (places.some((p) => samePlace(place, p))) return true;
+  return remote.some((r) => {
+    const words = tokens(r.scope);
+    const city = place.city ? tokens(place.city) : [];
+    return (
+      (place.country !== null && words.includes(norm(place.country))) ||
+      (city.length > 0 && city.every((t) => words.includes(t)))
+    );
+  });
+}
+
+/**
+ * A remote role fits only when nothing it states contradicts your remote entry. Hours outside
+ * yours conflict. A scope or place it states that your remote scopes don't plainly cover ("US
+ * only" against your 'EU') is unknown: free words are never guessed into a fit.
+ */
 function remoteVerdict(input: MatchRoleInput, remote: Remote[], places: Place[]): MatchVerdict {
   if (remote.length === 0) {
     return places.length === 0
@@ -228,11 +259,34 @@ function remoteVerdict(input: MatchRoleInput, remote: Remote[], places: Place[])
       : verdict("remote", "unknown", "Remote — your profile doesn't say whether you work remotely");
   }
   const scopes = quoted(remote.map((r) => r.scope));
+  const hours = remoteHoursVerdict(input, remote);
+  if (hours && hours.verdict !== "fits") return hours;
+  const scope = input.facts.remoteScope?.trim() || null;
+  const rolePlaces = input.facts.places.filter((p) => p.city || p.country);
+  const uncovered = [
+    ...(scope !== null && !scopeCovered(scope, remote) ? [scope] : []),
+    ...rolePlaces.filter((p) => !remotePlaceCovered(p, remote, places)).map(placeWords),
+  ];
+  if (uncovered.length > 0) {
+    return verdict(
+      "remote",
+      "unknown",
+      `Remote, ${uncovered.join(", ")} — not compared with your remote ${scopes}`,
+    );
+  }
+  if (hours) return hours;
+  return verdict(
+    "remote",
+    "fits",
+    `Remote${scope ? `, ${scope}` : ""} — fits your remote ${scopes}`,
+  );
+}
+
+/** The hours part of a remote verdict; null when there are no hours to compare. */
+function remoteHoursVerdict(input: MatchRoleInput, remote: readonly Remote[]): MatchVerdict | null {
   const hours = input.facts.timeZones;
   const ranges = remote.filter((r) => r.timeZones !== null);
-  if (!hours || ranges.length === 0) {
-    return verdict("remote", "fits", `Remote — fits your remote ${scopes}`);
-  }
+  if (!hours || ranges.length === 0) return null;
   const within = ranges.find((r) => r.timeZones && rangeWithin(hours, r.timeZones));
   if (within?.timeZones) {
     return verdict(
@@ -263,11 +317,16 @@ function placeVerdict(input: MatchRoleInput): MatchVerdict {
   if (mode === "remote") return remoteVerdict(input, remote, places);
   const rolePlaces = input.facts.places.filter((p) => p.city || p.country);
   if (rolePlaces.length === 0) {
-    return verdict(
-      "places",
-      "unknown",
-      mode ? `${cap(mode)} — place not stated` : "place not stated",
-    );
+    if (!mode) return verdict("places", "unknown", "place not stated");
+    // No place named: only a work mode none of your places takes is known to conflict.
+    if (places.length > 0 && !places.some((p) => modeAccepted(mode, p.mode))) {
+      const modes = [...new Set(places.map((p) => p.mode))].join(" or ");
+      const yours = quoted(places.map((p) => `${placeWords(p)}, ${p.mode}`));
+      return verdict("places", "conflicts", `${cap(mode)} — you accept only ${modes} (${yours})`, {
+        hard: true,
+      });
+    }
+    return verdict("places", "unknown", `${cap(mode)} — place not stated`);
   }
   const where = rolePlaces.map(placeWords).join(" or ");
   const yours = places.map((p) => `${placeWords(p)}, ${p.mode}`);
