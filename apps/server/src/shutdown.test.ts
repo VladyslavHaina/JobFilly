@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Health } from "./deps";
+import { createBackgroundWork, type Health } from "./deps";
 import type { JobQueue } from "./jobs/queue";
 import type { LiveHub } from "./live";
 import { createLogger } from "./log";
@@ -39,6 +39,21 @@ function setup(options: { requestsEndAfter: number | null }) {
       steps.push("hand back jobs");
     },
   } as unknown as JobQueue;
+  // A real tracker holding one background call that cleans up a moment after it is aborted.
+  const background = createBackgroundWork();
+  void background.run(
+    (signal) =>
+      new Promise<void>((resolve) => {
+        signal.addEventListener("abort", () => {
+          steps.push("abort background work");
+          setTimeout(() => {
+            steps.push("background work released");
+            resolve();
+          }, 5);
+        });
+      }),
+    () => {},
+  );
   const lines: Record<string, unknown>[] = [];
   const log = createLogger({
     level: "info",
@@ -57,6 +72,7 @@ function setup(options: { requestsEndAfter: number | null }) {
     server,
     live,
     queue,
+    background,
     closeDatabase: async () => {
       steps.push("close database");
     },
@@ -75,6 +91,8 @@ describe("graceful shutdown", () => {
       "close streams",
       `wait ${INFLIGHT_MS}`,
       "hand back jobs",
+      "abort background work",
+      "background work released",
       "stop listening",
       "close database",
     ]);
@@ -93,6 +111,8 @@ describe("graceful shutdown", () => {
       `wait ${INFLIGHT_MS}`,
       "cut connections",
       "hand back jobs",
+      "abort background work",
+      "background work released",
       "stop listening",
       "close database",
     ]);

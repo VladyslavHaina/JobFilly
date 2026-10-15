@@ -40,7 +40,7 @@ import { requireRole, validJson, validParam, type WorkspaceEnv } from "../access
 import { MINUTE } from "../clock";
 import type { AppDeps } from "../deps";
 import type { Logger } from "../log";
-import { open } from "../secrets";
+import { openAiKey } from "../secrets";
 
 // The intake form: proposals, answers, confirm (F6).
 // Mounted once at /api/workspaces/:workspaceId/intake; each handler applies its own role.
@@ -51,8 +51,10 @@ import { open } from "../secrets";
 // keep filling the proposal but never touch a confirmed profile: it is a separate row.
 //
 // The extra questions come from one intake.v1 call per workspace (TBD-19): whoever opens the form
-// first claims it through the intake_extras row and makes the call in the background; everyone
-// else sees 'pending' until an intake.updated event says it is done. A claim still pending after
+// first claims it through the intake_extras row and makes the call in the background
+// (deps.background, which shutdown waits for); everyone else sees 'pending' until an
+// intake.updated event says it is done. A replica that shuts down before the model answers
+// releases the claim, so the next GET takes it over at once; a claim still pending after
 // 2 minutes (its replica died) can be taken over by one caller. It is the one model call made
 // outside the job queue (docs/ARCHITECTURE.md, "Background work and live updates").
 
@@ -91,24 +93,31 @@ async function currentQuestions(deps: AppDeps, workspaceId: string): Promise<Ext
   return extras?.status === "done" ? extras.questions : [];
 }
 
+type Claim = { instance: string; at: Date };
+
 /**
- * Makes the one intake.v1 call for a claim and stores its outcome. Runs after the response: it
- * never holds a request or a transaction open while the model answers. Only the questions the
- * mail it was shown backs are kept (foundExtraQuestions).
+ * Makes the one intake.v1 call for a claim and stores its outcome. Runs after the response, in
+ * deps.background: it never holds a request or a transaction open while the model answers, and
+ * shutdown waits for it. Only the questions the mail it was shown backs are kept
+ * (foundExtraQuestions).
  *
- * Storing the questions can fail even though they passed their schema. That failure is final, not
- * an abandoned claim: the claim is closed as 'failed' with no questions in a second, minimal
- * update, so Confirm isn't held and the call isn't made again. Only when the database can't take
- * that either is the error thrown to the caller, which logs it and leaves the claim pending for
- * the 2-minute takeover. A replica that starts shutting down while the model answers abandons the
- * call the same way, so nothing is written to a database that is being closed.
+ * Once the answer is in, its usage is recorded and the claim finished, also while the replica
+ * shuts down: shutdown closes the database only after this has returned. Storing the questions
+ * can fail even though they passed their schema. That failure is final, not an abandoned claim:
+ * the claim is closed as 'failed' with no questions in a second, minimal update, so Confirm isn't
+ * held and the call isn't made again. Only when the database can't take that either is the error
+ * thrown to the caller, which logs it and leaves the claim pending for the 2-minute takeover.
+ *
+ * When shutdown aborts `signal` before the answer is in, the call is abandoned and the claim
+ * released, so the next GET /intake on any replica takes it over at once.
  */
 async function askForExtras(
   deps: AppDeps,
   workspaceId: string,
   proposal: IntakeProposal,
-  claim: { instance: string; at: Date },
+  claim: Claim,
   log: Logger,
+  signal: AbortSignal,
 ): Promise<void> {
   let status: "done" | "failed" = "failed";
   let questions: ExtraQuestion[] = [];
@@ -120,19 +129,25 @@ async function askForExtras(
     );
     let result: TaskResult<IntakeExtraOutput> | null = null;
     try {
+      signal.throwIfAborted();
       const client = deps.ai.client({
         provider: settings.provider,
         baseUrl: settings.baseUrl,
         models: settings.models,
-        apiKey: settings.keyCiphertext ? open(deps.config.secretKey, settings.keyCiphertext) : null,
+        apiKey: openAiKey(deps.config.secretKey, settings.keyCiphertext),
       });
-      result = await client.intake(input);
+      result = await untilAborted(client.intake(input), signal);
     } catch (error) {
+      if (signal.aborted) {
+        await releaseClaim(deps, workspaceId, claim);
+        // Open forms ask again, and the first GET takes the claim over.
+        await deps.live.publish(workspaceId, { type: "intake.updated", data: {} });
+        return;
+      }
       // The client failed outright (a provider failure comes back as a result, not a throw): the
       // form goes on without extra questions.
       log.warn("intake.extras_failed", { workspaceId, error: errorName(error) });
     }
-    if (deps.health.shuttingDown) return;
     for (const usage of result?.usage ?? []) {
       await recordAiUsage(deps.db, workspaceId, {
         scanId: null,
@@ -154,7 +169,7 @@ async function askForExtras(
       at: deps.clock.now(),
     });
   } catch (error) {
-    if (status === "failed" || deps.health.shuttingDown) throw error;
+    if (status === "failed") throw error;
     log.warn("intake.extras_failed", { workspaceId, error: errorName(error) });
     await finishIntakeExtras(deps.db, workspaceId, {
       claim,
@@ -164,6 +179,32 @@ async function askForExtras(
     });
   }
   await deps.live.publish(workspaceId, { type: "intake.updated", data: {} });
+}
+
+/**
+ * Waits for `call` until `signal` aborts. packages/ai takes no signal yet, so an aborted call's
+ * request is left to end with the process; nothing waits for it or uses its answer.
+ */
+function untilAborted<T>(call: Promise<T>, signal: AbortSignal): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(signal.reason);
+    if (signal.aborted) return onAbort();
+    signal.addEventListener("abort", onAbort, { once: true });
+    call.then(resolve, reject).finally(() => signal.removeEventListener("abort", onAbort));
+  });
+}
+
+/**
+ * Hands an abandoned claim back. The claim is backdated to the epoch, which makes it stale for
+ * every caller, so the next GET /intake takes it over at once. Only this claim is released: a
+ * newer one (a takeover since) is left alone, as is an outcome already stored.
+ */
+async function releaseClaim(deps: AppDeps, workspaceId: string, claim: Claim): Promise<void> {
+  await takeOverIntakeExtras(deps.db, workspaceId, {
+    instance: claim.instance,
+    at: new Date(0),
+    staleBefore: new Date(claim.at.getTime() + 1),
+  });
 }
 
 /**
@@ -195,8 +236,9 @@ async function extrasFor(
     });
   }
   if (claimed) {
-    askForExtras(deps, workspaceId, proposal, claim, log).catch((error: unknown) =>
-      log.warn("intake.extras_failed", { workspaceId, error: errorName(error) }),
+    void deps.background.run(
+      (signal) => askForExtras(deps, workspaceId, proposal, claim, log, signal),
+      (error) => log.warn("intake.extras_failed", { workspaceId, error: errorName(error) }),
     );
     return { status: "pending", questions: [] };
   }

@@ -50,7 +50,7 @@ export interface TestDeps extends AppDeps {
   /** The raw JSON lines, for leak checks. */
   rawLogs: string[];
   connection: DatabaseConnection;
-  /** Stops the queue and live updates and closes the database. */
+  /** Stops the queue, background work and live updates, and closes the database. */
   close(): Promise<void>;
 }
 
@@ -99,6 +99,7 @@ export async function createTestDeps(options: TestDepsOptions = {}): Promise<Tes
     ai: options.ai ?? unsetAiPort,
     registry: options.registry,
     queue: { pollMs: 20, stopGraceMs: 1000, leaseMs: options.leaseMs },
+    backgroundStopGraceMs: 1000,
   });
   await deps.live.start();
   return Object.assign(deps, {
@@ -107,7 +108,7 @@ export async function createTestDeps(options: TestDepsOptions = {}): Promise<Tes
     rawLogs,
     connection,
     async close() {
-      await deps.queue.stop();
+      await Promise.all([deps.queue.stop(), deps.background.stop()]);
       deps.live.closeAll();
       await deps.live.stop();
       await connection.close();

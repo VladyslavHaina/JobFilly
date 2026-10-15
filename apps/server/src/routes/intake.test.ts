@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { AiClient } from "@jobfilly/ai";
 import { aggregateIntake } from "@jobfilly/core";
 import {
+  getIntakeExtras,
   loadIntakeInput,
   saveAnalysis,
   saveEnvelopes,
@@ -27,6 +28,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp } from "../app";
 import { MINUTE } from "../clock";
+import { createBackgroundWork } from "../deps";
 import {
   createTestDeps,
   type SeededUser,
@@ -38,6 +40,7 @@ import {
   signedIn,
   type TestClient,
   type TestDeps,
+  testClient,
 } from "../testing";
 
 // The intake form over HTTP (F6.1-F6.7) on PGlite, with a fake AI for the one intake.v1 call.
@@ -492,7 +495,29 @@ describe("GET /intake (F6.1)", () => {
     expect((await editor.post(intakePath("/confirm"), {})).status).toBe(201);
   });
 
-  it("abandons the call when the replica starts shutting down while the model answers", async () => {
+  it("calls the provider with no key when the stored key was cleared on purpose", async () => {
+    // A cleared key is stored sealed as "", which must reach the AI port as no key at all.
+    await seedAiSettings(deps, ws.workspaceId, {
+      provider: "openai-compatible",
+      baseUrl: "http://fake-ai:8080/v1",
+      models: MODELS,
+      apiKey: "",
+    });
+    await seedMariaMail(ws.workspaceId);
+    await stopFirstScan();
+    await form(viewer);
+    await deps.background.settled();
+    expect(ai.settings).toEqual([
+      {
+        provider: "openai-compatible",
+        baseUrl: "http://fake-ai:8080/v1",
+        models: MODELS,
+        apiKey: null,
+      },
+    ]);
+  });
+
+  it("stores an answer that arrives after shutdown began, before the database closes", async () => {
     await seedMariaMail(ws.workspaceId);
     await stopFirstScan();
     const held = deferred<IntakeAnswer>();
@@ -501,12 +526,42 @@ describe("GET /intake (F6.1)", () => {
     await vi.waitFor(() => expect(ai.calls).toHaveLength(1));
     deps.health.beginShutdown();
     held.resolve(answered(QUESTIONS));
-    // Nothing more is written: no usage, the claim left pending for another replica to take over.
-    await new Promise((r) => setTimeout(r, 50));
-    expect(await usageTotal(deps.db, ws.workspaceId)).toMatchObject({ calls: 0 });
-    expect((await form(viewer)).extras.status).toBe("pending");
-    expect(events.filter((e) => e.type === "intake.updated")).toEqual([]);
+    await deps.background.settled();
+    expect(await usageTotal(deps.db, ws.workspaceId)).toMatchObject({ calls: 1 });
+    expect(await getIntakeExtras(deps.db, ws.workspaceId)).toMatchObject({
+      status: "done",
+      questions: QUESTIONS,
+    });
+    await vi.waitFor(() => expect(events).toContainEqual({ type: "intake.updated", data: {} }));
     expect(deps.logs.filter((l) => l.level === "error" || l.level === "warn")).toEqual([]);
+  });
+
+  it("hands the claim back when shutdown stops the call, for the next GET to take over", async () => {
+    await seedMariaMail(ws.workspaceId);
+    await stopFirstScan();
+    // The model hasn't answered when shutdown reaches the job hand-back step.
+    ai.answerWith(() => new Promise<IntakeAnswer>(() => {}));
+    await form(viewer);
+    await vi.waitFor(() => expect(ai.calls).toHaveLength(1));
+    deps.health.beginShutdown();
+    await deps.background.stop();
+    expect(deps.background.running).toBe(0);
+    expect(await usageTotal(deps.db, ws.workspaceId)).toMatchObject({ calls: 0 });
+    expect(await getIntakeExtras(deps.db, ws.workspaceId)).toMatchObject({ status: "pending" });
+    await vi.waitFor(() => expect(events).toContainEqual({ type: "intake.updated", data: {} }));
+    expect(deps.logs.filter((l) => l.level === "error" || l.level === "warn")).toEqual([]);
+
+    // Another replica, with no time passing: its first GET takes the claim over and asks again.
+    const background = createBackgroundWork();
+    const replica = createApp({ ...deps, background });
+    const viewerThere = testClient(replica, deps, viewer.cookie);
+    ai.answerWith(async () => answered(QUESTIONS));
+    expect((await form(viewerThere)).extras.status).toBe("pending");
+    await background.settled();
+    expect(ai.calls).toHaveLength(2);
+    expect((await form(viewerThere)).extras).toEqual({ status: "done", questions: QUESTIONS });
+    const confirm = await testClient(replica, deps, editor.cookie).post(intakePath("/confirm"), {});
+    expect(confirm.status).toBe(201);
   });
 
   it("gives Tom's thin inbox every answer empty, and intake.v1 no items (F6.6)", async () => {

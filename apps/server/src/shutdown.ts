@@ -1,4 +1,4 @@
-import type { Health } from "./deps";
+import type { BackgroundWork, Health } from "./deps";
 import type { JobQueue } from "./jobs/queue";
 import type { LiveHub } from "./live";
 import type { Logger } from "./log";
@@ -7,7 +7,8 @@ import type { RunningServer } from "./node";
 // Graceful shutdown on SIGTERM, in the order of ARCHITECTURE › Kubernetes readiness: readiness
 // turns 503 at once; a drain so load balancers stop routing here; stop accepting connections and
 // close the live-update streams (browsers reconnect elsewhere); in-flight requests get up to 20
-// seconds; running jobs hand back their leases; then the caller exits 0.
+// seconds; running jobs hand back their leases while background work (the intake.v1 call) is
+// aborted and releases its claim, both while the database is still open; then the caller exits 0.
 
 export interface ShutdownTargets {
   health: Health;
@@ -15,6 +16,7 @@ export interface ShutdownTargets {
   server: RunningServer;
   live: LiveHub;
   queue: JobQueue;
+  background: BackgroundWork;
   /** Closes the database last. */
   closeDatabase(): Promise<void>;
 }
@@ -32,7 +34,7 @@ export const INFLIGHT_MS = 20_000;
 
 export async function shutdown(targets: ShutdownTargets, options: ShutdownOptions = {}) {
   const sleep = options.sleep ?? realSleep;
-  const { health, log, server, live, queue } = targets;
+  const { health, log, server, live, queue, background } = targets;
 
   health.beginShutdown();
   log.info("server.shutting_down", { drainMs: options.drainMs ?? DRAIN_MS });
@@ -49,7 +51,7 @@ export async function shutdown(targets: ShutdownTargets, options: ShutdownOption
     await closed.catch(() => {});
   }
 
-  await queue.stop();
+  await Promise.all([queue.stop(), background.stop()]);
   await live.stop().catch(() => {});
   await targets.closeDatabase().catch(() => {});
   log.info("server.stopped", { requestsFinishedInTime: inTime });
