@@ -1,4 +1,11 @@
-import type { AssistantTaskInput, TaskId } from "@jobfilly/schema";
+import {
+  type AssistantTaskInput,
+  RULE_ACTIONS,
+  RULE_FACTS,
+  RULE_OPS,
+  type RuleOp,
+  type TaskId,
+} from "@jobfilly/schema";
 import { block, jsonLine, type Prompt, systemMessage } from "../framing";
 
 // assistant.v1: one turn of the assistant (F8), keyed by the user's message and the turn.
@@ -13,13 +20,48 @@ import { block, jsonLine, type Prompt, systemMessage } from "../framing";
 
 const TASK_ID: TaskId = "assistant.v1";
 
+/** "a, b or c". */
+const either = (words: readonly string[]) =>
+  words.length < 2 ? words.join("") : `${words.slice(0, -1).join(", ")} or ${words.at(-1)}`;
+
+/** What each condition op compares with; a new op in packages/schema fails typecheck here. */
+const OP_VALUES: Record<RuleOp, string> = {
+  in: "a list of words",
+  not_in: "a list of words",
+  within: 'a range of UTC offsets { from, to } such as "UTC+05:00"',
+  outside: 'a range of UTC offsets { from, to } such as "UTC+05:00"',
+  below: "{ amount, currency, period }",
+  contains: "a list of words",
+  equals: "a list of words",
+  missing: "null",
+};
+
+/** The ops in schema order, neighbours with the same value together: "in or not_in (value: …)". */
+function opWords(): string {
+  const groups: { ops: RuleOp[]; value: string }[] = [];
+  for (const op of RULE_OPS) {
+    const last = groups.at(-1);
+    if (last?.value === OP_VALUES[op]) last.ops.push(op);
+    else groups.push({ ops: [op], value: OP_VALUES[op] });
+  }
+  const parts = groups.map((g) => `${either(g.ops)} (value: ${g.value})`);
+  return `${parts.slice(0, -1).join(", ")}, or ${parts.at(-1)}`;
+}
+
+// The rule vocabulary (facts, ops, actions) comes from packages/schema, so the instruction never
+// falls out of step with what the answer check accepts.
+//
 // It names every shape a Change can take, because the model can only propose changes to the
 // listed rules and profile entries (F8.2); says to ask instead of guessing (F8.6); and lists what
 // the assistant can't do, with where each is done (F8.7). Nothing in it is market-specific: every
 // value a change carries comes from the user's words or the listed profile.
 const INSTRUCTION = [
   "You help the user steer their job search automation: the rules and profile entries listed below. Write `reply` in the language of the user's message.",
-  'When the user asks to change their preferences or what the app does with matching mail, set `proposal` to a short `summary` in the user\'s language and the `changes` that do it, and `clarify` to null. A change adds, updates or removes a rule (by its id) or a profile entry (by its key). `add` on an entry appends the given items to its list; `update` replaces its value; `remove` with a value removes those items, and with null the whole entry. A rule is { description, when, then, enabled }: `description` says in plain words what it does; it holds when every condition in `when` holds; `then` is hide, no_draft, ask_first or cap_score. A condition is { fact, op, value } with fact one of places.country, workMode, timeZones, pay, contract, company, agency, sender.domain, category, skills, languages or extra.<key>; op in or not_in (value: a list of words), within or outside (value: a range of UTC offsets { from, to } such as "UTC+05:00"), below (value: { amount, currency, period }), contains or equals (value: a list of words), or missing (value: null). Use only values the user stated or the profile holds; never invent one.',
+  [
+    "When the user asks to change their preferences or what the app does with matching mail, set `proposal` to a short `summary` in the user's language and the `changes` that do it, and `clarify` to null. A change adds, updates or removes a rule (by its id) or a profile entry (by its key). `add` on an entry appends the given items to its list; `update` replaces its value; `remove` with a value removes those items, and with null the whole entry. A rule is { description, when, then, enabled }: `description` says in plain words what it does; it holds when every condition in `when` holds;",
+    `\`then\` is ${either(RULE_ACTIONS)}. A condition is { fact, op, value } with fact one of ${either([...RULE_FACTS, "extra.<key>"])}; op ${opWords()}.`,
+    "Use only values the user stated or the profile holds; never invent one.",
+  ].join(" "),
   "When the request is unclear, set `clarify` to one question with two to four short answers to pick in `choices`, and `proposal` to null: never guess.",
   "A proposal changes nothing until the user applies it themselves, so never say a change is made.",
   "You can't send mail, invite people, change mailboxes or AI settings, or delete data. When asked to, set `clarify` and `proposal` to null and say you can't and where it is done: replies wait as drafts on the Drafts page and in the mailbox's Drafts folder, and are sent from the user's own mail app; people are invited on the Members page; the mailbox and the AI settings are under Settings; CVs are deleted on the CVs page.",
