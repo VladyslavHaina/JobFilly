@@ -13,7 +13,13 @@ import {
 } from "@jobfilly/schema";
 import { type FormEvent, type ReactNode, useState } from "react";
 import { Button, SelectField, TextField } from "../../components";
-import { CATEGORY_LABELS, countryName, formatPay, formatTimeZones } from "../inbox/format";
+import {
+  CATEGORY_LABELS,
+  countryName,
+  formatPay,
+  formatPeriod,
+  formatTimeZones,
+} from "../inbox/format";
 
 // One answer of the intake form or the profile, shown and edited by clicking where possible
 // (F6.4): every value is a chip that a click removes, reply_to and the extra questions' options
@@ -25,18 +31,8 @@ type Remote = ProfileValues["remote"];
 type MinPay = ProfileValues["min_pay"];
 type Permits = ProfileValues["work_permits"];
 
-const PERIOD_LABELS: Record<PayPeriod, string> = {
-  hour: "per hour",
-  day: "per day",
-  week: "per week",
-  month: "per month",
-  year: "per year",
-};
-
-const MODE_LABELS = { onsite: "onsite", hybrid: "hybrid" } as const;
-
 function formatProfilePlace(p: Places[number]): string {
-  return `${[p.city, countryName(p.country)].filter(Boolean).join(", ")} (${MODE_LABELS[p.mode]})`;
+  return `${[p.city, countryName(p.country)].filter(Boolean).join(", ")} (${p.mode})`;
 }
 
 function formatRemote(r: Remote[number]): string {
@@ -47,11 +43,11 @@ function formatRemote(r: Remote[number]): string {
 function formatMinPay(m: MinPay[number]): string {
   const normalised = formatPay({
     min: m.amount,
-    max: null,
+    max: m.amount,
     currency: m.currency,
     period: m.period,
     asWritten: m.asWritten,
-  })?.replace(/^from /, "");
+  });
   return normalised && m.asWritten && normalised !== m.asWritten
     ? `${normalised} (“${m.asWritten}”)`
     : (normalised ?? m.asWritten);
@@ -333,7 +329,7 @@ function MinPayEditor({ value, disabled, onChange }: EditorProps) {
           );
           setPeriodError(period ? null : "Choose a period");
           if (!amountOk || !currencyOk || !period) return;
-          const asWritten = `${amount.trim()} ${upper(currency)} ${PERIOD_LABELS[period]}`;
+          const asWritten = `${amount.trim()} ${upper(currency)} ${formatPeriod(period)}`;
           onChange([...pays, { amount: n, currency: upper(currency), period, asWritten }]);
           setAmount("");
           setCurrency("");
@@ -365,7 +361,7 @@ function MinPayEditor({ value, disabled, onChange }: EditorProps) {
           <option value="">Choose…</option>
           {PayPeriodSchema.options.map((p) => (
             <option key={p} value={p}>
-              {PERIOD_LABELS[p]}
+              {formatPeriod(p)}
             </option>
           ))}
         </SelectField>

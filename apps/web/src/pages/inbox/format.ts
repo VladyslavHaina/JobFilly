@@ -48,6 +48,9 @@ const PERIOD_WORDS: Record<PayPeriod, string> = {
   year: "per year",
 };
 
+/** "per day" for "day". */
+export const formatPeriod = (period: PayPeriod) => PERIOD_WORDS[period];
+
 const NUMBER_PARTS = new Set(["integer", "group", "decimal", "fraction", "minusSign", "plusSign"]);
 
 /** The number portion of a formatted value, without currency or spacing. */
@@ -99,7 +102,7 @@ export function formatPay(pay: Pay): string | null {
   } else {
     amount = `up to ${format.format(max as number)}`;
   }
-  return [amount, withCode ? currency : null, period ? PERIOD_WORDS[period] : null]
+  return [amount, withCode ? currency : null, period ? formatPeriod(period) : null]
     .filter(Boolean)
     .join(" ");
 }
