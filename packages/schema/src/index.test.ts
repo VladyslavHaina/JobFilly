@@ -11,11 +11,15 @@ import {
   IntakeExtraInputSchema,
   IntakeExtraOutputSchema,
   IntakeProposalSchema,
+  InviteLinkQuerySchema,
+  InviteParamsSchema,
   JOB_CATEGORIES,
   JobFactsSchema,
   JobPlatformsFileSchema,
+  LiveEnvelopeSchema,
   LiveEventSchema,
   MailTestResultSchema,
+  MemberParamsSchema,
   PreferencesSchema,
   ProfileEntrySchema,
   ProfileKeySchema,
@@ -300,5 +304,32 @@ describe("scan and live events", () => {
     expect(LiveEventSchema.safeParse({ type: "intake.updated", data: {} }).success).toBe(true);
     expect(LiveEventSchema.safeParse({ type: "scan.progress", data: {} }).success).toBe(false);
     expect(LiveEventSchema.safeParse({ type: "unknown", data: {} }).success).toBe(false);
+  });
+});
+
+describe("path params and the live envelope", () => {
+  const id = "00000000-0000-4000-8000-0000000000aa";
+
+  it("take a UUID as a row id and nothing else", () => {
+    expect(MemberParamsSchema.safeParse({ userId: id }).success).toBe(true);
+    expect(InviteParamsSchema.safeParse({ inviteId: id.toUpperCase() }).success).toBe(true);
+    for (const bad of ["xyz", "", `${id}0`, "<a@b.example>"]) {
+      expect(MemberParamsSchema.safeParse({ userId: bad }).success).toBe(false);
+      expect(InviteParamsSchema.safeParse({ inviteId: bad }).success).toBe(false);
+    }
+  });
+
+  it("reads an invite link's token, which may be absent", () => {
+    expect(InviteLinkQuerySchema.parse({})).toEqual({});
+    expect(InviteLinkQuerySchema.parse({ token: "t" })).toEqual({ token: "t" });
+  });
+
+  it("carries a workspace id and a valid live event across replicas", () => {
+    const event = { type: "workspace.updated", data: {} };
+    expect(LiveEnvelopeSchema.safeParse({ workspaceId: id, event }).success).toBe(true);
+    expect(LiveEnvelopeSchema.safeParse({ workspaceId: "w1", event }).success).toBe(false);
+    expect(
+      LiveEnvelopeSchema.safeParse({ workspaceId: id, event: { type: "nope", data: {} } }).success,
+    ).toBe(false);
   });
 });

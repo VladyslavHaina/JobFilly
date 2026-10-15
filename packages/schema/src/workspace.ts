@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { IsoDateTimeSchema } from "./common";
+import { IdSchema, IsoDateTimeSchema } from "./common";
 
 /** viewer reads; editor also works the job search; admin also manages the workspace. */
 export const RoleSchema = z.enum(["viewer", "editor", "admin"]);
@@ -41,6 +41,10 @@ export type Member = z.infer<typeof MemberSchema>;
 export const MemberListSchema = z.object({ items: z.array(MemberSchema) });
 export type MemberList = z.infer<typeof MemberListSchema>;
 
+/** The path of /members/:userId. */
+export const MemberParamsSchema = z.object({ userId: IdSchema });
+export type MemberParams = z.infer<typeof MemberParamsSchema>;
+
 export const ChangeRoleInputSchema = z.object({ role: RoleSchema });
 export type ChangeRoleInput = z.infer<typeof ChangeRoleInputSchema>;
 
@@ -59,6 +63,10 @@ export const InviteSchema = z.object({
   expiresAt: IsoDateTimeSchema,
 });
 export type Invite = z.infer<typeof InviteSchema>;
+
+/** The path of /invites/:inviteId, for the admin revoking and the invitee answering. */
+export const InviteParamsSchema = z.object({ inviteId: IdSchema });
+export type InviteParams = z.infer<typeof InviteParamsSchema>;
 
 export const InviteListSchema = z.object({ items: z.array(InviteSchema) });
 export type InviteList = z.infer<typeof InviteListSchema>;
@@ -97,6 +105,10 @@ export type PendingInvitationList = z.infer<typeof PendingInvitationListSchema>;
  */
 export const InviteResponseInputSchema = z.object({ token: z.string().min(1).optional() });
 export type InviteResponseInput = z.infer<typeof InviteResponseInputSchema>;
+
+/** The query of GET /api/invites/:inviteId: the token of a copied link, when there is one. */
+export const InviteLinkQuerySchema = z.object({ token: z.string().optional() });
+export type InviteLinkQuery = z.infer<typeof InviteLinkQuerySchema>;
 
 export const AcceptedInviteSchema = z.object({ workspace: WorkspaceSummarySchema });
 export type AcceptedInvite = z.infer<typeof AcceptedInviteSchema>;

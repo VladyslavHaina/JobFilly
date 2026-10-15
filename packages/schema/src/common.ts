@@ -24,6 +24,12 @@ export type TimeZoneRange = z.infer<typeof TimeZoneRangeSchema>;
 export const PayPeriodSchema = z.enum(["hour", "day", "week", "month", "year"]);
 export type PayPeriod = z.infer<typeof PayPeriodSchema>;
 
+/**
+ * A row id as it comes in a URL path: a UUID in 8-4-4-4-12 hex form. Anything else names no row,
+ * so the server answers 404 without asking the database.
+ */
+export const IdSchema = z.guid();
+
 /** The body of every error answer of the API. `error` is a stable code, `message` plain words. */
 export const ApiErrorSchema = z.object({ error: z.string(), message: z.string().optional() });
 export type ApiError = z.infer<typeof ApiErrorSchema>;

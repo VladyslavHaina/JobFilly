@@ -22,6 +22,13 @@ export const LiveEventSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("workspace.updated"), data: z.object({}) }),
 ]);
 export type LiveEvent = z.infer<typeof LiveEventSchema>;
+
+/**
+ * What one replica sends the others through Postgres NOTIFY: a live event and the workspace whose
+ * streams get it. Every replica validates it on receipt.
+ */
+export const LiveEnvelopeSchema = z.object({ workspaceId: z.uuid(), event: LiveEventSchema });
+export type LiveEnvelope = z.infer<typeof LiveEnvelopeSchema>;
 export type LiveEventType = LiveEvent["type"];
 
 export const LIVE_EVENT_TYPES = [
