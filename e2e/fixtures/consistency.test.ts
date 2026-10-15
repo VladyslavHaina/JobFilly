@@ -442,7 +442,9 @@ describe.each(PERSONAS)("%s's fixtures", (persona) => {
     }
   });
 
-  it("give the fake AI an answer for every message, equal to expected.json (F5.3)", () => {
+  // F5.3 itself compares what the app stores with expected.json (compare.ts); these two tests
+  // check the fixture half: the fake AI answers every compared message with its ground truth.
+  it("give the fake AI an answer for every message, equal to expected.json", () => {
     const ids = d.envelopes.map((e) => e.messageId);
     const jobIds = ids.filter((id) => isJobCategory(d.truth(id).category));
     const sentIds = d.envelopes.filter((e) => e.folder === "sent").map((e) => e.messageId);
@@ -468,7 +470,7 @@ describe.each(PERSONAS)("%s's fixtures", (persona) => {
     const compared = ids.filter((id) => comparedForF53(d.truth(id)));
     const left = ids.filter((id) => !comparedForF53(d.truth(id)));
     // The compared set is the whole Inbox but the invalid message, and the fake AI answers each
-    // of them with its ground truth: what the scan stores is what F5.3 compares.
+    // of them with its ground truth, so a correct pipeline stores exactly expected.json.
     expect(compared.sort()).toEqual(
       d.envelopes
         .filter((e) => e.folder === "inbox" && !d.truth(e.messageId).invalid)
