@@ -83,6 +83,18 @@ describe("message signals (phrase lists in sender/data)", () => {
     expect(signals(check)).not.toContain("asks_for_id");
   });
 
+  it("still counts ID documents asked for in an 'offer' that shows another sign", () => {
+    const check = checkSender(
+      input({
+        category: "offer",
+        text: `${PLAIN_EN}\nPlease bring a copy of your passport.`,
+        domain: { rdap: { registeredAt: "2026-09-01T00:00:00Z" }, mx: ["mx.example"] },
+      }),
+    );
+    expect(check.verdict).toBe("high_risk");
+    expect(signals(check)).toEqual(["asks_for_id", "young_domain"]);
+  });
+
   it("finds chat-only hiring, which alone is caution", () => {
     const check = checkSender(input({ text: `${PLAIN_EN}\nThe interview is on Telegram only.` }));
     expect(check.verdict).toBe("caution");
@@ -316,6 +328,23 @@ describe("the F5.5 cases, built like the fixtures", () => {
     const check = checkSender(
       input({
         from: { address: "hr.department@globalcareers-mail.example", name: "Global Careers HR" },
+        companies: ["Global Careers International"],
+        text: SCAM,
+        language: detectLanguage(SCAM),
+      }),
+    );
+    expect(check.verdict).toBe("high_risk");
+    const reasons = check.reasons.map((r) => r.reason).join("\n");
+    expect(reasons).toContain("asks for a fee");
+    expect(reasons).toContain("asks for a passport scan");
+    expect(signals(check).slice(0, 2)).toEqual(["asks_for_fee", "asks_for_id"]);
+  });
+
+  it("the scam stays high risk with both reasons when the model calls it an offer", () => {
+    const check = checkSender(
+      input({
+        from: { address: "hr.department@globalcareers-mail.example", name: "Global Careers HR" },
+        category: "offer",
         companies: ["Global Careers International"],
         text: SCAM,
         language: detectLanguage(SCAM),

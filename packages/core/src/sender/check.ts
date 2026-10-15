@@ -114,13 +114,11 @@ const MESSAGE_REASON: Record<MessageSignal, (phrase: string) => string> = {
 };
 
 /** Signals in the text, from every language's phrase lists (a message may mix languages). */
-function messageSignals(text: string, category: Category | null): SenderReason[] {
+function messageSignals(text: string): SenderReason[] {
   const folded = fold(text);
   const lists = Object.values(loadMessageSignals().languages);
   const out: SenderReason[] = [];
   for (const signal of ["asks_for_fee", "asks_for_id", "chat_only"] as const) {
-    // ID documents are a normal part of an offer: the signal is asking for them before one.
-    if (signal === "asks_for_id" && category === "offer") continue;
     for (const list of lists) {
       const phrase = firstPhrase(folded, list[signal]);
       if (phrase) {
@@ -230,6 +228,24 @@ function aggregate(reasons: readonly SenderReason[], complete: boolean): SenderV
   return "looks_fine";
 }
 
+/**
+ * ID documents are a normal part of a genuine offer, so an ID request in a message categorised as
+ * an offer is set aside, but only when nothing else is wrong. The category is the model's guess,
+ * and a scam that poses as an offer (F5.5: "we are pleased to offer you the position", then a fee
+ * and a passport scan) must keep its ID reason: with any other strong or medium sign present, the
+ * request counts.
+ */
+function withoutOfferIdRequest(
+  reasons: readonly SenderReason[],
+  category: Category | null,
+): SenderReason[] {
+  if (category !== "offer") return [...reasons];
+  const otherSign = reasons.some(
+    (r) => r.signal !== "asks_for_id" && (STRONG.has(r.signal) || MEDIUM.has(r.signal)),
+  );
+  return otherSign ? [...reasons] : reasons.filter((r) => r.signal !== "asks_for_id");
+}
+
 /** Strong signs first, then medium ones, then what couldn't be checked. */
 function bySeverity(reasons: readonly SenderReason[]): SenderReason[] {
   const rank = (r: SenderReason) => (STRONG.has(r.signal) ? 0 : MEDIUM.has(r.signal) ? 1 : 2);
@@ -245,7 +261,7 @@ const markedWhat = (m: AppliedMark) =>
  * still listed after it.
  */
 export function checkSender(input: SenderCheckInput): SenderCheck {
-  const reasons: SenderReason[] = [];
+  let reasons: SenderReason[] = [];
   const domain = senderDomain(input.from.address);
 
   if (input.text === null) {
@@ -254,7 +270,7 @@ export function checkSender(input: SenderCheckInput): SenderCheck {
       reason: "The message is no longer in the mailbox, so its text couldn't be checked",
     });
   } else {
-    reasons.push(...messageSignals(input.text, input.category));
+    reasons.push(...messageSignals(input.text));
     const lists = input.language ? loadMessageSignals().languages[input.language] : undefined;
     if (!lists) {
       const name = languageName(input.language);
@@ -269,7 +285,9 @@ export function checkSender(input: SenderCheckInput): SenderCheck {
   reasons.push(...companySignals(domain, input.category, input.companies));
 
   if (input.mark) {
-    const signs = bySeverity(reasons.filter((r) => !INCOMPLETE.has(r.signal)));
+    const signs = bySeverity(
+      withoutOfferIdRequest(reasons, input.category).filter((r) => !INCOMPLETE.has(r.signal)),
+    );
     const aside = signs.length > 0 ? ", so the signs below are set aside" : "";
     const mark: SenderReason =
       input.mark.mark === "trusted"
@@ -297,6 +315,7 @@ export function checkSender(input: SenderCheckInput): SenderCheck {
       reason: "Couldn't tell the sender's domain, so this check is incomplete",
     });
   }
+  reasons = withoutOfferIdRequest(reasons, input.category);
   const complete = !reasons.some((r) => INCOMPLETE.has(r.signal));
   const verdict = aggregate(reasons, complete);
   if (reasons.length === 0) {
