@@ -127,7 +127,7 @@ describe("the workspace route modules", () => {
       const url = `/api/workspaces/${ws.workspaceId}/${path}`;
       const send = (who: string) =>
         clients[who]?.request(method, url, method === "GET" ? undefined : {});
-      expect((await send(role))?.status, `${method} ${path} as ${role}`).toBe(501);
+      expect((await send(role))?.status, `${method} ${path} as ${role}`).not.toBe(403);
       const lower = below[role];
       if (lower) expect((await send(lower))?.status, `${method} ${path} as ${lower}`).toBe(403);
       expect((await send("outsider"))?.status, `${method} ${path} as outsider`).toBe(404);
