@@ -25,6 +25,8 @@
     "@jobfilly/mail": "workspace:*",
     "@jobfilly/schema": "workspace:*",
     "hono": "^4.13.13",
+    "mammoth": "^1.13.0",
+    "unpdf": "^1.8.1",
     "zod": "^4.6.5"
   },
   "devDependencies": {
