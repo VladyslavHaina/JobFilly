@@ -1,6 +1,6 @@
 import type { Change } from "@jobfilly/schema";
 import { describe, expect, it } from "vitest";
-import { buildChanges, offsetText, parseOffset, rawFields } from "./edit";
+import { buildChanges, parseOffset, rawFields } from "./edit";
 import { impactWords } from "./queries";
 
 // Editing a proposal card (F8.2): offsets typed the way people write them, values read back into
@@ -15,12 +15,6 @@ describe("UTC offsets", () => {
     expect(parseOffset("UTC")).toBe("UTC+00:00");
     expect(parseOffset("UTC+15")).toBeNull();
     expect(parseOffset("Asia")).toBeNull();
-  });
-
-  it("writes them back short", () => {
-    expect(offsetText("UTC+05:00")).toBe("UTC+5");
-    expect(offsetText("UTC-01:30")).toBe("UTC−1:30");
-    expect(offsetText("UTC+00:00")).toBe("UTC+0");
   });
 });
 

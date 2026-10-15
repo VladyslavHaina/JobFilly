@@ -1,4 +1,10 @@
-import { type Change, type ChangeLine, type Proposal, ProposalSchema } from "@jobfilly/schema";
+import {
+  type Change,
+  type ChangeLine,
+  type Proposal,
+  ProposalSchema,
+  type RULE_FACTS,
+} from "@jobfilly/schema";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { api } from "../../api";
@@ -28,7 +34,8 @@ function LineView({ line }: { line: ChangeLine }) {
   );
 }
 
-const FACT_WORDS: Record<string, string> = {
+/** A label for every fact a condition can test: a new fact in packages/schema needs one here. */
+const FACT_WORDS: Record<(typeof RULE_FACTS)[number], string> = {
   timeZones: "Hours",
   "places.country": "Countries",
   workMode: "Work modes",
@@ -41,6 +48,12 @@ const FACT_WORDS: Record<string, string> = {
   skills: "Skills",
   languages: "Languages",
 };
+
+/** The label of a condition's fact; an extra.<key> fact reads as its key. */
+const factWords = (fact: string): string =>
+  Object.hasOwn(FACT_WORDS, fact)
+    ? FACT_WORDS[fact as keyof typeof FACT_WORDS]
+    : fact.replace(/^extra\./, "");
 
 function ChangeFields({
   change,
@@ -73,7 +86,7 @@ function ChangeFields({
         )}
         {change.rule.when.map((c, j) => {
           const key = `${index}.when.${j}`;
-          const what = FACT_WORDS[c.fact] ?? c.fact.replace(/^extra\./, "");
+          const what = factWords(c.fact);
           switch (valueField(c.value)) {
             case "range":
               return (

@@ -1,4 +1,4 @@
-import type { Change, Condition, ConditionValue } from "@jobfilly/schema";
+import { type Change, type Condition, type ConditionValue, formatOffset } from "@jobfilly/schema";
 
 // Editing a proposal card before Apply (F8.2): every value a person can sensibly change is a
 // text field (a rule's words, a time-zone range, a list of words, a number or an amount), held
@@ -21,15 +21,6 @@ export function valueField(value: ConditionValue): ValueField {
   if (typeof value === "number") return "number";
   if (isRange(value)) return "range";
   return isAmount(value) ? "amount" : null;
-}
-
-/** "UTC+05:00" reads "UTC+5", "UTC-01:30" "UTC−1:30". */
-export function offsetText(offset: string): string {
-  const m = /^UTC([+-])(\d{2}):(\d{2})$/.exec(offset);
-  if (!m) return offset;
-  const hours = String(Number(m[2]));
-  const minutes = m[3] === "00" ? "" : `:${m[3]}`;
-  return `UTC${m[1] === "-" && `${hours}${minutes}` !== "0" ? "−" : "+"}${hours}${minutes}`;
 }
 
 /** "UTC+4", "+04:00", "utc −1:30" or "UTC" as the schema's "UTC+04:00"; null when it isn't one. */
@@ -73,8 +64,8 @@ export function rawFields(changes: readonly Change[]): RawFields {
         if (Array.isArray(v)) raw[key] = words(v);
         else if (typeof v === "number") raw[key] = String(v);
         else if (isRange(v)) {
-          raw[`${key}.from`] = offsetText(v.from);
-          raw[`${key}.to`] = offsetText(v.to);
+          raw[`${key}.from`] = formatOffset(v.from);
+          raw[`${key}.to`] = formatOffset(v.to);
         } else if (isAmount(v)) raw[key] = String(v.amount);
       });
       return;
