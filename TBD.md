@@ -1025,3 +1025,130 @@ These make sign-off possible; without them the build goes on and records an open
 - **If you decide otherwise:** If this slice were meant to own the probe, it would need test-stack merged first and a spec under e2e/specs/mvp-1.
 - **Refs:** F5.3; e2e/fixtures/compare.ts, e2e/specs/mvp-1 (test-stack)
 - **Status:** open
+
+## TBD-82 · How sure an answer is, and where its reason is stored
+- **Kind:** decision
+- **Where:** MVP 1 · Build (intake-profile)
+- **Context:** aggregateIntake may calibrate the confidence level and the reason wording within two constraints. The schema has no field for a reason on the whole answer, only evidence[{messageId, reason}].
+- **Options:**
+  1. Reply-stated answers: 1 reply low, 2 medium, 3 or more high. Job-derived answers: fewer than 10 messages low, 10 or more medium, never high. Each evidence item carries the answer's reason sentence
+  2. Let job-derived answers reach high with many messages
+  3. Add an answer-level reason field to packages/schema
+- **Chosen:** Reply-stated: 1 low, 2 medium, 3+ high. Job-derived: under 10 low, 10+ medium, capped at medium. Every evidence item's reason is the answer's sentence ('from one of your replies', 'from N of your replies', 'in N job emails'), and the UI shows it. Blank values ("" or whitespace) never count as a statement. Job mail shows what is being offered, not what the user wants, so it shouldn't look as certain as the user's own words. Both constraints hold, and Maria's fixture answers (3-4 replies each) come out high. No shared schema change was needed.
+- **If you decide otherwise:** Change replyConfidence/jobConfidence in packages/core/src/intake/aggregate.ts and their unit tests. An answer-level reason field would need a schema commit and changes in the core, the routes and IntakePage.
+- **Refs:** F6.2, F6.3, F4.4; packages/core/src/intake/aggregate.ts
+- **Status:** open
+
+## TBD-83 · One profile per workspace: Confirm happens once, later changes go through the profile page
+- **Kind:** decision
+- **Where:** MVP 1 · Build (intake-profile)
+- **Context:** MVP 1 has one confirmed profile. The spec doesn't say what a second Confirm, or an intake edit after Confirm, should do.
+- **Options:**
+  1. A second Confirm and intake edits after Confirm answer 409; changes go through PATCH /profiles/:id
+  2. A second Confirm overwrites the profile
+  3. A second Confirm makes another profile
+- **Chosen:** 409 'confirmed' for both. The intake page then says 'Saved as …' with a link to the profile and makes the form read-only. The profile page lets editors rename the profile and change answers with the same click editors (source you). This keeps 'Analyze them never changes the confirmed profile' simple, and a second click can't wipe hand edits. Several profiles are MVP 3 scope.
+- **If you decide otherwise:** MVP 3's several profiles would let Confirm (or re-run setup) create a new profile; createConfirmedProfile's existence check would change.
+- **Refs:** F6.5, F4.10; packages/db/src/queries/profiles.ts, apps/server/src/routes/intake.ts
+- **Status:** open
+
+## TBD-84 · A failed intake.v1 call is final
+- **Kind:** decision
+- **Where:** MVP 1 · Build (intake-profile)
+- **Context:** The extra-questions call is made once per workspace. If the provider is unreachable, or no AI settings exist, the call fails.
+- **Options:**
+  1. Store status failed and never ask again
+  2. Allow a retry after a while
+- **Chosen:** Status failed with no questions; the form goes on without extra questions and never asks again. Only a claim left pending by a replica that died is retried, after 2 minutes. It keeps the 'once per workspace' guarantee and the cost bounded. The core questions don't depend on it.
+- **If you decide otherwise:** Let takeOverIntakeExtras also take a failed row once it is older than a cut-off; tests in profiles.test.ts and intake.test.ts would change.
+- **Refs:** F6.1, TBD-19; apps/server/src/routes/intake.ts
+- **Status:** open
+
+## TBD-85 · Typed places and minimum pay use ISO codes
+- **Kind:** decision
+- **Where:** MVP 1 · Build (intake-profile)
+- **Context:** Tom fills empty answers by typing. A place needs an ISO 3166 country and a minimum pay needs an ISO 4217 currency, but the web app has no country or currency list.
+- **Options:**
+  1. Text fields for the two-letter country code and the three-letter currency code, checked with the schema's regexes
+  2. A country and currency picker with names
+- **Chosen:** Code fields (e.g. GB, GBP) with a plain error message. Chips show countries by name and pay formatted with Intl. No market-specific lists are built in, and nothing new needs to be maintained. A user who corrects by clicking never sees these fields.
+- **If you decide otherwise:** Add a picker (for example from Intl.DisplayNames over a list of ISO codes) in apps/web/src/pages/intake/answers.tsx.
+- **Refs:** F6.4, F6.6; apps/web/src/pages/intake/answers.tsx
+- **Status:** open
+
+## TBD-86 · Edited answers in a confirmed profile keep their evidence but lose their confidence
+- **Kind:** decision
+- **Where:** MVP 1 · Build (intake-profile)
+- **Context:** ProfileEntry has confidence and evidence. When the user edits an answer, the scan's estimate no longer describes the value.
+- **Options:**
+  1. Keep the proposal's evidence and set confidence to null for source=you
+  2. Keep the proposal's confidence too
+- **Chosen:** Confidence null and evidence kept, for intake edits and profile edits alike. Extra questions are saved as entries too: empty with source scan when unanswered. The user set the value, so the app no longer estimates it, but the messages behind it still help explain it.
+- **If you decide otherwise:** Change confirmedEntries/patchEntries in packages/core/src/intake/profile.ts.
+- **Refs:** F6.5; packages/core/src/intake/profile.ts
+- **Status:** open
+
+## TBD-87 · Fixture-based proofs wait for the sibling branches instead of merging them into this slice
+- **Kind:** decision
+- **Where:** MVP 1 · Build (intake-profile)
+- **Context:** Three findings (the F6.6 fixtures test, the F6.1 extras fixture test, and confidence-stop.test.ts) need e2e/fixtures from mvp-1-e2e-fixtures, and one also needs the scan from mvp-1-scan. Neither is merged into mvp-1. mvp-1-scan has only a schema commit so far. The findings themselves say to add the tests after those merges.
+- **Options:**
+  1. Merge mvp-1-e2e-fixtures (and mvp-1-scan) into mvp-1-intake-profile now and write the tests
+  2. Copy the fixture files into this branch
+  3. Leave these tests to after integration and report them as not done
+- **Chosen:** Leave them to after integration and report them as not done. I checked independently that the fake AI's extra-question evidence for Maria survives the new filter. Merging unverified sibling slices would carry their work into mvp-1 even if they fail verification. It would also break the plan's disjoint owned paths. Copying the fixtures would duplicate them. The scan doesn't exist yet, so the confidence-stop test can't be written at all.
+- **If you decide otherwise:** If the owner prefers the slice to carry the proof itself, merge mvp-1-e2e-fixtures into mvp-1-intake-profile and add packages/core/src/intake/fixtures.test.ts as the finding describes. confidence-stop.test.ts still has to wait for the scan.
+- **Refs:** packages/core/src/intake/extras.ts; mvp-1-e2e-fixtures:e2e/fixtures/ai/maria/intake.json; docs/mvp/MVP-1.md F6.6; TBD-29
+- **Status:** open
+
+## TBD-88 · Confirm waits for the extra questions, in the UI and on the server
+- **Kind:** decision
+- **Where:** MVP 1 · Build (intake-profile)
+- **Context:** Confirming while the one intake.v1 call was pending saved a profile without the extra questions. They could then never be answered: PUT /intake returns 409 once a profile exists, and PATCH refuses unknown keys.
+- **Options:**
+  1. Disable Confirm while pending (UI only)
+  2. Disable in the UI and refuse on the server with 409 extras_pending
+  3. Let a confirmed profile take extra questions later
+- **Chosen:** Disable in the UI, with a short note, and also refuse on the server with 409 extras_pending. The UI rule alone could be bypassed by a second tab or a probe. Letting the profile take new keys later would change the profile contract. Users can see the wait: about the fake AI's 300 ms delay in the test stack, and up to one model call with a real provider. A stuck claim is taken over through the form's 5-second poll after 2 minutes.
+- **If you decide otherwise:** To let users confirm early, drop the server check and the disabled state, and add a way to append extra questions to a confirmed profile (a PATCH that accepts new extra.* keys).
+- **Refs:** apps/server/src/routes/intake.ts (POST /confirm, EXTRAS_PENDING); apps/web/src/pages/intake/IntakePage.tsx (extrasPending)
+- **Status:** open
+
+## TBD-89 · Shutdown during the background intake.v1 call abandons it instead of tracking it in the shutdown sequence
+- **Kind:** decision
+- **Where:** MVP 1 · Build (intake-profile)
+- **Context:** The intake.v1 call runs outside the job queue, so shutdown() could close the database while the call was still writing.
+- **Options:**
+  1. Track background promises in AppDeps and await them in shutdown() before closeDatabase
+  2. Run the call as a queue job
+  3. Check health.shuttingDown after the model answers and write nothing more, leaving the claim to the 2-minute takeover
+- **Chosen:** Check health.shuttingDown after the model answers and write nothing more. Any failure is logged at warn with the error name only. This stays inside the slice's paths. Shutdown waits at least the 5-second drain between beginShutdown and closeDatabase, so writes that start before the flag finish long before the database closes. Tracking promises or adding a queue job would change the shared deps, shutdown and registry files.
+- **If you decide otherwise:** If the abandoned call's tokens must always be counted, add a small background-task tracker to AppDeps that shutdown() awaits, or move intake.v1 into a queue job type.
+- **Refs:** apps/server/src/routes/intake.ts askForExtras; apps/server/src/shutdown.ts
+- **Status:** open
+
+## TBD-90 · New log event intake.extras_failed (warn)
+- **Kind:** decision
+- **Where:** MVP 1 · Build (intake-profile)
+- **Context:** The background call's failure was logged as http.error at error level with the raw error, whose database message can quote the model's questions. MVP-1.md's log events list has no event for this.
+- **Options:**
+  1. Reuse job.failed
+  2. Keep http.error but log only the error name
+  3. Add intake.extras_failed at warn with { workspaceId, error: name }
+- **Chosen:** Add intake.extras_failed at warn with { workspaceId, error: name }. It names what failed, and the form goes on without extras, which is degraded rather than broken. That makes it a warning, and validation does not flag warnings as unexpected errors. It is not a queue job, so job.failed would mislead.
+- **If you decide otherwise:** Rename the event or change its level in apps/server/src/log.ts and apps/server/src/routes/intake.ts. The owner may want to add it to MVP-1.md's log events list.
+- **Refs:** apps/server/src/log.ts LogEvent; apps/server/src/routes/intake.ts errorName
+- **Status:** open
+
+## TBD-91 · Where an unstorable string is refused: a refinement on the shared schemas, plus a final 'failed' as a fallback
+- **Kind:** decision
+- **Where:** MVP 1 · Build (intake-profile)
+- **Context:** The model's intake.v1 output (and user values) could pass the schema but hold a NUL character, which Postgres jsonb and text refuse. That left the extra-questions claim pending forever, kept the model being called again after each takeover, and kept Confirm refused.
+- **Options:**
+  1. Strip control characters in foundExtraQuestions only
+  2. Refuse NUL in packages/schema with a regex (adds a pattern to the JSON Schema the models get and changes the wire golden samples)
+  3. Refuse NUL in packages/schema with a refinement (JSON Schema unchanged), and also close the claim as 'failed' when the store still fails
+- **Chosen:** Refuse NUL in packages/schema with a refinement (TextSchema), applied to the extra questions, the profile value strings, the prefs extra record and the profile names. If storing still fails, close the claim as 'failed' with no questions. Model output and user values are checked where they enter, as the schemas-first rule asks. The refinement keeps the JSON Schema sent to providers and the committed wire samples unchanged. The 'failed' fallback covers any other schema-valid but unstorable answer, so a deterministic failure can never cause repeated model calls or block Confirm.
+- **If you decide otherwise:** With a regex instead, the wire samples in e2e/fixtures/wire and the golden tests would be regenerated. Stripping instead of refusing would change foundExtraQuestions and drop the TextSchema refinement.
+- **Refs:** packages/schema/src/common.ts TextSchema; packages/schema/src/profile.ts; apps/server/src/routes/intake.ts askForExtras; apps/server/src/routes/intake.test.ts 'fails for good, without logging the questions, when storing them fails'
+- **Status:** open
