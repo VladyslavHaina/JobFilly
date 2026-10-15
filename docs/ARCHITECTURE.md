@@ -42,11 +42,14 @@ Rules:
 ## Workspaces, access and sessions
 
 - Every workspace-owned row carries `workspace_id`. Data access goes through `packages/db`
-  functions that require a workspace id, and `packages/db` exports no raw SQL. Two deliberate
-  exceptions take an id instead: the invitee answering an invite (read, accept, decline by
-  invite id, only after the server has checked the invite's email or token), and the queue
-  worker's lease operations (claim, renew, checkpoint, complete, hand back), which serve every
-  workspace and are guarded by the lease owner.
+  functions that require a workspace id, and `packages/db` exports no raw SQL. Three deliberate
+  exceptions take something else: the invitee answering an invite (read, accept, decline by
+  invite id, only after the server has checked the invite's email or token); the queue worker's
+  lease operations (claim, renew, checkpoint, complete, hand back), which serve every workspace
+  and are guarded by the lease owner; and the signed-in user's own view across workspaces, by
+  user id or email: the workspaces they belong to, and the open invitations to their email (or
+  to the invite's email once its token has been checked). Creating an account or a workspace
+  makes the workspace, so it has no id to take yet.
 - The server resolves the session, then checks membership and role on every workspace route.
   Not a member: `404`. A member without the needed role: `403`. Each route module under
   `/api/workspaces/:workspaceId/<name>` is mounted once behind the membership check
