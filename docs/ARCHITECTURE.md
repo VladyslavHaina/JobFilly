@@ -88,13 +88,19 @@ Rules:
   (with `stale`), `sender_marks`, `domain_lookups` (the RDAP and MX cache, workspace-scoped),
   `drafts`, `decisions` and `decision_messages`, `assistant_threads`, `assistant_messages`,
   `assistant_proposals`, `profile_history`, `mailbox_sync` (per mailbox and folder: UIDVALIDITY,
-  last UID, last success, failing since, the back-off's next attempt), and `jobs.dedupe_key`.
-  The migration also gives saved AI settings a model for each new task, from their extract model.
+  last UID, last success, failing since, the back-off's next attempt), `jobs.dedupe_key` and
+  `messages.language` (the body's language as the sender stage detected it). The migration also
+  gives saved AI settings a model for each new task, from their extract model.
+- A reference from one workspace-owned row to another includes `workspace_id`: `cvs`,
+  `profiles` and `assistant_threads` have a unique `(workspace_id, id)`, and every foreign key to
+  them is composite, as those to `messages` and `roles` are. The database itself refuses a link,
+  override, evaluation, draft, rule, proposal or history row that points into another workspace.
 - Deleting a CV never hits a foreign key: its links (`profile_cvs`), overrides
   (`role_cv_choices`) and stored match answers go with it (CASCADE); drafts and role evaluations
-  stay and forget it (`cv_id` SET NULL), so a draft already in the mailbox stays there (F2.5) and
-  the next evaluation chooses a CV again. Evaluations and stored match answers belong to their
-  role (`roles`), drafts, overrides, sender checks and decision rows to their message.
+  stay and forget it (`ON DELETE SET NULL (cv_id)`, which keeps `workspace_id`), so a draft
+  already in the mailbox stays there (F2.5) and the next evaluation chooses a CV again.
+  Evaluations and stored match answers belong to their role (`roles`), drafts, overrides, sender
+  checks and decision rows to their message.
 - A draft row holds only the reply text and where its copy is in the mailbox (folder, UID,
   UIDVALIDITY, the draft's Message-ID, a content hash); the quote of the original is added when
   the MIME message is built, so no mail body is stored. A partial unique index allows one live
@@ -173,14 +179,24 @@ Rules:
   never stored). A re-evaluation after a profile, rule, decision or CV change passes the stored
   check on, so re-scoring never touches the mailbox and works while it is down. A failed sender
   stage leaves the check missing for a later sweep; the reply waits for it.
+- A message no longer in the mailbox under its stored reference (`fetchBody` returns null, and
+  `ctx.body()` throws `MessageGoneError`) gets an incomplete check, never better than caution,
+  with the `message_gone` reason, so it leaves the work list instead of being fetched on every
+  sweep. `saveEnvelopes` makes that check stale when a scan or sync sees the message again (a
+  UIDVALIDITY re-index included), and its sender is checked again with its text.
+- The sender stage also returns the body's language (ISO 639-1, or null), which the pipeline
+  stores on the message (`messages.language`). The cv-choice stage reads it from `MessageInput`
+  without the mailbox; when it changes, the message's roles are evaluated again.
 - Without a confirmed profile only the sender stage runs; the roles stay unevaluated. Intake
   confirm asks for a re-evaluation of everything, which matches the first scan's backlog (F1.6).
   A stage that fails leaves its role missing or stale; it is never marked evaluated.
 - `pipeline.reevaluate` (dedupe `reevaluate:<ws>`) snapshots what is missing or stale, evaluates
-  each message at most once per run (a failing AI or mailbox can't make it loop), re-claims the
-  drafts to retry, and enqueues the next run only if something changed while it ran.
+  each message at most once per run (a failing AI or mailbox can't make it loop) over one shared
+  mailbox connection, re-claims the drafts to retry, and enqueues the next run only if something
+  changed while it ran.
 - The sweep (`pipeline/sweep.ts`) enqueues one deduped `pipeline.reevaluate` for every workspace
-  with a confirmed profile and work (`listWorkspacesWithWork`): once at startup, so a deployment
+  with a confirmed profile and work (`listWorkspacesWithWork`): once at startup (`startWork` in
+  `apps/server/src/start.ts`, before the queue and the scheduler start), so a deployment
   confirmed before MVP 2 is evaluated without anyone doing anything, and on every scheduler tick
   whatever the syncs did, so failed evaluations and drafts are retried within one interval.
 - The reply policy is one pure function, `replyEligibility` (`packages/core/src/policy`): reply_to
@@ -200,10 +216,13 @@ Rules:
   take a `failed` row back instead. A claim whose draft.v1 answer raised questions is released
   (deleted) in the transaction that records the needs, so the role still counts as never drafted.
 - `draft.create` catches `MailUnavailableError` (the mailbox can't be reached or refused the
-  append) and marks the draft `failed` with kind `mailbox`, which the sweep re-claims
-  (`reclaimDraft`) and retries, up to 5 attempts; a `saving` row older than 5 minutes (its job
-  died) is retried the same way. Kind `content` (a placeholder twice, F6.2) is never retried
-  automatically. No row is left in `saving`, and no role is blocked for good.
+  append) and marks the draft `failed` with kind `mailbox`; a draft.v1 call that gives no draft
+  (the provider failed or timed out, the answer didn't fit after the client's retry, or no AI is
+  set up) marks it `failed` with kind `ai` and a plain reason. The sweep re-claims both
+  (`reclaimDraft`) and retries them, up to 5 attempts in all; a `saving` row older than 5 minutes
+  (its job died) is retried the same way. Kind `content` (a placeholder twice, F6.2) is never
+  retried automatically. No row is left in `saving`, and a draft that used up its attempts stays
+  `failed` with its reason on the Drafts page, where Draft a reply takes it back.
 
 ### The profile change service
 
@@ -234,13 +253,18 @@ Rules:
   the app: every content line starts with "| ", and structure and key lines are at column 0.
 - MVP 2's tasks each have their module in `packages/ai/src/tasks`, keyed by a pinned key line the
   fake AI reads: cv.v1 `CV-SHA256: <hex>`, match.v1 `Message-ID:` and `Role: <position>`,
-  draft.v1 `Message-ID:` and `Attempt: <1|2>`, assistant.v1 `Turn: <n>` with the user's words as
-  the last block. The header, key lines and framing are fixed; each task's instruction text
-  belongs to the slice that uses it, which regenerates its wire samples when it changes.
+  draft.v1 `Message-ID:`, `Role: <position>` and `Attempt: <1|2>` (drafts are per role),
+  assistant.v1 `Turn: <n>` with the user's words as the last block. The header, key lines and
+  framing are fixed; each task's instruction text belongs to the slice that uses it, which
+  regenerates its wire samples when it changes.
 - Domain lookups for the sender check go through `deps.domains` (a `DomainPort`: `rdap(domain)`
   through `JOBFILLY_RDAP_URL`, `mx(domain)` through the system resolver), cached per workspace in
   `domain_lookups`; tests use a fake. A failed lookup makes the check incomplete, never "looks
   fine".
+- The server makes every model call through `aiClientFor` (`apps/server/src/ai-usage.ts`), which
+  records each call's usage (`ai_usage`, retries and failures included, at the clock's time), so
+  the per-scan totals and Settings › AI's calls and tokens per day (`usagePerDay`, F1.5) count
+  every task. Nothing calls `deps.ai.client` directly.
 - The assistant can only propose changes. Applying one is a separate request made by the user.
 
 ## Configuration (environment)
@@ -272,14 +296,13 @@ Every MVP keeps these true; the Helm chart after MVP 3 relies on them.
   job. Migrations stay backward compatible with the previous release — add first, remove in a
   later release — because old and new replicas run side by side during a rolling update.
 - On `SIGTERM`, in this order: the scheduler stops starting syncs and sweeps; readiness turns 503
-  at once; the replica keeps serving for a
-  5-second drain so load balancers stop routing to it; it stops accepting connections and closes
-  open live-update streams (browsers reconnect to another replica); in-flight requests finish
-  within 20 seconds; running jobs hand back their leases, and background work still running (an
-  intake.v1 call waiting for the model) is aborted and releases its claim, within 5 seconds
-  (see "Background work and live updates"); the database closes; the process exits 0.
-  Orchestrators must allow at least 30 seconds (`stop_grace_period`,
-  `terminationGracePeriodSeconds`).
+  at once; the replica keeps serving for a 5-second drain so load balancers stop routing to it;
+  it stops accepting connections and closes open live-update streams (browsers reconnect to
+  another replica); in-flight requests finish within 20 seconds; running jobs hand back their
+  leases, and background work still running (an intake.v1 call waiting for the model) is aborted
+  and releases its claim, within 5 seconds (see "Background work and live updates"); the
+  database closes; the process exits 0. Orchestrators must allow at least 30 seconds
+  (`stop_grace_period`, `terminationGracePeriodSeconds`).
 - Runs as a non-root user with a read-only root filesystem and listens on `$PORT`.
 
 ## Logs
@@ -300,8 +323,8 @@ Every MVP keeps these true; the Helm chart after MVP 3 relies on them.
   isolation, reusing each worker's databases, so they don't use `vi.mock`. The doubles every
   slice tests with live there too: a fake mailbox (`createFakeMailbox`: INBOX with UIDs and
   UIDVALIDITY, `deliver`, a Drafts folder recording each draft, `pause`/`resume`, `failNext`,
-  `setUidValidity`, call counts), a fake AI (`createFakeAi`, keyed like the test stack's fake
-  AI), a fake `DomainPort`, `seedCv`, and recording pipeline stages.
+  `setUidValidity`, `expunge`, call counts), a fake AI (`createFakeAi`, keyed like the test
+  stack's fake AI), a fake `DomainPort`, `seedCv`, and recording pipeline stages.
 - `pnpm e2e` starts the test stack (`docker/compose.e2e.yaml`) and runs the Playwright specs.
   The root scripts run `node e2e/stack.ts run` (`pnpm e2e`), `node e2e/stack.ts stack up|down`
   and `node e2e/stack.ts specs [--mvp <n>]`.
