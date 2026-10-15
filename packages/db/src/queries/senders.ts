@@ -1,7 +1,14 @@
-import type { SenderMark } from "@jobfilly/schema";
-import { and, eq, gt, or } from "drizzle-orm";
+import {
+  LOOKUP_FAILED_SIGNAL,
+  type MxLookupResult,
+  MxLookupResultSchema,
+  type RdapLookupResult,
+  RdapLookupResultSchema,
+  type SenderMark,
+} from "@jobfilly/schema";
+import { and, eq, gt, or, type SQL, sql } from "drizzle-orm";
 import type { Database } from "../client";
-import { domainLookups, senderMarks } from "../tables";
+import { domainLookups, messages, senderChecks, senderMarks } from "../tables";
 
 // The sender check's own state (F5): an editor's trusted or blocked marks on an address or a
 // domain (sender_marks, F5.4), kept across syncs because they are keyed by the sender, not by a
@@ -71,12 +78,28 @@ export async function findSenderMark(
 
 export type DomainLookupKind = "rdap" | "mx";
 
-/** A cached lookup that hasn't expired: whether it worked and what it found. */
-export async function getDomainLookup(
+/** What a lookup of each kind found, as the cache keeps it (packages/schema). */
+export interface DomainLookupResults {
+  rdap: RdapLookupResult;
+  mx: MxLookupResult;
+}
+
+const RESULT_SCHEMAS = { rdap: RdapLookupResultSchema, mx: MxLookupResultSchema } as const;
+
+/** A cached lookup that hasn't expired: what it found, or that it failed. */
+export type CachedDomainLookup<K extends DomainLookupKind> =
+  | { ok: true; result: DomainLookupResults[K] }
+  | { ok: false };
+
+/**
+ * A cached lookup that hasn't expired, or null. A stored answer that doesn't fit its kind's
+ * schema (a corrupt row) is null too, a cache miss to look up again, never "no mail servers".
+ */
+export async function getDomainLookup<K extends DomainLookupKind>(
   db: Database,
   workspaceId: string,
-  input: { domain: string; kind: DomainLookupKind; now: Date },
-): Promise<{ ok: boolean; result: unknown } | null> {
+  input: { domain: string; kind: K; now: Date },
+): Promise<CachedDomainLookup<K> | null> {
   const [row] = await db
     .select({ ok: domainLookups.ok, result: domainLookups.result })
     .from(domainLookups)
@@ -88,25 +111,44 @@ export async function getDomainLookup(
         gt(domainLookups.expiresAt, input.now),
       ),
     );
-  return row ?? null;
+  if (!row) return null;
+  if (!row.ok) return { ok: false };
+  const parsed = RESULT_SCHEMAS[input.kind].safeParse(row.result);
+  return parsed.success ? { ok: true, result: parsed.data as DomainLookupResults[K] } : null;
+}
+
+/**
+ * How long the last lookup of this kind was kept when it failed, whether or not it has expired;
+ * null when the last one worked or there was none. The server keeps a repeated failure longer.
+ */
+export async function lastLookupFailure(
+  db: Database,
+  workspaceId: string,
+  input: { domain: string; kind: DomainLookupKind },
+): Promise<{ keptMs: number } | null> {
+  const [row] = await db
+    .select({ lookedUpAt: domainLookups.lookedUpAt, expiresAt: domainLookups.expiresAt })
+    .from(domainLookups)
+    .where(
+      and(
+        eq(domainLookups.workspaceId, workspaceId),
+        eq(domainLookups.domain, input.domain.toLowerCase()),
+        eq(domainLookups.kind, input.kind),
+        eq(domainLookups.ok, false),
+      ),
+    );
+  return row ? { keptMs: row.expiresAt.getTime() - row.lookedUpAt.getTime() } : null;
 }
 
 /** Caches a lookup's outcome until `expiresAt`, replacing an earlier one. */
-export async function saveDomainLookup(
+export async function saveDomainLookup<K extends DomainLookupKind>(
   db: Database,
   workspaceId: string,
-  input: {
-    domain: string;
-    kind: DomainLookupKind;
-    ok: boolean;
-    result: unknown;
-    at: Date;
-    expiresAt: Date;
-  },
+  input: { domain: string; kind: K; at: Date; expiresAt: Date } & CachedDomainLookup<K>,
 ): Promise<void> {
   const set = {
     ok: input.ok,
-    result: input.result ?? null,
+    result: input.ok ? input.result : null,
     lookedUpAt: input.at,
     expiresAt: input.expiresAt,
   };
@@ -117,4 +159,61 @@ export async function saveDomainLookup(
       target: [domainLookups.workspaceId, domainLookups.domain, domainLookups.kind],
       set,
     });
+}
+
+// --- Checks whose domain lookup failed (F5.3): looked up again once the failure has expired. ---
+
+/** The sender's domain of a message, lower case. */
+const fromDomain = sql`lower(split_part(${messages.fromAddress}, '@', 2))`;
+
+/**
+ * A current check whose lookup failed, of a sender whose domain no longer has a failure in the
+ * cache: looking it up again may now work. The failure is kept longer each time it repeats, so a
+ * domain whose lookup always fails (a registry without RDAP) is retried less and less often.
+ */
+function retryableCheck(now: Date): SQL {
+  const failedSignal = JSON.stringify([{ signal: LOOKUP_FAILED_SIGNAL }]);
+  return sql`${senderChecks.stale} = false
+    and ${senderChecks.reasons} @> ${failedSignal}::jsonb
+    and exists (
+      select 1 from ${messages}
+      where ${messages.workspaceId} = ${senderChecks.workspaceId}
+        and ${messages.messageId} = ${senderChecks.messageId}
+        and not exists (
+          select 1 from ${domainLookups}
+          where ${domainLookups.workspaceId} = ${senderChecks.workspaceId}
+            and ${domainLookups.domain} = ${fromDomain}
+            and ${domainLookups.ok} = false
+            and ${domainLookups.expiresAt} > ${now.toISOString()}::timestamptz
+        )
+    )`;
+}
+
+/**
+ * The workspaces with a check to look up again (retryableCheck). Reads across workspaces, like
+ * listWorkspacesWithWork: only the sweep calls it, then marks each workspace's checks itself.
+ */
+export async function listWorkspacesWithFailedLookups(db: Database, now: Date): Promise<string[]> {
+  const rows = await db
+    .selectDistinct({ workspaceId: senderChecks.workspaceId })
+    .from(senderChecks)
+    .where(retryableCheck(now));
+  return rows.map((r) => r.workspaceId);
+}
+
+/**
+ * Marks the workspace's checks to look up again stale (retryableCheck), so the next pipeline run
+ * checks those messages again. Returns how many went stale.
+ */
+export async function markFailedLookupChecksStale(
+  db: Database,
+  workspaceId: string,
+  now: Date,
+): Promise<number> {
+  const rows = await db
+    .update(senderChecks)
+    .set({ stale: true, staleSince: now })
+    .where(and(eq(senderChecks.workspaceId, workspaceId), retryableCheck(now)))
+    .returning({ messageId: senderChecks.messageId });
+  return rows.length;
 }

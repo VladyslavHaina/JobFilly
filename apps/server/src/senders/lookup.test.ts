@@ -54,6 +54,19 @@ describe("the real DomainPort", () => {
     await expect(port.rdap("x.example")).rejects.toThrow();
   });
 
+  it("fails on purpose when the answer isn't an RDAP domain object", async () => {
+    let body: unknown = { events: { eventAction: "registration" } };
+    const port = createDomainPort(
+      { rdapUrl: RDAP_URL },
+      { fetch: async () => Response.json(body) },
+    );
+    await expect(port.rdap("x.example")).rejects.toThrow("RDAP answered something else");
+    body = { events: [{ eventAction: "registration", eventDate: 20120301 }] };
+    await expect(port.rdap("x.example")).rejects.toMatchObject({ name: "RdapAnswerError" });
+    body = { ldhName: "x.example" };
+    expect(await port.rdap("x.example")).toEqual({ registeredAt: null });
+  });
+
   it("reads MX records, and tells 'none' apart from a failed lookup", async () => {
     const answers: Record<string, () => Promise<{ exchange: string; priority: number }[]>> = {
       "mail.example": async () => [
@@ -139,5 +152,28 @@ describe("lookupDomain's cache (domain_lookups)", () => {
       rdap: { registeredAt: "2015-01-01T00:00:00.000Z" },
       mx: ["mx.flaky.example"],
     });
+  });
+
+  it("keeps a failure that repeats twice as long each time, up to a day", async () => {
+    deps.domains.setRdap("nordap.example", "fail");
+    const ask = () => lookupDomain(deps, maria.workspaceId, "nordap.example", deps.log);
+    const minute = 60 * 1000;
+    await ask();
+    for (const kept of [15, 30, 60]) {
+      deps.clock.advance((kept - 1) * minute);
+      await ask();
+      deps.clock.advance(2 * minute);
+      await ask();
+    }
+    // Asked at 0, 16 (kept 15), 47 (kept 30) and 108 minutes (kept 60), each from the cache between.
+    expect(deps.domains.calls.rdap).toHaveLength(4);
+    // A failure that has been kept a day stays kept a day.
+    for (let i = 0; i < 6; i++) {
+      deps.clock.advance(25 * 60 * minute);
+      await ask();
+    }
+    deps.clock.advance(23 * 60 * minute);
+    await ask();
+    expect(deps.domains.calls.rdap).toHaveLength(10);
   });
 });

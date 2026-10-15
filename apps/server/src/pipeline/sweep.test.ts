@@ -32,6 +32,7 @@ import {
   type TestDeps,
 } from "../testing";
 import { reevaluateWorkspace, requestRun } from "./reevaluate";
+import { senderStage } from "./sender";
 import { sweep } from "./sweep";
 
 // The sweep (TBD-191): at startup and every sync interval, one deduped pipeline.reevaluate for
@@ -174,6 +175,36 @@ describe("the sweep", () => {
       complete: true,
       stale: false,
     });
+  });
+
+  it("has a check whose domain lookup failed done again once the failure has expired (F5.3)", async () => {
+    await confirm();
+    stages.sender = senderStage;
+    deps.domains.setMx("x.example", "fail");
+    await seedJobMail(deps, ws, mailbox, {
+      messageId: "<a@x.example>",
+      receivedAt: NOW,
+      from: "recruiter@x.example",
+    });
+    expect(await sweep(deps)).toBe(1);
+    await deps.queue.runOnce();
+    expect((await getSenderChecks(deps.db, ws, ["<a@x.example>"]))[0]).toMatchObject({
+      verdict: "caution",
+      complete: false,
+    });
+    // While the failure is cached, the sweep has nothing to do.
+    expect(await sweep(deps)).toBe(0);
+
+    deps.clock.advance(16 * 60 * 1000);
+    deps.domains.setMx("x.example", ["mx.x.example"]);
+    expect(await sweep(deps)).toBe(1);
+    await deps.queue.runOnce();
+    expect((await getSenderChecks(deps.db, ws, ["<a@x.example>"]))[0]).toMatchObject({
+      verdict: "looks_fine",
+      complete: true,
+      stale: false,
+    });
+    expect(await sweep(deps)).toBe(0);
   });
 
   it("re-claims a draft that failed with kind mailbox, and never one that failed on content", async () => {

@@ -1,6 +1,7 @@
 import { replyEligibility } from "@jobfilly/core";
 import {
   createConfirmedProfile,
+  getEvaluations,
   getInboxMessage,
   getSenderChecks,
   loadMessageInputs,
@@ -9,6 +10,7 @@ import {
 } from "@jobfilly/db";
 import { MESSAGE_GONE_SIGNAL } from "@jobfilly/schema";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { retryFailedLookups } from "../senders/retry";
 import {
   createFakeMailbox,
   createTestDeps,
@@ -17,11 +19,13 @@ import {
   recordingStages,
   roleFacts,
   type SeededUser,
+  seedCv,
   seedJobMail,
   seedMailbox,
   seedUser,
   type TestDeps,
 } from "../testing";
+import { cvChoiceStage } from "./cv-choice";
 import { evaluateMessage } from "./evaluate";
 import { senderStage } from "./sender";
 
@@ -38,6 +42,16 @@ const SENTINEL = "BODYSENTINEL-sender-0001";
 const SCAM = `Dear Candidate,\n\nCongratulations! We are pleased to offer you the position of Remote Software Engineer. To complete your hiring, please pay a one-time processing fee of €150 and send a clear scan of your passport to this email address within 24 hours.\n\nRegards,\nHR Department\n\n${SENTINEL}`;
 const PLAIN = `Hello Maria,\n\nI am a recruiter at Tidewater Systems and we are looking for a backend engineer to join our team. Would you be open to a call this week?\n\nKind regards,\nGrace\n\n${SENTINEL}`;
 const GERMAN = `Hallo Maria,\n\nwir suchen für unser Team in Berlin eine Backend-Entwicklerin. Hätten Sie Zeit für ein Gespräch? Wir freuen uns auf Ihre Antwort.\n\nMit freundlichen Grüßen\nMiriam`;
+// A job board's alert as the e2e fixtures write it: three German lines, then an English footer
+// with more common words than the German text.
+const GERMAN_ALERT = [
+  "Wir haben 2 neue Jobs im Bereich Softwareentwicklung für Sie gefunden.",
+  "Softwareentwickler Backend (m/w/d)\nCopperleaf Analytics · Berlin, Deutschland · Hybrid\nZur Stelle: https://jobs.example/1",
+  "Senior Backend Engineer (m/w/d)\nZuidas Payments · Berlin, Deutschland · Vor Ort\nZur Stelle: https://jobs.example/2",
+  "You are receiving job alert emails because you created a job alert. You can change how often you receive these alerts, edit your search or stop the alert at any time from your alert settings.",
+  "Jobs are listed by the employers and recruiters who post them; check every listing carefully: a genuine employer never asks for money or identity documents before an offer.",
+  "This email was sent to you by the job platform. Our privacy policy explains how we use your search activity to recommend jobs. To stop receiving all marketing and alert emails, use the unsubscribe link in your settings.",
+].join("\n\n");
 
 let deps: TestDeps;
 let mailbox: FakeMailbox;
@@ -187,6 +201,43 @@ describe("the sender stage", () => {
     ).toBe(true);
   });
 
+  it("checks again on its own once a failed lookup has expired, and is then complete", async () => {
+    deps.domains.setRdap("tidewater.example", "fail");
+    await seedJobMail(deps, ws, mailbox, {
+      messageId: "<grace@tidewater.example>",
+      receivedAt: daysAgo(1),
+      from: "grace.lin@tidewater.example",
+      roles: [roleFacts({ company: "Tidewater Systems" })],
+      text: PLAIN,
+    });
+    await evaluate("<grace@tidewater.example>");
+    expect(await checkOf("<grace@tidewater.example>")).toMatchObject({
+      verdict: "caution",
+      complete: false,
+      reasons: [expect.objectContaining({ signal: "lookup_failed" })],
+    });
+
+    // Within the 15 minutes the failure is cached, nothing is done again.
+    deps.clock.advance(10 * 60 * 1000);
+    expect(await retryFailedLookups(deps)).toBe(0);
+
+    deps.clock.advance(6 * 60 * 1000);
+    deps.domains.setRdap("tidewater.example", { registeredAt: "2012-03-01T00:00:00.000Z" });
+    expect(await retryFailedLookups(deps)).toBe(1);
+    expect(deps.logs.filter((l) => l.event === "sender.lookup_retry")).toEqual([
+      expect.objectContaining({ level: "info", workspaceId: ws, checks: 1 }),
+    ]);
+    await evaluate("<grace@tidewater.example>", "reevaluate");
+    expect(await checkOf("<grace@tidewater.example>")).toMatchObject({
+      verdict: "looks_fine",
+      complete: true,
+      reasons: [expect.objectContaining({ signal: "no_warning_signs" })],
+      stale: false,
+    });
+    expect(mailbox.calls.fetchBody).toBe(2);
+    expect(await retryFailedLookups(deps)).toBe(0);
+  });
+
   it("tells the body's language, which the pipeline stores for the CV choice", async () => {
     await seedJobMail(deps, ws, mailbox, {
       messageId: "<berlin@rheinpfad.example>",
@@ -199,6 +250,50 @@ describe("the sender stage", () => {
     const [input] = await loadMessageInputs(deps.db, ws, ["<berlin@rheinpfad.example>"]);
     expect(input?.language).toBe("de");
     expect((await checkOf("<berlin@rheinpfad.example>"))?.verdict).toBe("looks_fine");
+  });
+
+  it("tells a German job alert with an English footer is German, so it gets the German CV", async () => {
+    const confirmed = await confirm();
+    if (!confirmed.ok) throw new Error("expected a profile");
+    const { profile } = confirmed;
+    const cv = (name: string, language: string) =>
+      seedCv(deps, ws, {
+        name,
+        language,
+        skills: ["Go", "PostgreSQL"],
+        roleFamilies: ["Backend engineering"],
+        seniority: "Senior",
+        tags: [
+          { label: language, source: "ai" },
+          { label: "Backend engineering", source: "ai" },
+          { label: "Senior", source: "ai" },
+          ...(language === "en" ? [{ label: "preferred", source: "you" } as const] : []),
+        ],
+        profileId: profile.id,
+      });
+    await cv("Backend (EN)", "en");
+    deps.clock.advance(1000);
+    const de = await cv("Backend (DE)", "de");
+    stages.cvChoice = cvChoiceStage;
+    await seedJobMail(deps, ws, mailbox, {
+      messageId: "<alert-0077@jobs.example>",
+      receivedAt: daysAgo(1),
+      from: "alerts@jobs.example",
+      category: "job_alert",
+      roles: [
+        roleFacts({ title: "Softwareentwickler Backend (m/w/d)", company: "Copperleaf Analytics" }),
+        roleFacts({ title: "Senior Backend Engineer (m/w/d)", company: "Zuidas Payments" }),
+      ],
+      text: GERMAN_ALERT,
+    });
+    await evaluate("<alert-0077@jobs.example>");
+    const [input] = await loadMessageInputs(deps.db, ws, ["<alert-0077@jobs.example>"]);
+    expect(input?.language).toBe("de");
+    const evaluations = await getEvaluations(deps.db, ws, ["<alert-0077@jobs.example>"]);
+    expect(evaluations.map((e) => e.cvChoice)).toEqual([
+      { cvId: de.id, reason: "German backend role → Backend (DE)", source: "auto" },
+      { cvId: de.id, reason: "German backend role → Backend (DE)", source: "auto" },
+    ]);
   });
 
   it("names the free-mail 'recruiter' as caution without looking the provider up", async () => {

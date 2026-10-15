@@ -1,6 +1,7 @@
 import type { SenderCheck } from "@jobfilly/schema";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { DatabaseConnection } from "../client";
+import { domainLookups } from "../tables";
 import { openTestDatabase } from "../testing";
 import { registerAccount } from "./accounts";
 import { getSenderChecks, markStale, saveSenderCheck } from "./evaluations";
@@ -9,6 +10,9 @@ import {
   clearSenderMark,
   findSenderMark,
   getDomainLookup,
+  lastLookupFailure,
+  listWorkspacesWithFailedLookups,
+  markFailedLookupChecksStale,
   saveDomainLookup,
   setSenderMark,
 } from "./senders";
@@ -142,17 +146,9 @@ describe("the domain lookup cache", () => {
   it("replaces a failure with a later answer", async () => {
     const until = new Date(at.getTime() + 60_000);
     const lookup = { domain: "tidewater.example", kind: "mx" as const };
-    await saveDomainLookup(conn.db, ws, {
-      ...lookup,
-      ok: false,
-      result: null,
-      at,
-      expiresAt: until,
-    });
-    expect(await getDomainLookup(conn.db, ws, { ...lookup, now: at })).toEqual({
-      ok: false,
-      result: null,
-    });
+    await saveDomainLookup(conn.db, ws, { ...lookup, ok: false, at, expiresAt: until });
+    expect(await getDomainLookup(conn.db, ws, { ...lookup, now: at })).toEqual({ ok: false });
+    expect(await lastLookupFailure(conn.db, ws, lookup)).toEqual({ keptMs: 60_000 });
     await saveDomainLookup(conn.db, ws, {
       ...lookup,
       ok: true,
@@ -164,47 +160,72 @@ describe("the domain lookup cache", () => {
       ok: true,
       result: ["mx.tidewater.example"],
     });
+    expect(await lastLookupFailure(conn.db, ws, lookup)).toBeNull();
+  });
+
+  it("treats a stored answer that doesn't fit its kind as a miss, never as no mail servers", async () => {
+    const until = new Date(at.getTime() + 60_000);
+    for (const [kind, result] of [
+      ["mx", { hosts: "mx.tidewater.example" }],
+      ["rdap", { registeredAt: "last spring" }],
+    ] as const) {
+      await conn.db.insert(domainLookups).values({
+        workspaceId: ws,
+        domain: "tidewater.example",
+        kind,
+        ok: true,
+        result: result as never,
+        lookedUpAt: at,
+        expiresAt: until,
+      });
+      expect(
+        await getDomainLookup(conn.db, ws, { domain: "tidewater.example", kind, now: at }),
+      ).toBeNull();
+    }
   });
 });
 
-describe("the stale flag a mark sets", () => {
-  async function seedChecked(messageId: string, from: string) {
-    await saveEnvelopes(conn.db, ws, [
-      {
-        envelope: {
-          messageId,
-          folder: "inbox",
-          folderPath: "INBOX",
-          uidValidity: 1,
-          uid: Number(messageId.replace(/\D/g, "")) || 1,
-          date: at.toISOString(),
-          from: { address: from, name: null },
-          to: [],
-          cc: [],
-          replyTo: [],
-          inReplyTo: null,
-          references: [],
-          subject: "s",
-          listId: null,
-          listUnsubscribe: null,
-          precedence: null,
-          autoSubmitted: null,
-          snippet: "",
-        },
-        verdict: "likely_job",
-        reason: null,
+async function seedChecked(
+  messageId: string,
+  from: string,
+  check: SenderCheck = { verdict: "caution", complete: true, reasons: [], mark: null },
+) {
+  await saveEnvelopes(conn.db, ws, [
+    {
+      envelope: {
+        messageId,
+        folder: "inbox",
+        folderPath: "INBOX",
+        uidValidity: 1,
+        uid: Number(messageId.replace(/\D/g, "")) || 1,
+        date: at.toISOString(),
+        from: { address: from, name: null },
+        to: [],
+        cc: [],
+        replyTo: [],
+        inReplyTo: null,
+        references: [],
+        subject: "s",
+        listId: null,
+        listUnsubscribe: null,
+        precedence: null,
+        autoSubmitted: null,
+        snippet: "",
       },
-    ]);
-    await saveAnalysis(conn.db, ws, {
-      messageId,
-      scanId: null,
-      category: "recruiter_outreach",
-      roles: [],
-    });
-    const check: SenderCheck = { verdict: "caution", complete: true, reasons: [], mark: null };
-    await saveSenderCheck(conn.db, ws, messageId, check, at);
-  }
+      verdict: "likely_job",
+      reason: null,
+    },
+  ]);
+  await saveAnalysis(conn.db, ws, {
+    messageId,
+    scanId: null,
+    category: "recruiter_outreach",
+    roles: [],
+  });
+  await saveSenderCheck(conn.db, ws, messageId, check, at);
+}
 
+describe("the stale flag a mark sets", () => {
   it("makes stale the checks of the marked address, or of every address of the domain", async () => {
     await seedChecked("<m1@x>", "Grace.Lin@Tidewater.example");
     await seedChecked("<m2@x>", "hr@tidewater.example");
@@ -227,5 +248,37 @@ describe("the stale flag a mark sets", () => {
     };
     await saveSenderCheck(conn.db, ws, "<m1@x>", check, at);
     expect(await stale()).toEqual(["<m2@x>"]);
+  });
+});
+
+describe("checks whose lookup failed (F5.3)", () => {
+  const failed: SenderCheck = {
+    verdict: "caution",
+    complete: false,
+    reasons: [{ signal: "lookup_failed", reason: "Couldn't look up the domain" }],
+    mark: null,
+  };
+  const minutes = (n: number) => new Date(at.getTime() + n * 60_000);
+  const failure = (domain: string, expiresAt: Date) =>
+    saveDomainLookup(conn.db, ws, { domain, kind: "rdap", ok: false, at, expiresAt });
+
+  it("looks a domain up again once its failure has left the cache", async () => {
+    await seedChecked("<m1@x>", "grace.lin@Tidewater.example", failed);
+    await seedChecked("<m2@x>", "hr@other.example", failed);
+    await seedChecked("<m3@x>", "hr@fine.example");
+    await failure("tidewater.example", minutes(15));
+    await failure("other.example", minutes(60));
+
+    expect(await listWorkspacesWithFailedLookups(conn.db, minutes(10))).toEqual([]);
+    expect(await markFailedLookupChecksStale(conn.db, ws, minutes(10))).toBe(0);
+
+    expect(await listWorkspacesWithFailedLookups(conn.db, minutes(16))).toEqual([ws]);
+    expect(await markFailedLookupChecksStale(conn.db, other, minutes(16))).toBe(0);
+    expect(await markFailedLookupChecksStale(conn.db, ws, minutes(16))).toBe(1);
+    const checks = await getSenderChecks(conn.db, ws, ["<m1@x>", "<m2@x>", "<m3@x>"]);
+    expect(checks.filter((c) => c.stale).map((c) => c.messageId)).toEqual(["<m1@x>"]);
+    // Stale now, so not marked again before it has been checked again.
+    expect(await markFailedLookupChecksStale(conn.db, ws, minutes(16))).toBe(0);
+    expect(await listWorkspacesWithFailedLookups(conn.db, minutes(61))).toEqual([ws]);
   });
 });
