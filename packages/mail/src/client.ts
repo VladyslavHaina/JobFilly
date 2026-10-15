@@ -60,11 +60,16 @@ export interface MailClient {
   ensureDraftsFolder(): Promise<{ path: string }>;
   /**
    * Saves a reply to the Drafts folder with the \Draft flag (F6.3): threaded to the original
-   * (In-Reply-To, References), quoting it, with the attachment if any. Throws
+   * (In-Reply-To, References), quoting it, with the attachment if any. The copy's Message-ID is
+   * `input.draftMessageId` when the caller chose one, else a new one from newDraftMessageId: a
+   * retry of draft.create relies on it to find the copy an earlier attempt left. Throws
    * MailUnavailableError when the server can't be reached or refuses the append.
    */
   saveDraft(input: DraftMailInput): Promise<DraftRef>;
-  /** Replaces a saved draft so exactly one copy remains (F6.4): the new one's ref. */
+  /**
+   * Replaces a saved draft so exactly one copy remains (F6.4): the new one's ref, with its
+   * Message-ID chosen as for saveDraft.
+   */
   replaceDraft(ref: DraftRef, input: DraftMailInput): Promise<DraftRef>;
   /** Deletes a saved draft (discard, F6.4); a draft already gone is not an error. */
   deleteDraft(ref: DraftRef): Promise<void>;
