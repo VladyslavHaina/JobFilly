@@ -24,9 +24,14 @@ export const NeedSpecSchema = z.object({
 });
 export type NeedSpec = z.infer<typeof NeedSpecSchema>;
 
-/** A need with the role waiting on it and what raised it. */
+/**
+ * A need with the role waiting on it and what raised it: a match verdict, a rule effect, or a
+ * draft's questions. `draft` is an automatic draft's (one the policy let through), and
+ * `draft_on_demand` one Draft a reply asked for: when the policy holds the role, only those keep
+ * waiting and get their draft once answered (F6.1, F6.5, F7.1).
+ */
 export const DecisionNeedSchema = NeedSpecSchema.extend({
-  source: z.enum(["draft", "match", "rule"]),
+  source: z.enum(["draft", "draft_on_demand", "match", "rule"]),
   messageId: z.string(),
   position: z.number().int().nonnegative(),
 });
