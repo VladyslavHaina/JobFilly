@@ -2,7 +2,13 @@ import { claimJob, enqueueJob, getJob, saveJobCheckpoint } from "@jobfilly/db";
 import { afterEach, describe, expect, it } from "vitest";
 import { z } from "zod";
 import { createTestDeps, seedUser, type TestDeps } from "../testing";
-import { defineJob, type JobContext, type JobRegistry, LeaseLostError } from "./queue";
+import {
+  createJobQueue,
+  defineJob,
+  type JobContext,
+  type JobRegistry,
+  LeaseLostError,
+} from "./queue";
 import { jobRegistry } from "./registry";
 import { scanRunHandler } from "./scan/index";
 
@@ -157,6 +163,65 @@ describe("the job queue worker", () => {
     });
     expect(deps.logs.some((l) => l.event === "job.handed_back")).toBe(true);
     expect(deps.queue.running).toBe(0);
+  });
+
+  it("survives a database error while completing a job: the lease expires and it runs again", async () => {
+    let runs = 0;
+    let failWrites = false;
+    const registry: JobRegistry = {
+      "test.job": defineJob(Payload, async () => {
+        runs++;
+        // The handler is done; the connection drops before the queue marks the job done.
+        if (runs === 1) failWrites = true;
+      }),
+    };
+    const { deps, workspaceId } = await setup(async () => {});
+    // The database as the queue sees it: every update fails while failWrites is set.
+    const db = new Proxy(deps.db, {
+      get(target, prop, receiver) {
+        if (prop === "update" && failWrites) {
+          return () => {
+            throw new Error("connection terminated");
+          };
+        }
+        return Reflect.get(target, prop, receiver);
+      },
+    });
+    const queue = createJobQueue({ ...deps, db }, registry, { owner: "test-instance", pollMs: 20 });
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => unhandled.push(reason);
+    process.on("unhandledRejection", onUnhandled);
+    try {
+      const { id } = await enqueueJob(deps.db, workspaceId, {
+        type: "test.job",
+        payload: { n: 1 },
+        now: deps.clock.now(),
+      });
+      // start() fires each job without awaiting it, as in production.
+      queue.start();
+      await expect
+        .poll(() => deps.logs.find((l) => l.event === "db.connection_error"))
+        .toMatchObject({ level: "warn", jobId: id, jobType: "test.job", workspaceId });
+      await queue.stop();
+      // Let any stray rejection surface before checking.
+      await new Promise((r) => setTimeout(r, 20));
+      expect(unhandled).toEqual([]);
+      expect(runs).toBe(1);
+      failWrites = false;
+      // Still leased to this replica, so nobody can claim it until the lease runs out.
+      expect(await getJob(deps.db, workspaceId, id)).toMatchObject({
+        status: "running",
+        leaseOwner: "test-instance",
+      });
+      expect(await queue.runOnce()).toBe(false);
+      deps.clock.advance(30_000);
+      expect(await queue.runOnce()).toBe(true);
+      expect(runs).toBe(2);
+      expect((await getJob(deps.db, workspaceId, id))?.status).toBe("done");
+    } finally {
+      process.off("unhandledRejection", onUnhandled);
+      await queue.stop();
+    }
   });
 
   it("renews the lease on its own while the handler works", async () => {
