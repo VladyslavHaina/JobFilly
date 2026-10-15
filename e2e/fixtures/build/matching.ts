@@ -23,23 +23,44 @@ export interface PersonaJudge {
 /** A hard conflict, named by the profile entry it conflicts with. */
 export type HardConflict = "places" | "min_pay";
 
+// The place rules of the app's scorer (packages/core/src/match/match.ts), so a regenerated
+// fixture records the conflicts the app finds: a role's place is one of yours when the country
+// agrees and so does the city, or your place names no city; and a place you take onsite takes a
+// hybrid role there too. Remote roles and roles of no stated work mode never conflict on place.
+const norm = (s: string) => s.trim().replace(/\s+/g, " ").toLowerCase();
+
+type RolePlace = JobFacts["places"][number];
+type ProfilePlace = ProfileValues["places"][number];
+
+function samePlace(role: RolePlace, mine: ProfilePlace): boolean {
+  if (role.country && role.country !== mine.country) return false;
+  if (!role.country && !role.city) return false;
+  if (mine.city === null) return role.country === mine.country;
+  return role.city !== null && norm(role.city) === norm(mine.city);
+}
+
+const modeAccepted = (roleMode: "onsite" | "hybrid", mine: ProfilePlace["mode"]) =>
+  roleMode === "hybrid" ? true : mine === "onsite";
+
+function placeConflict(role: JobFacts, profile: ProfileValues): boolean {
+  const mode = role.workMode;
+  if (mode !== "onsite" && mode !== "hybrid") return false;
+  const places = profile.places;
+  const rolePlaces = role.places.filter((p) => p.city || p.country);
+  // No place named: only a work mode none of the profile's places takes conflicts.
+  if (rolePlaces.length === 0) {
+    return places.length > 0 && !places.some((p) => modeAccepted(mode, p.mode));
+  }
+  // A profile with no places refuses a named place only when it looks for remote work alone;
+  // with no remote entry either, nothing is known.
+  if (places.length === 0) return profile.remote.length > 0;
+  return !places.some((p) => modeAccepted(mode, p.mode) && rolePlaces.some((r) => samePlace(r, p)));
+}
+
 /** The hard conflicts of a role (F4.2), in the order a match lists them. */
 export function hardConflicts(role: JobFacts, profile: ProfileValues): HardConflict[] {
   const out: HardConflict[] = [];
-  const accepted = (country: string | null, city: string | null) =>
-    profile.places.some(
-      (p) => p.mode === role.workMode && p.country === country && (p.city ?? null) === city,
-    );
-  // A profile with no places accepts none and refuses none: nothing is known about them.
-  if (profile.places.length > 0 && (role.workMode === "onsite" || role.workMode === "hybrid")) {
-    // A named place conflicts unless the profile accepts it in this mode; with no place named,
-    // only a mode the profile never accepts conflicts.
-    if (role.places.length > 0 && !role.places.some((p) => accepted(p.country, p.city))) {
-      out.push("places");
-    } else if (role.places.length === 0 && profile.places.every((p) => p.mode !== role.workMode)) {
-      out.push("places");
-    }
-  }
+  if (placeConflict(role, profile)) out.push("places");
   const pay = role.pay;
   if (pay?.currency && pay.period) {
     const top = pay.max ?? pay.min;
