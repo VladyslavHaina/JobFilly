@@ -1,0 +1,57 @@
+{
+  "items": [
+    {
+      "messageId": "<wire-prefs-1@inbox.example>",
+      "ok": true,
+      "data": {
+        "preferences": {
+          "places": [
+            {
+              "country": "DE",
+              "city": "Berlin",
+              "mode": "hybrid"
+            }
+          ],
+          "remote": [
+            {
+              "scope": "EU",
+              "timeZones": null
+            }
+          ],
+          "min_pay": [
+            {
+              "amount": 70000,
+              "currency": "EUR",
+              "period": "year",
+              "asWritten": "€70,000 a year"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "messageId": "<wire-prefs-2@inbox.example>",
+      "ok": true,
+      "data": {
+        "preferences": {
+          "contracts": ["B2B"],
+          "min_pay": [
+            {
+              "amount": 450,
+              "currency": "EUR",
+              "period": "day",
+              "asWritten": "€450 a day"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "usage": [
+    {
+      "task": "prefs.v1",
+      "inputTokens": 455,
+      "outputTokens": 160
+    }
+  ]
+}

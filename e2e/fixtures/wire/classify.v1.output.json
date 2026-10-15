@@ -1,0 +1,25 @@
+{
+  "items": [
+    {
+      "messageId": "<wire-classify-1@agency.example>",
+      "ok": true,
+      "data": {
+        "category": "recruiter_outreach"
+      }
+    },
+    {
+      "messageId": "<wire-classify-2@shop.example>",
+      "ok": true,
+      "data": {
+        "category": "not_job"
+      }
+    }
+  ],
+  "usage": [
+    {
+      "task": "classify.v1",
+      "inputTokens": 612,
+      "outputTokens": 48
+    }
+  ]
+}

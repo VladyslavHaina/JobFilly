@@ -14,7 +14,10 @@
     "format": "biome check --write .",
     "test": "vitest run",
     "check": "pnpm lint && pnpm typecheck && pnpm test",
-    "unused": "knip"
+    "unused": "knip",
+    "e2e": "node e2e/stack.ts run",
+    "e2e:stack": "node e2e/stack.ts stack",
+    "e2e:specs": "node e2e/stack.ts specs"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.15",

@@ -1,0 +1,14 @@
+{
+  "name": "@jobfilly/e2e",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The test stack: fixtures, the fake AI, mail seeding and the Playwright specs. Imports no app or package code.",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@playwright/test": "^1.64.0",
+    "imapflow": "^2.2.10"
+  }
+}

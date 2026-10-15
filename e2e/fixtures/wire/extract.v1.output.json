@@ -1,0 +1,46 @@
+{
+  "ok": true,
+  "data": {
+    "messageId": "<wire-classify-1@agency.example>",
+    "roles": [
+      {
+        "title": "Backend Engineer (Go)",
+        "company": null,
+        "agency": {
+          "name": null,
+          "client": null
+        },
+        "places": [
+          {
+            "country": "DE",
+            "city": "Berlin"
+          }
+        ],
+        "workMode": "hybrid",
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": {
+          "min": 75000,
+          "max": 85000,
+          "currency": "EUR",
+          "period": "year",
+          "asWritten": "€75,000–85,000 a year"
+        },
+        "contract": null,
+        "seniority": null,
+        "workPermit": null,
+        "skills": ["Go"],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
+  "usage": [
+    {
+      "task": "extract.v1",
+      "inputTokens": 401,
+      "outputTokens": 133
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "ok": true,
+  "data": {
+    "questions": [
+      {
+        "slug": "accepts-b2b",
+        "label": "Do you accept B2B contracts?",
+        "options": ["Yes", "No"],
+        "evidence": ["<wire-prefs-2@inbox.example>"]
+      }
+    ]
+  },
+  "usage": [
+    {
+      "task": "intake.v1",
+      "inputTokens": 530,
+      "outputTokens": 52
+    }
+  ]
+}

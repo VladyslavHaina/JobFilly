@@ -1,0 +1,21 @@
+{
+  "id": "chatcmpl-wire-prefs-v1",
+  "object": "chat.completion",
+  "created": 1790000000,
+  "model": "fixture-model",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "{\"items\":[{\"messageId\":\"<wire-prefs-1@inbox.example>\",\"preferences\":{\"places\":[{\"country\":\"DE\",\"city\":\"Berlin\",\"mode\":\"hybrid\"}],\"remote\":[{\"scope\":\"EU\",\"timeZones\":null}],\"min_pay\":[{\"amount\":70000,\"currency\":\"EUR\",\"period\":\"year\",\"asWritten\":\"€70,000 a year\"}]}},{\"messageId\":\"<wire-prefs-2@inbox.example>\",\"preferences\":{\"contracts\":[\"B2B\"],\"min_pay\":[{\"amount\":450,\"currency\":\"EUR\",\"period\":\"day\",\"asWritten\":\"€450 a day\"}]}}]}"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 455,
+    "completion_tokens": 160,
+    "total_tokens": 615
+  }
+}

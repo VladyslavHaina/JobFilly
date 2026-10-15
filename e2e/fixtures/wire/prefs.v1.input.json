@@ -1,0 +1,24 @@
+[
+  {
+    "messageId": "<wire-prefs-1@inbox.example>",
+    "folder": "sent",
+    "from": {
+      "address": "maria.santos@inbox.example",
+      "name": "Maria Santos"
+    },
+    "date": "2026-09-20T10:00:00.000Z",
+    "subject": "Re: Backend role",
+    "text": "Thanks! I'm looking for remote within the EU, or hybrid in Berlin.\nMy minimum is €70,000 a year."
+  },
+  {
+    "messageId": "<wire-prefs-2@inbox.example>",
+    "folder": "sent",
+    "from": {
+      "address": "maria.santos@inbox.example",
+      "name": "Maria Santos"
+    },
+    "date": "2026-09-18T09:30:00.000Z",
+    "subject": "Re: Contract work",
+    "text": "B2B is fine for me, at €450 a day or more."
+  }
+]

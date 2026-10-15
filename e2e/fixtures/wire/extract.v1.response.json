@@ -1,0 +1,21 @@
+{
+  "id": "chatcmpl-wire-extract-v1",
+  "object": "chat.completion",
+  "created": 1790000000,
+  "model": "fixture-model",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "{\"messageId\":\"<wire-classify-1@agency.example>\",\"roles\":[{\"title\":\"Backend Engineer (Go)\",\"company\":null,\"agency\":{\"name\":null,\"client\":null},\"places\":[{\"country\":\"DE\",\"city\":\"Berlin\"}],\"workMode\":\"hybrid\",\"remoteScope\":null,\"timeZones\":null,\"pay\":{\"min\":75000,\"max\":85000,\"currency\":\"EUR\",\"period\":\"year\",\"asWritten\":\"€75,000–85,000 a year\"},\"contract\":null,\"seniority\":null,\"workPermit\":null,\"skills\":[\"Go\"],\"languages\":[],\"applyUrl\":null,\"extra\":{}}]}"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 401,
+    "completion_tokens": 133,
+    "total_tokens": 534
+  }
+}

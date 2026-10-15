@@ -1,0 +1,56 @@
+{
+  "items": [
+    {
+      "messageId": "<wire-prefs-2@inbox.example>",
+      "folder": "sent",
+      "from": {
+        "address": "maria.santos@inbox.example",
+        "name": "Maria Santos"
+      },
+      "date": "2026-09-18T09:30:00.000Z",
+      "subject": "Re: Contract work",
+      "text": "B2B is fine for me, at €450 a day or more."
+    },
+    {
+      "messageId": "<wire-classify-1@agency.example>",
+      "folder": "inbox",
+      "from": {
+        "address": "lena.vogel@agency.example",
+        "name": "Lena Vogel"
+      },
+      "date": "2026-09-28T08:15:00.000Z",
+      "subject": "Backend Engineer (Go) – Berlin, hybrid",
+      "text": "Hi Maria,\n\nI'm hiring a backend engineer for a client in Berlin, hybrid, €75,000–85,000 a year.\nWould you have time for a call this week?\n\nLena"
+    }
+  ],
+  "answers": [
+    {
+      "key": "min_pay",
+      "value": [
+        {
+          "amount": 70000,
+          "currency": "EUR",
+          "period": "year",
+          "asWritten": "€70,000 a year"
+        }
+      ],
+      "confidence": "high"
+    },
+    {
+      "key": "places",
+      "value": [
+        {
+          "country": "DE",
+          "city": "Berlin",
+          "mode": "hybrid"
+        }
+      ],
+      "confidence": "medium"
+    },
+    {
+      "key": "deal_breakers",
+      "value": [],
+      "confidence": null
+    }
+  ]
+}

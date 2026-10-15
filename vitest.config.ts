@@ -17,6 +17,14 @@ export default defineConfig({
       "!apps/server",
       { test: { name: "@jobfilly/db", root: "./packages/db", ...pglite } },
       { test: { name: "@jobfilly/server", root: "./apps/server", ...pglite } },
+      {
+        test: {
+          name: "@jobfilly/e2e",
+          root: "./e2e",
+          // The Playwright specs run against the test stack (pnpm e2e), never under Vitest.
+          exclude: ["specs/**", ".stack/**", "reports/**", "**/node_modules/**"],
+        },
+      },
     ],
   },
 });

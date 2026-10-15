@@ -1,0 +1,21 @@
+{
+  "id": "chatcmpl-wire-classify-v1",
+  "object": "chat.completion",
+  "created": 1790000000,
+  "model": "fixture-model",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "{\"items\":[{\"messageId\":\"<wire-classify-1@agency.example>\",\"category\":\"recruiter_outreach\"},{\"messageId\":\"<wire-classify-2@shop.example>\",\"category\":\"not_job\"}]}"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 612,
+    "completion_tokens": 48,
+    "total_tokens": 660
+  }
+}

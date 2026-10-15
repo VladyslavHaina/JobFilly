@@ -7,6 +7,7 @@ playwright-report/
 blob-report/
 .playwright-mcp/
 e2e/reports/
+e2e/.stack/
 *.tsbuildinfo
 
 # Local data and secrets
