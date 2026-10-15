@@ -156,3 +156,15 @@ export const TrackerStateSchema = z.object({
   budget: z.number().int().nonnegative(),
 });
 export type TrackerState = z.infer<typeof TrackerStateSchema>;
+
+/**
+ * What the confidence tracker remembers between batches, so a run taken over by another replica
+ * resumes with the same count of unchanged batches (it is kept in the scan job's checkpoint).
+ */
+export const TrackerMemorySchema = z.object({
+  /** The answers (each key's value and confidence) after the last batch; null before the first. */
+  lastAnswers: z.string().nullable(),
+  /** How many batches in a row changed no answer. */
+  unchangedBatches: z.number().int().nonnegative(),
+});
+export type TrackerMemory = z.infer<typeof TrackerMemorySchema>;
