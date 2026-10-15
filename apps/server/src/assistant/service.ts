@@ -1,4 +1,4 @@
-import { type ChangeError, changeLines, changeSummary, rewordEdited } from "@jobfilly/core";
+import { type ChangeError, changeLines, editedSummary, rewordEdited } from "@jobfilly/core";
 import {
   createThread,
   type Database,
@@ -54,12 +54,13 @@ export interface Failure {
 }
 type Result<T> = { ok: true; data: T } | Failure;
 
-const fail = (status: Failure["status"], error: string, message?: string): Failure => ({
+/** A refusal with `status` and the error code, and plain words when there are any. */
+export const fail = (status: Failure["status"], error: string, message?: string): Failure => ({
   ok: false,
   status,
   body: message ? { error, message } : { error },
 });
-const NOT_FOUND = fail(404, "not_found");
+export const NOT_FOUND = fail(404, "not_found");
 const DECIDED = fail(409, "decided", "This proposal was already applied or discarded.");
 
 /** A proposal made only of rule and entry changes, or none: the only kind ever stored. */
@@ -246,8 +247,6 @@ async function proposalProfile(deps: AppDeps, ws: string, stored: StoredProposal
   return profile ? { profile, rules: await listRules(deps.db, ws, profile.id) } : null;
 }
 
-const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
-
 /**
  * Edits an open proposal before Apply (PATCH, F8.2): the card's changes, e.g. the time-zone
  * range. A rule whose conditions changed is reworded, the summary follows the edit, and the
@@ -268,9 +267,7 @@ export async function editProposal(
   const changes = rewordEdited(stored.changes, edited);
   const preview = await previewChanges(deps, ws, { ...target, changes, userId: user.id });
   if (!preview.ok) return fail(400, "invalid", errorWords(preview.error));
-  const summary = same(changes, stored.changes)
-    ? stored.summary
-    : changeSummary(changes, target.rules);
+  const summary = editedSummary(stored, changes, target.rules);
   const at = deps.clock.now();
   const updated = await updateOpenProposal(deps.db, ws, proposalId, {
     summary,

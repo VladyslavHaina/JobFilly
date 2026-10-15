@@ -11,7 +11,7 @@ import type { ProfileHistoryEntry, ProfileHistoryItem, User } from "@jobfilly/sc
 import type { AppDeps } from "../deps";
 import type { Logger } from "../log";
 import { applyAndReevaluate } from "../profile/changes";
-import { type Failure, inTransaction, refuse } from "./service";
+import { type Failure, fail, inTransaction, NOT_FOUND, refuse } from "./service";
 
 // The profile history (F8.4): every applied change with who, when, the source and the request
 // behind it, in plain words before and after, and Undo. Undo restores the entry's `before` as
@@ -49,12 +49,7 @@ export async function listHistory(
   return entries.map((e) => toItem(e, names));
 }
 
-const NOT_FOUND: Failure = { ok: false, status: 404, body: { error: "not_found" } };
-const UNDONE: Failure = {
-  ok: false,
-  status: 409,
-  body: { error: "undone", message: "This change was already undone." },
-};
+const UNDONE = fail(409, "undone", "This change was already undone.");
 
 /** Undoes one change (POST …/history/:entryId/undo): restores what it changed. */
 export async function undoChange(
@@ -81,11 +76,7 @@ export async function undoChange(
     );
     if (!result) refuse(NOT_FOUND);
     if (!result.ok) {
-      refuse({
-        ok: false,
-        status: 409,
-        body: { error: "stale", message: "This change can't be undone any more." },
-      });
+      refuse(fail(409, "stale", "This change can't be undone any more."));
     }
   });
   if (!done.ok) return done;

@@ -188,6 +188,19 @@ async function drain() {
 }
 
 /**
+ * Marks the role's claimed draft saved to the mailbox, as the replies slice's draft.create does
+ * once the copy is in the Drafts folder. This branch has no packages/db function for it (the
+ * replies slice adds markDraftSaved), so it is one statement on the test database.
+ */
+async function markInMailbox(messageId: string) {
+  await deps.db.execute(
+    `update drafts set status = 'in_mailbox', claimed_at = null
+     where workspace_id = '${ws.workspaceId}' and message_id = '${messageId}' and position = 0
+       and status = 'saving'`,
+  );
+}
+
+/**
  * Maria's inbox, evaluated: the Singapore role that fits has its draft in the mailbox, Sydney's
  * draft failed for good (it had one, so it never gets another automatically), the other
  * Singapore role scores under the threshold, and the CET role has its draft claimed.
@@ -233,11 +246,15 @@ async function seedInbox() {
   });
   if (!original) throw new Error("expected the Singapore message");
   await client.saveDraft({ original, reply: { subject: "Re", body: "Hello" }, attachment: null });
+  await markInMailbox(ROLES.sg1.id);
+  expect(await draftOf(ROLES.sg1.id)).toBe("in_mailbox");
 }
 
 const states = () => listRoleStates(deps.db, ws.workspaceId);
 const draftsOf = async () =>
   (await states()).map((s) => [s.messageId, s.draft?.status ?? null, s.draftHistory.hadDraft]);
+const draftOf = async (messageId: string) =>
+  (await states()).find((s) => s.messageId === messageId)?.draft?.status ?? null;
 
 async function send(client: TestClient, text: string, threadId: string | null = null) {
   const res = await client.post(`${base()}/assistant`, { threadId, text });
@@ -358,9 +375,8 @@ describe("a preference request (F8.2)", () => {
         },
       ],
       // Sydney's draft failed for good and the other Singapore role is under the threshold, so no
-      // draft goes missing; the Singapore draft in the mailbox is counted by the preview's own
-      // tests (packages/core), as its status is set by the replies slice.
-      impact: { hides: 3, shows: 0, scoreMoves: 0, draftsNotCreated: 0 },
+      // draft goes missing; the Singapore draft is in the mailbox, where it stays (F8.5).
+      impact: { hides: 3, shows: 0, scoreMoves: 0, draftsNotCreated: 0, draftsInMailbox: 1 },
     });
     // The preview ran the rules engine and the match with the stored answers: no model call.
     expect(ai.calls.match).toBe(matchCalls);
@@ -447,6 +463,7 @@ describe("Apply (F8.3, F8.5, F8.8)", () => {
     // Drafts already in the mailbox are never touched, and no draft is made again.
     expect(mailbox.drafts()).toEqual(draftsBefore);
     expect(await draftsOf()).toEqual(rowsBefore);
+    expect(await draftOf(ROLES.sg1.id)).toBe("in_mailbox");
   });
 
   it("answers 404 for another member's proposal", async () => {
@@ -529,6 +546,7 @@ describe("history and Undo after Apply (F8.4)", () => {
     expect(await hiddenIds(maria)).toEqual([]);
     expect(mailbox.drafts()).toEqual(draftsBefore);
     expect(await draftsOf()).toEqual(rowsBefore);
+    expect(await draftOf(ROLES.sg1.id)).toBe("in_mailbox");
     expect((await maria.post(`${historyUrl}/${entryId}/undo`)).status).toBe(409);
   });
 });
