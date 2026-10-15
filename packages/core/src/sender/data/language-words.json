@@ -71,7 +71,22 @@
         "oder",
         "auch",
         "freundlichen",
-        "suchen"
+        "suchen",
+        "hat",
+        "haben",
+        "zur",
+        "zum",
+        "dem",
+        "wird",
+        "werden",
+        "nach",
+        "kann",
+        "können",
+        "über",
+        "neue",
+        "neuen",
+        "einer",
+        "einem"
       ],
       "negations": ["nie", "niemals", "kein", "keine", "keinen", "nicht", "ohne"]
     },

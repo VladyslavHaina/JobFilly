@@ -22,6 +22,31 @@ describe("detectLanguage", () => {
     ).toBe("pt");
   });
 
+  it("reads the message's own text first, not the job board's English footer", () => {
+    const footer = [
+      "You are receiving job alert emails because you created a job alert. You can change how often you receive these alerts, edit your search or stop the alert at any time from your alert settings.",
+      "Jobs are listed by the employers and recruiters who post them; check every listing carefully: a genuine employer never asks for money or identity documents before an offer.",
+      "This email was sent to you by the job platform. Our privacy policy explains how we use your search activity to recommend jobs. To stop receiving all marketing and alert emails, use the unsubscribe link in your settings.",
+    ].join("\n\n");
+    const xing = [
+      "Wir haben 3 neue Jobs im Bereich Softwareentwicklung für Sie gefunden.",
+      "Softwareentwickler Backend (m/w/d)\nCopperleaf Analytics · Berlin, Deutschland · Hybrid\nZur Stelle: https://jobs.example/1",
+      footer,
+    ].join("\n\n");
+    const stepstone = [
+      'Ihr Jobagent "Backend" hat 3 neue passende Stellenangebote gefunden.',
+      "Backend-Entwickler (m/w/d)\nSpreeblick Mobility GmbH · Berlin\nZur Stelle: https://jobs.example/2",
+      footer,
+    ].join("\n\n");
+    expect(detectLanguage(xing)).toBe("de");
+    expect(detectLanguage(stepstone)).toBe("de");
+    // The footer alone, or an English message, is still English.
+    expect(detectLanguage(footer)).toBe("en");
+    expect(detectLanguage(`Hi Maria,\n\nWe are looking for a backend engineer.\n\n${footer}`)).toBe(
+      "en",
+    );
+  });
+
   it("names a language without phrase lists too, so its check is marked incomplete", () => {
     expect(
       detectLanguage(
