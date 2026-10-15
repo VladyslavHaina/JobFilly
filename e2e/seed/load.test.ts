@@ -1,7 +1,9 @@
-import { cpSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { parse } from "yaml";
+import { COMPOSE_FILE, PERSONAS } from "../stack.ts";
 import { connectWithRetry } from "./connect.ts";
 import { dateFor, loadPersona, rfc5322Date, SeedError, type SeedImap } from "./load.ts";
 
@@ -262,6 +264,50 @@ describe("seed load", () => {
       loadPersona({ open: imap.open, fixturesDir: FIXTURES, persona: "nobody", now: NOW }),
     ).rejects.toThrow('No fixtures for persona "nobody"');
   });
+});
+
+// The real persona fixtures, loaded the way `pnpm e2e:stack up` loads them: `seed load <persona>`
+// for every persona stack.ts names, with the FIXTURES_DIR compose gives the seed service, read
+// from the repository root as the e2e image does (its /repo holds e2e/ where the repository does).
+describe("seed load over the persona fixtures", () => {
+  const ROOT = join(import.meta.dirname, "..", "..");
+  const compose = parse(readFileSync(join(ROOT, COMPOSE_FILE), "utf8"), { merge: true }) as {
+    services: { seed: { environment: { FIXTURES_DIR: string } } };
+  };
+  const fixturesDir = join(ROOT, compose.services.seed.environment.FIXTURES_DIR);
+  const NINETY_DAYS_MS = 90 * 24 * 60 * 60_000;
+
+  it.each(PERSONAS)(
+    "appends every message of %s to its folder, in the 90-day window",
+    async (persona) => {
+      const envelopes = JSON.parse(
+        readFileSync(join(fixturesDir, persona, "envelopes.json"), "utf8"),
+      ) as { file: string; folder: string; messageId: string }[];
+      const emls = ["inbox", "sent"].flatMap((folder) =>
+        readdirSync(join(fixturesDir, persona, "mail", folder))
+          .filter((name) => name.endsWith(".eml"))
+          .map((name) => `${folder}/${name}`),
+      );
+      // envelopes.json lists exactly the .eml files there are.
+      expect(envelopes.map((e) => e.file).sort()).toEqual(emls.sort());
+
+      const imap = fakeImap();
+      const result = await loadPersona({ open: imap.open, fixturesDir, persona, now: NOW });
+
+      const inbox = envelopes.filter((e) => e.folder === "inbox").length;
+      expect(result).toEqual({ inbox, sent: envelopes.length - inbox });
+      expect(result.inbox).toBeGreaterThan(0);
+      expect(result.sent).toBeGreaterThan(0);
+      expect(imap.appended).toHaveLength(envelopes.length);
+      const appended = new Map(imap.appended.map((m) => [header(m.content, "Message-ID")[0], m]));
+      for (const e of envelopes) {
+        const m = appended.get(e.messageId);
+        expect(m?.path, e.file).toBe(e.folder === "sent" ? "Sent" : "INBOX");
+        expect(NOW.getTime() - (m?.idate.getTime() ?? 0), e.file).toBeLessThan(NINETY_DAYS_MS);
+      }
+      expect(imap.isOpen()).toBe(false);
+    },
+  );
 });
 
 describe("dates", () => {
