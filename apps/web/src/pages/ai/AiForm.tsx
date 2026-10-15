@@ -1,15 +1,15 @@
 import {
-  AI_PROVIDERS,
   AI_TASKS,
   type AiModels,
+  type AiProvider,
   type AiProviderId,
+  AiProviderListSchema,
   type AiSettingsPublic,
   AiSettingsResponseSchema,
   type AiTask,
   type AiTestResult,
   AiTestResultSchema,
-  aiProvider,
-  aiReadBy,
+  baseUrlHost,
   DEFAULT_BUDGET_PER_RUN,
 } from "@jobfilly/schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -22,6 +22,8 @@ import { apiPaths } from "../../paths";
 // "Pick your AI" (onboarding) and Settings › AI (F3). A short list of providers, a key and/or a
 // base URL, a model per task pre-selected from the provider's defaults, the run budget, a Test
 // button and the one privacy line. The key is typed, sent to save or test, and never shown again.
+// The providers, their default hosts and models come from the server (GET /ai/providers), so
+// nothing vendor-specific lives in the web app.
 
 type Mode = "onboarding" | "settings";
 
@@ -71,20 +73,32 @@ function TestOutcome({ result }: { result: AiTestResult }) {
   );
 }
 
-function Form(props: { saved: AiSettingsPublic | null; mode: Mode; onSaved?: () => void }) {
+/** The privacy line's data while the user types: the base URL's host, else the provider's own. */
+const readByOf = (info: AiProvider, baseUrl: string | null) => ({
+  provider: info.label,
+  host: baseUrl ? baseUrlHost(baseUrl) : (info.defaultHost ?? ""),
+});
+
+function Form(props: {
+  providers: AiProvider[];
+  saved: AiSettingsPublic | null;
+  mode: Mode;
+  onSaved?: () => void;
+}) {
   const { workspaceId, can } = useWorkspace();
   const client = useQueryClient();
   const [form, setForm] = useState<FormState>(() => initialState(props.saved));
   const [tested, setTested] = useState<AiTestResult | null>(null);
   const [saved, setSaved] = useState(false);
-  const info = form.provider ? aiProvider(form.provider) : null;
+  const providerInfo = (id: AiProviderId | "") => props.providers.find((p) => p.id === id) ?? null;
+  const info = providerInfo(form.provider);
   const baseUrl = form.baseUrl.trim() || null;
   const sameEndpoint =
     props.saved !== null &&
     props.saved.provider === form.provider &&
     (props.saved.baseUrl ?? null) === baseUrl;
   const keyStored = sameEndpoint && (props.saved?.hasKey ?? false);
-  const readBy = form.provider ? aiReadBy(form.provider, baseUrl) : null;
+  const readBy = info ? readByOf(info, baseUrl) : null;
 
   const update = (patch: Partial<FormState>) => {
     setForm((f) => ({ ...f, ...patch }));
@@ -92,11 +106,12 @@ function Form(props: { saved: AiSettingsPublic | null; mode: Mode; onSaved?: () 
     setSaved(false);
   };
   const choose = (provider: AiProviderId | "") => {
-    if (!provider) return update({ provider });
+    const chosen = providerInfo(provider);
+    if (!chosen) return update({ provider: "" });
     const keepSaved = props.saved?.provider === provider;
     update({
       provider,
-      models: keepSaved && props.saved ? props.saved.models : aiProvider(provider).defaultModels,
+      models: keepSaved && props.saved ? props.saved.models : chosen.defaultModels,
       baseUrl: keepSaved ? (props.saved?.baseUrl ?? "") : "",
       apiKey: "",
     });
@@ -142,7 +157,7 @@ function Form(props: { saved: AiSettingsPublic | null; mode: Mode; onSaved?: () 
             onChange={(e) => choose(e.target.value as AiProviderId | "")}
           >
             <option value="">Choose a provider</option>
-            {AI_PROVIDERS.map((p) => (
+            {props.providers.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.label}
               </option>
@@ -234,11 +249,25 @@ function Form(props: { saved: AiSettingsPublic | null; mode: Mode; onSaved?: () 
 }
 
 export function AiForm(props: { workspaceId: string; mode: Mode; onSaved?: () => void }) {
+  const base = `${apiPaths.workspace(props.workspaceId)}/ai`;
   const settings = useQuery({
     queryKey: aiKey(props.workspaceId),
-    queryFn: () => api(`${apiPaths.workspace(props.workspaceId)}/ai`, AiSettingsResponseSchema),
+    queryFn: () => api(base, AiSettingsResponseSchema),
   });
-  if (settings.isLoading) return <Loading />;
-  if (settings.error) return <Alert>{errorText(settings.error)}</Alert>;
-  return <Form saved={settings.data?.settings ?? null} mode={props.mode} onSaved={props.onSaved} />;
+  const providers = useQuery({
+    queryKey: [...aiKey(props.workspaceId), "providers"],
+    queryFn: () => api(`${base}/providers`, AiProviderListSchema),
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+  if (settings.isLoading || providers.isLoading) return <Loading />;
+  const failed = settings.error ?? providers.error;
+  if (failed) return <Alert>{errorText(failed)}</Alert>;
+  return (
+    <Form
+      providers={providers.data?.items ?? []}
+      saved={settings.data?.settings ?? null}
+      mode={props.mode}
+      onSaved={props.onSaved}
+    />
+  );
 }

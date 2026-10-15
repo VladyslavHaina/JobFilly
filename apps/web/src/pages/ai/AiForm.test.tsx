@@ -1,4 +1,4 @@
-import { AI_PROVIDERS, type AiSettingsPublic, aiProvider } from "@jobfilly/schema";
+import type { AiProvider, AiProviderId, AiSettingsPublic } from "@jobfilly/schema";
 import { cleanup, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -11,11 +11,46 @@ import {
 } from "../../components/testing";
 import { AiForm } from "./AiForm";
 
-// AiForm in onboarding and settings mode, against a fake API (F3.1–F3.3).
+// AiForm in onboarding and settings mode, against a fake API (F3.1–F3.3). The provider list is
+// whatever GET /ai/providers serves; these models and hosts are the fake server's, so a form that
+// carried its own catalogue would fail here.
 
 const ws = testWorkspace();
 const url = `/api/workspaces/${ws.id}/ai`;
 const KEY = "E2E-SECRET-ai-key";
+
+const models = (prefix: string) => ({
+  classify: `${prefix}-classify`,
+  extract: `${prefix}-extract`,
+  prefs: `${prefix}-prefs`,
+  intake: `${prefix}-intake`,
+});
+const vendor = (id: AiProviderId, label: string, defaultHost: string): AiProvider => ({
+  id,
+  label,
+  defaultHost,
+  keyRequired: true,
+  baseUrlRequired: false,
+  defaultModels: models(id),
+});
+const providers: AiProvider[] = [
+  vendor("anthropic", "Anthropic", "api.anthropic.test"),
+  vendor("openai", "OpenAI", "api.openai.test"),
+  vendor("google", "Google", "google-ai.test"),
+  {
+    id: "openai-compatible",
+    label: "OpenAI-compatible endpoint",
+    defaultHost: null,
+    keyRequired: false,
+    baseUrlRequired: true,
+    defaultModels: models("local"),
+  },
+];
+const defaults = (id: AiProviderId) => providers.find((p) => p.id === id)?.defaultModels;
+
+/** The fake API with the provider list served, as the server serves it to every member. */
+const api = (routes: Parameters<typeof fakeApi>[0]) =>
+  fakeApi({ [`GET ${url}/providers`]: { items: providers }, ...routes });
 
 const saved: AiSettingsPublic = {
   provider: "openai-compatible",
@@ -46,17 +81,27 @@ async function pickCompatible(user: ReturnType<typeof userEvent.setup>) {
 }
 
 describe.each(["onboarding", "settings"] as const)("AiForm in %s mode", (mode) => {
-  it("offers the short list of providers", async () => {
-    fakeApi({ [`GET ${url}`]: { settings: null } });
+  it("offers the short list of providers the server serves", async () => {
+    api({ [`GET ${url}`]: { settings: null } });
     renderInWorkspace(<AiForm workspaceId={ws.id} mode={mode} />);
     const select = await screen.findByLabelText("AI provider");
     const options = [...select.querySelectorAll("option")].map((o) => o.textContent);
-    expect(options).toEqual(["Choose a provider", ...AI_PROVIDERS.map((p) => p.label)]);
+    expect(options).toEqual(["Choose a provider", ...providers.map((p) => p.label)]);
     expect(options).toHaveLength(5);
   });
 
+  it("says so when the provider list can't be loaded", async () => {
+    fakeApi({
+      [`GET ${url}`]: { settings: null },
+      [`GET ${url}/providers`]: json({ error: "internal", message: "Something went wrong" }, 500),
+    });
+    renderInWorkspace(<AiForm workspaceId={ws.id} mode={mode} />);
+    expect((await screen.findByRole("alert")).textContent).toContain("Something went wrong");
+    expect(screen.queryByLabelText("AI provider")).toBeNull();
+  });
+
   it("pre-selects the provider's default models, which can be changed", async () => {
-    const seen = fakeApi({
+    const seen = api({
       [`GET ${url}`]: { settings: null },
       [`PUT ${url}`]: (req: FakeRequest) => ({
         settings: { ...saved, models: (req.body as AiSettingsPublic).models },
@@ -65,10 +110,14 @@ describe.each(["onboarding", "settings"] as const)("AiForm in %s mode", (mode) =
     const user = userEvent.setup();
     renderInWorkspace(<AiForm workspaceId={ws.id} mode={mode} />);
     await user.selectOptions(await screen.findByLabelText("AI provider"), "Anthropic");
-    const d = aiProvider("anthropic").defaultModels;
-    expect(modelFields()).toEqual([d.classify, d.extract, d.prefs, d.intake]);
+    expect(modelFields()).toEqual([
+      "anthropic-classify",
+      "anthropic-extract",
+      "anthropic-prefs",
+      "anthropic-intake",
+    ]);
     await user.selectOptions(screen.getByLabelText("AI provider"), "Google");
-    expect(modelFields()[0]).toBe(aiProvider("google").defaultModels.classify);
+    expect(modelFields()[0]).toBe("google-classify");
     const field = screen.getByLabelText("Model for job facts");
     await user.clear(field);
     await user.type(field, "my-own-model");
@@ -77,12 +126,12 @@ describe.each(["onboarding", "settings"] as const)("AiForm in %s mode", (mode) =
     await vi.waitFor(() => expect(seen.some((r) => r.method === "PUT")).toBe(true));
     expect(seen.find((r) => r.method === "PUT")?.body).toMatchObject({
       provider: "google",
-      models: { extract: "my-own-model", classify: aiProvider("google").defaultModels.classify },
+      models: { extract: "my-own-model", classify: "google-classify" },
     });
   });
 
   it("has key and base URL fields and the budget, 300 by default", async () => {
-    fakeApi({ [`GET ${url}`]: { settings: null } });
+    api({ [`GET ${url}`]: { settings: null } });
     const user = userEvent.setup();
     renderInWorkspace(<AiForm workspaceId={ws.id} mode={mode} />);
     await user.selectOptions(await screen.findByLabelText("AI provider"), "OpenAI");
@@ -94,12 +143,21 @@ describe.each(["onboarding", "settings"] as const)("AiForm in %s mode", (mode) =
   });
 
   it("shows the one privacy line for the chosen provider and host, and nothing about prices", async () => {
-    fakeApi({ [`GET ${url}`]: { settings: null } });
+    api({ [`GET ${url}`]: { settings: null } });
     const user = userEvent.setup();
     const { container } = renderInWorkspace(<AiForm workspaceId={ws.id} mode={mode} />);
     await user.selectOptions(await screen.findByLabelText("AI provider"), "Anthropic");
-    expect(screen.getByText("Your mail is read by Anthropic (api.anthropic.com)")).toBeTruthy();
+    expect(screen.getByText("Your mail is read by Anthropic (api.anthropic.test)")).toBeTruthy();
+    // A base URL replaces the served host, as soon as it has one; its user part is never shown.
+    const baseUrl = screen.getByLabelText("Base URL (optional)");
+    await user.type(baseUrl, "https://user:E2E-SECRET-x@Proxy.example");
+    expect(screen.getByText("Your mail is read by Anthropic (proxy.example)")).toBeTruthy();
+    expect(container.textContent).not.toContain("E2E-SECRET-x");
+    await user.clear(baseUrl);
+    expect(screen.getByText("Your mail is read by Anthropic (api.anthropic.test)")).toBeTruthy();
     await user.selectOptions(screen.getByLabelText("AI provider"), "OpenAI-compatible endpoint");
+    // No host is known before the endpoint's base URL is typed, so there is no line yet.
+    expect(container.textContent).not.toMatch(/Your mail is read by/);
     await user.type(screen.getByLabelText("Base URL"), "http://fake-ai:8080/v1");
     expect(
       screen.getByText("Your mail is read by OpenAI-compatible endpoint (fake-ai:8080)"),
@@ -110,7 +168,7 @@ describe.each(["onboarding", "settings"] as const)("AiForm in %s mode", (mode) =
 
   it("tests with a waiting state, then success", async () => {
     let answer: (r: Response) => void = () => {};
-    const seen = fakeApi({
+    const seen = api({
       [`GET ${url}`]: { settings: null },
       [`POST ${url}/test`]: () =>
         new Promise<Response>((resolve) => {
@@ -127,14 +185,14 @@ describe.each(["onboarding", "settings"] as const)("AiForm in %s mode", (mode) =
     expect(seen.find((r) => r.method === "POST")?.body).toEqual({
       provider: "openai-compatible",
       baseUrl: "http://fake-ai:8080/v1",
-      models: aiProvider("openai-compatible").defaultModels,
+      models: defaults("openai-compatible"),
       apiKey: KEY,
       budgetPerRun: 300,
     });
   });
 
   it("shows a plain error when the test fails", async () => {
-    fakeApi({
+    api({
       [`GET ${url}`]: { settings: null },
       [`POST ${url}/test`]: {
         ok: false,
@@ -153,7 +211,7 @@ describe.each(["onboarding", "settings"] as const)("AiForm in %s mode", (mode) =
 
   it("never shows the key again after saving", async () => {
     const onSaved = vi.fn();
-    fakeApi({ [`GET ${url}`]: { settings: null }, [`PUT ${url}`]: { settings: saved } });
+    api({ [`GET ${url}`]: { settings: null }, [`PUT ${url}`]: { settings: saved } });
     const user = userEvent.setup();
     const { container } = renderInWorkspace(
       <AiForm workspaceId={ws.id} mode={mode} onSaved={onSaved} />,
@@ -169,7 +227,7 @@ describe.each(["onboarding", "settings"] as const)("AiForm in %s mode", (mode) =
 
 describe("saved settings", () => {
   it("load into the form, say a key is stored, and never show it", async () => {
-    fakeApi({ [`GET ${url}`]: { settings: { ...saved, budgetPerRun: 5 } } });
+    api({ [`GET ${url}`]: { settings: { ...saved, budgetPerRun: 5 } } });
     const { container } = renderInWorkspace(<AiForm workspaceId={ws.id} mode="settings" />);
     expect(((await screen.findByLabelText("AI provider")) as HTMLSelectElement).value).toBe(
       "openai-compatible",
@@ -182,7 +240,7 @@ describe("saved settings", () => {
   });
 
   it("are read-only for viewers", async () => {
-    fakeApi({ [`GET ${url}`]: { settings: saved } });
+    api({ [`GET ${url}`]: { settings: saved } });
     renderInWorkspace(<AiForm workspaceId={ws.id} mode="settings" />, { role: "viewer" });
     // Disabled through its fieldset, as every field of the form is.
     expect((await screen.findByLabelText("AI provider")).matches(":disabled")).toBe(true);
