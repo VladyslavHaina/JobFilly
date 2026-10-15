@@ -183,16 +183,27 @@ describe("a stream ends with the access it was opened with (F1.4, F1.9)", () => 
   });
 
   describe("re-checks on every heartbeat, for what ends without a notification", () => {
-    /** The events route behind the app's own session and membership checks, beating every 20 ms. */
-    function heartbeatApp() {
+    /**
+     * The events route behind the app's own session and membership checks, beating every 20 ms
+     * unless told otherwise. `afterAccessCheck` runs between those checks and the route.
+     */
+    function heartbeatApp(
+      options: { heartbeatMs?: number; afterAccessCheck?: () => Promise<void> } = {},
+    ) {
       const app = new Hono<AppEnv>();
       app.use(async (c, next) => {
         c.set("log", deps.log);
         await next();
       });
       app.use(sessionMiddleware(deps));
-      app.use("/w/:workspaceId/*", requireUser, workspaceMember(deps));
-      app.route("/w/:workspaceId/events", eventsRoutes(deps, { heartbeatMs: 20 }));
+      app.use("/w/:workspaceId/*", requireUser, workspaceMember(deps), async (_c, next) => {
+        await options.afterAccessCheck?.();
+        await next();
+      });
+      app.route(
+        "/w/:workspaceId/events",
+        eventsRoutes(deps, { heartbeatMs: options.heartbeatMs ?? 20 }),
+      );
       return app;
     }
 
@@ -237,6 +248,37 @@ describe("a stream ends with the access it was opened with (F1.4, F1.9)", () => 
       expect(deps.live.streams).toBe(0);
       expect(await findSession(deps.db, tokenHashOf(tomApi))).toBeNull();
     });
+
+    // A change made before the stream subscribes sends its notification to nobody; the check
+    // when the stream opens is what closes it.
+    for (const change of ["the membership is removed", "the session is deleted"] as const) {
+      it(`closes at once when ${change} between the access check and the stream`, async () => {
+        const tomApi = await signedIn(createApp(deps), deps, tom);
+        const session = await findSession(deps.db, tokenHashOf(tomApi));
+        if (!session) throw new Error("no session");
+        const app = heartbeatApp({
+          // No heartbeat comes during the test.
+          heartbeatMs: 60_000,
+          afterAccessCheck: async () => {
+            if (change === "the membership is removed") {
+              await removeMember(deps.db, maria.workspaceId, tom.id);
+            } else {
+              await deleteSession(deps.db, session.id);
+            }
+          },
+        });
+        const res = await app.request(`/w/${maria.workspaceId}/events`, {
+          headers: { Cookie: cookieOf(tomApi) },
+        });
+        expect(res.status).toBe(200);
+        const reader = res.body?.getReader();
+        if (!reader) throw new Error("no body");
+        const stillOpen = new Promise<string>((r) => setTimeout(() => r("still open"), 3000));
+        const ended = await Promise.race([readToEnd(reader).then(() => "ended"), stillOpen]);
+        expect(ended).toBe("ended");
+        expect(deps.live.streams).toBe(0);
+      });
+    }
 
     it("keeps a member's live session open", async () => {
       const tomApi = await signedIn(createApp(deps), deps, tom);

@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { AiClient } from "@jobfilly/ai";
 import { aggregateIntake } from "@jobfilly/core";
 import {
@@ -248,7 +249,7 @@ beforeEach(async () => {
   outsider = await signedIn(app, deps, stranger);
   events = [];
   deps.live.subscribe(
-    ws.workspaceId,
+    { workspaceId: ws.workspaceId, userId: maria.id, sessionId: randomUUID() },
     (e) => events.push(e),
     () => {},
   );

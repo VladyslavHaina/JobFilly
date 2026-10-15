@@ -42,11 +42,10 @@ export interface LiveHub {
    */
   revoke(change: LiveAccessChange): Promise<void>;
   /**
-   * Registers one stream of this replica; returns the function that unregisters it. A browser's
-   * stream passes its StreamOwner, so revoke() can close it. A bare workspace id registers a
-   * listener of the server itself, with no user or session: no access change ever closes it.
+   * Registers one member's stream on this replica; returns the function that unregisters it.
+   * revoke() closes it when its owner's membership or session ends.
    */
-  subscribe(owner: StreamOwner | string, listener: LiveListener, onClose: () => void): () => void;
+  subscribe(owner: StreamOwner, listener: LiveListener, onClose: () => void): () => void;
   /** Closes every open stream (shutdown): browsers reconnect, to another replica. */
   closeAll(): void;
   /** How many streams this replica holds. */
@@ -55,7 +54,7 @@ export interface LiveHub {
 }
 
 interface Stream {
-  owner: Partial<StreamOwner> & { workspaceId: string };
+  owner: StreamOwner;
   listener: LiveListener;
   onClose: () => void;
 }
@@ -131,7 +130,7 @@ export function createLiveHub(notifier: Notifier, log: Logger): LiveHub {
     },
     subscribe(owner, listener, onClose) {
       const stream: Stream = {
-        owner: typeof owner === "string" ? { workspaceId: owner } : { ...owner },
+        owner: { ...owner },
         listener,
         onClose,
       };

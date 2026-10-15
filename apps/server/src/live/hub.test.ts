@@ -1,4 +1,5 @@
-import type { LiveEvent } from "@jobfilly/schema";
+import type { Notifier } from "@jobfilly/db";
+import type { LiveAccessChange, LiveEvent } from "@jobfilly/schema";
 import { afterEach, describe, expect, it } from "vitest";
 import { createLogger } from "../log";
 import { createTestDeps, type TestDeps } from "../testing";
@@ -152,12 +153,6 @@ describe("revoking streams (F1.4, F1.9)", () => {
       () => {},
       () => closed.push("same user, other session"),
     );
-    // A listener of the server itself has no session or user, so no access change closes it.
-    deps.live.subscribe(
-      W1,
-      () => {},
-      () => closed.push("server"),
-    );
 
     await b.revoke({ type: "session.ended", sessionId: S1 });
     await expect.poll(() => closed.length).toBe(2);
@@ -165,12 +160,86 @@ describe("revoking streams (F1.4, F1.9)", () => {
     await new Promise((r) => setTimeout(r, 30));
     expect(closed).toHaveLength(2);
     expect(b.streams).toBe(1);
-    await deps.live.revoke({ type: "member.removed", workspaceId: W1, userId: U1 });
-    expect(deps.live.streams).toBe(1);
+    expect(deps.live.streams).toBe(0);
   });
 
   it("refuses an access change that doesn't match its schema", async () => {
     deps = await createTestDeps();
     await expect(deps.live.revoke({ type: "session.ended", sessionId: "token" })).rejects.toThrow();
   });
+});
+
+/**
+ * A notifier that never reaches the other replicas in time: its notify() either rejects (the
+ * database is unreachable) or succeeds but delivers only when the test flushes it.
+ */
+function slowNotifier(mode: "rejects" | "deferred") {
+  const listeners: ((payload: string) => void)[] = [];
+  const queued: string[] = [];
+  const notifier: Notifier = {
+    async listen(_channel, onPayload) {
+      listeners.push(onPayload);
+      return async () => {};
+    },
+    async notify(_channel, payload) {
+      if (mode === "rejects") throw new Error("connection lost");
+      queued.push(payload);
+    },
+    async close() {},
+  };
+  const flush = () => {
+    for (const payload of queued.splice(0)) for (const deliver of listeners) deliver(payload);
+  };
+  return { notifier, flush };
+}
+
+describe("revoking streams on the replica that made the change (F1.4, F1.9)", () => {
+  const changes: LiveAccessChange[] = [
+    { type: "member.removed", workspaceId: W1, userId: U1 },
+    { type: "session.ended", sessionId: S1 },
+  ];
+
+  async function hubWith(mode: "rejects" | "deferred") {
+    const { notifier, flush } = slowNotifier(mode);
+    const warnings: string[] = [];
+    const hub = createLiveHub(
+      notifier,
+      createLogger({
+        level: "warn",
+        instance: "app-a",
+        write: (line) => warnings.push(JSON.parse(line).event),
+      }),
+    );
+    await hub.start();
+    const steps: string[] = [];
+    hub.subscribe(
+      owner(W1, U1, S1),
+      () => steps.push("delivered"),
+      () => steps.push("closed"),
+    );
+    return { hub, flush, warnings, steps };
+  }
+
+  for (const change of changes) {
+    it(`closes its own streams even when the notification fails (${change.type})`, async () => {
+      const { hub, warnings, steps } = await hubWith("rejects");
+      await expect(hub.revoke(change)).resolves.toBeUndefined();
+      steps.push("revoke resolved");
+      expect(steps).toEqual(["closed", "revoke resolved"]);
+      expect(hub.streams).toBe(0);
+      expect(warnings).toEqual(["live.error"]);
+    });
+
+    it(`closes its own streams before the notification comes back (${change.type})`, async () => {
+      const { hub, flush, warnings, steps } = await hubWith("deferred");
+      await hub.revoke(change);
+      steps.push("revoke resolved");
+      expect(steps).toEqual(["closed", "revoke resolved"]);
+      expect(hub.streams).toBe(0);
+      // The notification arriving afterwards finds nothing left to close.
+      flush();
+      expect(steps).toEqual(["closed", "revoke resolved"]);
+      expect(warnings).toEqual([]);
+    });
+  }
 });
