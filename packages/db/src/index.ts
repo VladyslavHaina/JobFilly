@@ -7,7 +7,7 @@
 // owner; and the signed-in user's own view across workspaces (listWorkspacesForUser by user id,
 // listPendingInvitations by the email the server matched to them). Two cross-workspace reads
 // serve every workspace the way the job claim does: listWorkspacesWithWork (the pipeline sweep)
-// and, from the mailbox slice, the scheduler's mailbox listing. registerAccount and
+// and listMailboxesToSync (the sync scheduler's mailbox listing). registerAccount and
 // createWorkspace make a workspace, so they have no id to take yet. There is no raw-SQL export.
 
 export { type Database, type DatabaseConnection, openDatabase } from "./client";

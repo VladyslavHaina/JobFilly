@@ -260,6 +260,7 @@ CREATE TABLE "sender_marks" (
 --> statement-breakpoint
 ALTER TABLE "jobs" ADD COLUMN "dedupe_key" text;--> statement-breakpoint
 ALTER TABLE "messages" ADD COLUMN "language" text;--> statement-breakpoint
+ALTER TABLE "messages" ADD COLUMN "sync_analysis_failures" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
 -- Hand-placed: the composite foreign keys below reference profiles (workspace_id, id).
 ALTER TABLE "profiles" ADD CONSTRAINT "profiles_workspace_id_key" UNIQUE("workspace_id","id");--> statement-breakpoint
 ALTER TABLE "assistant_messages" ADD CONSTRAINT "assistant_messages_workspace_id_workspaces_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspaces"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint

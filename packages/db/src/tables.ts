@@ -296,6 +296,11 @@ export const messages = pgTable(
      * read the body. The pipeline stores it, so CV choice and re-scoring never need the mailbox.
      */
     language: text("language"),
+    /**
+     * How many syncs tried to have the model sort this message and couldn't (the provider
+     * failing, or no AI set up): after a few the sync no longer holds its cursor for it.
+     */
+    syncAnalysisFailures: integer("sync_analysis_failures").notNull().default(0),
     searchText: text("search_text").generatedAlwaysAs(
       sql`lower(coalesce(from_name, '') || ' ' || from_address || ' ' || subject)`,
     ),

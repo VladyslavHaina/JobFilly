@@ -1,7 +1,7 @@
 import { type MailboxSyncStatus, NEVER_SYNCED, type SyncFailureReason } from "@jobfilly/schema";
-import { and, eq, exists, sql } from "drizzle-orm";
+import { and, eq, exists, inArray, sql } from "drizzle-orm";
 import type { Database } from "../client";
-import { mailboxes, mailboxSync, scans } from "../tables";
+import { mailboxes, mailboxSync, messages, scans } from "../tables";
 
 // The continuous sync's state per mailbox and folder (mailbox_sync, F1): the folder's UIDVALIDITY
 // and the last UID read (the cursor), when it last worked, since when it fails, and the
@@ -187,6 +187,25 @@ export async function getMailboxSyncStatus(
     };
   }
   return NEVER_SYNCED;
+}
+
+/**
+ * One more sync tried to have the model sort each of these messages and couldn't (the provider
+ * failing, or no AI set up); returns how many syncs have failed on each one now. The sync holds
+ * its cursor before such a message for only a few tries (sync/run.ts).
+ */
+export async function countSyncAnalysisFailures(
+  db: Database,
+  workspaceId: string,
+  messageIds: readonly string[],
+): Promise<Map<string, number>> {
+  if (messageIds.length === 0) return new Map();
+  const rows = await db
+    .update(messages)
+    .set({ syncAnalysisFailures: sql`${messages.syncAnalysisFailures} + 1` })
+    .where(and(eq(messages.workspaceId, workspaceId), inArray(messages.messageId, [...messageIds])))
+    .returning({ messageId: messages.messageId, failures: messages.syncAnalysisFailures });
+  return new Map(rows.map((r) => [r.messageId, r.failures]));
 }
 
 export interface MailboxToSync {

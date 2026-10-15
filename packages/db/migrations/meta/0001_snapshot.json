@@ -2557,6 +2557,13 @@
           "primaryKey": false,
           "notNull": false
         },
+        "sync_analysis_failures": {
+          "name": "sync_analysis_failures",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
         "search_text": {
           "name": "search_text",
           "type": "text",

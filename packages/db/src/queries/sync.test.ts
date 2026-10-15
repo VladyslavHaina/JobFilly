@@ -1,11 +1,13 @@
-import { NEVER_SYNCED } from "@jobfilly/schema";
+import { type Envelope, NEVER_SYNCED } from "@jobfilly/schema";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { DatabaseConnection } from "../client";
 import { openTestDatabase } from "../testing";
 import { registerAccount } from "./accounts";
 import { createMailbox, deleteMailbox, getMailboxConnection } from "./mailboxes";
+import { saveEnvelopes } from "./messages";
 import { createScan, stopScan } from "./scans";
 import {
+  countSyncAnalysisFailures,
   getMailboxSyncStatus,
   getSyncState,
   listMailboxesToSync,
@@ -265,5 +267,61 @@ describe("listMailboxesToSync", () => {
     expect(await listMailboxesToSync(conn.db, "INBOX")).toEqual([
       { workspaceId: ws.a.id, mailboxId: ws.a.mailbox, nextAttemptAt: later(30) },
     ]);
+  });
+});
+
+describe("countSyncAnalysisFailures", () => {
+  const envelope = (messageId: string, uid: number): Envelope => ({
+    messageId,
+    folder: "inbox",
+    folderPath: "INBOX",
+    uidValidity: 7,
+    uid,
+    date: T0.toISOString(),
+    from: { address: "lena@agency.example", name: null },
+    to: [],
+    cc: [],
+    replyTo: [],
+    inReplyTo: null,
+    references: [],
+    subject: "A role",
+    listId: null,
+    listUnsubscribe: null,
+    precedence: null,
+    autoSubmitted: null,
+    snippet: "",
+  });
+  const save = (key: "a" | "b", messageId: string, uid: number) =>
+    saveEnvelopes(conn.db, ws[key].id, [
+      { envelope: envelope(messageId, uid), verdict: "likely_job", reason: "test" },
+    ]);
+
+  it("counts each message's failed tries, in its own workspace only", async () => {
+    await save("a", "<one@agency.example>", 1);
+    await save("a", "<two@agency.example>", 2);
+    await save("b", "<one@agency.example>", 1);
+    expect(await countSyncAnalysisFailures(conn.db, ws.a.id, [])).toEqual(new Map());
+    expect(
+      await countSyncAnalysisFailures(conn.db, ws.a.id, [
+        "<one@agency.example>",
+        "<two@agency.example>",
+      ]),
+    ).toEqual(
+      new Map([
+        ["<one@agency.example>", 1],
+        ["<two@agency.example>", 1],
+      ]),
+    );
+    expect(await countSyncAnalysisFailures(conn.db, ws.a.id, ["<one@agency.example>"])).toEqual(
+      new Map([["<one@agency.example>", 2]]),
+    );
+    // Storing the message again (a re-read) keeps its count.
+    await save("a", "<one@agency.example>", 1);
+    expect(await countSyncAnalysisFailures(conn.db, ws.a.id, ["<one@agency.example>"])).toEqual(
+      new Map([["<one@agency.example>", 3]]),
+    );
+    expect(await countSyncAnalysisFailures(conn.db, ws.b.id, ["<one@agency.example>"])).toEqual(
+      new Map([["<one@agency.example>", 1]]),
+    );
   });
 });
