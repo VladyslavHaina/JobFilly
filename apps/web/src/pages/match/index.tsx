@@ -102,7 +102,7 @@ interface MatchPanelProps {
   evaluation: RoleEvaluation | null;
 }
 
-/** One role's match: its fit score, every verdict with its reason, its skills and its rules. */
+/** One role's match: its fit score, every verdict with its reason (rules included), its skills. */
 export function MatchPanel({ position, evaluation }: MatchPanelProps) {
   const heading = `Fit for role ${position + 1}`;
   if (!evaluation) {
@@ -112,10 +112,10 @@ export function MatchPanel({ position, evaluation }: MatchPanelProps) {
       </section>
     );
   }
-  const { match, hidden, ruleEffects, stale } = evaluation;
+  // The rules that apply are among the verdicts, each naming its rule (F3.3).
+  const { match, hidden, stale } = evaluation;
   // Hard conflicts first (F4.2), whatever order they come in.
   const verdicts = match ? [...match.verdicts].sort((a, b) => Number(b.hard) - Number(a.hard)) : [];
-  const otherEffects = ruleEffects.filter((e) => e.action !== "hide" && e.action !== "cap_score");
   return (
     <section
       aria-label={heading}
@@ -153,13 +153,6 @@ export function MatchPanel({ position, evaluation }: MatchPanelProps) {
           <SkillList title="Skills you have" skills={match.skills.matched} />
           <SkillList title="Skills missing" skills={match.skills.missing} />
         </div>
-      )}
-      {otherEffects.length > 0 && (
-        <ul aria-label="What your rules do" className="text-sm text-stone-700">
-          {otherEffects.map((e) => (
-            <li key={`${e.ruleId}-${e.action}`}>{e.reason}</li>
-          ))}
-        </ul>
       )}
     </section>
   );

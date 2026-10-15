@@ -56,6 +56,11 @@ const evaluation = (overrides: Partial<RoleEvaluation> = {}): RoleEvaluation => 
         hard: true,
         reason: "Amsterdam, hybrid — not one of your places ('Berlin, hybrid')",
       }),
+      verdict({
+        ruleId: RULE,
+        verdict: "conflicts",
+        reason: 'No automatic reply, by your rule "No drafts for agencies"',
+      }),
     ],
   },
   hidden: null,
@@ -123,6 +128,7 @@ describe("MatchPanel (F4.1, F4.2, F4.4)", () => {
       "Hard conflictPlaces you'd work onsite or hybridAmsterdam, hybrid — not one of your places ('Berlin, hybrid')",
       'FitsRoles you\'re looking for"Senior Backend Engineer" — a backend engineer role',
       "UnknownMinimum payCHF 110–130k a year — different currency",
+      'ConflictsYour ruleNo automatic reply, by your rule "No drafts for agencies"',
     ]);
     expect(
       screen.getByRole("img", { name: "Fit score 40, capped at 40 by a conflict" }),
@@ -131,17 +137,14 @@ describe("MatchPanel (F4.1, F4.2, F4.4)", () => {
     noAts(container);
   });
 
-  it("shows the matched and missing skills and what the rules do", () => {
+  it("shows the matched and missing skills, and the rules that apply", () => {
     panel(evaluation());
     expect(screen.getByText("Skills you have").nextSibling?.textContent).toContain(
       "Go, PostgreSQL",
     );
     expect(screen.getByText("Skills missing").nextSibling?.textContent).toContain("Kafka");
-    expect(
-      within(screen.getByRole("list", { name: "What your rules do" })).getByText(
-        'No automatic reply, by your rule "No drafts for agencies"',
-      ),
-    ).toBeTruthy();
+    const why = within(screen.getByRole("list", { name: "Why this fit score" }));
+    expect(why.getByText('No automatic reply, by your rule "No drafts for agencies"')).toBeTruthy();
   });
 
   it("names the rule that hides the role, and a stale score is marked as being updated", () => {
