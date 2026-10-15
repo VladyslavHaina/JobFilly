@@ -15,6 +15,14 @@ export type ScanStatus = z.infer<typeof ScanStatusSchema>;
 export const StopReasonSchema = z.enum(["confident", "budget", "done", "cancelled", "failed"]);
 export type StopReason = z.infer<typeof StopReasonSchema>;
 
+/**
+ * What a failed run ran into, so its stop message points to the right place: the mailbox
+ * (Settings › Mailbox), the AI provider (Settings › AI), or JobFilly itself, where no setting
+ * would help. Null for every other stop.
+ */
+export const StopCauseSchema = z.enum(["mailbox", "ai", "internal"]);
+export type StopCause = z.infer<typeof StopCauseSchema>;
+
 /** The counts the scan screen shows. */
 export const ScanCountsSchema = z.object({
   /** Sorted by stage one from the headers alone, without a model call. */
@@ -46,6 +54,8 @@ export const ScanSchema = z.object({
   kind: ScanKindSchema,
   status: ScanStatusSchema,
   stopReason: StopReasonSchema.nullable(),
+  /** Set only when stopReason is failed. */
+  stopCause: StopCauseSchema.nullable(),
   counts: ScanCountsSchema,
   calls: z.number().int().nonnegative(),
   inputTokens: z.number().int().nonnegative(),
@@ -73,6 +83,8 @@ export type ScanProgress = z.infer<typeof ScanProgressSchema>;
 export const CurrentScanSchema = z.object({
   progress: ScanProgressSchema.nullable(),
   stopMessage: z.string().nullable(),
+  /** When the latest run stopped, so a stop reads as that run's and not an earlier one's. */
+  stoppedAt: IsoDateTimeSchema.nullable(),
   /** Tokens used by the workspace across every model call so far (F3.6). */
   totalTokens: z.number().int().nonnegative(),
 });
