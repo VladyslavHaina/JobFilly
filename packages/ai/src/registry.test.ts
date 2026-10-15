@@ -104,6 +104,33 @@ describe("the provider registry", () => {
     }
   });
 
+  it("asks OpenAI for strict output except where the schema has optional keys or a record", async () => {
+    const bodies: { text?: { format?: { strict?: boolean; name?: string } } }[] = [];
+    const fetch = (async (_url: string | URL | Request, init?: RequestInit) => {
+      bodies.push(JSON.parse(String(init?.body)));
+      return unauthorized();
+    }) as typeof globalThis.fetch;
+    const client = createAiClient(settingsFor("openai"), { fetch });
+    const mail = {
+      messageId: "<a@x.example>",
+      folder: "inbox" as const,
+      from: { address: "a@x.example", name: null },
+      date: "2026-09-28T08:15:00.000Z",
+      subject: "s",
+      text: "t",
+    };
+    await client.classify([mail]);
+    await client.extract(mail);
+    await client.prefs([mail]);
+    await client.intake({ items: [], answers: [] });
+    expect(bodies.map((b) => [b.text?.format?.name, b.text?.format?.strict])).toEqual([
+      ["classify_v1", true],
+      ["extract_v1", false],
+      ["prefs_v1", false],
+      ["intake_v1", true],
+    ]);
+  });
+
   it("sends no Authorization header to a compatible endpoint without a key", async () => {
     const { seen, fetch } = recordingFetch(unauthorized);
     await createAiClient(settingsFor("openai-compatible", { apiKey: null }), { fetch }).test();
@@ -114,7 +141,7 @@ describe("the provider registry", () => {
     for (const info of AI_PROVIDERS) {
       const modelFor = modelRegistry(settingsFor(info.id, { models: info.defaultModels }));
       for (const task of ["classify", "extract", "prefs", "intake"] as const) {
-        const model = modelFor(task) as { modelId: string; provider: string };
+        const model = modelFor(task).model as { modelId: string; provider: string };
         expect(model.modelId).toBe(aiProvider(info.id).defaultModels[task]);
         expect(model.provider).toContain(info.id);
       }

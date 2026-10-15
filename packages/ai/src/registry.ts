@@ -3,7 +3,7 @@ import { createGoogle } from "@ai-sdk/google";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import type { AiClientSettings, AiTask } from "@jobfilly/schema";
-import type { LanguageModel } from "ai";
+import type { generateText, LanguageModel } from "ai";
 
 // The provider registry: the workspace's settings pick one provider, and each task its own
 // model. Every provider is built the same way from the settings alone: its key (never read from
@@ -12,8 +12,22 @@ import type { LanguageModel } from "ai";
 
 type FetchFunction = typeof fetch;
 
-/** The model a task runs on, built from the workspace's settings. */
-export type ModelFor = (task: AiTask) => LanguageModel;
+type ProviderOptions = Parameters<typeof generateText>[0]["providerOptions"];
+
+/** The model a task runs on, built from the workspace's settings, with any options it needs. */
+export interface TaskModel {
+  model: LanguageModel;
+  providerOptions?: ProviderOptions;
+}
+export type ModelFor = (task: AiTask) => TaskModel;
+
+/**
+ * OpenAI's strict structured-output mode needs every key required and no open records; the
+ * extract.v1 and prefs.v1 schemas have optional keys and an `extra` record (TBD-45). For those
+ * tasks OpenAI gets the same JSON Schema without strict mode; the answer is still validated
+ * against the schema here, as every answer is.
+ */
+const NOT_STRICT: ReadonlySet<AiTask> = new Set(["extract", "prefs"]);
 
 export function modelRegistry(settings: AiClientSettings, fetchFn?: FetchFunction): ModelFor {
   // A provider SDK falls back to its own environment variable when no key is passed; the empty
@@ -54,5 +68,10 @@ export function modelRegistry(settings: AiClientSettings, fetchFn?: FetchFunctio
       break;
     }
   }
-  return (task) => build(settings.models[task]);
+  return (task) => ({
+    model: build(settings.models[task]),
+    ...(settings.provider === "openai" && NOT_STRICT.has(task)
+      ? { providerOptions: { openai: { strictJsonSchema: false } } }
+      : {}),
+  });
 }

@@ -54,7 +54,7 @@ function scripted(answers: string[]) {
 function clientWith(answers: string[]) {
   const { model, prompts } = scripted(answers);
   const events: AiEvent[] = [];
-  const client = clientFromModels(() => model, { onEvent: (e) => events.push(e) });
+  const client = clientFromModels(() => ({ model }), { onEvent: (e) => events.push(e) });
   return { client, prompts, events };
 }
 
@@ -301,7 +301,7 @@ describe("models per task", () => {
     };
     const client = clientFromModels((task) => {
       used.push(task);
-      return scripted([answers[task]]).model;
+      return { model: scripted([answers[task]]).model };
     });
     await client.classify([item(1)]);
     await client.extract(item(1));

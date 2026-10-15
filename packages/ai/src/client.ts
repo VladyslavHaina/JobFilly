@@ -24,7 +24,6 @@ import {
 import {
   APICallError,
   generateText,
-  type LanguageModel,
   type LanguageModelUsage,
   LoadAPIKeyError,
   NoObjectGeneratedError,
@@ -33,7 +32,7 @@ import {
 } from "ai";
 import type { ZodType } from "zod";
 import { buildPrompt, type Prompt } from "./prompt";
-import { type ModelFor, modelRegistry } from "./registry";
+import { type ModelFor, modelRegistry, type TaskModel } from "./registry";
 
 // Every model call of the app goes through this client. Each call is one request to the provider
 // (the SDK's own retries are off, so the scan budget counts exactly) and adds one Usage entry,
@@ -108,7 +107,7 @@ function transportError(error: unknown): AiError {
 }
 
 async function request(
-  model: LanguageModel,
+  { model, providerOptions }: TaskModel,
   taskId: TaskId,
   prompt: Prompt,
   schema: ZodType,
@@ -120,6 +119,7 @@ async function request(
       prompt: prompt.user,
       output: Output.object({ schema, name: taskId.replaceAll(".", "_") }),
       maxRetries: 0,
+      ...(providerOptions ? { providerOptions } : {}),
     });
     return { text: result.text, usage: { task: taskId, ...tokens(result.usage) }, error: null };
   } catch (error) {
