@@ -8,7 +8,6 @@ import {
   listPendingOwnReplies,
   loadIntakeInput,
   markAnalysisFailed,
-  saveAnalysis,
   savePreferences,
   stopScan,
   updateScanProgress,
@@ -17,55 +16,38 @@ import {
 import type { MailClient } from "@jobfilly/mail";
 import {
   AI_BATCH_SIZE,
-  type AiError,
-  type AiMailItem,
-  type Category,
   type IntakeProposal,
   type LiveEvent,
   type Scan,
   type ScanCheckpoint,
   type ScanCounts,
   type ScanProgress,
-  type StopCause,
   type StopReason,
   type StoredMessage,
   type Usage,
 } from "@jobfilly/schema";
 import type { AppDeps } from "../../deps";
 import type { Logger } from "../../log";
+import {
+  type AnalysisRun,
+  analyzeBatch,
+  FATAL,
+  mailItems,
+  maxCalls,
+  RunFailed,
+} from "../../pipeline/analyze";
 import type { JobContext } from "../queue";
 
 // One run of a scan, after the handler has opened the mailbox and the AI client and stage one is
 // stored (index.ts). The first scan reads the user's own replies for preferences first (TBD-32),
-// then both kinds of run take the likely job mail newest first in batches of 20: one classify call
-// per batch for likely_job messages, then one extract call per job message and per job alert
-// (TBD-68). Every call counts toward the run's budget, retries included (TBD-17, TBD-66): a retry
-// is only allowed while a call is left for it. After every batch the run checkpoints, and the
-// confidence tracker says whether it stops (F4.4). Bodies are fetched for the model and never
-// stored (F4.9).
-
-/** A message body is cut to this many characters before it goes to the model. */
-const MAX_TEXT_LENGTH = 8000;
-
-/** Provider failures that no other message would get past: the run stops as failed. */
-const FATAL: readonly AiError["kind"][] = ["auth", "unreachable", "provider_error"];
+// then both kinds of run take the likely job mail newest first in batches of 20, sorted and
+// extracted by pipeline/analyze.ts, which the sync shares. Every call counts toward the run's
+// budget, retries included (TBD-17, TBD-66): a retry is only allowed while a call is left for it.
+// After every batch the run checkpoints, and the confidence tracker says whether it stops (F4.4).
+// Bodies are fetched for the model and never stored (F4.9).
 
 /** The scan was cancelled, or this replica is shutting down or lost the job: stop quietly. */
 class Interrupted extends Error {}
-
-/**
- * The run can't go on; it stops as failed. `stopCause` is what the user is told it ran into
- * (the mailbox, the AI provider, or JobFilly itself); `code` is the log's finer cause.
- */
-export class RunFailed extends Error {
-  constructor(
-    readonly stopCause: StopCause,
-    readonly code: string,
-  ) {
-    super(`scan run failed: ${code}`);
-    this.name = "RunFailed";
-  }
-}
 
 export interface RunInput {
   ctx: JobContext<unknown>;
@@ -149,7 +131,6 @@ export async function runScan(input: RunInput): Promise<void> {
     }
   }
   const callsLeft = () => budget - calls;
-  const maxCalls = (): 1 | 2 => (callsLeft() >= 2 ? 2 : 1);
 
   /** Makes one model call (two with a retry), unless the scan was cancelled meanwhile. */
   async function call<T extends { usage: Usage[] }>(make: () => Promise<T>): Promise<T> {
@@ -170,33 +151,16 @@ export async function runScan(input: RunInput): Promise<void> {
     return result;
   }
 
-  /** What the model reads of each message: its headers and the body, fetched now, never kept. */
-  async function itemsFor(rows: StoredMessage[]): Promise<Map<string, AiMailItem>> {
-    const items = new Map<string, AiMailItem>();
-    for (const { envelope: e } of rows) {
-      let body: { text: string } | null;
-      try {
-        body = await mail.fetchBody({
-          folderPath: e.folderPath,
-          uidValidity: e.uidValidity,
-          uid: e.uid,
-        });
-      } catch {
-        throw new RunFailed("mailbox", "mail_error");
-      }
-      // A message gone from its folder (UIDVALIDITY changed) is read from its stored snippet.
-      const text = (body?.text ?? e.snippet).slice(0, MAX_TEXT_LENGTH);
-      items.set(e.messageId, {
-        messageId: e.messageId,
-        folder: e.folder,
-        from: e.from,
-        date: e.date,
-        subject: e.subject,
-        text,
-      });
-    }
-    return items;
-  }
+  const analysis: AnalysisRun = {
+    db,
+    workspaceId,
+    scanId,
+    ai,
+    mail,
+    callsLeft,
+    stopRequested: () => stopRequested(),
+    call,
+  };
 
   /** The proposal as it stands, and the "answers firming up" count. */
   async function propose(): Promise<IntakeProposal> {
@@ -266,8 +230,10 @@ export async function runScan(input: RunInput): Promise<void> {
       const replies = await listPendingOwnReplies(db, workspaceId, { limit: AI_BATCH_SIZE });
       if (replies.length === 0) return null;
       if (callsLeft() <= 0) return "budget";
-      const items = await itemsFor(replies);
-      const result = await call(() => ai.prefs([...items.values()], { maxCalls: maxCalls() }));
+      const items = await mailItems(mail, replies);
+      const result = await call(() =>
+        ai.prefs([...items.values()], { maxCalls: maxCalls(analysis) }),
+      );
       let changed = 0;
       for (const item of result.items) {
         if (item.ok) {
@@ -292,59 +258,11 @@ export async function runScan(input: RunInput): Promise<void> {
     return null;
   }
 
-  /** One batch of likely job mail: classify, then extract the job mail, saving as it goes. */
+  /** One batch of likely job mail: classify, then extract the job mail (pipeline/analyze.ts). */
   async function analyze(batch: StoredMessage[]) {
-    const items = await itemsFor(batch);
-    const item = (row: StoredMessage) => items.get(row.envelope.messageId) as AiMailItem;
-    const categories = new Map<string, Category>();
-    for (const row of batch) {
-      // A job alert is sorted already; a person's correction is kept and decides as well.
-      if (row.categorySource === "you" && row.category) {
-        categories.set(row.envelope.messageId, row.category);
-      } else if (row.stageOne === "job_alert") {
-        categories.set(row.envelope.messageId, "job_alert");
-      }
-    }
-    const toClassify = batch.filter((row) => !categories.has(row.envelope.messageId));
-    if (toClassify.length > 0) {
-      if (callsLeft() <= 0) return;
-      const result = await call(() => ai.classify(toClassify.map(item), { maxCalls: maxCalls() }));
-      for (const r of result.items) {
-        if (r.ok) categories.set(r.messageId, r.data.category);
-        else if (r.error.kind === "invalid_output") {
-          await markAnalysisFailed(db, workspaceId, { messageId: r.messageId, scanId });
-          counts.analyzed += 1;
-        } else if (FATAL.includes(r.error.kind)) throw new RunFailed("ai", `ai_${r.error.kind}`);
-      }
-    }
-    for (const row of batch) {
-      const messageId = row.envelope.messageId;
-      if (categories.get(messageId) !== "not_job") continue;
-      await saveAnalysis(db, workspaceId, { messageId, scanId, category: "not_job", roles: [] });
-      counts.analyzed += 1;
-    }
-    for (const row of batch) {
-      const messageId = row.envelope.messageId;
-      const category = categories.get(messageId);
-      if (!category || category === "not_job") continue;
-      if (stopRequested() || callsLeft() <= 0) return;
-      const result = await call(() => ai.extract(item(row), { maxCalls: maxCalls() }));
-      if (result.ok) {
-        await saveAnalysis(db, workspaceId, {
-          messageId,
-          scanId,
-          category,
-          roles: result.data.roles,
-        });
-        counts.analyzed += 1;
-        counts.jobFound += 1;
-      } else if (result.error.kind === "invalid_output") {
-        await markAnalysisFailed(db, workspaceId, { messageId, scanId });
-        counts.analyzed += 1;
-      } else if (FATAL.includes(result.error.kind)) {
-        throw new RunFailed("ai", `ai_${result.error.kind}`);
-      }
-    }
+    const outcome = await analyzeBatch(analysis, batch);
+    counts.analyzed += outcome.analyzed;
+    counts.jobFound += outcome.jobs.length;
   }
 
   /** Likely job mail, newest first, batch by batch, until the tracker or a cancel stops the run. */

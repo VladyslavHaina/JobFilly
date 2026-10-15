@@ -24,9 +24,10 @@ import { aiClientFor } from "../../ai-usage";
 import { DAY } from "../../clock";
 import type { AppDeps } from "../../deps";
 import type { Logger } from "../../log";
+import { RunFailed } from "../../pipeline/analyze";
 import { open, openAiKey } from "../../secrets";
 import type { JobContext, JobHandler } from "../queue";
-import { RunFailed, runScan } from "./run";
+import { runScan } from "./run";
 
 // The 'scan.run' job: the first scan and "Analyze them" runs (F4). Exactly one replica runs a
 // scan, because only the lease holder runs its job; it logs scan.started on the first claim and
