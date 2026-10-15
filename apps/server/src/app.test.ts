@@ -94,10 +94,11 @@ describe("the workspace route modules", () => {
     ["GET", "ai", "viewer"],
     ["PUT", "ai", "admin"],
     ["POST", "ai/test", "admin"],
-    ["GET", "scans/current", "viewer"],
-    ["POST", "scans", "admin"],
-    ["POST", "scans/8f0e1c62-0000-4000-8000-000000000000/cancel", "admin"],
-    ["POST", "scans/analyze-rest", "admin"],
+    ["GET", "scans/current", "viewer", 200],
+    // No mailbox connected yet, no such scan, and no first scan yet.
+    ["POST", "scans", "admin", 409],
+    ["POST", "scans/8f0e1c62-0000-4000-8000-000000000000/cancel", "admin", 404],
+    ["POST", "scans/analyze-rest", "admin", 409],
     ["GET", "messages", "viewer", 200],
     // No such message in the workspace, and an empty correction.
     ["GET", `messages/${messageId}`, "viewer", 404],
