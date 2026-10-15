@@ -2,6 +2,7 @@ import { findUserByEmail, registerAccount } from "@jobfilly/db";
 import {
   RegisterInputSchema,
   type SessionInfo,
+  type SessionState,
   SIGN_IN_FAILED_MESSAGE,
   SignInInputSchema,
 } from "@jobfilly/schema";
@@ -18,7 +19,7 @@ export function personalWorkspaceName(name: string): string {
   return `${first}'s workspace`;
 }
 
-// /api/auth: register, sign in, sign out, me (F1.1–F1.5).
+// /api/auth: register, sign in, sign out, me and session (F1.1–F1.5).
 export function authRoutes(deps: AppDeps) {
   return new Hono<AppEnv>()
     .post("/register", validJson(RegisterInputSchema), async (c) => {
@@ -68,5 +69,6 @@ export function authRoutes(deps: AppDeps) {
       if (user) c.get("log").info("auth.signed_out");
       return c.body(null, 204);
     })
-    .get("/me", requireUser, (c) => c.json({ user: c.get("user") } satisfies SessionInfo));
+    .get("/me", requireUser, (c) => c.json({ user: c.get("user") } satisfies SessionInfo))
+    .get("/session", (c) => c.json({ user: c.get("user") ?? null } satisfies SessionState));
 }

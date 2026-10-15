@@ -37,6 +37,8 @@ describe("registration (F1.1)", () => {
     expect(ws).toMatchObject({ name: "Maria's workspace", role: "admin", isOwner: true });
     const me = await testClient(app, deps, cookieFrom(res)).get("/api/auth/me");
     expect(me.status).toBe(200);
+    const session = await testClient(app, deps, cookieFrom(res)).get("/api/auth/session");
+    expect(await session.json()).toEqual({ user });
     expect(deps.logs.map((l) => l.event)).toEqual(
       expect.arrayContaining(["auth.registered", "auth.signed_in"]),
     );
@@ -163,6 +165,9 @@ describe("session expiry and sign-out (F1.4)", () => {
     expect(out.headers.getSetCookie().join()).toMatch(/jf_session=;/);
     expect((await testClient(app, deps, cookie).get("/api/auth/me")).status).toBe(401);
     expect((await testClient(app, deps, cookie).get("/api/workspaces")).status).toBe(401);
+    const session = await testClient(app, deps, cookie).get("/api/auth/session");
+    expect(session.status).toBe(200);
+    expect(await session.json()).toEqual({ user: null });
     expect(await findSession(deps.db, hashToken(cookie?.split("=")[1] ?? ""))).toBeNull();
     expect(deps.logs.some((l) => l.event === "auth.signed_out")).toBe(true);
   });

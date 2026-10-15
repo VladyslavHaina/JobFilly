@@ -36,5 +36,12 @@ export type User = z.infer<typeof UserSchema>;
 export const SessionInfoSchema = z.object({ user: UserSchema });
 export type SessionInfo = z.infer<typeof SessionInfoSchema>;
 
+/**
+ * GET /api/auth/session: who is signed in, null when nobody is. Always 200, so a signed-out page
+ * load shows no failed request; GET /api/auth/me answers 401 instead.
+ */
+export const SessionStateSchema = z.object({ user: UserSchema.nullable() });
+export type SessionState = z.infer<typeof SessionStateSchema>;
+
 /** The one message for wrong credentials (F1.5). */
 export const SIGN_IN_FAILED_MESSAGE = "Email or password is incorrect";
