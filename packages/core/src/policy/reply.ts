@@ -1,0 +1,113 @@
+import type {
+  Category,
+  DraftOrigin,
+  NeedSpec,
+  ProfileEntry,
+  RuleEffect,
+  SenderVerdict,
+} from "@jobfilly/schema";
+import { policyValue, withinReplyWindow } from "./window";
+
+// The reply policy (F6.1, F6.5, F1.6, TBD-193): whether a role gets a draft now, and what holds it
+// back. The replies slice asks it before every draft and the assistant's impact preview asks it to
+// count drafts that won't be created, so both agree.
+
+/** Why a reply is held back. */
+export type HeldKind =
+  | "not_reply_to"
+  | "outside_window"
+  | "below_threshold"
+  | "sender_check_pending"
+  | "high_risk"
+  | "rule_hide"
+  | "rule_no_draft"
+  | "rule_ask_first"
+  | "open_needs"
+  | "already_drafted"
+  | "dismissed";
+
+export interface ReplyEligibilityInput {
+  /** auto: the pipeline; decision: after a decision answer; on_demand: Draft a reply (F6.5). */
+  origin: Exclude<DraftOrigin, "retry">;
+  category: Category | null;
+  receivedAt: Date | string;
+  now: Date;
+  profile: { entries: readonly ProfileEntry[] } | null;
+  /** The role's fit score; null while it has none. */
+  score: number | null;
+  capped: boolean;
+  /** Null while the message has no sender check yet: no draft is made without one. */
+  senderVerdict: SenderVerdict | null;
+  ruleEffects: readonly Pick<RuleEffect, "ruleId" | "action" | "reason">[];
+  /** Needs still unanswered for this role (match verdicts, rule effects, draft questions). */
+  openNeeds: readonly Pick<NeedSpec, "question">[];
+  draftHistory: { hadDraft: boolean; dismissed: boolean };
+}
+
+export interface ReplyEligibility {
+  eligible: boolean;
+  heldBy: { kind: HeldKind; reason: string }[];
+}
+
+/** The categories that get replies while the profile doesn't say (reply_to). */
+const DEFAULT_REPLY_TO: readonly Category[] = ["recruiter_outreach"];
+
+function replyTo(profile: ReplyEligibilityInput["profile"]): readonly Category[] {
+  const value = profile?.entries.find((e) => e.key === "reply_to")?.value as Category[] | undefined;
+  // An empty answer is "not stated" (the intake leaves it empty without evidence), not "never".
+  return value && value.length > 0 ? value : DEFAULT_REPLY_TO;
+}
+
+const RULE_HOLDS: Partial<Record<RuleEffect["action"], HeldKind>> = {
+  hide: "rule_hide",
+  no_draft: "rule_no_draft",
+  ask_first: "rule_ask_first",
+};
+
+/**
+ * Whether a role gets a draft now. on_demand (Draft a reply) is always eligible, whatever the
+ * score, window, rules or history; the route still needs an editor and no live draft. auto and
+ * decision are held by: a category outside reply_to (default recruiter outreach), a message
+ * outside the reply window, a score under reply_threshold (default 70), a missing sender check,
+ * a high-risk sender, a hide, no_draft or ask_first rule, open needs, and a role that had a draft
+ * (in the mailbox, discarded or failed) or was dismissed — so a re-evaluation never recreates a
+ * draft the user discarded.
+ */
+export function replyEligibility(input: ReplyEligibilityInput): ReplyEligibility {
+  if (input.origin === "on_demand") return { eligible: true, heldBy: [] };
+  const heldBy: ReplyEligibility["heldBy"] = [];
+  const hold = (kind: HeldKind, reason: string) => heldBy.push({ kind, reason });
+
+  if (!input.category || !replyTo(input.profile).includes(input.category)) {
+    hold("not_reply_to", "This kind of mail doesn't get replies");
+  }
+  if (!withinReplyWindow(input.receivedAt, input.now, input.profile)) {
+    const days = policyValue(input.profile, "reply_window_days");
+    hold("outside_window", `Older than ${days} days`);
+  }
+  const threshold = policyValue(input.profile, "reply_threshold");
+  if (input.score === null || input.score < threshold) {
+    hold(
+      "below_threshold",
+      input.score === null ? "Not scored yet" : `Fit score ${input.score} is below ${threshold}`,
+    );
+  }
+  if (input.senderVerdict === null) {
+    hold("sender_check_pending", "The sender check isn't done yet");
+  } else if (input.senderVerdict === "high_risk") {
+    hold("high_risk", "The sender looks high risk");
+  }
+  for (const effect of input.ruleEffects) {
+    const kind = RULE_HOLDS[effect.action];
+    if (kind) hold(kind, effect.reason);
+  }
+  if (input.openNeeds.length > 0) {
+    hold(
+      "open_needs",
+      `Waiting for your answer: ${input.openNeeds.map((n) => n.question).join("; ")}`,
+    );
+  }
+  if (input.draftHistory.hadDraft) hold("already_drafted", "This role already had a draft");
+  if (input.draftHistory.dismissed) hold("dismissed", "You chose not to be asked for this message");
+  return { eligible: heldBy.length === 0, heldBy };
+}

@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "languages": {
+    "en": {
+      "asks_for_fee": [
+        "registration fee",
+        "processing fee",
+        "training fee",
+        "pay a fee",
+        "pay the fee",
+        "one-time fee",
+        "refundable deposit",
+        "visa fee"
+      ],
+      "asks_for_id": [
+        "passport scan",
+        "scan of your passport",
+        "copy of your passport",
+        "copy of your id",
+        "photo of your id",
+        "national id card",
+        "bank details before"
+      ],
+      "chat_only": [
+        "on whatsapp only",
+        "contact me on whatsapp",
+        "via telegram",
+        "on telegram",
+        "interview via chat",
+        "chat interview"
+      ]
+    },
+    "de": {
+      "asks_for_fee": [
+        "anmeldegebühr",
+        "bearbeitungsgebühr",
+        "schulungsgebühr",
+        "gebühr überweisen",
+        "kaution"
+      ],
+      "asks_for_id": [
+        "kopie ihres reisepasses",
+        "scan ihres reisepasses",
+        "kopie ihres personalausweises",
+        "foto ihres ausweises"
+      ],
+      "chat_only": [
+        "nur über whatsapp",
+        "per whatsapp",
+        "über telegram",
+        "vorstellungsgespräch per chat"
+      ]
+    },
+    "pt": {
+      "asks_for_fee": [
+        "taxa de inscrição",
+        "taxa de processamento",
+        "taxa de formação",
+        "pagar uma taxa",
+        "caução"
+      ],
+      "asks_for_id": [
+        "cópia do passaporte",
+        "digitalização do passaporte",
+        "cópia do cartão de cidadão",
+        "foto do documento de identificação"
+      ],
+      "chat_only": ["apenas por whatsapp", "pelo whatsapp", "pelo telegram", "entrevista por chat"]
+    }
+  }
+}
