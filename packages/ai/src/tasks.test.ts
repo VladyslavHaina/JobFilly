@@ -69,6 +69,13 @@ describe("the key lines of the MVP 2 tasks", () => {
     expect(sample.messages[0]?.content).toBe(system);
   });
 
+  it("shows draft.v1 a group key's shape without any market's currency or pay format", () => {
+    const { system } = promptFor("draft.v1", input("draft.v1"));
+    expect(system).toContain("(for example min_pay:<ISO 4217 currency code>:<pay period>)");
+    // Nothing market-specific: currencies and pay formats come from the profile only.
+    expect(system).not.toMatch(/\b(CHF|EUR|USD|GBP)\b|per year|:year\b/);
+  });
+
   it("keys assistant.v1 by turn, with the user's words as the last block", () => {
     const { user } = promptFor("assistant.v1", input("assistant.v1"));
     const lines = user.split("\n");
