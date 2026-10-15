@@ -24,6 +24,7 @@ import {
   JobPlatformsFileSchema,
   LiveEnvelopeSchema,
   LiveEventSchema,
+  MailboxParamsSchema,
   MailTestResultSchema,
   MemberParamsSchema,
   MessageRefSchema,
@@ -343,9 +344,11 @@ describe("path params and the live envelope", () => {
   it("take a UUID as a row id and nothing else", () => {
     expect(MemberParamsSchema.safeParse({ userId: id }).success).toBe(true);
     expect(InviteParamsSchema.safeParse({ inviteId: id.toUpperCase() }).success).toBe(true);
+    expect(MailboxParamsSchema.safeParse({ mailboxId: id }).success).toBe(true);
     for (const bad of ["xyz", "", `${id}0`, "<a@b.example>"]) {
       expect(MemberParamsSchema.safeParse({ userId: bad }).success).toBe(false);
       expect(InviteParamsSchema.safeParse({ inviteId: bad }).success).toBe(false);
+      expect(MailboxParamsSchema.safeParse({ mailboxId: bad }).success).toBe(false);
     }
   });
 

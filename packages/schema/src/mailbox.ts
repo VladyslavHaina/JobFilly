@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { IsoDateTimeSchema } from "./common";
+import { IdSchema, IsoDateTimeSchema } from "./common";
 
 export const TlsModeSchema = z.enum(["tls", "starttls", "none"]);
 export type TlsMode = z.infer<typeof TlsModeSchema>;
@@ -88,6 +88,10 @@ export type MailboxPublic = z.infer<typeof MailboxPublicSchema>;
 /** GET /mailboxes: the workspace's mailbox (one per workspace in MVP 1), if any. */
 export const MailboxListSchema = z.object({ items: z.array(MailboxPublicSchema) });
 export type MailboxList = z.infer<typeof MailboxListSchema>;
+
+/** The path of /mailboxes/:mailboxId, for disconnecting. */
+export const MailboxParamsSchema = z.object({ mailboxId: IdSchema });
+export type MailboxParams = z.infer<typeof MailboxParamsSchema>;
 
 export const AddressSchema = z.object({ address: z.string(), name: z.string().nullable() });
 export type Address = z.infer<typeof AddressSchema>;
