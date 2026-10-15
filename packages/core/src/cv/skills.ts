@@ -33,17 +33,14 @@ export function checkSkills(skills: readonly string[], text: string): SkillCheck
 const MAX_TAG = 60;
 
 /**
- * The CV's tags after a read (F2.1): what the model suggested — its language, role families,
- * seniority and format hints — as tags with source ai, replacing earlier ai tags, then every tag
- * the user added, kept as they are. Each label once (case-insensitive).
+ * The CV's tags after a read (F2.1): what the model suggested — its language (the ISO 639-1
+ * code, "de"), role families and seniority — as tags with source ai, replacing earlier ai tags,
+ * then every tag the user added, kept as they are. Each label once (case-insensitive). The
+ * skills and format hints are edited as lists of their own (PATCH /cvs/:cvId), not as tags.
  */
 export function tagsAfterRead(read: CvReadOutput, existing: readonly CvTag[]): CvTag[] {
-  const suggested = [
-    languageName(read.language),
-    ...read.roleFamilies,
-    read.seniority,
-    ...read.formatHints,
-  ];
+  const code = read.language?.trim().toLowerCase() ?? null;
+  const suggested = [languageName(code) ? code : null, ...read.roleFamilies, read.seniority];
   const out: CvTag[] = [];
   const seen = new Set<string>();
   const add = (label: string | null, source: CvTag["source"]) => {

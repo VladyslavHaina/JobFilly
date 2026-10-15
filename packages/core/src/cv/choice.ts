@@ -33,15 +33,32 @@ export interface CvChoiceOutcome {
   source: "auto" | "you";
 }
 
-/** The tag that makes a CV the one to use when nothing else tells them apart. */
+/**
+ * The tag that makes a CV the one to use when nothing else tells them apart: it outweighs one
+ * matching skill more, not a language or a role family.
+ */
 const PREFERRED = "preferred";
 
-const WEIGHT = { language: 4, family: 3, skill: 1, maxSkills: 3, seniority: 1, preferred: 1 };
+// A role family the title names outweighs the language (a data engineering CV for a German data
+// engineering role beats a German backend CV); both outweigh the preferred tag and the skills.
+// A title that shares only one word with a family ("Python Backend Developer", "Data Entry
+// Assistant") counts as much as one skill, so the preferred tag outweighs it.
+const WEIGHT = {
+  family: 5,
+  language: 4,
+  preferred: 2,
+  familyWord: 1,
+  skill: 1,
+  maxSkills: 3,
+  seniority: 1,
+};
 
 interface Scored {
   cv: CvCandidate;
   score: number;
   languageMatch: boolean;
+  /** The title names one of the CV's role families: every word of it (familyMatches). */
+  familyMatch: boolean;
   /** The role's title words that the CV's role families or tags name, in title order. */
   familyWords: string[];
   skills: string[];
@@ -51,22 +68,58 @@ interface Scored {
 
 const isPreferred = (cv: CvCandidate) => cv.tags.some((t) => fold(t.label) === PREFERRED);
 
-/** The words that say what roles a CV is for: its tags, or its role families when untagged. */
-function familyVocabulary(cv: CvCandidate): Set<string> {
+/**
+ * The labels that say what roles a CV is for: its tags, or its role families when untagged,
+ * without its language (as code or name), its seniority and "preferred".
+ */
+function familyLabels(cv: CvCandidate): string[] {
   const skip = new Set([
     PREFERRED,
+    fold(cv.language ?? ""),
     fold(languageName(cv.language) ?? ""),
     fold(cv.seniority ?? ""),
   ]);
   const labels = cv.tags.length > 0 ? cv.tags.map((t) => t.label) : [...cv.roleFamilies];
-  return new Set(labels.filter((l) => !skip.has(fold(l))).flatMap(words));
+  return labels.filter((l) => !skip.has(fold(l)));
+}
+
+/** At least this many letters in common before two words count as forms of one word. */
+const MIN_STEM = 5;
+/** And at most this many letters after it ("engineer" and "engineering", not "data", "database"). */
+const MAX_ENDING = 4;
+
+/** The same word, or two forms of it ("engineer", "engineering"; "entwickler", "entwicklerin"). */
+function sameWord(a: string, b: string): boolean {
+  if (a === b) return true;
+  let common = 0;
+  while (common < a.length && a[common] === b[common]) common += 1;
+  return common >= MIN_STEM && a.length - common <= MAX_ENDING && b.length - common <= MAX_ENDING;
+}
+
+/**
+ * Whether the title names a role family: every word of the label is in the title. One word in
+ * common isn't enough ("Data Entry Assistant" isn't a data engineering role); a tag of one word
+ * ("Backend") matches every title with that word.
+ */
+function familyMatches(label: string, titleWords: readonly string[]): boolean {
+  const wanted = words(label);
+  return wanted.length > 0 && wanted.every((w) => titleWords.some((t) => sameWord(w, t)));
 }
 
 function score(cv: CvCandidate, input: CvChoiceInput): Scored {
   const languageMatch =
     input.language !== null && cv.language !== null && fold(cv.language) === fold(input.language);
-  const vocabulary = familyVocabulary(cv);
-  const familyWords = [...new Set(words(input.role.title ?? ""))].filter((w) => vocabulary.has(w));
+  const labels = familyLabels(cv);
+  const titleWords = [...new Set(words(input.role.title ?? ""))];
+  const familyMatch = labels.some((l) => familyMatches(l, titleWords));
+  const vocabulary = labels.flatMap(words);
+  const exact = titleWords.filter((t) => vocabulary.includes(t));
+  // The words that describe the role in the reason: those the CV's labels use as they are, or
+  // the forms that matched ("engineer") when only those did.
+  const familyWords =
+    exact.length > 0 || !familyMatch
+      ? exact
+      : titleWords.filter((t) => vocabulary.some((w) => sameWord(w, t)));
   const cvSkills = new Set(cv.skills.map(fold));
   const skills = input.role.skills.filter((s) => cvSkills.has(fold(s)));
   const seniority =
@@ -77,13 +130,14 @@ function score(cv: CvCandidate, input: CvChoiceInput): Scored {
   return {
     cv,
     languageMatch,
+    familyMatch,
     familyWords,
     skills,
     seniority,
     preferred,
     score:
       (languageMatch ? WEIGHT.language : 0) +
-      (familyWords.length > 0 ? WEIGHT.family : 0) +
+      (familyMatch ? WEIGHT.family : familyWords.length > 0 ? WEIGHT.familyWord : 0) +
       Math.min(skills.length, WEIGHT.maxSkills) * WEIGHT.skill +
       (seniority ? WEIGHT.seniority : 0) +
       (preferred ? WEIGHT.preferred : 0),
@@ -121,8 +175,9 @@ export function overrideReason(name: string): string {
 
 /**
  * The CV for a role: an editor's choice when it is still one of the CVs, otherwise the CV that
- * best fits the role's language, role family (the CV's tags), skills and seniority, with a CV
- * tagged "preferred" winning what is otherwise a tie. Null when there is no CV.
+ * best fits the role's family (a CV tag or role family the title names), language, skills and
+ * seniority, with a CV tagged "preferred" winning a tie or a difference of one skill; a tie
+ * left goes to the older CV. Null when there is no CV.
  */
 export function chooseCv(input: CvChoiceInput): CvChoiceOutcome {
   if (input.override) {

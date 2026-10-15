@@ -33,7 +33,7 @@ describe("the skill check (F2.2)", () => {
 });
 
 describe("the tags a read suggests (F2.1)", () => {
-  it("adds language, role families, seniority and format hints as ai tags, keeping the user's", () => {
+  it("adds the language code, role families and seniority as ai tags, keeping the user's", () => {
     const existing: CvTag[] = [
       { label: "old guess", source: "ai" },
       { label: "preferred", source: "you" },
@@ -52,12 +52,26 @@ describe("the tags a read suggests (F2.1)", () => {
         existing,
       ),
     ).toEqual([
-      { label: "German", source: "ai" },
+      { label: "de", source: "ai" },
       { label: "Backend engineering", source: "ai" },
       { label: "Senior", source: "ai" },
-      { label: "one page", source: "ai" },
       { label: "preferred", source: "you" },
     ]);
+  });
+
+  it("matches the suggested tags of the e2e fixtures", () => {
+    const labels = tagsAfterRead(
+      {
+        language: "EN",
+        skills: ["Go"],
+        roleFamilies: ["Backend engineering"],
+        seniority: "Senior",
+        countryHints: ["PT"],
+        formatHints: ["one page", "no photo"],
+      },
+      [],
+    ).map((t) => t.label);
+    expect(labels).toEqual(["en", "Backend engineering", "Senior"]);
   });
 
   it("leaves out an unknown language code", () => {
@@ -85,7 +99,7 @@ const backendEn: CvCandidate = {
   skills: ["Go", "PostgreSQL", "Kubernetes"],
   roleFamilies: ["Backend engineering"],
   seniority: "Senior",
-  tags: [tag("English"), tag("Backend engineering"), tag("Senior")],
+  tags: [tag("en"), tag("Backend engineering"), tag("Senior")],
 };
 const backendDe: CvCandidate = {
   id: "cv-backend-de",
@@ -94,7 +108,7 @@ const backendDe: CvCandidate = {
   skills: ["Go", "PostgreSQL", "Kubernetes"],
   roleFamilies: ["Backend engineering"],
   seniority: "Senior",
-  tags: [tag("German"), tag("Backend engineering"), tag("Senior")],
+  tags: [tag("de"), tag("Backend engineering"), tag("Senior")],
 };
 const dataEn: CvCandidate = {
   id: "cv-data-en",
@@ -103,7 +117,7 @@ const dataEn: CvCandidate = {
   skills: ["Python", "Airflow", "Spark", "PostgreSQL"],
   roleFamilies: ["Data engineering"],
   seniority: "Senior",
-  tags: [tag("English"), tag("Data engineering"), tag("Senior")],
+  tags: [tag("en"), tag("Data engineering"), tag("Senior")],
 };
 const all = [backendEn, backendDe, dataEn];
 
@@ -183,8 +197,58 @@ describe("the CV choice per role (F2.3)", () => {
     expect(choice.reason).toBe("Data role → Data (senior)");
   });
 
+  it("lets a role family the title names outweigh the language", () => {
+    const choice = chooseCv({
+      role: role("Senior Data Engineer (m/w/d)"),
+      language: "de",
+      cvs: all,
+      override: null,
+    });
+    expect(choice.cv?.id).toBe(dataEn.id);
+    expect(choice.reason).toBe("Data role → Data engineering (EN)");
+  });
+
+  it("needs every word of a family: one word in common doesn't make it that family's role", () => {
+    // The scam of the e2e fixtures: "data" alone doesn't make it a data engineering role.
+    const preferred = { ...backendEn, tags: [...backendEn.tags, tag("preferred", "you")] };
+    const choice = chooseCv({
+      role: role("Remote Data Entry Assistant"),
+      language: "en",
+      cvs: [preferred, backendDe, dataEn],
+      override: null,
+    });
+    expect(choice.cv?.id).toBe(backendEn.id);
+    expect(choice.reason).toBe("English role → Backend (EN), tagged preferred");
+    // Without the tag the one word still counts for a little, as much as one skill.
+    expect(
+      chooseCv({
+        role: role("Python Backend Developer", ["Python"]),
+        language: "en",
+        cvs: all,
+        override: null,
+      }).cv?.id,
+    ).toBe(backendEn.id);
+  });
+
+  it.each([
+    ["API Engineer", ["Python", "Kafka", "AWS", "Kotlin"]],
+    ["Site Reliability Engineer", ["TypeScript", "Python", "PostgreSQL", "Kotlin"]],
+    ["Software Engineer, Payments", ["TypeScript", "Python", "PostgreSQL", "AWS"]],
+  ])("lets the preferred CV outweigh one skill more for %s", (title, skills) => {
+    const backend = { ...backendEn, skills: [...backendEn.skills, "Kafka"] };
+    const data = { ...dataEn, skills: [...dataEn.skills, "Kafka"] };
+    const preferred = { ...backend, tags: [...backend.tags, tag("preferred", "you")] };
+    const input = { role: role(title, skills), language: "en", override: null };
+    // Untagged, the CV with more of the role's skills wins.
+    expect(chooseCv({ ...input, cvs: [backend, backendDe, data] }).cv?.id).toBe(dataEn.id);
+    expect(chooseCv({ ...input, cvs: [preferred, backendDe, data] })).toMatchObject({
+      cv: { id: backendEn.id },
+      reason: "English role → Backend (EN), tagged preferred",
+    });
+  });
+
   it("honours tags the user removed: a family no longer tagged no longer counts", () => {
-    const untagged = { ...dataEn, tags: [tag("English"), tag("Senior")] };
+    const untagged = { ...dataEn, tags: [tag("en"), tag("Senior")] };
     const choice = chooseCv({
       role: role("Data Engineer"),
       language: "en",
