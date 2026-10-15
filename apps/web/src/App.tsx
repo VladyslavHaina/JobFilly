@@ -1,23 +1,33 @@
-import { LivenessSchema } from "@jobfilly/schema";
-import { useQuery } from "@tanstack/react-query";
-import { api } from "./api";
+import { QueryCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useState } from "react";
+import { createBrowserRouter, type DataRouter, RouterProvider } from "react-router";
+import { ApiError } from "./api";
+import { queryKeys } from "./hooks";
+import { routes } from "./routes";
 
-export function App() {
-  const health = useQuery({
-    queryKey: ["health"],
-    queryFn: () => api("/api/health/live", LivenessSchema),
+/** A query client that treats any 401 as "signed out", so the app goes to Sign in. */
+export function createQueryClient(): QueryClient {
+  const client: QueryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: (count, error) => !(error instanceof ApiError) && count < 2 },
+    },
+    queryCache: new QueryCache({
+      onError: (error) => {
+        if (error instanceof ApiError && error.status === 401) {
+          client.setQueryData(queryKeys.session, null);
+        }
+      },
+    }),
   });
+  return client;
+}
 
-  let status = "Connecting to the server…";
-  if (health.isError) status = "Server unreachable";
-  else if (health.data) status = "Server ok";
-
+export function App({ router, queryClient }: { router?: DataRouter; queryClient?: QueryClient }) {
+  const [client] = useState(() => queryClient ?? createQueryClient());
+  const [appRouter] = useState(() => router ?? createBrowserRouter(routes));
   return (
-    <main className="mx-auto max-w-xl p-8 font-sans">
-      <h1 className="text-2xl font-semibold">JobFilly</h1>
-      <p className="mt-2 text-sm text-neutral-600" role="status">
-        {status}
-      </p>
-    </main>
+    <QueryClientProvider client={client}>
+      <RouterProvider router={appRouter} />
+    </QueryClientProvider>
   );
 }
