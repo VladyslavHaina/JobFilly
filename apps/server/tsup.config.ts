@@ -1,3 +1,4 @@
+import { cp } from "node:fs/promises";
 import { defineConfig } from "tsup";
 
 export default defineConfig({
@@ -17,4 +18,8 @@ export default defineConfig({
     js: 'import { createRequire as __createRequire } from "node:module"; const require = __createRequire(import.meta.url);',
   },
   clean: true,
+  // The migrations ship with the bundle, in dist/migrations (packages/db finds them there).
+  onSuccess: async () => {
+    await cp("../../packages/db/migrations", "dist/migrations", { recursive: true });
+  },
 });

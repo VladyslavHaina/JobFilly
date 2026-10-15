@@ -65,7 +65,7 @@ export function createHealth(connection: DatabaseConnection): Health {
         try {
           migrated = (await connection.migrationState()) === "current";
         } catch {
-          return { status: "not_ready", reason: "database_unreachable" };
+          migrated = false;
         }
       }
       return migrated ? { status: "ready" } : { status: "not_ready", reason: "migrations_missing" };

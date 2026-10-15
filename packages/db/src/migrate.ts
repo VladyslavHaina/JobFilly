@@ -1,13 +1,20 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { sql } from "drizzle-orm";
 import { readMigrationFiles } from "drizzle-orm/migrator";
 import { type Database, queryRows } from "./client";
 
 /**
- * The migrations folder. In the source tree it is packages/db/migrations; in the server bundle
- * (dist/index.js) the same relative path points at the migrations folder shipped next to dist/.
+ * The migrations folder: packages/db/migrations next to this file's src/ folder, or, in the
+ * server bundle, the copy the build puts next to dist/index.js (dist/migrations).
  */
-export const MIGRATIONS_FOLDER = fileURLToPath(new URL("../migrations", import.meta.url));
+export const MIGRATIONS_FOLDER =
+  [
+    fileURLToPath(new URL("../migrations", import.meta.url)),
+    fileURLToPath(new URL("./migrations", import.meta.url)),
+  ].find((dir) => existsSync(join(dir, "meta", "_journal.json"))) ??
+  fileURLToPath(new URL("../migrations", import.meta.url));
 
 /** The advisory lock that keeps replicas starting together from migrating at the same time. */
 const MIGRATION_LOCK_KEY = 7_461_726_810;
