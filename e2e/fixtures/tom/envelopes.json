@@ -1,0 +1,4064 @@
+[
+  {
+    "file": "inbox/0001.eml",
+    "messageId": "<tom-0043@canalwalks.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 347,
+    "from": {
+      "address": "news@canalwalks.example",
+      "name": "Canal Walks Club"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Photos from last week's walk",
+    "listId": "Canal Walks Club <news.canalwalks.example>",
+    "listUnsubscribe": "<https://canalwalks.example/unsubscribe?u=97922>, <mailto:unsubscribe@canalwalks.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Stay warm and dry this winter. Thanks to everyone who came along. Read the full issue online: https://canalwalks.example/issues/97922 You are receiving this email because you subscribed to our newslet"
+  },
+  {
+    "file": "inbox/0002.eml",
+    "messageId": "<tom-0039@valuemart.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 1030,
+    "from": {
+      "address": "offers@valuemart.example",
+      "name": "ValueMart"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "This week's big savings",
+    "listId": null,
+    "listUnsubscribe": "<https://valuemart.example/unsubscribe?u=86307>, <mailto:unsubscribe@valuemart.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Collect double points on everything. Family meal deals from £10. Read the full issue online: https://valuemart.example/issues/86307 You are receiving this email because you subscribed to our newslette"
+  },
+  {
+    "file": "inbox/0003.eml",
+    "messageId": "<tom-0051@councilbins.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 1284,
+    "from": {
+      "address": "news@councilbins.example",
+      "name": "Council Recycling News"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Bin collection changes",
+    "listId": "Council Recycling News <news.councilbins.example>",
+    "listUnsubscribe": "<https://councilbins.example/unsubscribe?u=17002>, <mailto:unsubscribe@councilbins.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Renew your garden waste subscription. Your collection day is changing next week. Read the full issue online: https://councilbins.example/issues/17002 You are receiving this email because you subscribe"
+  },
+  {
+    "file": "inbox/0004.eml",
+    "messageId": "<tom-0056@northernrail.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 1876,
+    "from": {
+      "address": "news@northernrail.example",
+      "name": "Northern Rail Updates"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Your season ticket offers",
+    "listId": "Northern Rail Updates <news.northernrail.example>",
+    "listUnsubscribe": "<https://northernrail.example/unsubscribe?u=43278>, <mailto:unsubscribe@northernrail.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "New timetables start next month. Save with a railcard. Read the full issue online: https://northernrail.example/issues/43278 You are receiving this email because you subscribed to our newsletter or bo"
+  },
+  {
+    "file": "inbox/0005.eml",
+    "messageId": "<tom-0068@reddevilsfans.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 2348,
+    "from": {
+      "address": "news@reddevilsfans.example",
+      "name": "Red Devils Fan News"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Away day travel guide",
+    "listId": null,
+    "listUnsubscribe": null,
+    "precedence": "bulk",
+    "autoSubmitted": null,
+    "snippet": "Everything you need to know before the derby. Our ratings for every player. Read the full issue online: https://reddevilsfans.example/issues/99778 You are receiving this email because you subscribed t"
+  },
+  {
+    "file": "inbox/0006.eml",
+    "messageId": "<tom-0015@mcrevening.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 3131,
+    "from": {
+      "address": "digest@mcrevening.example",
+      "name": "Manchester Evening Digest"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Best Sunday roasts in the city",
+    "listId": null,
+    "listUnsubscribe": "<https://mcrevening.example/unsubscribe?u=53253>, <mailto:unsubscribe@mcrevening.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Events and gigs coming up. Weather: cloudy with sunny spells. Read the full issue online: https://mcrevening.example/issues/53253 You are receiving this email because you subscribed to our newsletter "
+  },
+  {
+    "file": "inbox/0007.eml",
+    "messageId": "<tom-0088@reddevilsfans.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 4149,
+    "from": {
+      "address": "news@reddevilsfans.example",
+      "name": "Red Devils Fan News"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Away day travel guide",
+    "listId": null,
+    "listUnsubscribe": null,
+    "precedence": "bulk",
+    "autoSubmitted": null,
+    "snippet": "Enter the ballot for home tickets. Everything you need to know before the derby. Read the full issue online: https://reddevilsfans.example/issues/48052 You are receiving this email because you subscri"
+  },
+  {
+    "file": "inbox/0008.eml",
+    "messageId": "<tom-0036@northernrail.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 5195,
+    "from": {
+      "address": "news@northernrail.example",
+      "name": "Northern Rail Updates"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Engineering works this weekend",
+    "listId": "Northern Rail Updates <news.northernrail.example>",
+    "listUnsubscribe": "<https://northernrail.example/unsubscribe?u=80982>, <mailto:unsubscribe@northernrail.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Plan ahead: some services are replaced by buses. Save with a railcard. Read the full issue online: https://northernrail.example/issues/80982 You are receiving this email because you subscribed to our "
+  },
+  {
+    "file": "inbox/0009.eml",
+    "messageId": "<tom-0058@reddevilsfans.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 6480,
+    "from": {
+      "address": "news@reddevilsfans.example",
+      "name": "Red Devils Fan News"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Match preview: the derby",
+    "listId": null,
+    "listUnsubscribe": null,
+    "precedence": "bulk",
+    "autoSubmitted": null,
+    "snippet": "Our ratings for every player. Everything you need to know before the derby. Read the full issue online: https://reddevilsfans.example/issues/10015 You are receiving this email because you subscribed t"
+  },
+  {
+    "file": "inbox/0010.eml",
+    "messageId": "<tom-0020@picturehouse.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 7238,
+    "from": {
+      "address": "listings@picturehouse.example",
+      "name": "Picturehouse Manchester"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Silver screen mornings",
+    "listId": null,
+    "listUnsubscribe": null,
+    "precedence": "bulk",
+    "autoSubmitted": null,
+    "snippet": "New releases and classic films this week. Free members' preview on Thursday. Read the full issue online: https://picturehouse.example/issues/85321 You are receiving this email because you subscribed t"
+  },
+  {
+    "file": "inbox/0011.eml",
+    "messageId": "<tom-0106@northernrail.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 7488,
+    "from": {
+      "address": "news@northernrail.example",
+      "name": "Northern Rail Updates"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Engineering works this weekend",
+    "listId": "Northern Rail Updates <news.northernrail.example>",
+    "listUnsubscribe": "<https://northernrail.example/unsubscribe?u=82474>, <mailto:unsubscribe@northernrail.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Save with a railcard. New timetables start next month. Read the full issue online: https://northernrail.example/issues/82474 You are receiving this email because you subscribed to our newsletter or bo"
+  },
+  {
+    "file": "inbox/0012.eml",
+    "messageId": "<tom-0050@picturehouse.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 7502,
+    "from": {
+      "address": "listings@picturehouse.example",
+      "name": "Picturehouse Manchester"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "This week's films",
+    "listId": null,
+    "listUnsubscribe": null,
+    "precedence": "bulk",
+    "autoSubmitted": null,
+    "snippet": "Tickets from £5 for kids' club. Free members' preview on Thursday. Read the full issue online: https://picturehouse.example/issues/61795 You are receiving this email because you subscribed to our news"
+  },
+  {
+    "file": "inbox/0013.eml",
+    "messageId": "<tom-0001@jobs.nhs.uk>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 8137,
+    "from": {
+      "address": "alerts@jobs.nhs.uk",
+      "name": "NHS Jobs"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "NHS Jobs: 2 new jobs match your saved search",
+    "listId": null,
+    "listUnsubscribe": "<https://www.jobs.nhs.uk/candidate/alerts/unsubscribe?id=55120>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Hello Tom, 2 new jobs match your saved search \"nurse\" near Manchester. Staff Nurse – Acute Medical Unit Northfield NHS Foundation Trust · Manchester, United Kingdom Band 6 · £35,392 to £42,618 a year "
+  },
+  {
+    "file": "inbox/0014.eml",
+    "messageId": "<tom-0085@mcrevening.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 14088,
+    "from": {
+      "address": "digest@mcrevening.example",
+      "name": "Manchester Evening Digest"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Traffic and travel update",
+    "listId": null,
+    "listUnsubscribe": "<https://mcrevening.example/unsubscribe?u=48755>, <mailto:unsubscribe@mcrevening.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Today's top stories from across Greater Manchester. Weather: cloudy with sunny spells. Read the full issue online: https://mcrevening.example/issues/48755 You are receiving this email because you subs"
+  },
+  {
+    "file": "inbox/0015.eml",
+    "messageId": "<tom-0013@canalwalks.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 14981,
+    "from": {
+      "address": "news@canalwalks.example",
+      "name": "Canal Walks Club"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "New walk leaders wanted",
+    "listId": "Canal Walks Club <news.canalwalks.example>",
+    "listUnsubscribe": "<https://canalwalks.example/unsubscribe?u=81627>, <mailto:unsubscribe@canalwalks.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Stay warm and dry this winter. Thanks to everyone who came along. Read the full issue online: https://canalwalks.example/issues/81627 You are receiving this email because you subscribed to our newslet"
+  },
+  {
+    "file": "inbox/0016.eml",
+    "messageId": "<tom-0022@bookbarn.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 15490,
+    "from": {
+      "address": "hello@bookbarn.example",
+      "name": "Book Barn"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Your reading list",
+    "listId": null,
+    "listUnsubscribe": "<https://bookbarn.example/unsubscribe?u=35141>, <mailto:unsubscribe@bookbarn.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Mix and match across thousands of titles. Meet the author this Saturday. Read the full issue online: https://bookbarn.example/issues/35141 You are receiving this email because you subscribed to our ne"
+  },
+  {
+    "file": "inbox/0017.eml",
+    "messageId": "<tom-0011@councilbins.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 15886,
+    "from": {
+      "address": "news@councilbins.example",
+      "name": "Council Recycling News"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Recycling tips for the holidays",
+    "listId": "Council Recycling News <news.councilbins.example>",
+    "listUnsubscribe": "<https://councilbins.example/unsubscribe?u=84267>, <mailto:unsubscribe@councilbins.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Your collection day is changing next week. What can and can't go in the blue bin. Read the full issue online: https://councilbins.example/issues/84267 You are receiving this email because you subscrib"
+  },
+  {
+    "file": "inbox/0018.eml",
+    "messageId": "<tom-0098@reddevilsfans.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 17781,
+    "from": {
+      "address": "news@reddevilsfans.example",
+      "name": "Red Devils Fan News"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Away day travel guide",
+    "listId": null,
+    "listUnsubscribe": null,
+    "precedence": "bulk",
+    "autoSubmitted": null,
+    "snippet": "Everything you need to know before the derby. Our ratings for every player. Read the full issue online: https://reddevilsfans.example/issues/72320 You are receiving this email because you subscribed t"
+  },
+  {
+    "file": "inbox/0019.eml",
+    "messageId": "<tom-0084@streamflix.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 18732,
+    "from": {
+      "address": "updates@streamflix.example",
+      "name": "StreamFlix"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Your weekend watchlist",
+    "listId": null,
+    "listUnsubscribe": "<https://streamflix.example/unsubscribe?u=92705>, <mailto:unsubscribe@streamflix.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "New series and films added this week. More shows like the ones you love. Read the full issue online: https://streamflix.example/issues/92705 You are receiving this email because you subscribed to our "
+  },
+  {
+    "file": "inbox/0020.eml",
+    "messageId": "<tom-0007@fithubgym.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 20078,
+    "from": {
+      "address": "hello@fithubgym.example",
+      "name": "FitHub Gym"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "New classes this month",
+    "listId": null,
+    "listUnsubscribe": "<https://fithubgym.example/unsubscribe?u=27390>, <mailto:unsubscribe@fithubgym.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Members can bring a friend every Friday. You visited 9 times last month. Read the full issue online: https://fithubgym.example/issues/27390 You are receiving this email because you subscribed to our n"
+  },
+  {
+    "file": "inbox/0021.eml",
+    "messageId": "<tom-0048@reddevilsfans.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 20785,
+    "from": {
+      "address": "news@reddevilsfans.example",
+      "name": "Red Devils Fan News"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Away day travel guide",
+    "listId": null,
+    "listUnsubscribe": null,
+    "precedence": "bulk",
+    "autoSubmitted": null,
+    "snippet": "Everything you need to know before the derby. Our ratings for every player. Read the full issue online: https://reddevilsfans.example/issues/90211 You are receiving this email because you subscribed t"
+  },
+  {
+    "file": "inbox/0022.eml",
+    "messageId": "<tom-0057@fithubgym.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 22907,
+    "from": {
+      "address": "hello@fithubgym.example",
+      "name": "FitHub Gym"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "New classes this month",
+    "listId": null,
+    "listUnsubscribe": "<https://fithubgym.example/unsubscribe?u=55512>, <mailto:unsubscribe@fithubgym.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "You visited 9 times last month. Members can bring a friend every Friday. Read the full issue online: https://fithubgym.example/issues/55512 You are receiving this email because you subscribed to our n"
+  },
+  {
+    "file": "inbox/0023.eml",
+    "messageId": "<tom-0037@fithubgym.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 23898,
+    "from": {
+      "address": "hello@fithubgym.example",
+      "name": "FitHub Gym"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "New classes this month",
+    "listId": null,
+    "listUnsubscribe": "<https://fithubgym.example/unsubscribe?u=28920>, <mailto:unsubscribe@fithubgym.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Members can bring a friend every Friday. Try our new spin and HIIT classes. Read the full issue online: https://fithubgym.example/issues/28920 You are receiving this email because you subscribed to ou"
+  },
+  {
+    "file": "inbox/0024.eml",
+    "messageId": "<tom-0116@northernrail.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 25071,
+    "from": {
+      "address": "news@northernrail.example",
+      "name": "Northern Rail Updates"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Timetable changes from December",
+    "listId": "Northern Rail Updates <news.northernrail.example>",
+    "listUnsubscribe": "<https://northernrail.example/unsubscribe?u=65756>, <mailto:unsubscribe@northernrail.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "New timetables start next month. Plan ahead: some services are replaced by buses. Read the full issue online: https://northernrail.example/issues/65756 You are receiving this email because you subscri"
+  },
+  {
+    "file": "inbox/0025.eml",
+    "messageId": "<tom-0064@streamflix.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 25472,
+    "from": {
+      "address": "updates@streamflix.example",
+      "name": "StreamFlix"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "New on StreamFlix this week",
+    "listId": null,
+    "listUnsubscribe": "<https://streamflix.example/unsubscribe?u=74797>, <mailto:unsubscribe@streamflix.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "New series and films added this week. Set reminders for upcoming releases. Read the full issue online: https://streamflix.example/issues/74797 You are receiving this email because you subscribed to ou"
+  },
+  {
+    "file": "inbox/0026.eml",
+    "messageId": "<tom-0087@fithubgym.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 25947,
+    "from": {
+      "address": "hello@fithubgym.example",
+      "name": "FitHub Gym"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Your workout summary",
+    "listId": null,
+    "listUnsubscribe": "<https://fithubgym.example/unsubscribe?u=48748>, <mailto:unsubscribe@fithubgym.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Members can bring a friend every Friday. You visited 9 times last month. Read the full issue online: https://fithubgym.example/issues/48748 You are receiving this email because you subscribed to our n"
+  },
+  {
+    "file": "inbox/0027.eml",
+    "messageId": "<tom-0080@picturehouse.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 25968,
+    "from": {
+      "address": "listings@picturehouse.example",
+      "name": "Picturehouse Manchester"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Silver screen mornings",
+    "listId": null,
+    "listUnsubscribe": null,
+    "precedence": "bulk",
+    "autoSubmitted": null,
+    "snippet": "New releases and classic films this week. Tickets from £5 for kids' club. Read the full issue online: https://picturehouse.example/issues/19489 You are receiving this email because you subscribed to o"
+  },
+  {
+    "file": "sent/0001.eml",
+    "messageId": "<tom-0147@inbox.example>",
+    "folder": "sent",
+    "folderPath": "Sent",
+    "minutesAgo": 26310,
+    "from": {
+      "address": "tom.okafor@inbox.example",
+      "name": "Tom Okafor"
+    },
+    "to": [
+      {
+        "address": "chidi.okafor@mail.example",
+        "name": "Chidi Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": "<tom-0146@mail.example>",
+    "references": [
+      "<tom-0146@mail.example>"
+    ],
+    "subject": "Re: Moving help next weekend?",
+    "listId": null,
+    "listUnsubscribe": null,
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Happy to help, I'll bring the van. Tom Chidi Okafor wrote: > Hi, > > Any chance you could help me move on Saturday? Pizza and beer on me. > > Chidi > Other news: the allotment finally produced some de"
+  },
+  {
+    "file": "inbox/0028.eml",
+    "messageId": "<tom-0146@mail.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 26384,
+    "from": {
+      "address": "chidi.okafor@mail.example",
+      "name": "Chidi Okafor"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Moving help next weekend?",
+    "listId": null,
+    "listUnsubscribe": null,
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Hi, Any chance you could help me move on Saturday? Pizza and beer on me. Chidi Other news: the allotment finally produced some decent tomatoes, and I've signed up for the 10k in the spring, so you'll "
+  },
+  {
+    "file": "inbox/0029.eml",
+    "messageId": "<tom-0003@carelinknursing.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 28051,
+    "from": {
+      "address": "nadia.ellis@carelinknursing.example",
+      "name": "Nadia Ellis"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Agency shifts this week",
+    "listId": null,
+    "listUnsubscribe": null,
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Hi Tom, We have agency shifts for registered general nurses this week at three hospitals within 10 miles of you. Day and night shifts are available, paid at £32–£38 an hour depending on the shift. Rep"
+  },
+  {
+    "file": "inbox/0030.eml",
+    "messageId": "<tom-0019@valuemart.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 28778,
+    "from": {
+      "address": "offers@valuemart.example",
+      "name": "ValueMart"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "This week's big savings",
+    "listId": null,
+    "listUnsubscribe": "<https://valuemart.example/unsubscribe?u=53936>, <mailto:unsubscribe@valuemart.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Save on fresh fruit and veg. Collect double points on everything. Read the full issue online: https://valuemart.example/issues/53936 You are receiving this email because you subscribed to our newslett"
+  },
+  {
+    "file": "inbox/0031.eml",
+    "messageId": "<tom-0062@bookbarn.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 29055,
+    "from": {
+      "address": "hello@bookbarn.example",
+      "name": "Book Barn"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Staff picks for autumn",
+    "listId": null,
+    "listUnsubscribe": "<https://bookbarn.example/unsubscribe?u=29465>, <mailto:unsubscribe@bookbarn.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Our staff recommend their favourite reads. Mix and match across thousands of titles. Read the full issue online: https://bookbarn.example/issues/29465 You are receiving this email because you subscrib"
+  },
+  {
+    "file": "inbox/0032.eml",
+    "messageId": "<tom-0081@councilbins.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 30410,
+    "from": {
+      "address": "news@councilbins.example",
+      "name": "Council Recycling News"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Garden waste subscription",
+    "listId": "Council Recycling News <news.councilbins.example>",
+    "listUnsubscribe": "<https://councilbins.example/unsubscribe?u=80381>, <mailto:unsubscribe@councilbins.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Renew your garden waste subscription. What can and can't go in the blue bin. Read the full issue online: https://councilbins.example/issues/80381 You are receiving this email because you subscribed to"
+  },
+  {
+    "file": "inbox/0033.eml",
+    "messageId": "<tom-0034@streamflix.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 30617,
+    "from": {
+      "address": "updates@streamflix.example",
+      "name": "StreamFlix"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Your weekend watchlist",
+    "listId": null,
+    "listUnsubscribe": "<https://streamflix.example/unsubscribe?u=85819>, <mailto:unsubscribe@streamflix.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "New series and films added this week. More shows like the ones you love. Read the full issue online: https://streamflix.example/issues/85819 You are receiving this email because you subscribed to our "
+  },
+  {
+    "file": "inbox/0034.eml",
+    "messageId": "<tom-0060@picturehouse.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 32657,
+    "from": {
+      "address": "listings@picturehouse.example",
+      "name": "Picturehouse Manchester"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Silver screen mornings",
+    "listId": null,
+    "listUnsubscribe": null,
+    "precedence": "bulk",
+    "autoSubmitted": null,
+    "snippet": "Tickets from £5 for kids' club. Free members' preview on Thursday. Read the full issue online: https://picturehouse.example/issues/30023 You are receiving this email because you subscribed to our news"
+  },
+  {
+    "file": "inbox/0035.eml",
+    "messageId": "<tom-0029@valuemart.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 33032,
+    "from": {
+      "address": "offers@valuemart.example",
+      "name": "ValueMart"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "This week's big savings",
+    "listId": null,
+    "listUnsubscribe": "<https://valuemart.example/unsubscribe?u=56418>, <mailto:unsubscribe@valuemart.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Collect double points on everything. Save on fresh fruit and veg. Read the full issue online: https://valuemart.example/issues/56418 You are receiving this email because you subscribed to our newslett"
+  },
+  {
+    "file": "inbox/0036.eml",
+    "messageId": "<tom-0097@fithubgym.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 33493,
+    "from": {
+      "address": "hello@fithubgym.example",
+      "name": "FitHub Gym"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Holiday opening hours",
+    "listId": null,
+    "listUnsubscribe": "<https://fithubgym.example/unsubscribe?u=77809>, <mailto:unsubscribe@fithubgym.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Members can bring a friend every Friday. Try our new spin and HIIT classes. Read the full issue online: https://fithubgym.example/issues/77809 You are receiving this email because you subscribed to ou"
+  },
+  {
+    "file": "inbox/0037.eml",
+    "messageId": "<tom-0083@canalwalks.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 33635,
+    "from": {
+      "address": "news@canalwalks.example",
+      "name": "Canal Walks Club"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "New walk leaders wanted",
+    "listId": "Canal Walks Club <news.canalwalks.example>",
+    "listUnsubscribe": "<https://canalwalks.example/unsubscribe?u=23319>, <mailto:unsubscribe@canalwalks.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Meet at 10:00 by the lock. Thanks to everyone who came along. Read the full issue online: https://canalwalks.example/issues/23319 You are receiving this email because you subscribed to our newsletter "
+  },
+  {
+    "file": "inbox/0038.eml",
+    "messageId": "<tom-0006@northernrail.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 33901,
+    "from": {
+      "address": "news@northernrail.example",
+      "name": "Northern Rail Updates"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Your season ticket offers",
+    "listId": "Northern Rail Updates <news.northernrail.example>",
+    "listUnsubscribe": "<https://northernrail.example/unsubscribe?u=98166>, <mailto:unsubscribe@northernrail.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "New timetables start next month. Plan ahead: some services are replaced by buses. Read the full issue online: https://northernrail.example/issues/98166 You are receiving this email because you subscri"
+  },
+  {
+    "file": "inbox/0039.eml",
+    "messageId": "<tom-0049@valuemart.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 34532,
+    "from": {
+      "address": "offers@valuemart.example",
+      "name": "ValueMart"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Double points weekend",
+    "listId": null,
+    "listUnsubscribe": "<https://valuemart.example/unsubscribe?u=17542>, <mailto:unsubscribe@valuemart.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Family meal deals from £10. Save on fresh fruit and veg. Read the full issue online: https://valuemart.example/issues/17542 You are receiving this email because you subscribed to our newsletter or bou"
+  },
+  {
+    "file": "inbox/0040.eml",
+    "messageId": "<tom-0012@bookbarn.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 35147,
+    "from": {
+      "address": "hello@bookbarn.example",
+      "name": "Book Barn"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Your reading list",
+    "listId": null,
+    "listUnsubscribe": "<https://bookbarn.example/unsubscribe?u=41890>, <mailto:unsubscribe@bookbarn.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Meet the author this Saturday. Our staff recommend their favourite reads. Read the full issue online: https://bookbarn.example/issues/41890 You are receiving this email because you subscribed to our n"
+  },
+  {
+    "file": "inbox/0041.eml",
+    "messageId": "<tom-0076@northernrail.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 35301,
+    "from": {
+      "address": "news@northernrail.example",
+      "name": "Northern Rail Updates"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Engineering works this weekend",
+    "listId": "Northern Rail Updates <news.northernrail.example>",
+    "listUnsubscribe": "<https://northernrail.example/unsubscribe?u=87955>, <mailto:unsubscribe@northernrail.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Save with a railcard. New timetables start next month. Read the full issue online: https://northernrail.example/issues/87955 You are receiving this email because you subscribed to our newsletter or bo"
+  },
+  {
+    "file": "inbox/0042.eml",
+    "messageId": "<tom-0061@councilbins.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 36288,
+    "from": {
+      "address": "news@councilbins.example",
+      "name": "Council Recycling News"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Bulky waste collections",
+    "listId": "Council Recycling News <news.councilbins.example>",
+    "listUnsubscribe": "<https://councilbins.example/unsubscribe?u=45149>, <mailto:unsubscribe@councilbins.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "What can and can't go in the blue bin. Your collection day is changing next week. Read the full issue online: https://councilbins.example/issues/45149 You are receiving this email because you subscrib"
+  },
+  {
+    "file": "inbox/0043.eml",
+    "messageId": "<tom-0125@mcrevening.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 36707,
+    "from": {
+      "address": "digest@mcrevening.example",
+      "name": "Manchester Evening Digest"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Traffic and travel update",
+    "listId": null,
+    "listUnsubscribe": "<https://mcrevening.example/unsubscribe?u=31547>, <mailto:unsubscribe@mcrevening.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Weather: cloudy with sunny spells. Events and gigs coming up. Read the full issue online: https://mcrevening.example/issues/31547 You are receiving this email because you subscribed to our newsletter "
+  },
+  {
+    "file": "inbox/0044.eml",
+    "messageId": "<tom-0108@reddevilsfans.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 37098,
+    "from": {
+      "address": "news@reddevilsfans.example",
+      "name": "Red Devils Fan News"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Ticket ballot now open",
+    "listId": null,
+    "listUnsubscribe": null,
+    "precedence": "bulk",
+    "autoSubmitted": null,
+    "snippet": "Enter the ballot for home tickets. Everything you need to know before the derby. Read the full issue online: https://reddevilsfans.example/issues/55138 You are receiving this email because you subscri"
+  },
+  {
+    "file": "inbox/0045.eml",
+    "messageId": "<tom-0124@streamflix.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 37601,
+    "from": {
+      "address": "updates@streamflix.example",
+      "name": "StreamFlix"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Because you watched",
+    "listId": null,
+    "listUnsubscribe": "<https://streamflix.example/unsubscribe?u=87842>, <mailto:unsubscribe@streamflix.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "More shows like the ones you love. New series and films added this week. Read the full issue online: https://streamflix.example/issues/87842 You are receiving this email because you subscribed to our "
+  },
+  {
+    "file": "sent/0002.eml",
+    "messageId": "<tom-0149@inbox.example>",
+    "folder": "sent",
+    "folderPath": "Sent",
+    "minutesAgo": 37746,
+    "from": {
+      "address": "tom.okafor@inbox.example",
+      "name": "Tom Okafor"
+    },
+    "to": [
+      {
+        "address": "chidi.okafor@mail.example",
+        "name": "Chidi Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": "<tom-0148@mail.example>",
+    "references": [
+      "<tom-0148@mail.example>"
+    ],
+    "subject": "Re: Recipe for jollof",
+    "listId": null,
+    "listUnsubscribe": null,
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Thanks Mum, trying it on Sunday. Tom Chidi Okafor wrote: > Hi love, > > Here's the jollof recipe you asked for. Don't burn the bottom! > > Chidi > Other news: the allotment finally produced some decen"
+  },
+  {
+    "file": "inbox/0046.eml",
+    "messageId": "<tom-0104@streamflix.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 37894,
+    "from": {
+      "address": "updates@streamflix.example",
+      "name": "StreamFlix"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "New on StreamFlix this week",
+    "listId": null,
+    "listUnsubscribe": "<https://streamflix.example/unsubscribe?u=44188>, <mailto:unsubscribe@streamflix.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "More shows like the ones you love. Set reminders for upcoming releases. Read the full issue online: https://streamflix.example/issues/44188 You are receiving this email because you subscribed to our n"
+  },
+  {
+    "file": "inbox/0047.eml",
+    "messageId": "<tom-0148@mail.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 38008,
+    "from": {
+      "address": "chidi.okafor@mail.example",
+      "name": "Chidi Okafor"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Recipe for jollof",
+    "listId": null,
+    "listUnsubscribe": null,
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Hi love, Here's the jollof recipe you asked for. Don't burn the bottom! Chidi Other news: the allotment finally produced some decent tomatoes, and I've signed up for the 10k in the spring, so you'll b"
+  },
+  {
+    "file": "inbox/0048.eml",
+    "messageId": "<tom-0077@fithubgym.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 38335,
+    "from": {
+      "address": "hello@fithubgym.example",
+      "name": "FitHub Gym"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Your workout summary",
+    "listId": null,
+    "listUnsubscribe": "<https://fithubgym.example/unsubscribe?u=61959>, <mailto:unsubscribe@fithubgym.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "You visited 9 times last month. Members can bring a friend every Friday. Read the full issue online: https://fithubgym.example/issues/61959 You are receiving this email because you subscribed to our n"
+  },
+  {
+    "file": "inbox/0049.eml",
+    "messageId": "<tom-0044@streamflix.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 38921,
+    "from": {
+      "address": "updates@streamflix.example",
+      "name": "StreamFlix"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Your weekend watchlist",
+    "listId": null,
+    "listUnsubscribe": "<https://streamflix.example/unsubscribe?u=25228>, <mailto:unsubscribe@streamflix.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "New series and films added this week. Set reminders for upcoming releases. Read the full issue online: https://streamflix.example/issues/25228 You are receiving this email because you subscribed to ou"
+  },
+  {
+    "file": "sent/0003.eml",
+    "messageId": "<tom-0139@inbox.example>",
+    "folder": "sent",
+    "folderPath": "Sent",
+    "minutesAgo": 39919,
+    "from": {
+      "address": "tom.okafor@inbox.example",
+      "name": "Tom Okafor"
+    },
+    "to": [
+      {
+        "address": "grace.okafor@mail.example",
+        "name": "Grace Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": "<tom-0138@mail.example>",
+    "references": [
+      "<tom-0138@mail.example>"
+    ],
+    "subject": "Re: Five-a-side Thursday?",
+    "listId": null,
+    "listUnsubscribe": null,
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "I'm on a late that day, sorry. Next week? Tom Grace Okafor wrote: > Alright Tom, > > We're a player short for five-a-side on Thursday. You in? > > Grace > Other news: the allotment finally produced so"
+  },
+  {
+    "file": "inbox/0050.eml",
+    "messageId": "<tom-0138@mail.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 40275,
+    "from": {
+      "address": "grace.okafor@mail.example",
+      "name": "Grace Okafor"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Five-a-side Thursday?",
+    "listId": null,
+    "listUnsubscribe": null,
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Alright Tom, We're a player short for five-a-side on Thursday. You in? Grace Other news: the allotment finally produced some decent tomatoes, and I've signed up for the 10k in the spring, so you'll be"
+  },
+  {
+    "file": "inbox/0051.eml",
+    "messageId": "<tom-0031@councilbins.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 41716,
+    "from": {
+      "address": "news@councilbins.example",
+      "name": "Council Recycling News"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Bin collection changes",
+    "listId": "Council Recycling News <news.councilbins.example>",
+    "listUnsubscribe": "<https://councilbins.example/unsubscribe?u=45923>, <mailto:unsubscribe@councilbins.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Your collection day is changing next week. What can and can't go in the blue bin. Read the full issue online: https://councilbins.example/issues/45923 You are receiving this email because you subscrib"
+  },
+  {
+    "file": "inbox/0052.eml",
+    "messageId": "<tom-0089@valuemart.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 42090,
+    "from": {
+      "address": "offers@valuemart.example",
+      "name": "ValueMart"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Meal deals for the family",
+    "listId": null,
+    "listUnsubscribe": "<https://valuemart.example/unsubscribe?u=37923>, <mailto:unsubscribe@valuemart.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Collect double points on everything. Save on fresh fruit and veg. Read the full issue online: https://valuemart.example/issues/37923 You are receiving this email because you subscribed to our newslett"
+  },
+  {
+    "file": "inbox/0053.eml",
+    "messageId": "<tom-0099@valuemart.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 43209,
+    "from": {
+      "address": "offers@valuemart.example",
+      "name": "ValueMart"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Double points weekend",
+    "listId": null,
+    "listUnsubscribe": "<https://valuemart.example/unsubscribe?u=44639>, <mailto:unsubscribe@valuemart.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Save on fresh fruit and veg. Collect double points on everything. Read the full issue online: https://valuemart.example/issues/44639 You are receiving this email because you subscribed to our newslett"
+  },
+  {
+    "file": "inbox/0054.eml",
+    "messageId": "<tom-0067@fithubgym.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 43806,
+    "from": {
+      "address": "hello@fithubgym.example",
+      "name": "FitHub Gym"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "New classes this month",
+    "listId": null,
+    "listUnsubscribe": "<https://fithubgym.example/unsubscribe?u=41841>, <mailto:unsubscribe@fithubgym.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Try our new spin and HIIT classes. You visited 9 times last month. Read the full issue online: https://fithubgym.example/issues/41841 You are receiving this email because you subscribed to our newslet"
+  },
+  {
+    "file": "inbox/0055.eml",
+    "messageId": "<tom-0090@picturehouse.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 44315,
+    "from": {
+      "address": "listings@picturehouse.example",
+      "name": "Picturehouse Manchester"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Silver screen mornings",
+    "listId": null,
+    "listUnsubscribe": null,
+    "precedence": "bulk",
+    "autoSubmitted": null,
+    "snippet": "Tickets from £5 for kids' club. Free members' preview on Thursday. Read the full issue online: https://picturehouse.example/issues/93522 You are receiving this email because you subscribed to our news"
+  },
+  {
+    "file": "inbox/0056.eml",
+    "messageId": "<tom-0071@councilbins.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 44704,
+    "from": {
+      "address": "news@councilbins.example",
+      "name": "Council Recycling News"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Garden waste subscription",
+    "listId": "Council Recycling News <news.councilbins.example>",
+    "listUnsubscribe": "<https://councilbins.example/unsubscribe?u=93181>, <mailto:unsubscribe@councilbins.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Your collection day is changing next week. What can and can't go in the blue bin. Read the full issue online: https://councilbins.example/issues/93181 You are receiving this email because you subscrib"
+  },
+  {
+    "file": "inbox/0057.eml",
+    "messageId": "<tom-0105@mcrevening.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 45918,
+    "from": {
+      "address": "digest@mcrevening.example",
+      "name": "Manchester Evening Digest"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Traffic and travel update",
+    "listId": null,
+    "listUnsubscribe": "<https://mcrevening.example/unsubscribe?u=71936>, <mailto:unsubscribe@mcrevening.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Today's top stories from across Greater Manchester. Events and gigs coming up. Read the full issue online: https://mcrevening.example/issues/71936 You are receiving this email because you subscribed t"
+  },
+  {
+    "file": "inbox/0058.eml",
+    "messageId": "<tom-0135@metrotickets.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 46809,
+    "from": {
+      "address": "receipts@metrotickets.example",
+      "name": "Metrolink Tickets"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Your ticket receipt",
+    "listId": null,
+    "listUnsubscribe": null,
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Thanks for buying your ticket, Tom. Weekly ticket: £17.79 Show the QR code in the app when asked. This is an automatically generated message about your account or order. Please keep it for your record"
+  },
+  {
+    "file": "inbox/0059.eml",
+    "messageId": "<tom-0079@valuemart.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 48978,
+    "from": {
+      "address": "offers@valuemart.example",
+      "name": "ValueMart"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Your personalised offers",
+    "listId": null,
+    "listUnsubscribe": "<https://valuemart.example/unsubscribe?u=89375>, <mailto:unsubscribe@valuemart.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Collect double points on everything. Family meal deals from £10. Read the full issue online: https://valuemart.example/issues/89375 You are receiving this email because you subscribed to our newslette"
+  },
+  {
+    "file": "inbox/0060.eml",
+    "messageId": "<tom-0021@councilbins.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 49578,
+    "from": {
+      "address": "news@councilbins.example",
+      "name": "Council Recycling News"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Recycling tips for the holidays",
+    "listId": "Council Recycling News <news.councilbins.example>",
+    "listUnsubscribe": "<https://councilbins.example/unsubscribe?u=86278>, <mailto:unsubscribe@councilbins.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "What can and can't go in the blue bin. Renew your garden waste subscription. Read the full issue online: https://councilbins.example/issues/86278 You are receiving this email because you subscribed to"
+  },
+  {
+    "file": "inbox/0061.eml",
+    "messageId": "<tom-0094@streamflix.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 49586,
+    "from": {
+      "address": "updates@streamflix.example",
+      "name": "StreamFlix"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "New on StreamFlix this week",
+    "listId": null,
+    "listUnsubscribe": "<https://streamflix.example/unsubscribe?u=76132>, <mailto:unsubscribe@streamflix.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Set reminders for upcoming releases. More shows like the ones you love. Read the full issue online: https://streamflix.example/issues/76132 You are receiving this email because you subscribed to our n"
+  },
+  {
+    "file": "inbox/0062.eml",
+    "messageId": "<tom-0004@smartrecruiters.com>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 50263,
+    "from": {
+      "address": "no-reply@smartrecruiters.com",
+      "name": "Kersal Private Hospital Careers"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Your application: Staff Nurse, Ward 4",
+    "listId": null,
+    "listUnsubscribe": null,
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Dear Tom, Thank you for applying for the Staff Nurse, Ward 4 position at Kersal Private Hospital. We have received your application and will review it shortly. Kind regards, Kersal Private Hospital Re"
+  },
+  {
+    "file": "inbox/0063.eml",
+    "messageId": "<tom-0114@streamflix.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 50580,
+    "from": {
+      "address": "updates@streamflix.example",
+      "name": "StreamFlix"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Coming soon",
+    "listId": null,
+    "listUnsubscribe": "<https://streamflix.example/unsubscribe?u=32616>, <mailto:unsubscribe@streamflix.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "More shows like the ones you love. New series and films added this week. Read the full issue online: https://streamflix.example/issues/32616 You are receiving this email because you subscribed to our "
+  },
+  {
+    "file": "inbox/0064.eml",
+    "messageId": "<tom-0017@fithubgym.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 50956,
+    "from": {
+      "address": "hello@fithubgym.example",
+      "name": "FitHub Gym"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Bring a friend for free",
+    "listId": null,
+    "listUnsubscribe": "<https://fithubgym.example/unsubscribe?u=58581>, <mailto:unsubscribe@fithubgym.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "You visited 9 times last month. Try our new spin and HIIT classes. Read the full issue online: https://fithubgym.example/issues/58581 You are receiving this email because you subscribed to our newslet"
+  },
+  {
+    "file": "inbox/0065.eml",
+    "messageId": "<tom-0112@bookbarn.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 51506,
+    "from": {
+      "address": "hello@bookbarn.example",
+      "name": "Book Barn"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Staff picks for autumn",
+    "listId": null,
+    "listUnsubscribe": "<https://bookbarn.example/unsubscribe?u=68794>, <mailto:unsubscribe@bookbarn.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Meet the author this Saturday. Mix and match across thousands of titles. Read the full issue online: https://bookbarn.example/issues/68794 You are receiving this email because you subscribed to our ne"
+  },
+  {
+    "file": "inbox/0066.eml",
+    "messageId": "<tom-0096@northernrail.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 51515,
+    "from": {
+      "address": "news@northernrail.example",
+      "name": "Northern Rail Updates"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Engineering works this weekend",
+    "listId": "Northern Rail Updates <news.northernrail.example>",
+    "listUnsubscribe": "<https://northernrail.example/unsubscribe?u=46336>, <mailto:unsubscribe@northernrail.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "New timetables start next month. Save with a railcard. Read the full issue online: https://northernrail.example/issues/46336 You are receiving this email because you subscribed to our newsletter or bo"
+  },
+  {
+    "file": "inbox/0067.eml",
+    "messageId": "<tom-0002@totaljobs.com>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 52967,
+    "from": {
+      "address": "jobalerts@totaljobs.com",
+      "name": "Totaljobs"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "2 new Nurse jobs near Manchester",
+    "listId": null,
+    "listUnsubscribe": "<https://www.totaljobs.com/alerts/unsubscribe?id=88231>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Hi Tom, Here are the latest jobs for your alert \"Nurse\" within 15 miles of Manchester. Theatre Practitioner – Pennine Day Surgery Stockport, United Kingdom · On-site · Full-time, permanent https://www"
+  },
+  {
+    "file": "inbox/0068.eml",
+    "messageId": "<tom-0047@fithubgym.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 53697,
+    "from": {
+      "address": "hello@fithubgym.example",
+      "name": "FitHub Gym"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Your workout summary",
+    "listId": null,
+    "listUnsubscribe": "<https://fithubgym.example/unsubscribe?u=67334>, <mailto:unsubscribe@fithubgym.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Try our new spin and HIIT classes. Members can bring a friend every Friday. Read the full issue online: https://fithubgym.example/issues/67334 You are receiving this email because you subscribed to ou"
+  },
+  {
+    "file": "inbox/0069.eml",
+    "messageId": "<tom-0120@picturehouse.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 54134,
+    "from": {
+      "address": "listings@picturehouse.example",
+      "name": "Picturehouse Manchester"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Members' screening: Thursday",
+    "listId": null,
+    "listUnsubscribe": null,
+    "precedence": "bulk",
+    "autoSubmitted": null,
+    "snippet": "New releases and classic films this week. Tickets from £5 for kids' club. Read the full issue online: https://picturehouse.example/issues/59697 You are receiving this email because you subscribed to o"
+  },
+  {
+    "file": "inbox/0070.eml",
+    "messageId": "<tom-0027@fithubgym.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 54204,
+    "from": {
+      "address": "hello@fithubgym.example",
+      "name": "FitHub Gym"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "New classes this month",
+    "listId": null,
+    "listUnsubscribe": "<https://fithubgym.example/unsubscribe?u=64263>, <mailto:unsubscribe@fithubgym.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Try our new spin and HIIT classes. You visited 9 times last month. Read the full issue online: https://fithubgym.example/issues/64263 You are receiving this email because you subscribed to our newslet"
+  },
+  {
+    "file": "inbox/0071.eml",
+    "messageId": "<tom-0128@reddevilsfans.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 54529,
+    "from": {
+      "address": "news@reddevilsfans.example",
+      "name": "Red Devils Fan News"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Player ratings from Saturday",
+    "listId": null,
+    "listUnsubscribe": null,
+    "precedence": "bulk",
+    "autoSubmitted": null,
+    "snippet": "Enter the ballot for home tickets. Everything you need to know before the derby. Read the full issue online: https://reddevilsfans.example/issues/84787 You are receiving this email because you subscri"
+  },
+  {
+    "file": "inbox/0072.eml",
+    "messageId": "<tom-0086@northernrail.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 54747,
+    "from": {
+      "address": "news@northernrail.example",
+      "name": "Northern Rail Updates"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Engineering works this weekend",
+    "listId": "Northern Rail Updates <news.northernrail.example>",
+    "listUnsubscribe": "<https://northernrail.example/unsubscribe?u=22394>, <mailto:unsubscribe@northernrail.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "New timetables start next month. Save with a railcard. Read the full issue online: https://northernrail.example/issues/22394 You are receiving this email because you subscribed to our newsletter or bo"
+  },
+  {
+    "file": "inbox/0073.eml",
+    "messageId": "<tom-0040@picturehouse.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 55368,
+    "from": {
+      "address": "listings@picturehouse.example",
+      "name": "Picturehouse Manchester"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Kids' club this Saturday",
+    "listId": null,
+    "listUnsubscribe": null,
+    "precedence": "bulk",
+    "autoSubmitted": null,
+    "snippet": "Tickets from £5 for kids' club. New releases and classic films this week. Read the full issue online: https://picturehouse.example/issues/54117 You are receiving this email because you subscribed to o"
+  },
+  {
+    "file": "inbox/0074.eml",
+    "messageId": "<tom-0115@mcrevening.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 57191,
+    "from": {
+      "address": "digest@mcrevening.example",
+      "name": "Manchester Evening Digest"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Traffic and travel update",
+    "listId": null,
+    "listUnsubscribe": "<https://mcrevening.example/unsubscribe?u=93363>, <mailto:unsubscribe@mcrevening.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Today's top stories from across Greater Manchester. Weather: cloudy with sunny spells. Read the full issue online: https://mcrevening.example/issues/93363 You are receiving this email because you subs"
+  },
+  {
+    "file": "inbox/0075.eml",
+    "messageId": "<tom-0132@northwater.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 60538,
+    "from": {
+      "address": "billing@northwater.example",
+      "name": "North Water"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Your water bill is ready",
+    "listId": null,
+    "listUnsubscribe": null,
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Hello Tom, Your latest bill of £25.40 is ready to view in your online account. It will be paid by Direct Debit. This is an automatically generated message about your account or order. Please keep it f"
+  },
+  {
+    "file": "inbox/0076.eml",
+    "messageId": "<tom-0070@picturehouse.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 60629,
+    "from": {
+      "address": "listings@picturehouse.example",
+      "name": "Picturehouse Manchester"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Silver screen mornings",
+    "listId": null,
+    "listUnsubscribe": null,
+    "precedence": "bulk",
+    "autoSubmitted": null,
+    "snippet": "Tickets from £5 for kids' club. Free members' preview on Thursday. Read the full issue online: https://picturehouse.example/issues/68055 You are receiving this email because you subscribed to our news"
+  },
+  {
+    "file": "inbox/0077.eml",
+    "messageId": "<tom-0032@bookbarn.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 62224,
+    "from": {
+      "address": "hello@bookbarn.example",
+      "name": "Book Barn"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "3 for 2 on paperbacks",
+    "listId": null,
+    "listUnsubscribe": "<https://bookbarn.example/unsubscribe?u=51824>, <mailto:unsubscribe@bookbarn.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Mix and match across thousands of titles. Meet the author this Saturday. Read the full issue online: https://bookbarn.example/issues/51824 You are receiving this email because you subscribed to our ne"
+  },
+  {
+    "file": "inbox/0078.eml",
+    "messageId": "<tom-0052@bookbarn.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 62547,
+    "from": {
+      "address": "hello@bookbarn.example",
+      "name": "Book Barn"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "3 for 2 on paperbacks",
+    "listId": null,
+    "listUnsubscribe": "<https://bookbarn.example/unsubscribe?u=51461>, <mailto:unsubscribe@bookbarn.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Mix and match across thousands of titles. Our staff recommend their favourite reads. Read the full issue online: https://bookbarn.example/issues/51461 You are receiving this email because you subscrib"
+  },
+  {
+    "file": "inbox/0079.eml",
+    "messageId": "<tom-0069@valuemart.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 63666,
+    "from": {
+      "address": "offers@valuemart.example",
+      "name": "ValueMart"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "This week's big savings",
+    "listId": null,
+    "listUnsubscribe": "<https://valuemart.example/unsubscribe?u=24136>, <mailto:unsubscribe@valuemart.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Family meal deals from £10. Collect double points on everything. Read the full issue online: https://valuemart.example/issues/24136 You are receiving this email because you subscribed to our newslette"
+  },
+  {
+    "file": "inbox/0080.eml",
+    "messageId": "<tom-0137@bookbarn.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 64075,
+    "from": {
+      "address": "orders@bookbarn.example",
+      "name": "Book Barn"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Thanks for your order",
+    "listId": null,
+    "listUnsubscribe": null,
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Hi Tom, We've received your order and will let you know when it's on its way. Happy reading! This is an automatically generated message about your account or order. Please keep it for your records. If"
+  },
+  {
+    "file": "inbox/0081.eml",
+    "messageId": "<tom-0091@councilbins.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 65650,
+    "from": {
+      "address": "news@councilbins.example",
+      "name": "Council Recycling News"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Bulky waste collections",
+    "listId": "Council Recycling News <news.councilbins.example>",
+    "listUnsubscribe": "<https://councilbins.example/unsubscribe?u=72189>, <mailto:unsubscribe@councilbins.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Renew your garden waste subscription. What can and can't go in the blue bin. Read the full issue online: https://councilbins.example/issues/72189 You are receiving this email because you subscribed to"
+  },
+  {
+    "file": "inbox/0082.eml",
+    "messageId": "<tom-0134@valuemart.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 66502,
+    "from": {
+      "address": "orders@valuemart.example",
+      "name": "ValueMart"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Your ValueMart delivery is confirmed",
+    "listId": null,
+    "listUnsubscribe": null,
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Hi Tom, Your grocery delivery is booked for Thursday between 6pm and 7pm. Order total: £62.84 This is an automatically generated message about your account or order. Please keep it for your records. I"
+  },
+  {
+    "file": "inbox/0083.eml",
+    "messageId": "<tom-0100@picturehouse.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 67707,
+    "from": {
+      "address": "listings@picturehouse.example",
+      "name": "Picturehouse Manchester"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Silver screen mornings",
+    "listId": null,
+    "listUnsubscribe": null,
+    "precedence": "bulk",
+    "autoSubmitted": null,
+    "snippet": "New releases and classic films this week. Tickets from £5 for kids' club. Read the full issue online: https://picturehouse.example/issues/11398 You are receiving this email because you subscribed to o"
+  },
+  {
+    "file": "inbox/0084.eml",
+    "messageId": "<tom-0016@northernrail.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 68405,
+    "from": {
+      "address": "news@northernrail.example",
+      "name": "Northern Rail Updates"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Travel smarter this winter",
+    "listId": "Northern Rail Updates <news.northernrail.example>",
+    "listUnsubscribe": "<https://northernrail.example/unsubscribe?u=53603>, <mailto:unsubscribe@northernrail.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Save with a railcard. Plan ahead: some services are replaced by buses. Read the full issue online: https://northernrail.example/issues/53603 You are receiving this email because you subscribed to our "
+  },
+  {
+    "file": "inbox/0085.eml",
+    "messageId": "<tom-0018@reddevilsfans.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 69248,
+    "from": {
+      "address": "news@reddevilsfans.example",
+      "name": "Red Devils Fan News"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Player ratings from Saturday",
+    "listId": null,
+    "listUnsubscribe": null,
+    "precedence": "bulk",
+    "autoSubmitted": null,
+    "snippet": "Enter the ballot for home tickets. Everything you need to know before the derby. Read the full issue online: https://reddevilsfans.example/issues/73093 You are receiving this email because you subscri"
+  },
+  {
+    "file": "inbox/0086.eml",
+    "messageId": "<tom-0075@mcrevening.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 70622,
+    "from": {
+      "address": "digest@mcrevening.example",
+      "name": "Manchester Evening Digest"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Best Sunday roasts in the city",
+    "listId": null,
+    "listUnsubscribe": "<https://mcrevening.example/unsubscribe?u=46766>, <mailto:unsubscribe@mcrevening.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Weather: cloudy with sunny spells. Today's top stories from across Greater Manchester. Read the full issue online: https://mcrevening.example/issues/46766 You are receiving this email because you subs"
+  },
+  {
+    "file": "inbox/0087.eml",
+    "messageId": "<tom-0136@northwater.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 71667,
+    "from": {
+      "address": "billing@northwater.example",
+      "name": "North Water"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Your water bill is ready",
+    "listId": null,
+    "listUnsubscribe": null,
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Hello Tom, Your latest bill of £28.36 is ready to view in your online account. It will be paid by Direct Debit. This is an automatically generated message about your account or order. Please keep it f"
+  },
+  {
+    "file": "inbox/0088.eml",
+    "messageId": "<tom-0118@reddevilsfans.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 71728,
+    "from": {
+      "address": "news@reddevilsfans.example",
+      "name": "Red Devils Fan News"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Away day travel guide",
+    "listId": null,
+    "listUnsubscribe": null,
+    "precedence": "bulk",
+    "autoSubmitted": null,
+    "snippet": "Everything you need to know before the derby. Our ratings for every player. Read the full issue online: https://reddevilsfans.example/issues/11797 You are receiving this email because you subscribed t"
+  },
+  {
+    "file": "inbox/0089.eml",
+    "messageId": "<tom-0024@streamflix.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 72947,
+    "from": {
+      "address": "updates@streamflix.example",
+      "name": "StreamFlix"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Because you watched",
+    "listId": null,
+    "listUnsubscribe": "<https://streamflix.example/unsubscribe?u=45920>, <mailto:unsubscribe@streamflix.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Set reminders for upcoming releases. New series and films added this week. Read the full issue online: https://streamflix.example/issues/45920 You are receiving this email because you subscribed to ou"
+  },
+  {
+    "file": "inbox/0090.eml",
+    "messageId": "<tom-0113@canalwalks.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 73238,
+    "from": {
+      "address": "news@canalwalks.example",
+      "name": "Canal Walks Club"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Photos from last week's walk",
+    "listId": "Canal Walks Club <news.canalwalks.example>",
+    "listUnsubscribe": "<https://canalwalks.example/unsubscribe?u=55778>, <mailto:unsubscribe@canalwalks.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Meet at 10:00 by the lock. Stay warm and dry this winter. Read the full issue online: https://canalwalks.example/issues/55778 You are receiving this email because you subscribed to our newsletter or b"
+  },
+  {
+    "file": "inbox/0091.eml",
+    "messageId": "<tom-0110@picturehouse.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 75649,
+    "from": {
+      "address": "listings@picturehouse.example",
+      "name": "Picturehouse Manchester"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "This week's films",
+    "listId": null,
+    "listUnsubscribe": null,
+    "precedence": "bulk",
+    "autoSubmitted": null,
+    "snippet": "Free members' preview on Thursday. New releases and classic films this week. Read the full issue online: https://picturehouse.example/issues/67030 You are receiving this email because you subscribed t"
+  },
+  {
+    "file": "inbox/0092.eml",
+    "messageId": "<tom-0008@reddevilsfans.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 79433,
+    "from": {
+      "address": "news@reddevilsfans.example",
+      "name": "Red Devils Fan News"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Player ratings from Saturday",
+    "listId": null,
+    "listUnsubscribe": null,
+    "precedence": "bulk",
+    "autoSubmitted": null,
+    "snippet": "Everything you need to know before the derby. Enter the ballot for home tickets. Read the full issue online: https://reddevilsfans.example/issues/80266 You are receiving this email because you subscri"
+  },
+  {
+    "file": "inbox/0093.eml",
+    "messageId": "<tom-0074@streamflix.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 80675,
+    "from": {
+      "address": "updates@streamflix.example",
+      "name": "StreamFlix"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "New on StreamFlix this week",
+    "listId": null,
+    "listUnsubscribe": "<https://streamflix.example/unsubscribe?u=70115>, <mailto:unsubscribe@streamflix.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "New series and films added this week. More shows like the ones you love. Read the full issue online: https://streamflix.example/issues/70115 You are receiving this email because you subscribed to our "
+  },
+  {
+    "file": "inbox/0094.eml",
+    "messageId": "<tom-0041@councilbins.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 85742,
+    "from": {
+      "address": "news@councilbins.example",
+      "name": "Council Recycling News"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Recycling tips for the holidays",
+    "listId": "Council Recycling News <news.councilbins.example>",
+    "listUnsubscribe": "<https://councilbins.example/unsubscribe?u=94408>, <mailto:unsubscribe@councilbins.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Renew your garden waste subscription. What can and can't go in the blue bin. Read the full issue online: https://councilbins.example/issues/94408 You are receiving this email because you subscribed to"
+  },
+  {
+    "file": "inbox/0095.eml",
+    "messageId": "<tom-0026@northernrail.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 85961,
+    "from": {
+      "address": "news@northernrail.example",
+      "name": "Northern Rail Updates"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Travel smarter this winter",
+    "listId": "Northern Rail Updates <news.northernrail.example>",
+    "listUnsubscribe": "<https://northernrail.example/unsubscribe?u=33319>, <mailto:unsubscribe@northernrail.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Plan ahead: some services are replaced by buses. New timetables start next month. Read the full issue online: https://northernrail.example/issues/33319 You are receiving this email because you subscri"
+  },
+  {
+    "file": "inbox/0096.eml",
+    "messageId": "<tom-0005@mcrevening.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 87074,
+    "from": {
+      "address": "digest@mcrevening.example",
+      "name": "Manchester Evening Digest"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "What's on this weekend",
+    "listId": null,
+    "listUnsubscribe": "<https://mcrevening.example/unsubscribe?u=35376>, <mailto:unsubscribe@mcrevening.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Today's top stories from across Greater Manchester. Events and gigs coming up. Read the full issue online: https://mcrevening.example/issues/35376 You are receiving this email because you subscribed t"
+  },
+  {
+    "file": "inbox/0097.eml",
+    "messageId": "<tom-0028@reddevilsfans.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 87563,
+    "from": {
+      "address": "news@reddevilsfans.example",
+      "name": "Red Devils Fan News"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Player ratings from Saturday",
+    "listId": null,
+    "listUnsubscribe": null,
+    "precedence": "bulk",
+    "autoSubmitted": null,
+    "snippet": "Enter the ballot for home tickets. Our ratings for every player. Read the full issue online: https://reddevilsfans.example/issues/58470 You are receiving this email because you subscribed to our newsl"
+  },
+  {
+    "file": "inbox/0098.eml",
+    "messageId": "<tom-0033@canalwalks.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 88019,
+    "from": {
+      "address": "news@canalwalks.example",
+      "name": "Canal Walks Club"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Photos from last week's walk",
+    "listId": "Canal Walks Club <news.canalwalks.example>",
+    "listUnsubscribe": "<https://canalwalks.example/unsubscribe?u=71845>, <mailto:unsubscribe@canalwalks.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Stay warm and dry this winter. Thanks to everyone who came along. Read the full issue online: https://canalwalks.example/issues/71845 You are receiving this email because you subscribed to our newslet"
+  },
+  {
+    "file": "inbox/0099.eml",
+    "messageId": "<tom-0131@metrotickets.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 89028,
+    "from": {
+      "address": "receipts@metrotickets.example",
+      "name": "Metrolink Tickets"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Your ticket receipt",
+    "listId": null,
+    "listUnsubscribe": null,
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Thanks for buying your ticket, Tom. Weekly ticket: £17.98 Show the QR code in the app when asked. This is an automatically generated message about your account or order. Please keep it for your record"
+  },
+  {
+    "file": "inbox/0100.eml",
+    "messageId": "<tom-0046@northernrail.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 89521,
+    "from": {
+      "address": "news@northernrail.example",
+      "name": "Northern Rail Updates"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Your season ticket offers",
+    "listId": "Northern Rail Updates <news.northernrail.example>",
+    "listUnsubscribe": "<https://northernrail.example/unsubscribe?u=76997>, <mailto:unsubscribe@northernrail.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "New timetables start next month. Plan ahead: some services are replaced by buses. Read the full issue online: https://northernrail.example/issues/76997 You are receiving this email because you subscri"
+  },
+  {
+    "file": "inbox/0101.eml",
+    "messageId": "<tom-0095@mcrevening.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 90266,
+    "from": {
+      "address": "digest@mcrevening.example",
+      "name": "Manchester Evening Digest"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Traffic and travel update",
+    "listId": null,
+    "listUnsubscribe": "<https://mcrevening.example/unsubscribe?u=27251>, <mailto:unsubscribe@mcrevening.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Weather: cloudy with sunny spells. Today's top stories from across Greater Manchester. Read the full issue online: https://mcrevening.example/issues/27251 You are receiving this email because you subs"
+  },
+  {
+    "file": "inbox/0102.eml",
+    "messageId": "<tom-0030@picturehouse.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 91255,
+    "from": {
+      "address": "listings@picturehouse.example",
+      "name": "Picturehouse Manchester"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Kids' club this Saturday",
+    "listId": null,
+    "listUnsubscribe": null,
+    "precedence": "bulk",
+    "autoSubmitted": null,
+    "snippet": "Free members' preview on Thursday. New releases and classic films this week. Read the full issue online: https://picturehouse.example/issues/85657 You are receiving this email because you subscribed t"
+  },
+  {
+    "file": "inbox/0103.eml",
+    "messageId": "<tom-0053@canalwalks.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 93320,
+    "from": {
+      "address": "news@canalwalks.example",
+      "name": "Canal Walks Club"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Photos from last week's walk",
+    "listId": "Canal Walks Club <news.canalwalks.example>",
+    "listUnsubscribe": "<https://canalwalks.example/unsubscribe?u=22536>, <mailto:unsubscribe@canalwalks.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Meet at 10:00 by the lock. Thanks to everyone who came along. Read the full issue online: https://canalwalks.example/issues/22536 You are receiving this email because you subscribed to our newsletter "
+  },
+  {
+    "file": "inbox/0104.eml",
+    "messageId": "<tom-0059@valuemart.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 94123,
+    "from": {
+      "address": "offers@valuemart.example",
+      "name": "ValueMart"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Your personalised offers",
+    "listId": null,
+    "listUnsubscribe": "<https://valuemart.example/unsubscribe?u=26562>, <mailto:unsubscribe@valuemart.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Collect double points on everything. Family meal deals from £10. Read the full issue online: https://valuemart.example/issues/26562 You are receiving this email because you subscribed to our newslette"
+  },
+  {
+    "file": "inbox/0105.eml",
+    "messageId": "<tom-0130@valuemart.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 94236,
+    "from": {
+      "address": "orders@valuemart.example",
+      "name": "ValueMart"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Your ValueMart delivery is confirmed",
+    "listId": null,
+    "listUnsubscribe": null,
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Hi Tom, Your grocery delivery is booked for Thursday between 6pm and 7pm. Order total: £54.76 This is an automatically generated message about your account or order. Please keep it for your records. I"
+  },
+  {
+    "file": "inbox/0106.eml",
+    "messageId": "<tom-0123@canalwalks.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 95384,
+    "from": {
+      "address": "news@canalwalks.example",
+      "name": "Canal Walks Club"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Sunday walk: Bridgewater Canal",
+    "listId": "Canal Walks Club <news.canalwalks.example>",
+    "listUnsubscribe": "<https://canalwalks.example/unsubscribe?u=64744>, <mailto:unsubscribe@canalwalks.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Thanks to everyone who came along. Meet at 10:00 by the lock. Read the full issue online: https://canalwalks.example/issues/64744 You are receiving this email because you subscribed to our newsletter "
+  },
+  {
+    "file": "sent/0004.eml",
+    "messageId": "<tom-0145@inbox.example>",
+    "folder": "sent",
+    "folderPath": "Sent",
+    "minutesAgo": 96746,
+    "from": {
+      "address": "tom.okafor@inbox.example",
+      "name": "Tom Okafor"
+    },
+    "to": [
+      {
+        "address": "sam.turner@post.example",
+        "name": "Sam Turner"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": "<tom-0144@post.example>",
+    "references": [
+      "<tom-0144@post.example>"
+    ],
+    "subject": "Re: Quiz night",
+    "listId": null,
+    "listUnsubscribe": null,
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Count me in. Tom Sam Turner wrote: > Pub quiz on Wednesday at the Crown. Usual team? > > Sam > Other news: the allotment finally produced some decent tomatoes, and I've signed up for the 10k in the sp"
+  },
+  {
+    "file": "inbox/0107.eml",
+    "messageId": "<tom-0144@post.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 97102,
+    "from": {
+      "address": "sam.turner@post.example",
+      "name": "Sam Turner"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Quiz night",
+    "listId": null,
+    "listUnsubscribe": null,
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Pub quiz on Wednesday at the Crown. Usual team? Sam Other news: the allotment finally produced some decent tomatoes, and I've signed up for the 10k in the spring, so you'll be hearing a lot about my t"
+  },
+  {
+    "file": "inbox/0108.eml",
+    "messageId": "<tom-0133@bookbarn.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 98007,
+    "from": {
+      "address": "orders@bookbarn.example",
+      "name": "Book Barn"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Thanks for your order",
+    "listId": null,
+    "listUnsubscribe": null,
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Hi Tom, We've received your order and will let you know when it's on its way. Happy reading! This is an automatically generated message about your account or order. Please keep it for your records. If"
+  },
+  {
+    "file": "inbox/0109.eml",
+    "messageId": "<tom-0150@post.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 100136,
+    "from": {
+      "address": "sam.turner@post.example",
+      "name": "Sam Turner"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Concert tickets",
+    "listId": null,
+    "listUnsubscribe": null,
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Got two spare tickets for the Apollo in December. Fancy it? Sam Other news: the allotment finally produced some decent tomatoes, and I've signed up for the 10k in the spring, so you'll be hearing a lo"
+  },
+  {
+    "file": "inbox/0110.eml",
+    "messageId": "<tom-0093@canalwalks.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 100901,
+    "from": {
+      "address": "news@canalwalks.example",
+      "name": "Canal Walks Club"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "New walk leaders wanted",
+    "listId": "Canal Walks Club <news.canalwalks.example>",
+    "listUnsubscribe": "<https://canalwalks.example/unsubscribe?u=61130>, <mailto:unsubscribe@canalwalks.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Meet at 10:00 by the lock. Stay warm and dry this winter. Read the full issue online: https://canalwalks.example/issues/61130 You are receiving this email because you subscribed to our newsletter or b"
+  },
+  {
+    "file": "inbox/0111.eml",
+    "messageId": "<tom-0122@bookbarn.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 102646,
+    "from": {
+      "address": "hello@bookbarn.example",
+      "name": "Book Barn"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Author event: book signing",
+    "listId": null,
+    "listUnsubscribe": "<https://bookbarn.example/unsubscribe?u=47270>, <mailto:unsubscribe@bookbarn.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Our staff recommend their favourite reads. Mix and match across thousands of titles. Read the full issue online: https://bookbarn.example/issues/47270 You are receiving this email because you subscrib"
+  },
+  {
+    "file": "inbox/0112.eml",
+    "messageId": "<tom-0073@canalwalks.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 104459,
+    "from": {
+      "address": "news@canalwalks.example",
+      "name": "Canal Walks Club"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Winter walking kit",
+    "listId": "Canal Walks Club <news.canalwalks.example>",
+    "listUnsubscribe": "<https://canalwalks.example/unsubscribe?u=56179>, <mailto:unsubscribe@canalwalks.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Meet at 10:00 by the lock. Stay warm and dry this winter. Read the full issue online: https://canalwalks.example/issues/56179 You are receiving this email because you subscribed to our newsletter or b"
+  },
+  {
+    "file": "inbox/0113.eml",
+    "messageId": "<tom-0065@mcrevening.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 104475,
+    "from": {
+      "address": "digest@mcrevening.example",
+      "name": "Manchester Evening Digest"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "What's on this weekend",
+    "listId": null,
+    "listUnsubscribe": "<https://mcrevening.example/unsubscribe?u=28753>, <mailto:unsubscribe@mcrevening.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Weather: cloudy with sunny spells. Today's top stories from across Greater Manchester. Read the full issue online: https://mcrevening.example/issues/28753 You are receiving this email because you subs"
+  },
+  {
+    "file": "inbox/0114.eml",
+    "messageId": "<tom-0129@valuemart.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 104523,
+    "from": {
+      "address": "offers@valuemart.example",
+      "name": "ValueMart"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "This week's big savings",
+    "listId": null,
+    "listUnsubscribe": "<https://valuemart.example/unsubscribe?u=46426>, <mailto:unsubscribe@valuemart.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Collect double points on everything. Family meal deals from £10. Read the full issue online: https://valuemart.example/issues/46426 You are receiving this email because you subscribed to our newslette"
+  },
+  {
+    "file": "inbox/0115.eml",
+    "messageId": "<tom-0107@fithubgym.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 107455,
+    "from": {
+      "address": "hello@fithubgym.example",
+      "name": "FitHub Gym"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Holiday opening hours",
+    "listId": null,
+    "listUnsubscribe": "<https://fithubgym.example/unsubscribe?u=63594>, <mailto:unsubscribe@fithubgym.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "You visited 9 times last month. Members can bring a friend every Friday. Read the full issue online: https://fithubgym.example/issues/63594 You are receiving this email because you subscribed to our n"
+  },
+  {
+    "file": "inbox/0116.eml",
+    "messageId": "<tom-0035@mcrevening.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 107971,
+    "from": {
+      "address": "digest@mcrevening.example",
+      "name": "Manchester Evening Digest"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Traffic and travel update",
+    "listId": null,
+    "listUnsubscribe": "<https://mcrevening.example/unsubscribe?u=13261>, <mailto:unsubscribe@mcrevening.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Weather: cloudy with sunny spells. Today's top stories from across Greater Manchester. Read the full issue online: https://mcrevening.example/issues/13261 You are receiving this email because you subs"
+  },
+  {
+    "file": "inbox/0117.eml",
+    "messageId": "<tom-0055@mcrevening.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 108951,
+    "from": {
+      "address": "digest@mcrevening.example",
+      "name": "Manchester Evening Digest"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Your Manchester morning briefing",
+    "listId": null,
+    "listUnsubscribe": "<https://mcrevening.example/unsubscribe?u=75677>, <mailto:unsubscribe@mcrevening.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Today's top stories from across Greater Manchester. Events and gigs coming up. Read the full issue online: https://mcrevening.example/issues/75677 You are receiving this email because you subscribed t"
+  },
+  {
+    "file": "inbox/0118.eml",
+    "messageId": "<tom-0038@reddevilsfans.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 109127,
+    "from": {
+      "address": "news@reddevilsfans.example",
+      "name": "Red Devils Fan News"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Match preview: the derby",
+    "listId": null,
+    "listUnsubscribe": null,
+    "precedence": "bulk",
+    "autoSubmitted": null,
+    "snippet": "Enter the ballot for home tickets. Our ratings for every player. Read the full issue online: https://reddevilsfans.example/issues/63889 You are receiving this email because you subscribed to our newsl"
+  },
+  {
+    "file": "sent/0005.eml",
+    "messageId": "<tom-0141@inbox.example>",
+    "folder": "sent",
+    "folderPath": "Sent",
+    "minutesAgo": 109956,
+    "from": {
+      "address": "tom.okafor@inbox.example",
+      "name": "Tom Okafor"
+    },
+    "to": [
+      {
+        "address": "ellie.shaw@mail.example",
+        "name": "Ellie Shaw"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": "<tom-0140@mail.example>",
+    "references": [
+      "<tom-0140@mail.example>"
+    ],
+    "subject": "Re: Mum's birthday plans",
+    "listId": null,
+    "listUnsubscribe": null,
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Yes, book it. I'll swap my shift. Tom Ellie Shaw wrote: > Hi Tom, > > Shall we book the Italian place for Mum's birthday? Saturday the 18th? > > Ellie > Other news: the allotment finally produced some"
+  },
+  {
+    "file": "inbox/0119.eml",
+    "messageId": "<tom-0054@streamflix.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 110096,
+    "from": {
+      "address": "updates@streamflix.example",
+      "name": "StreamFlix"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Because you watched",
+    "listId": null,
+    "listUnsubscribe": "<https://streamflix.example/unsubscribe?u=18603>, <mailto:unsubscribe@streamflix.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Set reminders for upcoming releases. New series and films added this week. Read the full issue online: https://streamflix.example/issues/18603 You are receiving this email because you subscribed to ou"
+  },
+  {
+    "file": "inbox/0120.eml",
+    "messageId": "<tom-0140@mail.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 110470,
+    "from": {
+      "address": "ellie.shaw@mail.example",
+      "name": "Ellie Shaw"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Mum's birthday plans",
+    "listId": null,
+    "listUnsubscribe": null,
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Hi Tom, Shall we book the Italian place for Mum's birthday? Saturday the 18th? Ellie Other news: the allotment finally produced some decent tomatoes, and I've signed up for the 10k in the spring, so y"
+  },
+  {
+    "file": "inbox/0121.eml",
+    "messageId": "<tom-0119@valuemart.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 111463,
+    "from": {
+      "address": "offers@valuemart.example",
+      "name": "ValueMart"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "This week's big savings",
+    "listId": null,
+    "listUnsubscribe": "<https://valuemart.example/unsubscribe?u=64461>, <mailto:unsubscribe@valuemart.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Collect double points on everything. Family meal deals from £10. Read the full issue online: https://valuemart.example/issues/64461 You are receiving this email because you subscribed to our newslette"
+  },
+  {
+    "file": "inbox/0122.eml",
+    "messageId": "<tom-0111@councilbins.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 111719,
+    "from": {
+      "address": "news@councilbins.example",
+      "name": "Council Recycling News"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Recycling tips for the holidays",
+    "listId": "Council Recycling News <news.councilbins.example>",
+    "listUnsubscribe": "<https://councilbins.example/unsubscribe?u=77140>, <mailto:unsubscribe@councilbins.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "What can and can't go in the blue bin. Your collection day is changing next week. Read the full issue online: https://councilbins.example/issues/77140 You are receiving this email because you subscrib"
+  },
+  {
+    "file": "inbox/0123.eml",
+    "messageId": "<tom-0101@councilbins.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 112184,
+    "from": {
+      "address": "news@councilbins.example",
+      "name": "Council Recycling News"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Recycling tips for the holidays",
+    "listId": "Council Recycling News <news.councilbins.example>",
+    "listUnsubscribe": "<https://councilbins.example/unsubscribe?u=16705>, <mailto:unsubscribe@councilbins.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Renew your garden waste subscription. Your collection day is changing next week. Read the full issue online: https://councilbins.example/issues/16705 You are receiving this email because you subscribe"
+  },
+  {
+    "file": "inbox/0124.eml",
+    "messageId": "<tom-0102@bookbarn.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 112693,
+    "from": {
+      "address": "hello@bookbarn.example",
+      "name": "Book Barn"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Your reading list",
+    "listId": null,
+    "listUnsubscribe": "<https://bookbarn.example/unsubscribe?u=12985>, <mailto:unsubscribe@bookbarn.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Meet the author this Saturday. Mix and match across thousands of titles. Read the full issue online: https://bookbarn.example/issues/12985 You are receiving this email because you subscribed to our ne"
+  },
+  {
+    "file": "inbox/0125.eml",
+    "messageId": "<tom-0014@streamflix.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 112819,
+    "from": {
+      "address": "updates@streamflix.example",
+      "name": "StreamFlix"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "New on StreamFlix this week",
+    "listId": null,
+    "listUnsubscribe": "<https://streamflix.example/unsubscribe?u=84359>, <mailto:unsubscribe@streamflix.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "More shows like the ones you love. New series and films added this week. Read the full issue online: https://streamflix.example/issues/84359 You are receiving this email because you subscribed to our "
+  },
+  {
+    "file": "inbox/0126.eml",
+    "messageId": "<tom-0117@fithubgym.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 112849,
+    "from": {
+      "address": "hello@fithubgym.example",
+      "name": "FitHub Gym"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "New classes this month",
+    "listId": null,
+    "listUnsubscribe": "<https://fithubgym.example/unsubscribe?u=83377>, <mailto:unsubscribe@fithubgym.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Try our new spin and HIIT classes. You visited 9 times last month. Read the full issue online: https://fithubgym.example/issues/83377 You are receiving this email because you subscribed to our newslet"
+  },
+  {
+    "file": "inbox/0127.eml",
+    "messageId": "<tom-0063@canalwalks.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 114125,
+    "from": {
+      "address": "news@canalwalks.example",
+      "name": "Canal Walks Club"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Sunday walk: Bridgewater Canal",
+    "listId": "Canal Walks Club <news.canalwalks.example>",
+    "listUnsubscribe": "<https://canalwalks.example/unsubscribe?u=61042>, <mailto:unsubscribe@canalwalks.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Thanks to everyone who came along. Meet at 10:00 by the lock. Read the full issue online: https://canalwalks.example/issues/61042 You are receiving this email because you subscribed to our newsletter "
+  },
+  {
+    "file": "inbox/0128.eml",
+    "messageId": "<tom-0103@canalwalks.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 114786,
+    "from": {
+      "address": "news@canalwalks.example",
+      "name": "Canal Walks Club"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Sunday walk: Bridgewater Canal",
+    "listId": "Canal Walks Club <news.canalwalks.example>",
+    "listUnsubscribe": "<https://canalwalks.example/unsubscribe?u=67472>, <mailto:unsubscribe@canalwalks.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Stay warm and dry this winter. Thanks to everyone who came along. Read the full issue online: https://canalwalks.example/issues/67472 You are receiving this email because you subscribed to our newslet"
+  },
+  {
+    "file": "inbox/0129.eml",
+    "messageId": "<tom-0109@valuemart.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 116123,
+    "from": {
+      "address": "offers@valuemart.example",
+      "name": "ValueMart"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "This week's big savings",
+    "listId": null,
+    "listUnsubscribe": "<https://valuemart.example/unsubscribe?u=51061>, <mailto:unsubscribe@valuemart.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Family meal deals from £10. Collect double points on everything. Read the full issue online: https://valuemart.example/issues/51061 You are receiving this email because you subscribed to our newslette"
+  },
+  {
+    "file": "inbox/0130.eml",
+    "messageId": "<tom-0092@bookbarn.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 116248,
+    "from": {
+      "address": "hello@bookbarn.example",
+      "name": "Book Barn"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Author event: book signing",
+    "listId": null,
+    "listUnsubscribe": "<https://bookbarn.example/unsubscribe?u=61212>, <mailto:unsubscribe@bookbarn.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Our staff recommend their favourite reads. Meet the author this Saturday. Read the full issue online: https://bookbarn.example/issues/61212 You are receiving this email because you subscribed to our n"
+  },
+  {
+    "file": "sent/0006.eml",
+    "messageId": "<tom-0143@inbox.example>",
+    "folder": "sent",
+    "folderPath": "Sent",
+    "minutesAgo": 116518,
+    "from": {
+      "address": "tom.okafor@inbox.example",
+      "name": "Tom Okafor"
+    },
+    "to": [
+      {
+        "address": "sam.turner@post.example",
+        "name": "Sam Turner"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": "<tom-0142@post.example>",
+    "references": [
+      "<tom-0142@post.example>"
+    ],
+    "subject": "Re: Holiday pics",
+    "listId": null,
+    "listUnsubscribe": null,
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Brilliant photos, thanks. Tom Sam Turner wrote: > Here are the pictures from Anglesey. The weather was kind to us for once! > > Sam > Other news: the allotment finally produced some decent tomatoes, a"
+  },
+  {
+    "file": "inbox/0131.eml",
+    "messageId": "<tom-0045@mcrevening.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 116794,
+    "from": {
+      "address": "digest@mcrevening.example",
+      "name": "Manchester Evening Digest"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Best Sunday roasts in the city",
+    "listId": null,
+    "listUnsubscribe": "<https://mcrevening.example/unsubscribe?u=24274>, <mailto:unsubscribe@mcrevening.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Today's top stories from across Greater Manchester. Weather: cloudy with sunny spells. Read the full issue online: https://mcrevening.example/issues/24274 You are receiving this email because you subs"
+  },
+  {
+    "file": "inbox/0132.eml",
+    "messageId": "<tom-0142@post.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 117080,
+    "from": {
+      "address": "sam.turner@post.example",
+      "name": "Sam Turner"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Holiday pics",
+    "listId": null,
+    "listUnsubscribe": null,
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Here are the pictures from Anglesey. The weather was kind to us for once! Sam Other news: the allotment finally produced some decent tomatoes, and I've signed up for the 10k in the spring, so you'll b"
+  },
+  {
+    "file": "inbox/0133.eml",
+    "messageId": "<tom-0025@mcrevening.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 117943,
+    "from": {
+      "address": "digest@mcrevening.example",
+      "name": "Manchester Evening Digest"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Best Sunday roasts in the city",
+    "listId": null,
+    "listUnsubscribe": "<https://mcrevening.example/unsubscribe?u=25404>, <mailto:unsubscribe@mcrevening.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Events and gigs coming up. Weather: cloudy with sunny spells. Read the full issue online: https://mcrevening.example/issues/25404 You are receiving this email because you subscribed to our newsletter "
+  },
+  {
+    "file": "inbox/0134.eml",
+    "messageId": "<tom-0078@reddevilsfans.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 118057,
+    "from": {
+      "address": "news@reddevilsfans.example",
+      "name": "Red Devils Fan News"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Player ratings from Saturday",
+    "listId": null,
+    "listUnsubscribe": null,
+    "precedence": "bulk",
+    "autoSubmitted": null,
+    "snippet": "Enter the ballot for home tickets. Our ratings for every player. Read the full issue online: https://reddevilsfans.example/issues/55689 You are receiving this email because you subscribed to our newsl"
+  },
+  {
+    "file": "inbox/0135.eml",
+    "messageId": "<tom-0126@northernrail.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 118091,
+    "from": {
+      "address": "news@northernrail.example",
+      "name": "Northern Rail Updates"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Your season ticket offers",
+    "listId": "Northern Rail Updates <news.northernrail.example>",
+    "listUnsubscribe": "<https://northernrail.example/unsubscribe?u=29942>, <mailto:unsubscribe@northernrail.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "New timetables start next month. Save with a railcard. Read the full issue online: https://northernrail.example/issues/29942 You are receiving this email because you subscribed to our newsletter or bo"
+  },
+  {
+    "file": "inbox/0136.eml",
+    "messageId": "<tom-0023@canalwalks.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 119888,
+    "from": {
+      "address": "news@canalwalks.example",
+      "name": "Canal Walks Club"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "New walk leaders wanted",
+    "listId": "Canal Walks Club <news.canalwalks.example>",
+    "listUnsubscribe": "<https://canalwalks.example/unsubscribe?u=58652>, <mailto:unsubscribe@canalwalks.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Thanks to everyone who came along. Meet at 10:00 by the lock. Read the full issue online: https://canalwalks.example/issues/58652 You are receiving this email because you subscribed to our newsletter "
+  },
+  {
+    "file": "inbox/0137.eml",
+    "messageId": "<tom-0010@picturehouse.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 120667,
+    "from": {
+      "address": "listings@picturehouse.example",
+      "name": "Picturehouse Manchester"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Kids' club this Saturday",
+    "listId": null,
+    "listUnsubscribe": null,
+    "precedence": "bulk",
+    "autoSubmitted": null,
+    "snippet": "New releases and classic films this week. Tickets from £5 for kids' club. Read the full issue online: https://picturehouse.example/issues/79601 You are receiving this email because you subscribed to o"
+  },
+  {
+    "file": "inbox/0138.eml",
+    "messageId": "<tom-0127@fithubgym.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 120733,
+    "from": {
+      "address": "hello@fithubgym.example",
+      "name": "FitHub Gym"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "New classes this month",
+    "listId": null,
+    "listUnsubscribe": "<https://fithubgym.example/unsubscribe?u=32658>, <mailto:unsubscribe@fithubgym.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "You visited 9 times last month. Members can bring a friend every Friday. Read the full issue online: https://fithubgym.example/issues/32658 You are receiving this email because you subscribed to our n"
+  },
+  {
+    "file": "inbox/0139.eml",
+    "messageId": "<tom-0082@bookbarn.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 120947,
+    "from": {
+      "address": "hello@bookbarn.example",
+      "name": "Book Barn"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Staff picks for autumn",
+    "listId": null,
+    "listUnsubscribe": "<https://bookbarn.example/unsubscribe?u=10731>, <mailto:unsubscribe@bookbarn.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Meet the author this Saturday. Our staff recommend their favourite reads. Read the full issue online: https://bookbarn.example/issues/10731 You are receiving this email because you subscribed to our n"
+  },
+  {
+    "file": "inbox/0140.eml",
+    "messageId": "<tom-0042@bookbarn.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 121148,
+    "from": {
+      "address": "hello@bookbarn.example",
+      "name": "Book Barn"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Author event: book signing",
+    "listId": null,
+    "listUnsubscribe": "<https://bookbarn.example/unsubscribe?u=28687>, <mailto:unsubscribe@bookbarn.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Our staff recommend their favourite reads. Mix and match across thousands of titles. Read the full issue online: https://bookbarn.example/issues/28687 You are receiving this email because you subscrib"
+  },
+  {
+    "file": "inbox/0141.eml",
+    "messageId": "<tom-0121@councilbins.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 121384,
+    "from": {
+      "address": "news@councilbins.example",
+      "name": "Council Recycling News"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Garden waste subscription",
+    "listId": "Council Recycling News <news.councilbins.example>",
+    "listUnsubscribe": "<https://councilbins.example/unsubscribe?u=23300>, <mailto:unsubscribe@councilbins.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Renew your garden waste subscription. Your collection day is changing next week. Read the full issue online: https://councilbins.example/issues/23300 You are receiving this email because you subscribe"
+  },
+  {
+    "file": "inbox/0142.eml",
+    "messageId": "<tom-0066@northernrail.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 121705,
+    "from": {
+      "address": "news@northernrail.example",
+      "name": "Northern Rail Updates"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Timetable changes from December",
+    "listId": "Northern Rail Updates <news.northernrail.example>",
+    "listUnsubscribe": "<https://northernrail.example/unsubscribe?u=67371>, <mailto:unsubscribe@northernrail.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Save with a railcard. New timetables start next month. Read the full issue online: https://northernrail.example/issues/67371 You are receiving this email because you subscribed to our newsletter or bo"
+  },
+  {
+    "file": "inbox/0143.eml",
+    "messageId": "<tom-0009@valuemart.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 124069,
+    "from": {
+      "address": "offers@valuemart.example",
+      "name": "ValueMart"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "This week's big savings",
+    "listId": null,
+    "listUnsubscribe": "<https://valuemart.example/unsubscribe?u=23340>, <mailto:unsubscribe@valuemart.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Save on fresh fruit and veg. Collect double points on everything. Read the full issue online: https://valuemart.example/issues/23340 You are receiving this email because you subscribed to our newslett"
+  },
+  {
+    "file": "inbox/0144.eml",
+    "messageId": "<tom-0072@bookbarn.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 125658,
+    "from": {
+      "address": "hello@bookbarn.example",
+      "name": "Book Barn"
+    },
+    "to": [
+      {
+        "address": "tom.okafor@inbox.example",
+        "name": "Tom Okafor"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Your reading list",
+    "listId": null,
+    "listUnsubscribe": "<https://bookbarn.example/unsubscribe?u=69109>, <mailto:unsubscribe@bookbarn.example>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Our staff recommend their favourite reads. Meet the author this Saturday. Read the full issue online: https://bookbarn.example/issues/69109 You are receiving this email because you subscribed to our n"
+  }
+]

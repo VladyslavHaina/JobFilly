@@ -1,0 +1,28 @@
+{
+  "questions": [
+    {
+      "slug": "relocation",
+      "label": "Would you relocate within the EU for the right role?",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "evidence": [
+        "<maria-0014@inbox.example>"
+      ]
+    },
+    {
+      "slug": "notice-period",
+      "label": "What is your notice period?",
+      "options": [
+        "Available now",
+        "1 month",
+        "2 months",
+        "3 months"
+      ],
+      "evidence": [
+        "<maria-0018@inbox.example>"
+      ]
+    }
+  ]
+}

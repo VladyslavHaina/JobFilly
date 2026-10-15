@@ -1,0 +1,155 @@
+{
+  "<tom-0001@jobs.nhs.uk>": {
+    "roles": [
+      {
+        "title": "Staff Nurse – Acute Medical Unit",
+        "company": "Northfield NHS Foundation Trust",
+        "agency": null,
+        "places": [
+          {
+            "country": "GB",
+            "city": "Manchester"
+          }
+        ],
+        "workMode": null,
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": {
+          "min": 35392,
+          "max": 42618,
+          "currency": "GBP",
+          "period": "year",
+          "asWritten": "£35,392 to £42,618 a year"
+        },
+        "contract": "Permanent",
+        "seniority": "Band 6",
+        "workPermit": null,
+        "skills": [],
+        "languages": [],
+        "applyUrl": "https://www.jobs.nhs.uk/candidate/jobadvert/C9301-26-0412",
+        "extra": {}
+      },
+      {
+        "title": "Clinical Nurse Specialist – Respiratory",
+        "company": "Irwell Valley NHS Trust",
+        "agency": null,
+        "places": [
+          {
+            "country": "GB",
+            "city": "Salford"
+          }
+        ],
+        "workMode": null,
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": null,
+        "contract": "Fixed term: 12 months",
+        "seniority": "Band 7",
+        "workPermit": null,
+        "skills": [],
+        "languages": [],
+        "applyUrl": "https://www.jobs.nhs.uk/candidate/jobadvert/C9302-26-0877",
+        "extra": {}
+      }
+    ]
+  },
+  "<tom-0003@carelinknursing.example>": {
+    "roles": [
+      {
+        "title": "Registered General Nurse (agency shifts)",
+        "company": null,
+        "agency": {
+          "name": "CareLink Nursing",
+          "client": null
+        },
+        "places": [],
+        "workMode": "onsite",
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": {
+          "min": 32,
+          "max": 38,
+          "currency": "GBP",
+          "period": "hour",
+          "asWritten": "£32–£38 an hour"
+        },
+        "contract": "Agency",
+        "seniority": null,
+        "workPermit": null,
+        "skills": [],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
+  "<tom-0004@smartrecruiters.com>": {
+    "roles": [
+      {
+        "title": "Staff Nurse, Ward 4",
+        "company": "Kersal Private Hospital",
+        "agency": null,
+        "places": [],
+        "workMode": null,
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": null,
+        "contract": null,
+        "seniority": null,
+        "workPermit": null,
+        "skills": [],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
+  "<tom-0002@totaljobs.com>": {
+    "roles": [
+      {
+        "title": "Theatre Practitioner",
+        "company": "Pennine Day Surgery",
+        "agency": null,
+        "places": [
+          {
+            "country": "GB",
+            "city": "Stockport"
+          }
+        ],
+        "workMode": "onsite",
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": null,
+        "contract": "Full-time, permanent",
+        "seniority": null,
+        "workPermit": null,
+        "skills": [],
+        "languages": [],
+        "applyUrl": "https://www.totaljobs.com/job/theatre-practitioner/pennine-day-surgery-job104882113",
+        "extra": {}
+      },
+      {
+        "title": "Community Staff Nurse",
+        "company": "Medlock Community Care",
+        "agency": null,
+        "places": [
+          {
+            "country": "GB",
+            "city": "Oldham"
+          }
+        ],
+        "workMode": null,
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": null,
+        "contract": null,
+        "seniority": "Band 5",
+        "workPermit": null,
+        "skills": [],
+        "languages": [],
+        "applyUrl": "https://www.totaljobs.com/job/community-staff-nurse/medlock-community-care-job104890077",
+        "extra": {}
+      }
+    ]
+  }
+}

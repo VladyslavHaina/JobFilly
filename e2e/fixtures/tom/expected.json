@@ -1,0 +1,1392 @@
+{
+  "persona": "tom",
+  "address": "tom.okafor@inbox.example",
+  "messages": {
+    "<tom-0043@canalwalks.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0039@valuemart.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0051@councilbins.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0056@northernrail.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0068@reddevilsfans.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0015@mcrevening.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0088@reddevilsfans.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0036@northernrail.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0058@reddevilsfans.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0020@picturehouse.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0106@northernrail.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0050@picturehouse.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0001@jobs.nhs.uk>": {
+      "folder": "inbox",
+      "stageOne": "job_alert",
+      "category": "job_alert",
+      "facts": [
+        {
+          "title": "Staff Nurse – Acute Medical Unit",
+          "company": "Northfield NHS Foundation Trust",
+          "agency": null,
+          "places": [
+            {
+              "country": "GB",
+              "city": "Manchester"
+            }
+          ],
+          "workMode": null,
+          "remoteScope": null,
+          "timeZones": null,
+          "pay": {
+            "min": 35392,
+            "max": 42618,
+            "currency": "GBP",
+            "period": "year",
+            "asWritten": "£35,392 to £42,618 a year"
+          },
+          "contract": "Permanent",
+          "seniority": "Band 6",
+          "workPermit": null,
+          "skills": [],
+          "languages": [],
+          "applyUrl": "https://www.jobs.nhs.uk/candidate/jobadvert/C9301-26-0412",
+          "extra": {}
+        },
+        {
+          "title": "Clinical Nurse Specialist – Respiratory",
+          "company": "Irwell Valley NHS Trust",
+          "agency": null,
+          "places": [
+            {
+              "country": "GB",
+              "city": "Salford"
+            }
+          ],
+          "workMode": null,
+          "remoteScope": null,
+          "timeZones": null,
+          "pay": null,
+          "contract": "Fixed term: 12 months",
+          "seniority": "Band 7",
+          "workPermit": null,
+          "skills": [],
+          "languages": [],
+          "applyUrl": "https://www.jobs.nhs.uk/candidate/jobadvert/C9302-26-0877",
+          "extra": {}
+        }
+      ],
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0085@mcrevening.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0013@canalwalks.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0022@bookbarn.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0011@councilbins.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0098@reddevilsfans.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0084@streamflix.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0007@fithubgym.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0048@reddevilsfans.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0057@fithubgym.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0037@fithubgym.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0116@northernrail.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0064@streamflix.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0087@fithubgym.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0080@picturehouse.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0147@inbox.example>": {
+      "folder": "sent",
+      "stageOne": "own_reply",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": true,
+      "invalid": false
+    },
+    "<tom-0146@mail.example>": {
+      "folder": "inbox",
+      "stageOne": "likely_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0003@carelinknursing.example>": {
+      "folder": "inbox",
+      "stageOne": "likely_job",
+      "category": "recruiter_outreach",
+      "facts": [
+        {
+          "title": "Registered General Nurse (agency shifts)",
+          "company": null,
+          "agency": {
+            "name": "CareLink Nursing",
+            "client": null
+          },
+          "places": [],
+          "workMode": "onsite",
+          "remoteScope": null,
+          "timeZones": null,
+          "pay": {
+            "min": 32,
+            "max": 38,
+            "currency": "GBP",
+            "period": "hour",
+            "asWritten": "£32–£38 an hour"
+          },
+          "contract": "Agency",
+          "seniority": null,
+          "workPermit": null,
+          "skills": [],
+          "languages": [],
+          "applyUrl": null,
+          "extra": {}
+        }
+      ],
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0019@valuemart.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0062@bookbarn.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0081@councilbins.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0034@streamflix.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0060@picturehouse.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0029@valuemart.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0097@fithubgym.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0083@canalwalks.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0006@northernrail.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0049@valuemart.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0012@bookbarn.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0076@northernrail.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0061@councilbins.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0125@mcrevening.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0108@reddevilsfans.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0124@streamflix.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0149@inbox.example>": {
+      "folder": "sent",
+      "stageOne": "own_reply",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": true,
+      "invalid": false
+    },
+    "<tom-0104@streamflix.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0148@mail.example>": {
+      "folder": "inbox",
+      "stageOne": "likely_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0077@fithubgym.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0044@streamflix.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0139@inbox.example>": {
+      "folder": "sent",
+      "stageOne": "own_reply",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": true,
+      "invalid": false
+    },
+    "<tom-0138@mail.example>": {
+      "folder": "inbox",
+      "stageOne": "likely_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0031@councilbins.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0089@valuemart.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0099@valuemart.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0067@fithubgym.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0090@picturehouse.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0071@councilbins.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0105@mcrevening.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0135@metrotickets.example>": {
+      "folder": "inbox",
+      "stageOne": "likely_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0079@valuemart.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0021@councilbins.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0094@streamflix.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0004@smartrecruiters.com>": {
+      "folder": "inbox",
+      "stageOne": "likely_job",
+      "category": "application_update",
+      "facts": [
+        {
+          "title": "Staff Nurse, Ward 4",
+          "company": "Kersal Private Hospital",
+          "agency": null,
+          "places": [],
+          "workMode": null,
+          "remoteScope": null,
+          "timeZones": null,
+          "pay": null,
+          "contract": null,
+          "seniority": null,
+          "workPermit": null,
+          "skills": [],
+          "languages": [],
+          "applyUrl": null,
+          "extra": {}
+        }
+      ],
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0114@streamflix.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0017@fithubgym.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0112@bookbarn.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0096@northernrail.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0002@totaljobs.com>": {
+      "folder": "inbox",
+      "stageOne": "job_alert",
+      "category": "job_alert",
+      "facts": [
+        {
+          "title": "Theatre Practitioner",
+          "company": "Pennine Day Surgery",
+          "agency": null,
+          "places": [
+            {
+              "country": "GB",
+              "city": "Stockport"
+            }
+          ],
+          "workMode": "onsite",
+          "remoteScope": null,
+          "timeZones": null,
+          "pay": null,
+          "contract": "Full-time, permanent",
+          "seniority": null,
+          "workPermit": null,
+          "skills": [],
+          "languages": [],
+          "applyUrl": "https://www.totaljobs.com/job/theatre-practitioner/pennine-day-surgery-job104882113",
+          "extra": {}
+        },
+        {
+          "title": "Community Staff Nurse",
+          "company": "Medlock Community Care",
+          "agency": null,
+          "places": [
+            {
+              "country": "GB",
+              "city": "Oldham"
+            }
+          ],
+          "workMode": null,
+          "remoteScope": null,
+          "timeZones": null,
+          "pay": null,
+          "contract": null,
+          "seniority": "Band 5",
+          "workPermit": null,
+          "skills": [],
+          "languages": [],
+          "applyUrl": "https://www.totaljobs.com/job/community-staff-nurse/medlock-community-care-job104890077",
+          "extra": {}
+        }
+      ],
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0047@fithubgym.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0120@picturehouse.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0027@fithubgym.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0128@reddevilsfans.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0086@northernrail.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0040@picturehouse.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0115@mcrevening.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0132@northwater.example>": {
+      "folder": "inbox",
+      "stageOne": "likely_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0070@picturehouse.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0032@bookbarn.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0052@bookbarn.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0069@valuemart.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0137@bookbarn.example>": {
+      "folder": "inbox",
+      "stageOne": "likely_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0091@councilbins.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0134@valuemart.example>": {
+      "folder": "inbox",
+      "stageOne": "likely_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0100@picturehouse.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0016@northernrail.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0018@reddevilsfans.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0075@mcrevening.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0136@northwater.example>": {
+      "folder": "inbox",
+      "stageOne": "likely_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0118@reddevilsfans.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0024@streamflix.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0113@canalwalks.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0110@picturehouse.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0008@reddevilsfans.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0074@streamflix.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0041@councilbins.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0026@northernrail.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0005@mcrevening.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0028@reddevilsfans.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0033@canalwalks.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0131@metrotickets.example>": {
+      "folder": "inbox",
+      "stageOne": "likely_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0046@northernrail.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0095@mcrevening.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0030@picturehouse.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0053@canalwalks.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0059@valuemart.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0130@valuemart.example>": {
+      "folder": "inbox",
+      "stageOne": "likely_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0123@canalwalks.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0145@inbox.example>": {
+      "folder": "sent",
+      "stageOne": "own_reply",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": true,
+      "invalid": false
+    },
+    "<tom-0144@post.example>": {
+      "folder": "inbox",
+      "stageOne": "likely_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0133@bookbarn.example>": {
+      "folder": "inbox",
+      "stageOne": "likely_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0150@post.example>": {
+      "folder": "inbox",
+      "stageOne": "likely_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0093@canalwalks.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0122@bookbarn.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0073@canalwalks.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0065@mcrevening.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0129@valuemart.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0107@fithubgym.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0035@mcrevening.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0055@mcrevening.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0038@reddevilsfans.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0141@inbox.example>": {
+      "folder": "sent",
+      "stageOne": "own_reply",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": true,
+      "invalid": false
+    },
+    "<tom-0054@streamflix.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0140@mail.example>": {
+      "folder": "inbox",
+      "stageOne": "likely_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0119@valuemart.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0111@councilbins.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0101@councilbins.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0102@bookbarn.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0014@streamflix.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0117@fithubgym.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0063@canalwalks.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0103@canalwalks.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0109@valuemart.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0092@bookbarn.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0143@inbox.example>": {
+      "folder": "sent",
+      "stageOne": "own_reply",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": true,
+      "invalid": false
+    },
+    "<tom-0045@mcrevening.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0142@post.example>": {
+      "folder": "inbox",
+      "stageOne": "likely_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0025@mcrevening.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0078@reddevilsfans.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0126@northernrail.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0023@canalwalks.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0010@picturehouse.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0127@fithubgym.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0082@bookbarn.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0042@bookbarn.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0121@councilbins.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0066@northernrail.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0009@valuemart.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    },
+    "<tom-0072@bookbarn.example>": {
+      "folder": "inbox",
+      "stageOne": "not_job",
+      "category": "not_job",
+      "facts": null,
+      "ownReply": false,
+      "invalid": false
+    }
+  },
+  "profile": {
+    "answers": {
+      "target_roles": {
+        "values": [],
+        "evidence": []
+      },
+      "seniority": {
+        "values": [],
+        "evidence": []
+      },
+      "places": {
+        "values": [],
+        "evidence": []
+      },
+      "remote": {
+        "values": [],
+        "evidence": []
+      },
+      "contracts": {
+        "values": [],
+        "evidence": []
+      },
+      "min_pay": {
+        "values": [],
+        "evidence": []
+      },
+      "languages": {
+        "values": [],
+        "evidence": []
+      },
+      "work_permits": {
+        "values": [],
+        "evidence": []
+      },
+      "reply_to": {
+        "values": [],
+        "evidence": []
+      },
+      "deal_breakers": {
+        "values": [],
+        "evidence": []
+      }
+    },
+    "extraQuestions": []
+  }
+}
