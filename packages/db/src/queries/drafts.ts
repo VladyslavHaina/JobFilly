@@ -1,5 +1,5 @@
 import type { Draft, DraftOrigin, DraftRef, DraftStatus } from "@jobfilly/schema";
-import { and, desc, eq, inArray, ne } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, ne } from "drizzle-orm";
 import type { Database } from "../client";
 import { drafts } from "../tables";
 import type { RoleRef } from "./evaluations";
@@ -9,11 +9,16 @@ import type { RoleRef } from "./evaluations";
 // (folder, UID, UIDVALIDITY, the draft's own Message-ID, a content hash). Who may write a role's
 // draft, and when it is tried again, is ./draft-claims.ts.
 //
-//   saving      ─saveDraftText─▶ saving (the text is kept, so a retry after a mailbox failure
-//                                makes no second model call)
+//   saving      ─saveDraftText─▶ saving (the text and the Message-ID the copy will have are
+//                                kept, so a retry after a mailbox failure makes no second model
+//                                call and finds a copy an earlier attempt may have left)
 //   saving      ─markDraftSaved─▶ in_mailbox
 //   in_mailbox  ─saveDraftEdit─▶ edited ─saveDraftEdit─▶ edited
 //   in_mailbox, edited, failed ─markDraftDiscarded─▶ discarded
+//
+// An edit and a discard compare and set on the draft's Message-ID, which each mailbox copy has
+// its own of: one that read an older copy than the row names by now changes nothing, so its
+// caller deletes the copy it made and exactly one remains (F6.4).
 
 type DraftRow = typeof drafts.$inferSelect;
 
@@ -23,6 +28,11 @@ export interface StoredDraft extends Draft {
   attempts: number;
   /** Where the copy is in the Drafts folder; null while there is none. */
   mailbox: DraftRef | null;
+  /**
+   * The Message-ID of the mailbox copy, or of the one draft.create appends (kept before the
+   * append); what an edit or a discard compares against. Null before the text is written.
+   */
+  draftMessageId: string | null;
   contentHash: string | null;
 }
 
@@ -55,13 +65,21 @@ function toDraft(row: DraftRow): StoredDraft {
     origin: row.origin,
     attempts: row.attempts,
     mailbox,
+    draftMessageId: row.draftMessageId,
     contentHash: row.contentHash,
   };
 }
 
 /** The API's view of a stored draft. */
 export function publicDraft(draft: StoredDraft): Draft {
-  const { origin: _o, attempts: _a, mailbox: _m, contentHash: _c, ...view } = draft;
+  const {
+    origin: _o,
+    attempts: _a,
+    mailbox: _m,
+    draftMessageId: _d,
+    contentHash: _c,
+    ...view
+  } = draft;
   return view;
 }
 
@@ -125,13 +143,21 @@ const whereStatus = (workspaceId: string, draftId: string, statuses: DraftStatus
 
 /**
  * Keeps the reply draft.v1 wrote on a claimed (saving) draft, before it goes to the mailbox: a
- * retry after a mailbox failure saves this same text. `cvId` is the CV to attach, or null.
+ * retry after a mailbox failure saves this same text. `cvId` is the CV to attach, or null;
+ * `draftMessageId` the Message-ID its mailbox copy gets, chosen before the append.
  */
 export async function saveDraftText(
   db: Database,
   workspaceId: string,
   draftId: string,
-  input: { subject: string; body: string; language: string | null; cvId: string | null; now: Date },
+  input: {
+    subject: string;
+    body: string;
+    language: string | null;
+    cvId: string | null;
+    draftMessageId: string;
+    now: Date;
+  },
 ): Promise<boolean> {
   const rows = await db
     .update(drafts)
@@ -140,6 +166,7 @@ export async function saveDraftText(
       body: input.body,
       language: input.language,
       cvId: input.cvId,
+      draftMessageId: input.draftMessageId,
       updatedAt: input.now,
     })
     .where(whereStatus(workspaceId, draftId, ["saving"]))
@@ -177,12 +204,29 @@ const refColumns = (ref: DraftRef | null) => ({
   draftMessageId: ref?.draftMessageId ?? null,
 });
 
-/** An editor's saved edit (F6.4), with the reference of the copy that replaced the old one. */
+/** The row still names the copy with this Message-ID (null: it names none). */
+const namesCopy = (draftMessageId: string | null) =>
+  draftMessageId === null
+    ? isNull(drafts.draftMessageId)
+    : eq(drafts.draftMessageId, draftMessageId);
+
+/**
+ * An editor's saved edit (F6.4), with the reference of the copy that replaced the old one.
+ * `replaces` is the Message-ID of the copy the edit replaced. Null when the row names another
+ * copy by now (another edit or a discard won), so the caller deletes the copy it made.
+ */
 export async function saveDraftEdit(
   db: Database,
   workspaceId: string,
   draftId: string,
-  input: { subject: string; body: string; ref: DraftRef; contentHash: string; now: Date },
+  input: {
+    replaces: string;
+    subject: string;
+    body: string;
+    ref: DraftRef;
+    contentHash: string;
+    now: Date;
+  },
 ): Promise<StoredDraft | null> {
   const [row] = await db
     .update(drafts)
@@ -194,25 +238,33 @@ export async function saveDraftEdit(
       contentHash: input.contentHash,
       updatedAt: input.now,
     })
-    .where(whereStatus(workspaceId, draftId, ["in_mailbox", "edited"]))
+    .where(
+      and(whereStatus(workspaceId, draftId, ["in_mailbox", "edited"]), namesCopy(input.replaces)),
+    )
     .returning();
   return row ? toDraft(row) : null;
 }
 
 /**
  * Discards a draft whose copy is gone from the mailbox (or never got there): it stays listed as
- * discarded and is never recreated automatically (TBD-193).
+ * discarded and is never recreated automatically (TBD-193). `copy` is the Message-ID the caller
+ * read (and deleted). Null when the row names another copy by now (an edit won meanwhile).
  */
 export async function markDraftDiscarded(
   db: Database,
   workspaceId: string,
   draftId: string,
-  now: Date,
+  input: { copy: string | null; now: Date },
 ): Promise<StoredDraft | null> {
   const [row] = await db
     .update(drafts)
-    .set({ status: "discarded", ...refColumns(null), claimedAt: null, updatedAt: now })
-    .where(whereStatus(workspaceId, draftId, ["in_mailbox", "edited", "failed"]))
+    .set({ status: "discarded", ...refColumns(null), claimedAt: null, updatedAt: input.now })
+    .where(
+      and(
+        whereStatus(workspaceId, draftId, ["in_mailbox", "edited", "failed"]),
+        namesCopy(input.copy),
+      ),
+    )
     .returning();
   return row ? toDraft(row) : null;
 }

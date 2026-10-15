@@ -84,7 +84,12 @@ const claim = async (r: { messageId: string; position: number }, origin: DraftOr
   return c.id;
 };
 
-const text = { subject: "Re: A role", body: "Thank you, I'd like to hear more.", language: "en" };
+const text = {
+  subject: "Re: A role",
+  body: "Thank you, I'd like to hear more.",
+  language: "en",
+  draftMessageId: "<pending@jobfilly.test>",
+};
 
 describe("a draft's content (F6)", () => {
   it("goes from saving to in mailbox, edited and discarded, and lists every status", async () => {
@@ -98,6 +103,7 @@ describe("a draft's content (F6)", () => {
       await markDraftSaved(conn.db, ws, a, { ref: ref(9), contentHash: "h9", now: later(3) }),
     ).toBe(false);
     const edited = await saveDraftEdit(conn.db, ws, a, {
+      replaces: ref(1).draftMessageId,
       subject: "Re: A role",
       body: "Edited text",
       ref: ref(2),
@@ -115,7 +121,8 @@ describe("a draft's content (F6)", () => {
     const c = await claim(role(2));
     await saveDraftText(conn.db, ws, c, { ...text, cvId: null, now: later(6) });
     await markDraftSaved(conn.db, ws, c, { ref: ref(3), contentHash: "h3", now: later(6) });
-    expect(await markDraftDiscarded(conn.db, ws, c, later(7))).toMatchObject({
+    const discard = { copy: ref(3).draftMessageId, now: later(7) };
+    expect(await markDraftDiscarded(conn.db, ws, c, discard)).toMatchObject({
       status: "discarded",
       mailbox: null,
     });
@@ -186,9 +193,16 @@ describe("a draft's content (F6)", () => {
   it("changes only in the states each step allows", async () => {
     const a = await claim(role(0));
     // Not in the mailbox yet: nothing to edit or discard.
-    const edit = { subject: "s", body: "b", ref: ref(1), contentHash: "h", now: later(1) };
+    const edit = {
+      replaces: ref(1).draftMessageId,
+      subject: "s",
+      body: "b",
+      ref: ref(1),
+      contentHash: "h",
+      now: later(1),
+    };
     expect(await saveDraftEdit(conn.db, ws, a, edit)).toBeNull();
-    expect(await markDraftDiscarded(conn.db, ws, a, later(1))).toBeNull();
+    expect(await markDraftDiscarded(conn.db, ws, a, { copy: null, now: later(1) })).toBeNull();
     await markDraftFailed(conn.db, ws, a, {
       kind: "content",
       reason: "placeholder",
@@ -196,10 +210,54 @@ describe("a draft's content (F6)", () => {
     });
     expect(await saveDraftText(conn.db, ws, a, { ...text, cvId: null, now: later(3) })).toBe(false);
     // A failed draft can be discarded; it never was in the mailbox.
-    expect(await markDraftDiscarded(conn.db, ws, a, later(4))).toMatchObject({
+    expect(await markDraftDiscarded(conn.db, ws, a, { copy: null, now: later(4) })).toMatchObject({
       status: "discarded",
     });
     expect(await liveDraftFor(conn.db, ws, role(0))).toBeNull();
+  });
+
+  it("keeps the Message-ID the copy gets before it is in the mailbox", async () => {
+    const a = await claim(role(0));
+    await saveDraftText(conn.db, ws, a, { ...text, cvId: null, now: later(1) });
+    expect(await getDraft(conn.db, ws, a)).toMatchObject({
+      status: "saving",
+      mailbox: null,
+      draftMessageId: "<pending@jobfilly.test>",
+    });
+    await markDraftSaved(conn.db, ws, a, { ref: ref(1), contentHash: "h", now: later(2) });
+    expect((await getDraft(conn.db, ws, a))?.draftMessageId).toBe(ref(1).draftMessageId);
+  });
+
+  it("changes nothing for an edit or a discard that read an older copy (F6.4)", async () => {
+    const a = await claim(role(0));
+    await saveDraftText(conn.db, ws, a, { ...text, cvId: null, now: later(1) });
+    await markDraftSaved(conn.db, ws, a, { ref: ref(1), contentHash: "h1", now: later(1) });
+    const edit = (replaces: string, to: DraftRef, minute: number) =>
+      saveDraftEdit(conn.db, ws, a, {
+        replaces,
+        subject: "s",
+        body: `copy ${to.uid}`,
+        ref: to,
+        contentHash: `h${to.uid}`,
+        now: later(minute),
+      });
+    // Two edits that both read copy 1: the first one wins, the second changes nothing.
+    expect(await edit(ref(1).draftMessageId, ref(2), 2)).toMatchObject({ mailbox: ref(2) });
+    expect(await edit(ref(1).draftMessageId, ref(3), 3)).toBeNull();
+    // A discard that read copy 1 too.
+    const stale = { copy: ref(1).draftMessageId, now: later(4) };
+    expect(await markDraftDiscarded(conn.db, ws, a, stale)).toBeNull();
+    expect(await getDraft(conn.db, ws, a)).toMatchObject({
+      status: "edited",
+      body: "copy 2",
+      mailbox: ref(2),
+    });
+    const current = { copy: ref(2).draftMessageId, now: later(5) };
+    expect(await markDraftDiscarded(conn.db, ws, a, current)).toMatchObject({
+      status: "discarded",
+      draftMessageId: null,
+    });
+    expect(await edit(ref(2).draftMessageId, ref(4), 6)).toBeNull();
   });
 
   it("rejects two live drafts for one role, and allows a new one after a discard", async () => {
@@ -218,7 +276,7 @@ describe("a draft's content (F6)", () => {
       updatedAt: t0,
     });
     await expect(second).rejects.toThrow();
-    await markDraftDiscarded(conn.db, ws, a, later(3));
+    await markDraftDiscarded(conn.db, ws, a, { copy: ref(1).draftMessageId, now: later(3) });
     const b = await claim(role(0), "on_demand");
     expect((await liveDraftFor(conn.db, ws, role(0)))?.id).toBe(b);
   });

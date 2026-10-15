@@ -155,10 +155,13 @@ describe("the decision inbox (F7)", () => {
       userId: null,
       now: later(1),
     });
-    expect(answered?.roles).toEqual(expect.arrayContaining([zurich, basel]));
+    expect(answered).toMatchObject({
+      status: "answered",
+      roles: expect.arrayContaining([zurich, basel]),
+    });
     expect(
       await answerDecision(conn.db, ws, id, { answer: chf, userId: null, now: later(2) }),
-    ).toBeNull();
+    ).toEqual({ status: "not_open" });
     expect(await listDecisions(conn.db, ws)).toEqual([]);
     expect(await getDecision(conn.db, ws, id)).toMatchObject({
       status: "answered",
@@ -171,6 +174,50 @@ describe("the decision inbox (F7)", () => {
     const next = await recordNeeds(conn.db, ws, [chfGroup([asMatch(dublin)])], later(3));
     expect(next.created).toHaveLength(1);
     expect(next.created[0]?.id).not.toBe(id);
+  });
+
+  it("writes what goes with an answer in its transaction, and nothing when that refuses", async () => {
+    const { created } = await recordNeeds(conn.db, ws, [chfGroup([asMatch(zurich)])], t0);
+    const id = created[0]?.id ?? "";
+    const input = { answer: chf, userId: null, now: later(1) };
+    // The write sees the decision answered; when it refuses, the answer is rolled back.
+    const refused = await answerDecision(conn.db, ws, id, input, async (tx) => {
+      const seen = await getDecision(tx, ws, id);
+      return { keep: false, value: seen?.status };
+    });
+    expect(refused).toEqual({ status: "refused", written: "answered" });
+    expect(await getDecision(conn.db, ws, id)).toMatchObject({ status: "open", answer: null });
+    expect(await roleDecisions(conn.db, ws, [zurich])).toMatchObject([{ state: "waiting" }]);
+    // Two answers racing: one is answered with its write, the other writes nothing.
+    const writes: string[] = [];
+    const answer = (who: string) =>
+      answerDecision(conn.db, ws, id, input, async () => {
+        writes.push(who);
+        return { keep: true, value: who };
+      });
+    const outcomes = await Promise.all([answer("first"), answer("second")]);
+    expect(outcomes.map((o) => o.status).sort()).toEqual(["answered", "not_open"]);
+    expect(writes).toHaveLength(1);
+    expect(outcomes.find((o) => o.status === "answered")).toMatchObject({
+      roles: [zurich],
+      written: writes[0],
+    });
+  });
+
+  it("reopens a dismissed place only when told (Draft a reply asks again)", async () => {
+    const { created } = await recordNeeds(conn.db, ws, [relocation([asMatch(dublin)])], t0);
+    const id = created[0]?.id ?? "";
+    expect(await dismissDecisionRole(conn.db, ws, id, dublin, later(1))).toBe(true);
+    const asDraft = relocation([{ ...dublin, source: "draft" }]);
+    expect((await recordNeeds(conn.db, ws, [asDraft], later(2))).added).toBe(0);
+    expect(await roleDecisions(conn.db, ws, [dublin])).toMatchObject([{ state: "dismissed" }]);
+    expect((await recordNeeds(conn.db, ws, [asDraft], later(3), { reopen: true })).added).toBe(1);
+    expect(await roleDecisions(conn.db, ws, [dublin])).toMatchObject([
+      { decisionId: id, state: "waiting", source: "draft" },
+    ]);
+    expect((await draftHistory(conn.db, ws, [dublin])).get(roleKey(dublin))?.dismissed).toBe(false);
+    // A place already waiting stays as it is.
+    expect((await recordNeeds(conn.db, ws, [asDraft], later(4), { reopen: true })).added).toBe(0);
   });
 
   it("lets a role stop waiting when its needs change, keeping dismissed and resolved places", async () => {
@@ -221,7 +268,7 @@ describe("the decision inbox (F7)", () => {
     expect(await listDecisions(conn.db, other)).toEqual([]);
     expect(
       await answerDecision(conn.db, other, id, { answer: chf, userId: null, now: t0 }),
-    ).toBeNull();
+    ).toEqual({ status: "not_open" });
     expect(await dismissDecisionRole(conn.db, other, id, zurich, t0)).toBe(false);
     expect((await conn.db.select().from(decisions)).map((d) => d.status)).toEqual(["open"]);
     expect((await conn.db.select().from(decisionMessages)).map((d) => d.state)).toEqual([

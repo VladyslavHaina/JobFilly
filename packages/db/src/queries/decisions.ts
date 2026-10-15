@@ -29,14 +29,17 @@ export interface NeedGroupInput {
 
 /**
  * Records needs: each group joins its open decision, or opens one, and its roles wait on it
- * (a role already listed keeps its state, so a dismissal stays). Returns the decisions it opened,
- * for decision.created, and how many roles started waiting.
+ * (a role already listed keeps its state, so a dismissal stays). With `reopen` a role the user
+ * dismissed waits on it again: Draft a reply asked for the reply, and it can't go without the
+ * answer (F6.5, F7.5). Returns the decisions it opened, for decision.created, and how many roles
+ * started waiting.
  */
 export async function recordNeeds(
   db: Database,
   workspaceId: string,
   groups: readonly NeedGroupInput[],
   now: Date,
+  options: { reopen?: boolean } = {},
 ): Promise<{ created: { id: string; groupKey: string }[]; added: number }> {
   const created: { id: string; groupKey: string }[] = [];
   let added = 0;
@@ -74,22 +77,30 @@ export async function recordNeeds(
       id = open?.id;
     }
     if (!id || group.waiting.length === 0) continue;
-    const inserted = await db
-      .insert(decisionMessages)
-      .values(
-        group.waiting.map((w) => ({
-          decisionId: id,
-          workspaceId,
-          messageId: w.messageId,
-          position: w.position,
-          state: "waiting" as const,
-          source: w.source,
-          createdAt: now,
-          updatedAt: now,
-        })),
-      )
-      .onConflictDoNothing()
-      .returning({ decisionId: decisionMessages.decisionId });
+    const insert = db.insert(decisionMessages).values(
+      group.waiting.map((w) => ({
+        decisionId: id,
+        workspaceId,
+        messageId: w.messageId,
+        position: w.position,
+        state: "waiting" as const,
+        source: w.source,
+        createdAt: now,
+        updatedAt: now,
+      })),
+    );
+    const inserted = await (options.reopen
+      ? insert.onConflictDoUpdate({
+          target: [
+            decisionMessages.decisionId,
+            decisionMessages.messageId,
+            decisionMessages.position,
+          ],
+          set: { state: "waiting", source: sql`excluded.source`, updatedAt: now },
+          setWhere: sql`${decisionMessages.state} = 'dismissed'`,
+        })
+      : insert.onConflictDoNothing()
+    ).returning({ decisionId: decisionMessages.decisionId });
     added += inserted.length;
   }
   return { created, added };
@@ -98,7 +109,8 @@ export async function recordNeeds(
 /**
  * Lets go of a draft claim whose draft.v1 answer raised questions and records them as needs, in
  * one transaction (ARCHITECTURE › The draft lifecycle): the role counts as never drafted and
- * waits on the decisions. Nothing is recorded when the claim was no longer saving.
+ * waits on the decisions. Nothing is recorded when the claim was no longer saving. `reopen` as
+ * for recordNeeds (the claim is Draft a reply's).
  */
 export async function releaseClaimWithNeeds(
   db: Database,
@@ -106,11 +118,12 @@ export async function releaseClaimWithNeeds(
   draftId: string,
   groups: readonly NeedGroupInput[],
   now: Date,
+  options: { reopen?: boolean } = {},
 ): Promise<{ released: boolean; created: { id: string; groupKey: string }[] }> {
   return db.transaction(async (tx) => {
     if (!(await releaseDraftClaim(tx, workspaceId, draftId)))
       return { released: false, created: [] };
-    const { created } = await recordNeeds(tx, workspaceId, groups, now);
+    const { created } = await recordNeeds(tx, workspaceId, groups, now, options);
     return { released: true, created };
   });
 }
@@ -306,47 +319,78 @@ export async function getDecision(
   return toDecision(row, waiting.get(row.id) ?? []);
 }
 
+/** What `alsoWrite` gave back: whether to keep the answer, and its own result. */
+export interface AnswerWrite<W> {
+  keep: boolean;
+  value: W;
+}
+
+export type AnswerOutcome<W> =
+  | { status: "answered"; roles: RoleRef[]; written: W | null }
+  | { status: "not_open" }
+  /** `alsoWrite` refused: nothing was written, and the decision is still open. */
+  | { status: "refused"; written: W };
+
+/** Rolls the answer's transaction back when `alsoWrite` refuses. */
+class Refused<W> extends Error {
+  constructor(readonly written: W) {
+    super("refused");
+  }
+}
+
 /**
  * Answers an open decision (F7.4): it is answered with `answer`, and every role waiting on it is
- * resolved. Returns those roles, or null when the decision isn't open.
+ * resolved. `alsoWrite` runs in the same transaction once the decision is claimed (the profile
+ * entry of "Use this answer for similar mail"): when it refuses, nothing is written, and two
+ * answers racing for one decision never both reach the profile. Returns the resolved roles, or
+ * not_open when the decision isn't open.
  */
-export async function answerDecision(
+export async function answerDecision<W = never>(
   db: Database,
   workspaceId: string,
   decisionId: string,
   input: { answer: ProfileItem; userId: string | null; now: Date },
-): Promise<{ roles: RoleRef[] } | null> {
-  return db.transaction(async (tx) => {
-    const [row] = await tx
-      .update(decisions)
-      .set({
-        status: "answered",
-        answer: input.answer,
-        answeredBy: input.userId,
-        answeredAt: input.now,
-      })
-      .where(
-        and(
-          eq(decisions.workspaceId, workspaceId),
-          eq(decisions.id, decisionId),
-          eq(decisions.status, "open"),
-        ),
-      )
-      .returning({ id: decisions.id });
-    if (!row) return null;
-    const roles = await tx
-      .update(decisionMessages)
-      .set({ state: "resolved", updatedAt: input.now })
-      .where(
-        and(
-          eq(decisionMessages.workspaceId, workspaceId),
-          eq(decisionMessages.decisionId, decisionId),
-          eq(decisionMessages.state, "waiting"),
-        ),
-      )
-      .returning({ messageId: decisionMessages.messageId, position: decisionMessages.position });
-    return { roles };
-  });
+  alsoWrite?: (tx: Database) => Promise<AnswerWrite<W>>,
+): Promise<AnswerOutcome<W>> {
+  try {
+    return await db.transaction(async (tx): Promise<AnswerOutcome<W>> => {
+      const [row] = await tx
+        .update(decisions)
+        .set({
+          status: "answered",
+          answer: input.answer,
+          answeredBy: input.userId,
+          answeredAt: input.now,
+        })
+        .where(
+          and(
+            eq(decisions.workspaceId, workspaceId),
+            eq(decisions.id, decisionId),
+            eq(decisions.status, "open"),
+          ),
+        )
+        .returning({ id: decisions.id });
+      if (!row) return { status: "not_open" };
+      const roles = await tx
+        .update(decisionMessages)
+        .set({ state: "resolved", updatedAt: input.now })
+        .where(
+          and(
+            eq(decisionMessages.workspaceId, workspaceId),
+            eq(decisionMessages.decisionId, decisionId),
+            eq(decisionMessages.state, "waiting"),
+          ),
+        )
+        .returning({ messageId: decisionMessages.messageId, position: decisionMessages.position });
+      if (!alsoWrite) return { status: "answered", roles, written: null };
+      const write = await alsoWrite(tx);
+      if (!write.keep) throw new Refused(write.value);
+      return { status: "answered", roles, written: write.value };
+    });
+  } catch (error) {
+    if (error instanceof Refused) return { status: "refused", written: error.written as W };
+    throw error;
+  }
 }
 
 /**
