@@ -1,12 +1,12 @@
 import type {
-  AnalysisStatus,
   Category,
-  CategorySource,
   Envelope,
   IntakeInput,
   JobFacts,
   Preferences,
+  StageOneResult,
   StageOneVerdict,
+  StoredMessage,
 } from "@jobfilly/schema";
 import { and, asc, count, desc, eq, inArray, isNotNull, ne, sql } from "drizzle-orm";
 import type { Database } from "../client";
@@ -30,23 +30,6 @@ import { messages, roles } from "../tables";
 // never own replies; category not_job is counted behind the Show toggle; likely_job and
 // job_alert rows still pending are the "N more likely job emails not analyzed". A category whose
 // source is "you" (a correction) is never overwritten.
-
-export interface StageOneResult {
-  envelope: Envelope;
-  verdict: StageOneVerdict;
-  /** Why stage one decided so, in a few words (no subject or address). */
-  reason: string | null;
-}
-
-export interface StoredMessage {
-  envelope: Envelope;
-  stageOne: StageOneVerdict;
-  stageOneReason: string | null;
-  category: Category | null;
-  categorySource: CategorySource | null;
-  analysisStatus: AnalysisStatus;
-  analyzedByScanId: string | null;
-}
 
 type MessageRow = typeof messages.$inferSelect;
 

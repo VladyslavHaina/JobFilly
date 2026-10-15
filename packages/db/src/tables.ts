@@ -8,6 +8,7 @@ import type {
   ExtraQuestion,
   IntakeExtrasStatus,
   JobFacts,
+  JobStatus,
   MailboxStatus,
   MailFolder,
   Preferences,
@@ -362,8 +363,6 @@ export const profiles = pgTable(
   },
   (t) => [index("profiles_workspace_idx").on(t.workspaceId)],
 );
-
-export type JobStatus = "queued" | "running" | "done" | "failed";
 
 /** The job queue: scans today, mail sync and drafting later. */
 export const jobs = pgTable(

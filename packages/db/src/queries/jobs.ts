@@ -1,6 +1,7 @@
+import type { ClaimedJob, JobStatus, StoredJob } from "@jobfilly/schema";
 import { and, eq, sql } from "drizzle-orm";
 import { type Database, queryRows } from "../client";
-import { type JobStatus, jobs } from "../tables";
+import { jobs } from "../tables";
 
 // The job queue (ARCHITECTURE › Background work). Workers claim jobs with FOR UPDATE SKIP LOCKED
 // and hold a lease of at most 30 seconds that they renew while working. A running job whose lease
@@ -11,32 +12,6 @@ import { type JobStatus, jobs } from "../tables";
 
 /** The longest lease a worker may hold; it renews well before the end. */
 export const MAX_LEASE_MS = 30_000;
-
-export interface ClaimedJob {
-  id: string;
-  type: string;
-  workspaceId: string;
-  payload: unknown;
-  checkpoint: unknown;
-  attempts: number;
-  /** Who held the job before: the owner whose lease expired, or who handed it back. */
-  previousOwner: string | null;
-  /** True when this claim took the job over from an owner whose lease had expired. */
-  leaseExpired: boolean;
-}
-
-export interface StoredJob {
-  id: string;
-  type: string;
-  workspaceId: string;
-  payload: unknown;
-  status: JobStatus;
-  leaseOwner: string | null;
-  leaseExpiresAt: Date | null;
-  previousOwner: string | null;
-  attempts: number;
-  checkpoint: unknown;
-}
 
 function leaseUntil(now: Date, leaseMs: number): Date {
   return new Date(now.getTime() + Math.min(Math.max(leaseMs, 1), MAX_LEASE_MS));

@@ -1,5 +1,4 @@
 import {
-  type ClaimedJob,
   claimJob,
   completeJob,
   handBackJob,
@@ -7,6 +6,7 @@ import {
   renewLease,
   saveJobCheckpoint,
 } from "@jobfilly/db";
+import type { ClaimedJob } from "@jobfilly/schema";
 import type { ZodType } from "zod";
 import type { AppDeps } from "../deps";
 
