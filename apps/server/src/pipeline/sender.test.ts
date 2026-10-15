@@ -1,3 +1,4 @@
+import { replyEligibility } from "@jobfilly/core";
 import {
   createConfirmedProfile,
   getInboxMessage,
@@ -124,7 +125,24 @@ describe("the sender stage", () => {
       }),
     ]);
     expect(stages.replies).toHaveLength(1);
-    expect(stages.replies[0]?.sender?.verdict).toBe("high_risk");
+    const reply = stages.replies[0];
+    expect(reply?.sender?.verdict).toBe("high_risk");
+    // F5.2: the reply policy then holds back the automatic draft, however well the role fits.
+    const eligibility = replyEligibility({
+      origin: "auto",
+      category: reply?.message.category ?? null,
+      receivedAt: reply?.message.receivedAt ?? NOW,
+      now: NOW,
+      profile: { entries: [] },
+      score: 95,
+      capped: false,
+      senderVerdict: reply?.sender?.verdict ?? null,
+      ruleEffects: [],
+      openNeeds: [],
+      draftHistory: { hadDraft: false, dismissed: false },
+    });
+    expect(eligibility.eligible).toBe(false);
+    expect(eligibility.heldBy.map((h) => h.kind)).toEqual(["high_risk"]);
   });
 
   it("looks the domain up through deps.domains and notices a young one", async () => {
