@@ -55,6 +55,20 @@ describe("the key lines of the MVP 2 tasks", () => {
     expect(second.slice(2, 4)).toEqual(["Role: 1", "Attempt: 2"]);
   });
 
+  it("asks draft.v1 for a reply in the language of the email it quotes (F6.1)", () => {
+    const draft = input("draft.v1");
+    const { system, user } = promptFor("draft.v1", draft);
+    expect(system).toContain("in the language of the email; set language to its ISO 639-1 code");
+    // The email's own text is in the prompt, line by line behind "| ".
+    const mail = user.slice(user.indexOf("\n=== mail ==="), user.indexOf("\n=== end mail ==="));
+    for (const line of draft.mail.text.split("\n")) expect(mail).toContain(`| ${line}`);
+    // The wire sample the test stack replays carries the same instruction.
+    const sample = JSON.parse(readFileSync(`${WIRE}draft.v1.request.json`, "utf8")) as {
+      messages: { content: string }[];
+    };
+    expect(sample.messages[0]?.content).toBe(system);
+  });
+
   it("keys assistant.v1 by turn, with the user's words as the last block", () => {
     const { user } = promptFor("assistant.v1", input("assistant.v1"));
     const lines = user.split("\n");
