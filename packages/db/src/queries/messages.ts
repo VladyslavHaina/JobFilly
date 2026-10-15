@@ -175,6 +175,99 @@ export async function saveEnvelopes(
   }
 }
 
+/**
+ * Re-indexing by Message-ID (F1.3): the stored messages among these envelopes get the folder,
+ * UIDVALIDITY and UID the mailbox gives them now, and nothing else changes. The row, its id and
+ * everything that hangs off the Message-ID stay: a category a person corrected, roles,
+ * evaluations, sender checks and marks, decision links and drafts. A sender check made while
+ * the message couldn't be found (message_gone) goes stale, as in saveEnvelopes. Returns the
+ * Message-IDs that were stored; the others are new to the workspace. A message without a
+ * Message-ID header has a synthetic id built from its UIDVALIDITY and UID, so a rebuilt folder
+ * gives it a new one: it can't be matched and comes back as new.
+ */
+export async function reindexMessages(
+  db: Database,
+  workspaceId: string,
+  envelopes: readonly Envelope[],
+): Promise<Set<string>> {
+  // One location per Message-ID: of two copies in the folder, the newest (highest UID) wins.
+  const byId = new Map<string, Envelope>();
+  for (const e of envelopes) {
+    const seen = byId.get(e.messageId);
+    if (!seen || e.uid > seen.uid) byId.set(e.messageId, e);
+  }
+  const found = new Set<string>();
+  const unique = [...byId.values()];
+  for (let i = 0; i < unique.length; i += CHUNK) {
+    const chunk = unique.slice(i, i + CHUNK);
+    const locations = JSON.stringify(
+      chunk.map((e) => ({
+        message_id: e.messageId,
+        folder: e.folder,
+        folder_path: e.folderPath,
+        uid_validity: e.uidValidity,
+        uid: e.uid,
+      })),
+    );
+    const updated = await db
+      .update(messages)
+      .set({
+        folder: sql`v.folder`,
+        folderPath: sql`v.folder_path`,
+        uidValidity: sql`v.uid_validity`,
+        uid: sql`v.uid`,
+        updatedAt: sql`now()`,
+      })
+      .from(
+        sql`jsonb_to_recordset(${locations}::jsonb) as v(message_id text, folder text, folder_path text, uid_validity bigint, uid bigint)`,
+      )
+      .where(and(eq(messages.workspaceId, workspaceId), sql`${messages.messageId} = v.message_id`))
+      .returning({ messageId: messages.messageId });
+    for (const row of updated) found.add(row.messageId);
+    if (updated.length === 0) continue;
+    await db
+      .update(senderChecks)
+      .set({ stale: true, staleSince: sql`now()` })
+      .where(
+        and(
+          eq(senderChecks.workspaceId, workspaceId),
+          inArray(
+            senderChecks.messageId,
+            updated.map((row) => row.messageId),
+          ),
+          eq(senderChecks.stale, false),
+          sql`${senderChecks.reasons} @> ${JSON.stringify([{ signal: MESSAGE_GONE_SIGNAL }])}::jsonb`,
+        ),
+      );
+  }
+  return found;
+}
+
+/**
+ * Where the stored messages of a folder end (the first sync's start, F1.1): the UIDVALIDITY of
+ * the folder's newest stored message and the highest UID stored under it; null when none is.
+ * What the first scan stored is then not read again, and nothing older than its window is read.
+ */
+export async function newestStoredUid(
+  db: Database,
+  workspaceId: string,
+  folderPath: string,
+): Promise<{ uidValidity: number; uid: number } | null> {
+  const inFolder = and(eq(messages.workspaceId, workspaceId), eq(messages.folderPath, folderPath));
+  const [newest] = await db
+    .select({ uidValidity: messages.uidValidity })
+    .from(messages)
+    .where(inFolder)
+    .orderBy(desc(messages.date), desc(messages.uid))
+    .limit(1);
+  if (!newest) return null;
+  const [row] = await db
+    .select({ uid: sql<string>`max(${messages.uid})` })
+    .from(messages)
+    .where(and(inFolder, eq(messages.uidValidity, newest.uidValidity)));
+  return { uidValidity: newest.uidValidity, uid: Number(row?.uid ?? 0) };
+}
+
 /** The stored rows of these Message-IDs (any order; unknown ids are left out). */
 export async function getStoredMessages(
   db: Database,
