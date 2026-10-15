@@ -15,7 +15,13 @@ describe("startServer", () => {
     deps = await createTestDeps();
     webDist = await mkdtemp(join(tmpdir(), "jobfilly-web-"));
     await writeFile(join(webDist, "index.html"), "<!doctype html><title>ui</title>");
-    server = await startServer({ app: createApp(deps), hostname: "127.0.0.1", port: 0, webDist });
+    server = await startServer({
+      app: createApp(deps),
+      hostname: "127.0.0.1",
+      port: 0,
+      webDist,
+      log: deps.log,
+    });
   });
 
   afterAll(async () => {
@@ -40,5 +46,32 @@ describe("startServer", () => {
     const res = await fetch(`${server.url}/some/screen`);
     expect(res.status).toBe(200);
     expect(await res.text()).toContain("<title>ui</title>");
+  });
+
+  it("logs http.request for a UI deep link with the route pattern, never the path", async () => {
+    const before = deps.logs.length;
+    const rawBefore = deps.rawLogs.length;
+    const res = await fetch(`${server.url}/w/x/inbox/%3Ca%40b.example%3E`);
+    expect(res.status).toBe(200);
+    const lines = deps.logs.slice(before).filter((l) => l.event === "http.request");
+    expect(lines).toEqual([
+      expect.objectContaining({
+        level: "info",
+        instance: "test-instance",
+        method: "GET",
+        route: "/*",
+        status: 200,
+        requestId: res.headers.get("x-request-id"),
+        durationMs: expect.any(Number),
+      }),
+    ]);
+    expect(deps.rawLogs.slice(rawBefore).join("\n")).not.toMatch(/\/w\/x|inbox|a%40b|b\.example/);
+  });
+
+  it("logs an API request once, from the API's own middleware", async () => {
+    const before = deps.logs.length;
+    await fetch(`${server.url}/api/health/live`);
+    const lines = deps.logs.slice(before).filter((l) => l.event === "http.request");
+    expect(lines).toEqual([expect.objectContaining({ route: "/api/health/live", status: 200 })]);
   });
 });

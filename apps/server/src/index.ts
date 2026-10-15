@@ -46,6 +46,7 @@ const server = await startServer({
   hostname: config.host,
   port: config.port,
   webDist: config.webDist,
+  log,
 }).catch((error: unknown) => {
   log.fatal("server.stopped", { error });
   process.exit(1);
