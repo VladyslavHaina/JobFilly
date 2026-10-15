@@ -1,11 +1,13 @@
 import { createHash } from "node:crypto";
+import { checkSkills } from "@jobfilly/core";
 import {
   deleteCv,
+  getCv,
   getCvFile,
   insertCv,
   linkCvToProfiles,
   listCvs,
-  updateCvTags,
+  updateCv,
 } from "@jobfilly/db";
 import {
   CV_MIME_TYPES,
@@ -13,7 +15,7 @@ import {
   CV_UPLOAD_FILE_FIELD,
   type Cv,
   type CvList,
-  CvTagsUpdateSchema,
+  CvUpdateSchema,
   CvUploadFieldsSchema,
   jobDedupeKey,
   MAX_CV_BYTES,
@@ -27,13 +29,16 @@ import type { AppDeps } from "../deps";
 import { enqueue } from "../jobs/queue";
 import { requestReevaluation } from "../profile/changes";
 
-// CVs (F2): list, upload (multipart, at most 5 MB, PDF or DOCX), tags, delete, download.
+// CVs (F2): list, upload (multipart, at most 5 MB, PDF or DOCX), edit (tags, skills, format
+// hints), delete, download.
 // Mounted once at /api/workspaces/:workspaceId/cvs; viewers read, editors change.
 //
 // An upload is read in memory and stored in Postgres (F2.4): the file's type comes from its
 // bytes, its text is read at once (a file without readable text is refused), and cv.read is
-// enqueued to read it with the AI. Changing a CV's tags or deleting it can change the CV a role
-// uses, so the roles are re-evaluated; a draft already in the mailbox stays there (F2.5).
+// enqueued to read it with the AI. Editing a CV or deleting it can change the CV a role uses and
+// the skills it is matched with, so the roles are re-evaluated; a draft already in the mailbox
+// stays there (F2.5). A skill can be removed, and added only when the CV's text contains it, so
+// a CV never lists a skill it doesn't have (F2.2).
 
 const CvParamSchema = z.object({ cvId: z.uuid() });
 
@@ -45,6 +50,10 @@ const NO_FILE = { error: "invalid", message: "Choose a PDF or DOCX file to uploa
 const UNSUPPORTED = {
   error: "unsupported_type",
   message: "Only PDF and DOCX files can be uploaded",
+} as const;
+const NOT_READ = {
+  error: "not_read",
+  message: "This CV hasn't been read yet, so it has no skills or format hints to change",
 } as const;
 const UNREADABLE = {
   error: "unreadable",
@@ -144,20 +153,31 @@ export function cvsRoutes(deps: AppDeps) {
       "/:cvId",
       requireRole("editor"),
       validParam(CvParamSchema),
-      validJson(CvTagsUpdateSchema),
+      validJson(CvUpdateSchema),
       async (c) => {
         const workspaceId = c.get("workspaceId");
-        const cv = await updateCvTags(
-          deps.db,
-          workspaceId,
-          c.req.valid("param").cvId,
-          c.req.valid("json").tags,
-          deps.clock.now(),
-        );
+        const { cvId } = c.req.valid("param");
+        const change = c.req.valid("json");
+        if (change.skills || change.formatHints) {
+          const current = await getCv(deps.db, workspaceId, cvId);
+          if (!current) return c.json(NOT_FOUND, 404);
+          if (current.readStatus !== "done") return c.json(NOT_READ, 409);
+          if (change.skills) {
+            // Each skill once, and only one the CV's text contains (F2.2).
+            const { kept, dropped } = checkSkills(change.skills, current.text ?? "");
+            const [missing] = dropped;
+            if (missing !== undefined) {
+              const message = `"${missing}" isn't in the CV's text, so it can't be one of its skills`;
+              return c.json({ error: "skill_not_in_cv", message }, 422);
+            }
+            change.skills = kept;
+          }
+        }
+        const cv = await updateCv(deps.db, workspaceId, cvId, change, deps.clock.now());
         if (!cv) return c.json(NOT_FOUND, 404);
         await deps.live.publish(workspaceId, { type: "cvs.updated", data: {} });
-        // A tag such as "preferred" or a role family can change which CV a role uses.
-        await requestReevaluation(deps, workspaceId, { all: true }, "cv.tags");
+        // A tag such as "preferred", a role family or a skill can change which CV a role uses.
+        await requestReevaluation(deps, workspaceId, { all: true }, "cv.edited");
         return c.json(cv satisfies Cv);
       },
     )

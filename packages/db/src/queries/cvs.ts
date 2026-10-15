@@ -1,5 +1,5 @@
 import type { Cv, CvMediaType, CvReadOutput, CvReadStatus, CvTag } from "@jobfilly/schema";
-import { and, asc, eq, exists, or, sql } from "drizzle-orm";
+import { and, asc, eq, exists, isNotNull, or, sql } from "drizzle-orm";
 import type { Database } from "../client";
 import { cvs, profileCvs, profiles, roleCvChoices, roles } from "../tables";
 
@@ -267,18 +267,37 @@ export async function markCvReadFailed(
     .where(and(eq(cvs.workspaceId, workspaceId), eq(cvs.id, cvId)));
 }
 
-/** Replaces the CV's tags (F2.1: AI tags kept or removed, the user's own added). */
-export async function updateCvTags(
+/**
+ * Replaces what the user edits of a CV (F2.1): its tags (AI tags kept or removed, their own
+ * added), and of what cv.v1 read, the skills (the server checks an added one against the text,
+ * F2.2) and the format hints. A field left out stays. The skills and format hints change only on
+ * a CV that has been read; null when there is no such CV, or the CV is unread and they were given.
+ */
+export async function updateCv(
   db: Database,
   workspaceId: string,
   cvId: string,
-  tags: CvTag[],
+  change: { tags?: CvTag[]; skills?: string[]; formatHints?: string[] },
   at: Date,
 ): Promise<Cv | null> {
+  const read: Partial<Pick<CvReadOutput, "skills" | "formatHints">> = {};
+  if (change.skills) read.skills = change.skills;
+  if (change.formatHints) read.formatHints = change.formatHints;
+  const editsRead = Object.keys(read).length > 0;
   const [row] = await db
     .update(cvs)
-    .set({ tags, updatedAt: at })
-    .where(and(eq(cvs.workspaceId, workspaceId), eq(cvs.id, cvId)))
+    .set({
+      ...(change.tags ? { tags: change.tags } : {}),
+      ...(editsRead ? { metadata: sql`${cvs.metadata} || ${JSON.stringify(read)}::jsonb` } : {}),
+      updatedAt: at,
+    })
+    .where(
+      and(
+        eq(cvs.workspaceId, workspaceId),
+        eq(cvs.id, cvId),
+        editsRead ? isNotNull(cvs.metadata) : undefined,
+      ),
+    )
     .returning(cvColumns);
   return row ? toCv(row) : null;
 }

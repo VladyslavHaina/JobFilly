@@ -28,6 +28,7 @@ import {
   roleFacts,
   type SeededUser,
   seedAiSettings,
+  seedCv,
   seedJobMail,
   seedUser,
   seedWorkspace,
@@ -188,12 +189,13 @@ describe("uploading and reading CVs (F2.1)", () => {
       ["Backend (EN)", "done", "en", ["Go", "PostgreSQL", "Kubernetes"]],
       ["Backend (DE)", "done", "de", ["Go", "PostgreSQL"]],
     ]);
+    // The suggested tags: language, role family, seniority; the format hints are a list of their own.
     expect(items[0]?.tags).toEqual([
-      { label: "English", source: "ai" },
+      { label: "en", source: "ai" },
       { label: "Backend engineering", source: "ai" },
       { label: "Senior", source: "ai" },
-      { label: "one page", source: "ai" },
     ]);
+    expect(items[0]?.formatHints).toEqual(["one page"]);
     expect(events.filter((e) => e.type === "cvs.updated").length).toBeGreaterThanOrEqual(4);
 
     const logged = deps.logs.filter((l) => l.event === "cv.uploaded");
@@ -294,7 +296,7 @@ describe("tags, download and delete", () => {
     await drain();
 
     const tags = [
-      { label: "English", source: "ai" as const },
+      { label: "en", source: "ai" as const },
       { label: "preferred", source: "you" as const },
     ];
     const patched = await editor.patch(`${cvsPath()}/${cv.id}`, { tags });
@@ -317,6 +319,47 @@ describe("tags, download and delete", () => {
     expect((await list(editor)).items).toEqual([]);
     expect((await viewer.get(`${cvsPath()}/${cv.id}/file`)).status).toBe(404);
     expect((await editor.delete(`${cvsPath()}/${cv.id}`)).status).toBe(404);
+  });
+
+  it("edits the skills: removes any, adds one only when the CV's text has it (F2.1, F2.2)", async () => {
+    const cv = await seedCv(deps, ws, {
+      name: "Backend (EN)",
+      text: "Maria Santos\nSkills: Go, PostgreSQL, Kubernetes, Kafka",
+      skills: ["Go", "PostgreSQL", "Kubernetes"],
+    });
+    const path = `${cvsPath()}/${cv.id}`;
+    const removed = await editor.patch(path, { skills: ["Go", "Kubernetes"] });
+    expect(removed.status).toBe(200);
+    expect(CvSchema.parse(await removed.json()).skills).toEqual(["Go", "Kubernetes"]);
+
+    const added = await editor.patch(path, { skills: ["Go", "Kubernetes", "kafka", "Go"] });
+    expect(added.status).toBe(200);
+    expect(CvSchema.parse(await added.json()).skills).toEqual(["Go", "Kubernetes", "kafka"]);
+
+    const invented = await editor.patch(path, { skills: ["Go", "Rust"] });
+    expect(invented.status).toBe(422);
+    expect(await invented.json()).toMatchObject({ error: "skill_not_in_cv" });
+    expect((await getCv(deps.db, ws, cv.id))?.skills).toEqual(["Go", "Kubernetes", "kafka"]);
+
+    const hints = await editor.patch(path, { formatHints: ["two pages"] });
+    expect(CvSchema.parse(await hints.json())).toMatchObject({
+      formatHints: ["two pages"],
+      skills: ["Go", "Kubernetes", "kafka"],
+    });
+    expect(events.filter((e) => e.type === "cvs.updated")).toHaveLength(3);
+    // Editing the skills can change which CV a role uses and what it is matched with.
+    expect(await reevaluationWaiting()).toBe(true);
+  });
+
+  it("refuses to edit the skills of a CV that hasn't been read, or of another workspace's", async () => {
+    const unread = await seedCv(deps, ws, { name: "CV", unread: true });
+    const res = await editor.patch(`${cvsPath()}/${unread.id}`, { skills: [] });
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({ error: "not_read" });
+    expect((await editor.patch(`${cvsPath()}/${unread.id}`, {})).status).toBe(400);
+    const toms = await seedCv(deps, tom.workspaceId, { name: "Nurse (EN)", skills: ["Triage"] });
+    expect((await editor.patch(`${cvsPath()}/${toms.id}`, { skills: [] })).status).toBe(404);
+    expect((await viewer.patch(`${cvsPath()}/${unread.id}`, { skills: [] })).status).toBe(403);
   });
 
   it("lets a viewer read and download but not upload, tag or delete (403)", async () => {

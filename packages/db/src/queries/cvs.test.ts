@@ -20,7 +20,7 @@ import {
   markCvReadFailed,
   saveCvRead,
   setRoleCvChoice,
-  updateCvTags,
+  updateCv,
 } from "./cvs";
 import { claimDraft } from "./draft-claims";
 import { getEvaluations, saveEvaluation } from "./evaluations";
@@ -226,10 +226,34 @@ describe("reading and tags (F2.1)", () => {
     await markCvReadFailed(conn.db, ws, cv.id, at);
     expect((await getCv(conn.db, ws, cv.id))?.readStatus).toBe("failed");
     const tags = [{ label: "preferred", source: "you" as const }];
-    expect((await updateCvTags(conn.db, ws, cv.id, tags, at))?.tags).toEqual(tags);
-    expect(await updateCvTags(conn.db, other, cv.id, [], at)).toBeNull();
+    expect((await updateCv(conn.db, ws, cv.id, { tags }, at))?.tags).toEqual(tags);
+    expect(await updateCv(conn.db, other, cv.id, { tags: [] }, at)).toBeNull();
     expect(await saveCvRead(conn.db, other, cv.id, { metadata: READ, tags: [], at })).toBeNull();
     expect((await getCv(conn.db, ws, cv.id))?.tags).toEqual(tags);
+    // An unread CV has no skills to edit.
+    expect(await updateCv(conn.db, ws, cv.id, { skills: ["Go"] }, at)).toBeNull();
+  });
+
+  it("edits the skills and format hints of a read CV, keeping the rest of the read", async () => {
+    const cv = await upload(ws, "CV");
+    await saveCvRead(conn.db, ws, cv.id, {
+      metadata: { ...READ, skills: ["Go", "Kafka"], formatHints: ["one page"] },
+      tags: [],
+      at,
+    });
+    const edited = await updateCv(conn.db, ws, cv.id, { skills: ["Kafka", "Docker"] }, at);
+    expect(edited).toMatchObject({
+      skills: ["Kafka", "Docker"],
+      formatHints: ["one page"],
+      language: "de",
+      roleFamilies: ["Backend engineering"],
+    });
+    expect(await updateCv(conn.db, ws, cv.id, { formatHints: [] }, at)).toMatchObject({
+      skills: ["Kafka", "Docker"],
+      formatHints: [],
+    });
+    expect(await updateCv(conn.db, other, cv.id, { skills: [] }, at)).toBeNull();
+    expect((await getCv(conn.db, ws, cv.id))?.skills).toEqual(["Kafka", "Docker"]);
   });
 });
 

@@ -58,10 +58,6 @@ export const CvUploadFieldsSchema = z.object({
   name: TextSchema.trim().min(1).max(100).optional(),
 });
 
-/** PATCH /cvs/:cvId: the CV's tags as the user leaves them (AI tags kept or removed, own added). */
-export const CvTagsUpdateSchema = z.object({ tags: z.array(CvTagSchema).max(50) });
-export type CvTagsUpdate = z.infer<typeof CvTagsUpdateSchema>;
-
 /** A skill or a format hint as the user edits it: one short label. */
 const CvLabelSchema = TextSchema.trim().min(1).max(100);
 
