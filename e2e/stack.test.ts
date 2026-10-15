@@ -8,6 +8,7 @@ import {
   COMPOSE_FILE,
   type Command,
   fileState,
+  INTERRUPTED,
   main,
   PERSONAS,
   projectName,
@@ -306,6 +307,10 @@ interface FakeOptions {
   /** How many polls each URL needs before it answers 200 (Infinity: never). */
   readyAfter?: Record<string, number>;
   project?: string | null;
+  /** Ctrl-C while this command line runs; it then exits 130, as a child stopped by SIGINT does. */
+  interruptOn?: string;
+  /** Ctrl-C after this many readiness polls. */
+  interruptAfterPolls?: number;
 }
 
 function fake(options: FakeOptions = {}) {
@@ -315,16 +320,22 @@ function fake(options: FakeOptions = {}) {
   const polls: string[] = [];
   let project = options.project ?? null;
   let clock = NOW.getTime();
+  let interrupt = false;
   const stdoutQueues = new Map(Object.entries(options.stdout ?? {}));
   const deps: StackDeps = {
     async run(command): Promise<Result> {
       commands.push(command);
       const line = [command.cmd, ...command.args].join(" ");
       const queued = stdoutQueues.get(line);
+      if (line === options.interruptOn) {
+        interrupt = true;
+        return { code: INTERRUPTED, stdout: "" };
+      }
       return { code: options.codes?.[line] ?? 0, stdout: queued?.shift() ?? "" };
     },
     async ready(url) {
       polls.push(url);
+      if (polls.length === options.interruptAfterPolls) interrupt = true;
       const need = options.readyAfter?.[url] ?? 0;
       return polls.filter((u) => u === url).length > need;
     },
@@ -332,6 +343,7 @@ function fake(options: FakeOptions = {}) {
       clock += ms;
     },
     now: () => new Date(clock),
+    interrupted: () => interrupt,
     state: {
       read: () => project,
       write: (p) => {
@@ -443,6 +455,37 @@ describe("stack up", () => {
     expect(f.err[0]).toBe("The test stack did not come up: loading maria's mail failed");
     expect(f.project()).toBeNull();
   });
+
+  it("stops on Ctrl-C during the readiness wait: no mail, the stack down, exit 130", async () => {
+    const f = fake({
+      readyAfter: { [READY_URLS[1] as string]: Infinity },
+      interruptAfterPolls: 6,
+    });
+    expect(await main(["stack", "up"], f.deps)).toBe(INTERRUPTED);
+    // Stopped at the poll after Ctrl-C, long before the 180-second timeout; no logs dumped.
+    expect(f.lines()).toEqual([UP[0], DOWN, ...CHECKS]);
+    expect(f.polls).toHaveLength(6);
+    expect(f.elapsed()).toBe(4_000);
+    expect(f.err).toEqual(["Interrupted: the test stack did not come up"]);
+    expect(f.out).not.toContain(`Test stack is up: ${PROJECT}`);
+    expect(f.project()).toBeNull();
+  });
+
+  it("stops on Ctrl-C during compose up without waiting for readiness", async () => {
+    const f = fake({ interruptOn: UP[0]?.join(" ") });
+    expect(await main(["stack", "up"], f.deps)).toBe(INTERRUPTED);
+    expect(f.lines()).toEqual([UP[0], DOWN, ...CHECKS]);
+    expect(f.polls).toEqual([]);
+    expect(f.err).toEqual(["Interrupted: the test stack did not come up"]);
+    expect(f.project()).toBeNull();
+  });
+
+  it("stops on Ctrl-C during a seed run before the next persona's", async () => {
+    const f = fake({ interruptOn: UP[1]?.join(" ") });
+    expect(await main(["stack", "up"], f.deps)).toBe(INTERRUPTED);
+    expect(f.lines()).toEqual([UP[0], UP[1], DOWN, ...CHECKS]);
+    expect(f.project()).toBeNull();
+  });
 });
 
 describe("stack down", () => {
@@ -520,6 +563,20 @@ describe("specs", () => {
     expect(await main(["specs"], f.deps)).toBe(3);
   });
 
+  it("stops on Ctrl-C during the browser install without running the specs", async () => {
+    const f = fake({ project: PROJECT, interruptOn: PW_INSTALL.join(" ") });
+    expect(await main(["specs"], f.deps)).toBe(INTERRUPTED);
+    expect(f.lines()).toEqual([PW_INSTALL]);
+    // The stack belongs to whoever ran `up`: it stays up.
+    expect(f.project()).toBe(PROJECT);
+  });
+
+  it("exits 130 when Ctrl-C stops the specs", async () => {
+    const f = fake({ project: PROJECT, interruptOn: PW_TEST.join(" ") });
+    expect(await main(["specs"], f.deps)).toBe(INTERRUPTED);
+    expect(f.lines()).toEqual([PW_INSTALL, PW_TEST]);
+  });
+
   it("needs a running stack", async () => {
     const f = fake();
     expect(await main(["specs"], f.deps)).toBe(1);
@@ -565,6 +622,28 @@ describe("run (pnpm e2e)", () => {
     const f = fake({ codes: { [UP[0]?.join(" ") as string]: 1 } });
     expect(await main(["run"], f.deps)).toBe(1);
     expect(f.lines().some((l) => l[0] === "pnpm")).toBe(false);
+    expect(f.project()).toBeNull();
+  });
+
+  it("stops on Ctrl-C during the readiness wait: no mail, no specs, the stack down", async () => {
+    const f = fake({ readyAfter: { [READY_URLS[0] as string]: Infinity }, interruptAfterPolls: 3 });
+    expect(await main(["run"], f.deps)).toBe(INTERRUPTED);
+    expect(f.lines()).toEqual([UP[0], DOWN, ...CHECKS]);
+    expect(f.polls).toHaveLength(3);
+    expect(f.project()).toBeNull();
+  });
+
+  it("stops on Ctrl-C during the last seed run: no specs, the stack down", async () => {
+    const f = fake({ interruptOn: UP[2]?.join(" ") });
+    expect(await main(["run"], f.deps)).toBe(INTERRUPTED);
+    expect(f.lines()).toEqual([...UP, DOWN, ...CHECKS]);
+    expect(f.project()).toBeNull();
+  });
+
+  it("takes the stack down and exits 130 when Ctrl-C stops the specs", async () => {
+    const f = fake({ interruptOn: PW_TEST.join(" ") });
+    expect(await main(["run"], f.deps)).toBe(INTERRUPTED);
+    expect(f.lines()).toEqual([...UP, PW_INSTALL, PW_TEST, DOWN, ...CHECKS]);
     expect(f.project()).toBeNull();
   });
 });

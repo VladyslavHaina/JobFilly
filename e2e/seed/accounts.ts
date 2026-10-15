@@ -1,5 +1,5 @@
 // The test mailboxes of each persona. The imap service in docker/compose.e2e.yaml creates the
-// same accounts (compose.test.ts checks they agree). Test passwords are E2E-SECRET-<name>
+// same accounts (stack.test.ts checks they agree). Test passwords are E2E-SECRET-<name>
 // strings, so the leak checks find them if they ever reach a log or the database in clear.
 
 export interface Account {

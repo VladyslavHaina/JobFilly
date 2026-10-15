@@ -10,7 +10,8 @@ import { join, resolve } from "node:path";
 // both replicas answer /api/health/ready, loads every persona's mail, prints the name and keeps
 // it in e2e/.stack/project. `down` removes that project's containers (one-off seed runs too),
 // networks and volumes, checks nothing is left and removes e2e/.stack. Only one stack runs at a
-// time: the proxy's ports are fixed.
+// time: the proxy's ports are fixed. Ctrl-C stops `up`, `run` and `specs` at the next step (the
+// running child gets it too) and exits 130; `up` and `run` take the stack down first.
 
 const ROOT = resolve(import.meta.dirname, "..");
 const E2E_DIR = join(ROOT, "e2e");
@@ -25,6 +26,8 @@ export const READY_URLS = [
 /** The personas whose mail every fresh stack starts with (e2e/fixtures/<persona>). */
 export const PERSONAS = ["maria", "tom"];
 export const READY_TIMEOUT_MS = 180_000;
+/** The exit code of a run stopped by Ctrl-C (128 + SIGINT). */
+export const INTERRUPTED = 130;
 const READY_POLL_MS = 1_000;
 
 const USAGE = [
@@ -62,6 +65,8 @@ export interface StackDeps {
   ready(url: string): Promise<boolean>;
   sleep(ms: number): Promise<void>;
   now(): Date;
+  /** Whether Ctrl-C was pressed; checked between steps, so a run stops at the next one. */
+  interrupted(): boolean;
   state: StackState;
   print(line: string): void;
   error(line: string): void;
@@ -130,18 +135,26 @@ async function up(deps: StackDeps): Promise<number> {
     await down(deps);
     return 1;
   };
+  // Checked after every step before its result: a child stopped by Ctrl-C fails too, and that
+  // failure is the interrupt, not a broken stack.
+  const stopped = async (): Promise<number> => {
+    deps.error("Interrupted: the test stack did not come up");
+    await down(deps);
+    return INTERRUPTED;
+  };
 
-  if ((await deps.run(compose(project, ["up", "--build", "--detach"]))).code !== 0) {
-    return failed("docker compose up failed");
-  }
+  const started = await deps.run(compose(project, ["up", "--build", "--detach"]));
+  if (deps.interrupted()) return stopped();
+  if (started.code !== 0) return failed("docker compose up failed");
   const notReady = await waitReady(deps);
+  if (deps.interrupted()) return stopped();
   if (notReady) {
     return failed(`${notReady} did not answer 200 within ${READY_TIMEOUT_MS / 1000} s`);
   }
   for (const persona of PERSONAS) {
-    if ((await deps.run(compose(project, ["run", "--rm", "seed", "load", persona]))).code !== 0) {
-      return failed(`loading ${persona}'s mail failed`);
-    }
+    const seeded = await deps.run(compose(project, ["run", "--rm", "seed", "load", persona]));
+    if (deps.interrupted()) return stopped();
+    if (seeded.code !== 0) return failed(`loading ${persona}'s mail failed`);
   }
   deps.print(`Test stack is up: ${project}`);
   deps.print("  App:   http://127.0.0.1:8080 (app-a directly on :8081, app-b on :8082)");
@@ -152,11 +165,15 @@ async function up(deps: StackDeps): Promise<number> {
   return 0;
 }
 
-/** Waits for every READY_URLS entry in turn; returns the first one that never got ready. */
+/**
+ * Waits for every READY_URLS entry in turn; returns the first one that never got ready. Returns
+ * null early on Ctrl-C, which the caller checks.
+ */
 async function waitReady(deps: StackDeps): Promise<string | null> {
   const deadline = deps.now().getTime() + READY_TIMEOUT_MS;
   for (const url of READY_URLS) {
     while (!(await deps.ready(url))) {
+      if (deps.interrupted()) return null;
       if (deps.now().getTime() >= deadline) return url;
       await deps.sleep(READY_POLL_MS);
     }
@@ -222,6 +239,7 @@ async function specs(deps: StackDeps, mvp: string | null): Promise<number> {
     args: ["exec", "playwright", "install", "chromium"],
     cwd: E2E_DIR,
   });
+  if (deps.interrupted()) return interrupted(deps);
   if (browser.code !== 0) {
     deps.error("Installing the Playwright browser failed");
     return browser.code;
@@ -234,7 +252,13 @@ async function specs(deps: StackDeps, mvp: string | null): Promise<number> {
     cwd: E2E_DIR,
     env,
   });
+  if (deps.interrupted()) return interrupted(deps);
   return result.code;
+}
+
+function interrupted(deps: StackDeps): number {
+  deps.error("Interrupted");
+  return INTERRUPTED;
 }
 
 async function runAll(deps: StackDeps, mvp: string | null): Promise<number> {
@@ -242,7 +266,8 @@ async function runAll(deps: StackDeps, mvp: string | null): Promise<number> {
   if (started !== 0) return started;
   let result = 1;
   try {
-    result = await specs(deps, mvp);
+    // A Ctrl-C while `up` printed its summary still runs no spec.
+    result = deps.interrupted() ? interrupted(deps) : await specs(deps, mvp);
   } finally {
     const removed = await down(deps);
     if (result === 0) result = removed;
@@ -301,14 +326,19 @@ async function isReady(url: string): Promise<boolean> {
 }
 
 if (import.meta.main) {
-  // Ctrl-C reaches the running child (compose, Playwright) as well; staying alive lets `run`
-  // and a failed `up` still take the stack down.
-  process.on("SIGINT", () => console.error("Interrupted: waiting for the running command to stop"));
+  // Ctrl-C reaches the running child (compose, Playwright) as well. Instead of exiting at once,
+  // the run stops at the next step, so `up` and `run` still take the stack down.
+  let interrupt = false;
+  process.on("SIGINT", () => {
+    interrupt = true;
+    console.error("Interrupted: stopping after the running command");
+  });
   process.exitCode = await main(process.argv.slice(2), {
     run: runCommand,
     ready: isReady,
     sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
     now: () => new Date(),
+    interrupted: () => interrupt,
     state: fileState(join(E2E_DIR, ".stack")),
     print: (line) => console.log(line),
     error: (line) => console.error(line),
