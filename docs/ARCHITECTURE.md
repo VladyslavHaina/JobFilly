@@ -208,6 +208,10 @@ Rules:
 - Decision needs are carried on match verdicts (`MatchVerdict.need`) and rule effects; the reply
   stage reads them and never works facts out again. Similar needs share a group key
   (`groupKeyFor`, e.g. `min_pay:CHF:year`).
+- Draft a reply's questions wait on their decisions whatever the policy says, and a "Don't ask
+  for this message" on them is reopened by the next Draft a reply. Once they are answered, the
+  reply stage claims the role's draft with origin `on_demand` even when the policy holds it, as
+  only Draft a reply raises questions on such a role.
 
 ### The draft lifecycle
 
@@ -221,8 +225,19 @@ Rules:
   set up) marks it `failed` with kind `ai` and a plain reason. The sweep re-claims both
   (`reclaimDraft`) and retries them, up to 5 attempts in all; a `saving` row older than 5 minutes
   (its job died) is retried the same way. Kind `content` (a placeholder twice, F6.2) is never
-  retried automatically. No row is left in `saving`, and a draft that used up its attempts stays
-  `failed` with its reason on the Drafts page, where Draft a reply takes it back.
+  retried automatically. Only a failure before or in the append is the mailbox's: once the copy
+  is there, a failure (recording it, a live event) leaves the row in `saving` for that same
+  retry, and a draft that used up its attempts stays `failed` with its reason on the Drafts page,
+  where Draft a reply takes it back.
+- The append is idempotent. The server chooses the copy's Message-ID before the append and keeps
+  it with the text (`saveDraftText`; `DraftMailInput.draftMessageId`, which packages/mail's
+  `saveDraft` gives the copy when set). A retry first deletes any copy with that Message-ID
+  (`deleteDraft` with UIDVALIDITY 0, which no folder has, finds it by Message-ID), so an attempt
+  that died after the append never leaves a second copy.
+- Edits and discards compare and set on the copy's Message-ID (`saveDraftEdit`,
+  `markDraftDiscarded`): each copy has its own, so a change made from a copy the row no longer
+  names writes nothing. A losing edit deletes the copy it appended and answers 409; a losing
+  discard deletes the newer copy and tries again. Exactly one copy remains (F6.4).
 
 ### The profile change service
 
@@ -237,6 +252,10 @@ Rules:
   replaces the value; `remove` with a value removes those items, with null the entry. A decision
   answer is always `add` of one item, so answering "CHF per year" keeps the EUR minimum. "Already
   answered" is decided by group key (`answeredFor`), never by profile key.
+- A decision answer writes its entry (`writeProfileChanges`) inside the transaction that claims
+  the decision (`answerDecision`), then re-evaluates (`afterProfileChanges`) once it is
+  committed: of two answers racing for one decision only the one that claims it reaches the
+  profile, and a refused entry leaves the decision open.
 - `requestReevaluation(scope)` is the one way evaluations go stale: `{all}`, `{roles}`,
   `{messageIds}`, or a sender scope (`{senderAddress}`, `{senderDomain}`), which alone also makes
   the sender checks stale. It enqueues `pipeline.reevaluate` and tells open inboxes.
