@@ -20,7 +20,7 @@ The UI only ever talks to the server over HTTP from the same origin.
 | `packages/ai` | Provider registry (AI SDK), per-task models, prompts, structured output, usage | schema |
 | `apps/server` | HTTP API (Hono), sessions, workspace access, workers, live updates, config, logs | all packages |
 | `apps/web` | React UI (Vite, Tailwind, TanStack Query, React Router) | schema; server types only |
-| `e2e/` | Test stack fixtures, fake AI, mail seeding, Playwright specs | — |
+| `e2e/` | Test stack fixtures, fake AI, mail seeding, Playwright specs (workspace package `@jobfilly/e2e`) | — |
 
 Rules:
 
@@ -29,14 +29,21 @@ Rules:
 - Anything that crosses a package boundary, goes over HTTP, or comes back from a model has a
   schema in `packages/schema` and is validated where it enters.
 - Workspace packages ship as TypeScript source. The server build bundles all JavaScript; native
-  modules stay external and must be listed in the server's own dependencies.
+  modules stay external and must be listed in the server's own dependencies. The bundle ships the
+  migrations in `dist/migrations`.
+- `e2e/` is a workspace package with its own dependencies, but it imports no app or package code,
+  and nothing imports it. The wire contract between `packages/ai` and the fake AI is committed
+  data in `e2e/fixtures/wire/` (per task id: the input, the exact OpenAI-compatible request, the
+  fake AI's response and what `packages/ai` returns); both sides' tests read it from disk.
 
 ## Workspaces, access and sessions
 
 - Every workspace-owned row carries `workspace_id`. Data access goes through `packages/db`
   functions that require a workspace id; there is no unscoped query for workspace data.
 - The server resolves the session, then checks membership and role on every workspace route.
-  Not a member: `404`. A member without the needed role: `403`.
+  Not a member: `404`. A member without the needed role: `403`. Each route module under
+  `/api/workspaces/:workspaceId/<name>` is mounted once behind the membership check
+  (`apps/server/src/access`) and applies `requireRole` on its own handlers.
 - Roles: `viewer` reads; `editor` also changes profiles, rules, decisions and drafts; `admin` also
   manages members, mailboxes and AI settings. The owner is an admin who can't be removed.
 - Sessions: the cookie `jf_session` (HttpOnly, SameSite=Lax, Secure behind HTTPS) holds a random
@@ -47,9 +54,12 @@ Rules:
 
 ## Data
 
-- PostgreSQL in every running mode. Tests run against PGlite (Postgres compiled to WebAssembly) in
-  memory, so they need no Docker. (The scaffold's `packages/db` still uses libSQL; MVP 1 replaces
-  it.)
+- PostgreSQL in every running mode, through Drizzle on node-postgres. Tests run against PGlite
+  (Postgres compiled to WebAssembly) in memory, from `@jobfilly/db/testing`, so they need no
+  Docker. One migration per release step; the sender and subject search uses the `pg_trgm`
+  extension.
+- A message is named by its RFC `Message-ID` (verbatim, angle brackets included) everywhere
+  outside the database primary key: in the API, prompts, evidence, fixtures and web links.
 - The mailbox is the source of truth for mail. Postgres keeps message metadata, a short snippet,
   extracted job facts, and the local state: profiles, rules, CVs, decisions, drafts, corrections.
   Full message bodies are fetched from the mailbox when needed and not stored.
@@ -63,8 +73,12 @@ Rules:
   with `FOR UPDATE SKIP LOCKED` and hold a lease they renew while working. A job whose lease runs
   out (its replica died) is picked up by another replica and resumes from its last checkpoint.
   Handlers are idempotent.
-- Live updates reach the browser over Server-Sent Events. Replicas publish events through Postgres
+- Live updates reach the browser over Server-Sent Events
+  (`GET /api/workspaces/:workspaceId/events`). Replicas publish events through Postgres
   `LISTEN/NOTIFY`, so a browser connected to any replica sees work done on any other.
+- Job handlers get the job's payload, its last checkpoint, the previous instance (after a
+  takeover), `saveCheckpoint`, `renewLease` and an abort signal; `apps/server/src/jobs/registry.ts`
+  maps each job type to its handler.
 
 ## AI
 
@@ -123,6 +137,9 @@ Every MVP keeps these true; the Helm chart after MVP 3 relies on them.
 ## Testing
 
 - `pnpm check` runs lint, typecheck and unit/integration tests (Vitest, PGlite, fakes at package
-  boundaries). Hermetic: no real mailbox, model or network.
+  boundaries). Hermetic: no real mailbox, model or network. Server tests build their dependencies
+  with `apps/server/src/testing` (`createTestDeps` with fake mail and AI ports, and seeding through
+  the workspace-scoped `@jobfilly/db` functions). The PGlite projects run without per-file
+  isolation, reusing each worker's databases, so they don't use `vi.mock`.
 - `pnpm e2e` starts the test stack (`docker/compose.e2e.yaml`) and runs the Playwright specs. How
   each MVP is validated is described in [docs/mvp/README.md](mvp/README.md).
