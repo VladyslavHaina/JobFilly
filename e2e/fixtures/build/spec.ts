@@ -9,6 +9,7 @@ import type {
   ProfileValues,
   StageOneVerdict,
 } from "../format.ts";
+import type { Lang } from "./recruiters.ts";
 
 // The source of truth of one persona: every message with its headers, its words and its ground
 // truth, and the expected profile values. build.ts derives every fixture file from it.
@@ -33,6 +34,8 @@ export interface MessageSpec {
   stageOne: StageOneVerdict;
   category: Category;
   facts: JobFacts[] | null;
+  /** The language the message is written in (ISO 639-1): the CV choice follows it (MVP 2). */
+  language: Lang;
   /** Sent messages only: what the reply states (the prefs.v1 answer). */
   preferences: Preferences | null;
   invalid: boolean;
@@ -55,7 +58,8 @@ type OptionalHeaders =
   | "references"
   | "listId"
   | "listUnsubscribe"
-  | "precedence";
+  | "precedence"
+  | "language";
 
 export type MessageInput = Omit<MessageSpec, "messageId" | OptionalHeaders> &
   Partial<Pick<MessageSpec, OptionalHeaders>>;
@@ -90,6 +94,7 @@ export class MessageBook {
       listUnsubscribe: null,
       ...input,
       precedence: input.precedence ?? null,
+      language: input.language ?? "en",
       messageId: `<${this.#persona}-${seq}@${domain}>`,
       minutesAgo: this.time(input.minutesAgo),
     };

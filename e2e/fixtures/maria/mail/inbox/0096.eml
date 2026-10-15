@@ -1,10 +1,10 @@
-Message-ID: <maria-0445@pgdigest.example>
-Date: Thu, 17 Sep 2026 01:55:00 +0000
-From: "Postgres Digest" <digest@pgdigest.example>
+Message-ID: <maria-0295@devweekly.example>
+Date: Sun, 13 Sep 2026 04:21:00 +0000
+From: "Dev Weekly" <digest@devweekly.example>
 To: "Maria Santos" <maria.santos@inbox.example>
-Subject: Postgres Digest: indexes that pay off
-List-Id: Postgres Digest <news.pgdigest.example>
-List-Unsubscribe: <https://pgdigest.example/unsubscribe?u=15372>, <mailto:unsubscribe@pgdigest.example>
+Subject: Dev Weekly #215: database migrations without fear
+List-Id: Dev Weekly <news.devweekly.example>
+List-Unsubscribe: <https://devweekly.example/unsubscribe?u=42395>, <mailto:unsubscribe@devweekly.example>
 MIME-Version: 1.0
 Content-Type: multipart/alternative; boundary="=_jf_maria_inbox_0096"
 
@@ -12,11 +12,11 @@ Content-Type: multipart/alternative; boundary="=_jf_maria_inbox_0096"
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: quoted-printable
 
-How autovacuum decides what to clean.
+Why your logs should be structured.
 
-Reader tip: use EXPLAIN (ANALYZE, BUFFERS).
+A deep dive into connection pooling.
 
-Read the full issue online: https://pgdigest.example/issues/15372
+Read the full issue online: https://devweekly.example/issues/42395
 
 You are receiving this email because you subscribed to our newsletter or bo=
 ught something from us. If you no longer want to receive these emails, you =
@@ -44,9 +44,9 @@ Content-Transfer-Encoding: quoted-printable
 <!DOCTYPE html>
 <html><head><meta charset=3D"utf-8"></head>
 <body style=3D"font-family: sans-serif">
-<p>How autovacuum decides what to clean.</p>
-<p>Reader tip: use EXPLAIN (ANALYZE, BUFFERS).</p>
-<p>Read the full issue online: https://pgdigest.example/issues/15372</p>
+<p>Why your logs should be structured.</p>
+<p>A deep dive into connection pooling.</p>
+<p>Read the full issue online: https://devweekly.example/issues/42395</p>
 <p>You are receiving this email because you subscribed to our newsletter or=
  bought something from us. If you no longer want to receive these emails, y=
 ou can unsubscribe at any time using the link in the header of this message=

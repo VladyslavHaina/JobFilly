@@ -1,8 +1,9 @@
-Message-ID: <maria-0193@polder-talent.example>
-Date: Thu, 03 Sep 2026 03:49:00 +0000
-From: "Pieter de Vries" <pieter.de.vries@polder-talent.example>
+Message-ID: <maria-0374@gonews.example>
+Date: Thu, 03 Sep 2026 01:00:00 +0000
+From: "Go Newsletter" <news@gonews.example>
 To: "Maria Santos" <maria.santos@inbox.example>
-Subject: Nieuwe uitdaging: Backend Engineer
+Subject: Go News: profiling made easy
+List-Unsubscribe: <https://gonews.example/unsubscribe?u=32083>, <mailto:unsubscribe@gonews.example>
 MIME-Version: 1.0
 Content-Type: multipart/alternative; boundary="=_jf_maria_inbox_0196"
 
@@ -10,32 +11,33 @@ Content-Type: multipart/alternative; boundary="=_jf_maria_inbox_0196"
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: quoted-printable
 
-Hoi Maria,
+A tutorial on pprof.
 
-je ervaring met gedistribueerde systemen viel me op.
+New in the standard library this month.
 
-Mijn opdrachtgever Zuidas Payments zoekt een Backend Engineer in Rotterdam.=
- De functie is hybride: twee dagen per week op kantoor. Het salaris is =E2=
-=82=AC 75.000 =E2=80=93 =E2=82=AC 85.000 bruto per jaar. We zoeken een Seni=
-or profiel. Je werkt in het Nederlands en Engels. Tech stack: Kafka, gRPC, =
-Terraform en Kubernetes.
+Read the full issue online: https://gonews.example/issues/32083
 
-Als het je aanspreekt, stuur ik je graag de volledige vacature.
+You are receiving this email because you subscribed to our newsletter or bo=
+ught something from us. If you no longer want to receive these emails, you =
+can unsubscribe at any time using the link in the header of this message or=
+ in your account settings.
 
-Met vriendelijke groet,
-Pieter de Vries
-Recruitment Consultant, Polder Talent
+Prices and availability are correct at the time of sending and may change. =
+Offers are subject to availability and cannot be combined with other promot=
+ions unless stated. See our website for full terms and conditions.
 
-Dit bericht en eventuele bijlagen zijn vertrouwelijk en uitsluitend bestemd=
- voor de geadresseerde. Heb je dit bericht per vergissing ontvangen, laat h=
-et de afzender dan weten en verwijder het. Het is niet toegestaan dit beric=
-ht te kopi=C3=ABren of door te sturen.
+We care about your privacy. We use your email address only to send you the =
+updates you asked for, and we never sell it. Read our privacy policy to fin=
+d out how we look after your data and how to ask us to delete it.
 
-Privacyverklaring: wij verwerken je naam, contactgegevens en de professione=
-le informatie die je zelf openbaar hebt gemaakt, zodat we je kunnen informe=
-ren over passende functies. Je kunt ons altijd vragen je gegevens in te zie=
-n, te corrigeren of te verwijderen, of je niet meer te benaderen, door op d=
-eze e-mail te reageren.
+Did someone forward you this email? Sign up on our website to get the next =
+issue straight to your inbox. Have feedback or a story idea? Just reply and=
+ tell us, we read every message.
+
+You are receiving this email because you subscribed to our newsletter or bo=
+ught something from us. If you no longer want to receive these emails, you =
+can unsubscribe at any time using the link in the header of this message or=
+ in your account settings.
 
 Ref: BODYSENTINEL-maria-inbox-0196
 
@@ -46,26 +48,26 @@ Content-Transfer-Encoding: quoted-printable
 <!DOCTYPE html>
 <html><head><meta charset=3D"utf-8"></head>
 <body style=3D"font-family: sans-serif">
-<p>Hoi Maria,</p>
-<p>je ervaring met gedistribueerde systemen viel me op.</p>
-<p>Mijn opdrachtgever Zuidas Payments zoekt een Backend Engineer in Rotterd=
-am. De functie is hybride: twee dagen per week op kantoor. Het salaris is =
-=E2=82=AC 75.000 =E2=80=93 =E2=82=AC 85.000 bruto per jaar. We zoeken een S=
-enior profiel. Je werkt in het Nederlands en Engels. Tech stack: Kafka, gRP=
-C, Terraform en Kubernetes.</p>
-<p>Als het je aanspreekt, stuur ik je graag de volledige vacature.</p>
-<p>Met vriendelijke groet,<br>
-Pieter de Vries<br>
-Recruitment Consultant, Polder Talent</p>
-<p>Dit bericht en eventuele bijlagen zijn vertrouwelijk en uitsluitend best=
-emd voor de geadresseerde. Heb je dit bericht per vergissing ontvangen, laa=
-t het de afzender dan weten en verwijder het. Het is niet toegestaan dit be=
-richt te kopi=C3=ABren of door te sturen.</p>
-<p>Privacyverklaring: wij verwerken je naam, contactgegevens en de professi=
-onele informatie die je zelf openbaar hebt gemaakt, zodat we je kunnen info=
-rmeren over passende functies. Je kunt ons altijd vragen je gegevens in te =
-zien, te corrigeren of te verwijderen, of je niet meer te benaderen, door o=
-p deze e-mail te reageren.</p>
+<p>A tutorial on pprof.</p>
+<p>New in the standard library this month.</p>
+<p>Read the full issue online: https://gonews.example/issues/32083</p>
+<p>You are receiving this email because you subscribed to our newsletter or=
+ bought something from us. If you no longer want to receive these emails, y=
+ou can unsubscribe at any time using the link in the header of this message=
+ or in your account settings.</p>
+<p>Prices and availability are correct at the time of sending and may chang=
+e. Offers are subject to availability and cannot be combined with other pro=
+motions unless stated. See our website for full terms and conditions.</p>
+<p>We care about your privacy. We use your email address only to send you t=
+he updates you asked for, and we never sell it. Read our privacy policy to =
+find out how we look after your data and how to ask us to delete it.</p>
+<p>Did someone forward you this email? Sign up on our website to get the ne=
+xt issue straight to your inbox. Have feedback or a story idea? Just reply =
+and tell us, we read every message.</p>
+<p>You are receiving this email because you subscribed to our newsletter or=
+ bought something from us. If you no longer want to receive these emails, y=
+ou can unsubscribe at any time using the link in the header of this message=
+ or in your account settings.</p>
 <p>Ref: BODYSENTINEL-maria-inbox-0196<br>
 </p>
 </body></html>

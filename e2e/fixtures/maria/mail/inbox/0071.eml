@@ -1,8 +1,8 @@
-Message-ID: <maria-0530@booknest.example>
-Date: Tue, 22 Sep 2026 00:24:00 +0000
+Message-ID: <maria-0500@booknest.example>
+Date: Tue, 15 Sep 2026 21:40:00 +0000
 From: "BookNest" <orders@booknest.example>
 To: "Maria Santos" <maria.santos@inbox.example>
-Subject: Order confirmed: 2 item(s)
+Subject: Order confirmed: 3 item(s)
 MIME-Version: 1.0
 Content-Type: multipart/alternative; boundary="=_jf_maria_inbox_0071"
 
@@ -14,7 +14,7 @@ Hi Maria,
 
 Thanks for your order! We'll email you again when it ships.
 
-Order total: =E2=82=AC33.34
+Order total: =E2=82=AC33.15
 
 This is an automatically generated message about your account or order. Ple=
 ase keep it for your records. If you did not make this purchase or do not r=
@@ -46,7 +46,7 @@ Content-Transfer-Encoding: quoted-printable
 <body style=3D"font-family: sans-serif">
 <p>Hi Maria,</p>
 <p>Thanks for your order! We'll email you again when it ships.</p>
-<p>Order total: =E2=82=AC33.34</p>
+<p>Order total: =E2=82=AC33.15</p>
 <p>This is an automatically generated message about your account or order. =
 Please keep it for your records. If you did not make this purchase or do no=
 t recognise this activity, contact our customer service team straight away.=

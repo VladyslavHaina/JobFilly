@@ -1,9 +1,10 @@
-Message-ID: <maria-0261@lojastejo.example>
-Date: Thu, 10 Sep 2026 12:49:00 +0000
-From: "Lojas Tejo" <news@lojastejo.example>
+Message-ID: <maria-0396@museudigital.example>
+Date: Tue, 08 Sep 2026 07:49:00 +0000
+From: "Museu Digital" <newsletter@museudigital.example>
 To: "Maria Santos" <maria.santos@inbox.example>
-Subject: =?UTF-8?B?QXTDqSA0MCUgZGUgZGVzY29udG8gZXN0ZSBmaW0gZGUgc2VtYW5h?=
-List-Unsubscribe: <https://lojastejo.example/unsubscribe?u=98088>, <mailto:unsubscribe@lojastejo.example>
+Subject: Novo podcast do museu
+List-Id: Museu Digital <news.museudigital.example>
+List-Unsubscribe: <https://museudigital.example/unsubscribe?u=11873>, <mailto:unsubscribe@museudigital.example>
 MIME-Version: 1.0
 Content-Type: multipart/alternative; boundary="=_jf_maria_inbox_0140"
 
@@ -11,11 +12,11 @@ Content-Type: multipart/alternative; boundary="=_jf_maria_inbox_0140"
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: quoted-printable
 
-Descubra a nova cole=C3=A7=C3=A3o de outono.
+Conhe=C3=A7a as novas exposi=C3=A7=C3=B5es tempor=C3=A1rias.
 
-Aproveite os descontos em artigos de casa.
+Ou=C3=A7a o novo epis=C3=B3dio do nosso podcast.
 
-Read the full issue online: https://lojastejo.example/issues/98088
+Read the full issue online: https://museudigital.example/issues/11873
 
 You are receiving this email because you subscribed to our newsletter or bo=
 ught something from us. If you no longer want to receive these emails, you =
@@ -43,9 +44,10 @@ Content-Transfer-Encoding: quoted-printable
 <!DOCTYPE html>
 <html><head><meta charset=3D"utf-8"></head>
 <body style=3D"font-family: sans-serif">
-<p>Descubra a nova cole=C3=A7=C3=A3o de outono.</p>
-<p>Aproveite os descontos em artigos de casa.</p>
-<p>Read the full issue online: https://lojastejo.example/issues/98088</p>
+<p>Conhe=C3=A7a as novas exposi=C3=A7=C3=B5es tempor=C3=A1rias.</p>
+<p>Ou=C3=A7a o novo epis=C3=B3dio do nosso podcast.</p>
+<p>Read the full issue online: https://museudigital.example/issues/11873</p=
+>
 <p>You are receiving this email because you subscribed to our newsletter or=
  bought something from us. If you no longer want to receive these emails, y=
 ou can unsubscribe at any time using the link in the header of this message=
