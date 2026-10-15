@@ -89,6 +89,14 @@ Rules:
 - Job handlers get the job's payload, its last checkpoint, the previous instance (after a
   takeover), `saveCheckpoint`, `renewLease` and an abort signal; `apps/server/src/jobs/registry.ts`
   maps each job type to its handler.
+- One model call runs outside the queue: intake.v1, which proposes the intake form's extra
+  questions once per workspace. The first `GET /intake` after the first scan stops claims it
+  through the workspace's `intake_extras` row (insert-or-skip) and makes the call after the
+  response; everyone else sees `pending` until an `intake.updated` event. Confirm waits for it
+  (409 while pending). Its outcome, `done` or `failed`, is final. A replica that gets `SIGTERM`
+  while the model answers abandons the call without writing anything, and one caller takes over a
+  claim left pending for more than 2 minutes, so during a rolling update Confirm can be held that
+  long.
 
 ## AI
 
@@ -132,7 +140,8 @@ Every MVP keeps these true; the Helm chart after MVP 3 relies on them.
 - On `SIGTERM`, in this order: readiness turns 503 at once; the replica keeps serving for a 5-second
   drain so load balancers stop routing to it; it stops accepting connections and closes open
   live-update streams (browsers reconnect to another replica); in-flight requests finish within 20
-  seconds; running jobs hand back their leases; the process exits 0. Orchestrators must allow at
+  seconds; running jobs hand back their leases (an intake.v1 call still waiting for the model is
+  abandoned, see "Background work and live updates"); the process exits 0. Orchestrators must allow at
   least 30 seconds (`stop_grace_period`, `terminationGracePeriodSeconds`).
 - Runs as a non-root user with a read-only root filesystem and listens on `$PORT`.
 
