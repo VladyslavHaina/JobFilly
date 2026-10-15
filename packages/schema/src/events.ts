@@ -38,3 +38,18 @@ export const LIVE_EVENT_TYPES = [
   "intake.updated",
   "workspace.updated",
 ] as const satisfies readonly LiveEventType[];
+
+/**
+ * Who may no longer hold a live stream, sent through the same NOTIFY channel as the events so it
+ * reaches every replica in order with them: a member removed from a workspace, or a session that
+ * ended (sign-out, expiry, or replaced at sign-in). Each replica closes the matching streams.
+ */
+export const LiveAccessChangeSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("member.removed"), workspaceId: z.uuid(), userId: z.uuid() }),
+  z.object({ type: z.literal("session.ended"), sessionId: z.uuid() }),
+]);
+export type LiveAccessChange = z.infer<typeof LiveAccessChangeSchema>;
+
+/** Anything on the live channel: an event for a workspace's streams, or an access change. */
+export const LiveNotificationSchema = z.union([LiveEnvelopeSchema, LiveAccessChangeSchema]);
+export type LiveNotification = z.infer<typeof LiveNotificationSchema>;
