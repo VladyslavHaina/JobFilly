@@ -466,25 +466,29 @@ describe("GET /intake (F6.1)", () => {
     expect(deps.logs.filter((l) => l.level === "error")).toEqual([]);
   });
 
-  it("never logs the model's questions when storing them fails", async () => {
+  it("fails for good, without logging the questions, when storing them fails", async () => {
     await seedMariaMail(ws.workspaceId);
     await stopFirstScan();
     // Postgres refuses a NUL character in jsonb, so finishIntakeExtras fails with a database error
-    // whose message quotes the query's parameters: the model's questions.
+    // whose message quotes the query's parameters: the model's questions. (The real client refuses
+    // such output by its schema; this fake hands it over unchecked, as any unstorable answer.)
     ai.answerWith(async () =>
       answered([{ ...(QUESTIONS[0] as ExtraQuestion), label: "E2E-MARKER-question\u0000?" }]),
     );
-    await form(viewer);
-    await vi.waitFor(() =>
-      expect(deps.logs.find((l) => l.event === "intake.extras_failed")).toBeTruthy(),
-    );
+    expect((await settledForm(viewer)).extras).toEqual({ status: "failed", questions: [] });
     const line = deps.logs.find((l) => l.event === "intake.extras_failed");
     expect(line).toMatchObject({ level: "warn", workspaceId: ws.workspaceId });
     expect(line?.error).toMatch(/Error$/);
     expect(deps.rawLogs.join("\n")).not.toContain("E2E-MARKER");
     expect(deps.logs.filter((l) => l.level === "error")).toEqual([]);
-    // The claim stays pending, for the 2-minute takeover.
-    expect((await form(viewer)).extras.status).toBe("pending");
+    await vi.waitFor(() =>
+      expect(events.filter((e) => e.type === "intake.updated")).toHaveLength(1),
+    );
+    // Final, not an abandoned claim: no takeover asks the model again, and Confirm isn't held.
+    deps.clock.advance(10 * MINUTE);
+    expect((await form(viewer)).extras.status).toBe("failed");
+    expect(ai.calls).toHaveLength(1);
+    expect((await editor.post(intakePath("/confirm"), {})).status).toBe(201);
   });
 
   it("abandons the call when the replica starts shutting down while the model answers", async () => {
@@ -564,6 +568,9 @@ describe("PUT /intake/answers/:key (F6.4)", () => {
     });
     expect(pay.status).toBe(400);
     expect((await editor.put(intakePath("/answers/salary"), { value: [] })).status).toBe(404);
+    // Words Postgres can't store are refused here, not when they are written.
+    const nul = await editor.put(intakePath("/answers/target_roles"), { value: ["Dev\u0000"] });
+    expect(nul.status).toBe(400);
   });
 
   it("accepts answers to the extra questions that were asked, and only those", async () => {

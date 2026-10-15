@@ -53,7 +53,8 @@ import { open } from "../secrets";
 // The extra questions come from one intake.v1 call per workspace (TBD-19): whoever opens the form
 // first claims it through the intake_extras row and makes the call in the background; everyone
 // else sees 'pending' until an intake.updated event says it is done. A claim still pending after
-// 2 minutes (its replica died) can be taken over by one caller.
+// 2 minutes (its replica died) can be taken over by one caller. It is the one model call made
+// outside the job queue (docs/ARCHITECTURE.md, "Background work and live updates").
 
 const NOT_READY = {
   error: "not_ready",
@@ -95,8 +96,11 @@ async function currentQuestions(deps: AppDeps, workspaceId: string): Promise<Ext
  * never holds a request or a transaction open while the model answers. Only the questions the
  * mail it was shown backs are kept (foundExtraQuestions).
  *
- * A database failure is thrown to the caller, which logs it and leaves the claim pending for the
- * 2-minute takeover. A replica that starts shutting down while the model answers abandons the
+ * Storing the questions can fail even though they passed their schema. That failure is final, not
+ * an abandoned claim: the claim is closed as 'failed' with no questions in a second, minimal
+ * update, so Confirm isn't held and the call isn't made again. Only when the database can't take
+ * that either is the error thrown to the caller, which logs it and leaves the claim pending for
+ * the 2-minute takeover. A replica that starts shutting down while the model answers abandons the
  * call the same way, so nothing is written to a database that is being closed.
  */
 async function askForExtras(
@@ -142,12 +146,23 @@ async function askForExtras(
       questions = foundExtraQuestions(result.data.questions, input);
     }
   }
-  await finishIntakeExtras(deps.db, workspaceId, {
-    claim,
-    status,
-    questions,
-    at: deps.clock.now(),
-  });
+  try {
+    await finishIntakeExtras(deps.db, workspaceId, {
+      claim,
+      status,
+      questions,
+      at: deps.clock.now(),
+    });
+  } catch (error) {
+    if (status === "failed" || deps.health.shuttingDown) throw error;
+    log.warn("intake.extras_failed", { workspaceId, error: errorName(error) });
+    await finishIntakeExtras(deps.db, workspaceId, {
+      claim,
+      status: "failed",
+      questions: [],
+      at: deps.clock.now(),
+    });
+  }
   await deps.live.publish(workspaceId, { type: "intake.updated", data: {} });
 }
 
