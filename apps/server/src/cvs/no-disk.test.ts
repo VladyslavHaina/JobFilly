@@ -143,6 +143,5 @@ describe("CV uploads never touch the disk (F2.4)", () => {
       const writing = spy.mock.calls.filter((args) => writes(args[1]));
       expect(writing, spy.getMockName()).toEqual([]);
     }
-    // Two real files through upload, cv.read and download.
   }, 60_000);
 });
