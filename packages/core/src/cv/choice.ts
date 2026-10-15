@@ -114,6 +114,11 @@ function reasonFor(best: Scored, input: CvChoiceInput): string {
   return `Nothing in this role points to one CV → ${best.cv.name}, your first`;
 }
 
+/** Why a role uses the CV an editor chose for it. */
+export function overrideReason(name: string): string {
+  return `You chose ${name} for this role`;
+}
+
 /**
  * The CV for a role: an editor's choice when it is still one of the CVs, otherwise the CV that
  * best fits the role's language, role family (the CV's tags), skills and seniority, with a CV
@@ -122,8 +127,7 @@ function reasonFor(best: Scored, input: CvChoiceInput): string {
 export function chooseCv(input: CvChoiceInput): CvChoiceOutcome {
   if (input.override) {
     const chosen = input.cvs.find((cv) => cv.id === input.override);
-    if (chosen)
-      return { cv: chosen, reason: `You chose ${chosen.name} for this role`, source: "you" };
+    if (chosen) return { cv: chosen, reason: overrideReason(chosen.name), source: "you" };
   }
   if (input.cvs.length === 0) return { cv: null, reason: "No CV uploaded yet", source: "auto" };
   let best: Scored | null = null;
