@@ -168,3 +168,21 @@ export const TrackerMemorySchema = z.object({
   unchangedBatches: z.number().int().nonnegative(),
 });
 export type TrackerMemory = z.infer<typeof TrackerMemorySchema>;
+
+/**
+ * What a 'scan.run' job saves after every batch, so a replica that takes the run over resumes it
+ * where the last batch ended: stage one is not redone, finished batches are not redone and their
+ * numbers are not reused, and the confidence tracker keeps its count of unchanged batches.
+ */
+export const ScanCheckpointSchema = z.object({
+  /** Likely job emails waiting when the run began: the Y of "after X of Y". */
+  likely: z.number().int().nonnegative(),
+  /** Sorted by stage one without a model call (0 for an "Analyze them" run). */
+  handledWithoutAi: z.number().int().nonnegative(),
+  /** The user's own replies have been read for preferences (the first scan reads them first). */
+  repliesRead: z.boolean(),
+  /** Batches finished so far, replies and likely job mail together; the next is batches + 1. */
+  batches: z.number().int().nonnegative(),
+  tracker: TrackerMemorySchema,
+});
+export type ScanCheckpoint = z.infer<typeof ScanCheckpointSchema>;
