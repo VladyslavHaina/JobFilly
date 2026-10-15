@@ -1,0 +1,779 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "domain": "104.com.tw",
+      "kind": "job_board",
+      "countries": ["TW"],
+      "alertSenders": []
+    },
+    {
+      "domain": "51job.com",
+      "kind": "job_board",
+      "countries": ["CN"],
+      "alertSenders": []
+    },
+    {
+      "domain": "adzuna.com",
+      "kind": "job_board",
+      "countries": [],
+      "alertSenders": []
+    },
+    {
+      "domain": "apec.fr",
+      "kind": "job_board",
+      "countries": ["FR"],
+      "alertSenders": []
+    },
+    {
+      "domain": "applytojob.com",
+      "kind": "ats",
+      "countries": [],
+      "alertSenders": []
+    },
+    {
+      "domain": "arbeitnow.com",
+      "kind": "job_board",
+      "countries": ["DE"],
+      "alertSenders": []
+    },
+    {
+      "domain": "arbeitsagentur.de",
+      "kind": "job_board",
+      "countries": ["DE"],
+      "alertSenders": []
+    },
+    {
+      "domain": "arbetsformedlingen.se",
+      "kind": "job_board",
+      "countries": ["SE"],
+      "alertSenders": []
+    },
+    {
+      "domain": "ashbyhq.com",
+      "kind": "ats",
+      "countries": [],
+      "alertSenders": []
+    },
+    {
+      "domain": "avature.net",
+      "kind": "ats",
+      "countries": [],
+      "alertSenders": []
+    },
+    {
+      "domain": "bamboohr.com",
+      "kind": "ats",
+      "countries": [],
+      "alertSenders": []
+    },
+    {
+      "domain": "bayt.com",
+      "kind": "job_board",
+      "countries": [],
+      "alertSenders": []
+    },
+    {
+      "domain": "breezy.hr",
+      "kind": "ats",
+      "countries": [],
+      "alertSenders": []
+    },
+    {
+      "domain": "brightermonday.co.ke",
+      "kind": "job_board",
+      "countries": ["KE"],
+      "alertSenders": []
+    },
+    {
+      "domain": "builtin.com",
+      "kind": "job_board",
+      "countries": ["US"],
+      "alertSenders": []
+    },
+    {
+      "domain": "bumeran.com",
+      "kind": "job_board",
+      "countries": [],
+      "alertSenders": []
+    },
+    {
+      "domain": "cadremploi.fr",
+      "kind": "job_board",
+      "countries": ["FR"],
+      "alertSenders": []
+    },
+    {
+      "domain": "careerjet.com",
+      "kind": "job_board",
+      "countries": [],
+      "alertSenders": []
+    },
+    {
+      "domain": "careers24.com",
+      "kind": "job_board",
+      "countries": ["ZA"],
+      "alertSenders": []
+    },
+    {
+      "domain": "catho.com.br",
+      "kind": "job_board",
+      "countries": ["BR"],
+      "alertSenders": []
+    },
+    {
+      "domain": "civilservicejobs.service.gov.uk",
+      "kind": "job_board",
+      "countries": ["GB"],
+      "alertSenders": []
+    },
+    {
+      "domain": "comeet.co",
+      "kind": "ats",
+      "countries": [],
+      "alertSenders": []
+    },
+    {
+      "domain": "computrabajo.com",
+      "kind": "job_board",
+      "countries": [],
+      "alertSenders": []
+    },
+    {
+      "domain": "cv-library.co.uk",
+      "kind": "job_board",
+      "countries": ["GB"],
+      "alertSenders": []
+    },
+    {
+      "domain": "cv.ee",
+      "kind": "job_board",
+      "countries": ["EE"],
+      "alertSenders": []
+    },
+    {
+      "domain": "cvbankas.lt",
+      "kind": "job_board",
+      "countries": ["LT"],
+      "alertSenders": []
+    },
+    {
+      "domain": "cwjobs.co.uk",
+      "kind": "job_board",
+      "countries": ["GB"],
+      "alertSenders": []
+    },
+    {
+      "domain": "dice.com",
+      "kind": "job_board",
+      "countries": ["US"],
+      "alertSenders": []
+    },
+    {
+      "domain": "doda.jp",
+      "kind": "job_board",
+      "countries": ["JP"],
+      "alertSenders": []
+    },
+    {
+      "domain": "duunitori.fi",
+      "kind": "job_board",
+      "countries": ["FI"],
+      "alertSenders": []
+    },
+    {
+      "domain": "ejobs.ro",
+      "kind": "job_board",
+      "countries": ["RO"],
+      "alertSenders": []
+    },
+    {
+      "domain": "emprego.sapo.pt",
+      "kind": "job_board",
+      "countries": ["PT"],
+      "alertSenders": []
+    },
+    {
+      "domain": "findajob.dwp.gov.uk",
+      "kind": "job_board",
+      "countries": ["GB"],
+      "alertSenders": []
+    },
+    {
+      "domain": "finn.no",
+      "kind": "job_board",
+      "countries": ["NO"],
+      "alertSenders": []
+    },
+    {
+      "domain": "foundit.in",
+      "kind": "job_board",
+      "countries": ["IN"],
+      "alertSenders": []
+    },
+    {
+      "domain": "francetravail.fr",
+      "kind": "job_board",
+      "countries": ["FR"],
+      "alertSenders": []
+    },
+    {
+      "domain": "glassdoor.com",
+      "kind": "job_board",
+      "countries": [],
+      "alertSenders": []
+    },
+    {
+      "domain": "greenhouse-mail.io",
+      "kind": "ats",
+      "countries": [],
+      "alertSenders": []
+    },
+    {
+      "domain": "greenhouse.io",
+      "kind": "ats",
+      "countries": [],
+      "alertSenders": []
+    },
+    {
+      "domain": "hellowork.com",
+      "kind": "job_board",
+      "countries": ["FR"],
+      "alertSenders": []
+    },
+    {
+      "domain": "hired.com",
+      "kind": "job_board",
+      "countries": [],
+      "alertSenders": []
+    },
+    {
+      "domain": "homerun.co",
+      "kind": "ats",
+      "countries": [],
+      "alertSenders": []
+    },
+    {
+      "domain": "icims.com",
+      "kind": "ats",
+      "countries": [],
+      "alertSenders": []
+    },
+    {
+      "domain": "iefp.pt",
+      "kind": "job_board",
+      "countries": ["PT"],
+      "alertSenders": []
+    },
+    {
+      "domain": "indeed.com",
+      "kind": "job_board",
+      "countries": [],
+      "alertSenders": ["alert"]
+    },
+    {
+      "domain": "infojobs.it",
+      "kind": "job_board",
+      "countries": ["IT"],
+      "alertSenders": []
+    },
+    {
+      "domain": "infojobs.net",
+      "kind": "job_board",
+      "countries": ["ES"],
+      "alertSenders": []
+    },
+    {
+      "domain": "intermediair.nl",
+      "kind": "job_board",
+      "countries": ["NL"],
+      "alertSenders": []
+    },
+    {
+      "domain": "irishjobs.ie",
+      "kind": "job_board",
+      "countries": ["IE"],
+      "alertSenders": []
+    },
+    {
+      "domain": "itjobs.pt",
+      "kind": "job_board",
+      "countries": ["PT"],
+      "alertSenders": []
+    },
+    {
+      "domain": "jobat.be",
+      "kind": "job_board",
+      "countries": ["BE"],
+      "alertSenders": []
+    },
+    {
+      "domain": "jobbank.gc.ca",
+      "kind": "job_board",
+      "countries": ["CA"],
+      "alertSenders": []
+    },
+    {
+      "domain": "jobberman.com",
+      "kind": "job_board",
+      "countries": ["NG", "GH"],
+      "alertSenders": []
+    },
+    {
+      "domain": "jobindex.dk",
+      "kind": "job_board",
+      "countries": ["DK"],
+      "alertSenders": []
+    },
+    {
+      "domain": "jobrapido.com",
+      "kind": "job_board",
+      "countries": [],
+      "alertSenders": []
+    },
+    {
+      "domain": "jobs.ch",
+      "kind": "job_board",
+      "countries": ["CH"],
+      "alertSenders": []
+    },
+    {
+      "domain": "jobs.cz",
+      "kind": "job_board",
+      "countries": ["CZ"],
+      "alertSenders": []
+    },
+    {
+      "domain": "jobs.ie",
+      "kind": "job_board",
+      "countries": ["IE"],
+      "alertSenders": []
+    },
+    {
+      "domain": "jobs.nhs.uk",
+      "kind": "job_board",
+      "countries": ["GB"],
+      "alertSenders": ["alerts"]
+    },
+    {
+      "domain": "jobsdb.com",
+      "kind": "job_board",
+      "countries": [],
+      "alertSenders": []
+    },
+    {
+      "domain": "jobsite.co.uk",
+      "kind": "job_board",
+      "countries": ["GB"],
+      "alertSenders": []
+    },
+    {
+      "domain": "jobstreet.com",
+      "kind": "job_board",
+      "countries": [],
+      "alertSenders": []
+    },
+    {
+      "domain": "jobtrain.co.uk",
+      "kind": "ats",
+      "countries": ["GB"],
+      "alertSenders": []
+    },
+    {
+      "domain": "jobup.ch",
+      "kind": "job_board",
+      "countries": ["CH"],
+      "alertSenders": []
+    },
+    {
+      "domain": "jobvite.com",
+      "kind": "ats",
+      "countries": [],
+      "alertSenders": []
+    },
+    {
+      "domain": "jobylon.com",
+      "kind": "ats",
+      "countries": [],
+      "alertSenders": []
+    },
+    {
+      "domain": "join.com",
+      "kind": "ats",
+      "countries": [],
+      "alertSenders": []
+    },
+    {
+      "domain": "jooble.org",
+      "kind": "job_board",
+      "countries": [],
+      "alertSenders": []
+    },
+    {
+      "domain": "justjoin.it",
+      "kind": "job_board",
+      "countries": ["PL"],
+      "alertSenders": []
+    },
+    {
+      "domain": "karriere.at",
+      "kind": "job_board",
+      "countries": ["AT"],
+      "alertSenders": []
+    },
+    {
+      "domain": "lever.co",
+      "kind": "ats",
+      "countries": [],
+      "alertSenders": []
+    },
+    {
+      "domain": "linkedin.com",
+      "kind": "job_board",
+      "countries": [],
+      "alertSenders": ["jobalerts-noreply"]
+    },
+    {
+      "domain": "monster.com",
+      "kind": "job_board",
+      "countries": [],
+      "alertSenders": []
+    },
+    {
+      "domain": "monster.de",
+      "kind": "job_board",
+      "countries": ["DE"],
+      "alertSenders": []
+    },
+    {
+      "domain": "myworkday.com",
+      "kind": "ats",
+      "countries": [],
+      "alertSenders": []
+    },
+    {
+      "domain": "nationalevacaturebank.nl",
+      "kind": "job_board",
+      "countries": ["NL"],
+      "alertSenders": ["vacaturemail"]
+    },
+    {
+      "domain": "naukri.com",
+      "kind": "job_board",
+      "countries": ["IN"],
+      "alertSenders": []
+    },
+    {
+      "domain": "naukrigulf.com",
+      "kind": "job_board",
+      "countries": [],
+      "alertSenders": []
+    },
+    {
+      "domain": "net-empregos.com",
+      "kind": "job_board",
+      "countries": ["PT"],
+      "alertSenders": ["alertas"]
+    },
+    {
+      "domain": "nofluffjobs.com",
+      "kind": "job_board",
+      "countries": ["PL", "CZ", "SK", "HU"],
+      "alertSenders": []
+    },
+    {
+      "domain": "occ.com.mx",
+      "kind": "job_board",
+      "countries": ["MX"],
+      "alertSenders": []
+    },
+    {
+      "domain": "otta.com",
+      "kind": "job_board",
+      "countries": [],
+      "alertSenders": []
+    },
+    {
+      "domain": "personio.com",
+      "kind": "ats",
+      "countries": [],
+      "alertSenders": []
+    },
+    {
+      "domain": "personio.de",
+      "kind": "ats",
+      "countries": [],
+      "alertSenders": []
+    },
+    {
+      "domain": "pinpointhq.com",
+      "kind": "ats",
+      "countries": [],
+      "alertSenders": []
+    },
+    {
+      "domain": "pnet.co.za",
+      "kind": "job_board",
+      "countries": ["ZA"],
+      "alertSenders": []
+    },
+    {
+      "domain": "pracuj.pl",
+      "kind": "job_board",
+      "countries": ["PL"],
+      "alertSenders": []
+    },
+    {
+      "domain": "profesia.sk",
+      "kind": "job_board",
+      "countries": ["SK"],
+      "alertSenders": []
+    },
+    {
+      "domain": "profession.hu",
+      "kind": "job_board",
+      "countries": ["HU"],
+      "alertSenders": []
+    },
+    {
+      "domain": "reachmee.com",
+      "kind": "ats",
+      "countries": ["SE", "NO", "DK", "FI"],
+      "alertSenders": []
+    },
+    {
+      "domain": "recruitee.com",
+      "kind": "ats",
+      "countries": [],
+      "alertSenders": []
+    },
+    {
+      "domain": "reed.co.uk",
+      "kind": "job_board",
+      "countries": ["GB"],
+      "alertSenders": []
+    },
+    {
+      "domain": "remoteok.com",
+      "kind": "job_board",
+      "countries": [],
+      "alertSenders": []
+    },
+    {
+      "domain": "rikunabi.com",
+      "kind": "job_board",
+      "countries": ["JP"],
+      "alertSenders": []
+    },
+    {
+      "domain": "saramin.co.kr",
+      "kind": "job_board",
+      "countries": ["KR"],
+      "alertSenders": []
+    },
+    {
+      "domain": "seek.co.nz",
+      "kind": "job_board",
+      "countries": ["NZ"],
+      "alertSenders": []
+    },
+    {
+      "domain": "seek.com.au",
+      "kind": "job_board",
+      "countries": ["AU"],
+      "alertSenders": []
+    },
+    {
+      "domain": "simplyhired.com",
+      "kind": "job_board",
+      "countries": [],
+      "alertSenders": []
+    },
+    {
+      "domain": "smartrecruiters.com",
+      "kind": "ats",
+      "countries": [],
+      "alertSenders": []
+    },
+    {
+      "domain": "softgarden.io",
+      "kind": "ats",
+      "countries": ["DE"],
+      "alertSenders": []
+    },
+    {
+      "domain": "stepstone.at",
+      "kind": "job_board",
+      "countries": ["AT"],
+      "alertSenders": []
+    },
+    {
+      "domain": "stepstone.be",
+      "kind": "job_board",
+      "countries": ["BE"],
+      "alertSenders": []
+    },
+    {
+      "domain": "stepstone.de",
+      "kind": "job_board",
+      "countries": ["DE"],
+      "alertSenders": ["jobagent"]
+    },
+    {
+      "domain": "stepstone.nl",
+      "kind": "job_board",
+      "countries": ["NL"],
+      "alertSenders": []
+    },
+    {
+      "domain": "successfactors.com",
+      "kind": "ats",
+      "countries": [],
+      "alertSenders": []
+    },
+    {
+      "domain": "successfactors.eu",
+      "kind": "ats",
+      "countries": [],
+      "alertSenders": []
+    },
+    {
+      "domain": "talent.com",
+      "kind": "job_board",
+      "countries": [],
+      "alertSenders": []
+    },
+    {
+      "domain": "taleo.net",
+      "kind": "ats",
+      "countries": [],
+      "alertSenders": []
+    },
+    {
+      "domain": "teamtailor-mail.com",
+      "kind": "ats",
+      "countries": [],
+      "alertSenders": []
+    },
+    {
+      "domain": "teamtailor.com",
+      "kind": "ats",
+      "countries": [],
+      "alertSenders": []
+    },
+    {
+      "domain": "totaljobs.com",
+      "kind": "job_board",
+      "countries": ["GB"],
+      "alertSenders": ["jobalerts"]
+    },
+    {
+      "domain": "trac.jobs",
+      "kind": "ats",
+      "countries": ["GB"],
+      "alertSenders": []
+    },
+    {
+      "domain": "usajobs.gov",
+      "kind": "job_board",
+      "countries": ["US"],
+      "alertSenders": []
+    },
+    {
+      "domain": "vagas.com.br",
+      "kind": "job_board",
+      "countries": ["BR"],
+      "alertSenders": []
+    },
+    {
+      "domain": "varbi.com",
+      "kind": "ats",
+      "countries": ["SE"],
+      "alertSenders": []
+    },
+    {
+      "domain": "vdab.be",
+      "kind": "job_board",
+      "countries": ["BE"],
+      "alertSenders": []
+    },
+    {
+      "domain": "webcruiter.no",
+      "kind": "ats",
+      "countries": ["NO"],
+      "alertSenders": []
+    },
+    {
+      "domain": "welcometothejungle.com",
+      "kind": "job_board",
+      "countries": [],
+      "alertSenders": []
+    },
+    {
+      "domain": "wellfound.com",
+      "kind": "job_board",
+      "countries": [],
+      "alertSenders": []
+    },
+    {
+      "domain": "werk.nl",
+      "kind": "job_board",
+      "countries": ["NL"],
+      "alertSenders": []
+    },
+    {
+      "domain": "weworkremotely.com",
+      "kind": "job_board",
+      "countries": [],
+      "alertSenders": []
+    },
+    {
+      "domain": "workable.com",
+      "kind": "ats",
+      "countries": [],
+      "alertSenders": []
+    },
+    {
+      "domain": "workablemail.com",
+      "kind": "ats",
+      "countries": [],
+      "alertSenders": []
+    },
+    {
+      "domain": "workday.com",
+      "kind": "ats",
+      "countries": [],
+      "alertSenders": []
+    },
+    {
+      "domain": "workopolis.com",
+      "kind": "job_board",
+      "countries": ["CA"],
+      "alertSenders": []
+    },
+    {
+      "domain": "xing.com",
+      "kind": "job_board",
+      "countries": ["DE", "AT", "CH"],
+      "alertSenders": ["jobs"]
+    },
+    {
+      "domain": "zhaopin.com",
+      "kind": "job_board",
+      "countries": ["CN"],
+      "alertSenders": []
+    },
+    {
+      "domain": "ziprecruiter.com",
+      "kind": "job_board",
+      "countries": ["US", "CA", "GB"],
+      "alertSenders": []
+    },
+    {
+      "domain": "zohorecruit.com",
+      "kind": "ats",
+      "countries": [],
+      "alertSenders": []
+    }
+  ]
+}
