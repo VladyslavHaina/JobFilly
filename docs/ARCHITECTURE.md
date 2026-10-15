@@ -141,5 +141,15 @@ Every MVP keeps these true; the Helm chart after MVP 3 relies on them.
   with `apps/server/src/testing` (`createTestDeps` with fake mail and AI ports, and seeding through
   the workspace-scoped `@jobfilly/db` functions). The PGlite projects run without per-file
   isolation, reusing each worker's databases, so they don't use `vi.mock`.
-- `pnpm e2e` starts the test stack (`docker/compose.e2e.yaml`) and runs the Playwright specs. How
+- `pnpm e2e` starts the test stack (`docker/compose.e2e.yaml`) and runs the Playwright specs.
+  The root scripts run `node e2e/stack.ts run` (`pnpm e2e`), `node e2e/stack.ts stack up|down`
+  and `node e2e/stack.ts specs [--mvp <n>]`.
+- Test-stack conventions shared by the fixtures and the stack: persona mail lives in
+  `e2e/fixtures/<persona>/mail/<inbox|sent>/<nnnn>.eml`; `e2e/fixtures/<persona>/envelopes.json`
+  is an array whose entries carry at least `file` (relative to `mail/`), `folder`, `messageId`
+  and `minutesAgo`, the only fields the seed reads besides the `.eml` files. The fake AI starts
+  with `node e2e/fake-ai/main.ts`, listens on `PORT` (8080) and reads `FIXTURES_DIR`
+  (`e2e/fixtures`), `FAKE_AI_DELAY_MS` and `FAKE_AI_SLOW_TEST_MS` (0). The seed starts with
+  `e2e/seed/main.ts` and the fixture generator with `e2e/fixtures/build/main.ts`. Personas:
+  `maria` (maria.santos@inbox.example) and `tom` (tom.okafor@inbox.example). How
   each MVP is validated is described in [docs/mvp/README.md](mvp/README.md).
