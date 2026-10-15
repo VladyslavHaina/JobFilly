@@ -130,8 +130,9 @@ describe("the workspace route modules", () => {
     ["GET", `profiles/${ID}/rules`, "viewer", 404],
     ["PATCH", `profiles/${ID}/rules/${ID}`, "editor", 400],
     ["DELETE", `profiles/${ID}/rules/${ID}`, "editor", 404],
-    ["GET", `profiles/${ID}/history`, "viewer", 501],
-    ["POST", `profiles/${ID}/history/${ID}/undo`, "editor", 501],
+    // A profile's history: no such profile, no such entry.
+    ["GET", `profiles/${ID}/history`, "viewer", 404],
+    ["POST", `profiles/${ID}/history/${ID}/undo`, "editor", 404],
     ["GET", "drafts", "viewer", 501],
     ["POST", "drafts", "editor", 501],
     ["GET", `drafts/${ID}`, "viewer", 501],
@@ -142,12 +143,13 @@ describe("the workspace route modules", () => {
     ["POST", `decisions/${ID}/answer`, "editor", 501],
     ["POST", `decisions/${ID}/not-now`, "editor", 501],
     ["POST", `decisions/${ID}/dismiss`, "editor", 501],
-    // Viewers chat and discard; applying and editing a proposal take an editor (F8.8).
-    ["GET", "assistant", "viewer", 501],
-    ["POST", "assistant", "viewer", 501],
-    ["PATCH", `assistant/proposals/${ID}`, "editor", 501],
-    ["POST", `assistant/proposals/${ID}/apply`, "editor", 501],
-    ["POST", `assistant/proposals/${ID}/discard`, "viewer", 501],
+    // Viewers chat and discard; applying and editing a proposal take an editor (F8.8). The
+    // thread reads, an empty message and an empty edit, and no such proposal.
+    ["GET", "assistant", "viewer", 200],
+    ["POST", "assistant", "viewer", 400],
+    ["PATCH", `assistant/proposals/${ID}`, "editor", 400],
+    ["POST", `assistant/proposals/${ID}/apply`, "editor", 404],
+    ["POST", `assistant/proposals/${ID}/discard`, "viewer", 404],
   ];
   const below = { viewer: null, editor: "viewer", admin: "editor" } as const;
 
