@@ -97,6 +97,7 @@ describe("the workspace route modules", () => {
     ["POST", "mailboxes", "admin", 400],
     ["DELETE", `mailboxes/${MAILBOX}`, "admin", 204],
     ["GET", "ai", "viewer", 200],
+    ["GET", "ai/providers", "viewer", 200],
     ["PUT", "ai", "admin", 400],
     ["POST", "ai/test", "admin", 400],
     ["GET", "scans/current", "viewer", 501],

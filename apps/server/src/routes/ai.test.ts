@@ -1,7 +1,8 @@
-import type { AiClient } from "@jobfilly/ai";
+import { AI_PROVIDERS, type AiClient } from "@jobfilly/ai";
 import { getAiSettings, usageTotal } from "@jobfilly/db";
 import {
   type AiClientSettings,
+  AiProviderListSchema,
   type AiSettingsResponse,
   AiSettingsResponseSchema,
   type AiTestOutput,
@@ -104,11 +105,29 @@ describe("roles (F1.8)", () => {
     for (const user of [viewer, editor]) {
       const client = await signedIn(app, deps, user);
       expect((await client.get(base)).status).toBe(200);
+      expect((await client.get(`${base}/providers`)).status).toBe(200);
       expect((await client.put(base, form)).status).toBe(403);
       expect((await client.post(`${base}/test`, form)).status).toBe(403);
     }
     expect(ai.clients).toEqual([]);
     expect(await getAiSettings(deps.db, ws.workspaceId)).toBeNull();
+  });
+});
+
+describe("the provider catalogue (F3.1, F3.2)", () => {
+  it("serves packages/ai's short list, each provider with its defaults and no price data", async () => {
+    const res = await admin.get(`${url}/providers`);
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    expect(AiProviderListSchema.parse(JSON.parse(text))).toEqual({ items: [...AI_PROVIDERS] });
+    expect(text).not.toMatch(/price|cost|\$|€|per token/i);
+  });
+
+  it("is not found for someone outside the workspace", async () => {
+    const outsider = await signedIn(createApp(deps), deps, await seedUser(deps));
+    const res = await outsider.get(`${url}/providers`);
+    expect(res.status).toBe(404);
+    expect(await res.text()).not.toContain("api.anthropic.com");
   });
 });
 

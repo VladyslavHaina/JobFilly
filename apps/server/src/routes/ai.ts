@@ -1,22 +1,22 @@
+import { AI_PROVIDERS, aiProvider, aiReadBy } from "@jobfilly/ai";
 import { getAiSettings, recordAiUsage, type StoredAiSettings, saveAiSettings } from "@jobfilly/db";
 import {
   type AiClientSettings,
+  type AiProviderList,
   type AiSettingsInput,
   AiSettingsInputSchema,
   type AiSettingsPublic,
   type AiSettingsResponse,
   type AiTestResult,
-  aiProvider,
-  aiReadBy,
 } from "@jobfilly/schema";
 import { type Context, Hono } from "hono";
 import { requireRole, validJson, type WorkspaceEnv } from "../access";
 import type { AppDeps } from "../deps";
 import { open, seal } from "../secrets";
 
-// The workspace's AI provider settings (F3): read, save, test. The key is sealed before it is
-// stored and never returned or logged (F3.3); the answer carries only whether one is stored and
-// the one privacy line's provider and host (F3.2).
+// The workspace's AI provider settings (F3): the provider catalogue, read, save, test. The key is
+// sealed before it is stored and never returned or logged (F3.3); the answer carries only whether
+// one is stored and the one privacy line's provider and host (F3.2).
 //
 // A stored key only ever goes to the provider and base URL it was saved for: saving or testing
 // another provider or base URL without typing a key never sends the old key anywhere new.
@@ -73,6 +73,10 @@ export function aiRoutes(deps: AppDeps) {
         settings: stored ? toPublic(stored, openKey(stored)) : null,
       };
       return c.json(body);
+    })
+    .get("/providers", requireRole("viewer"), (c) => {
+      const list: AiProviderList = { items: [...AI_PROVIDERS] };
+      return c.json(list);
     })
     .put("/", requireRole("admin"), validJson(AiSettingsInputSchema), async (c) => {
       const input = c.req.valid("json");
