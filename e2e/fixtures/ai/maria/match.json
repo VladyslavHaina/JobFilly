@@ -4022,6 +4022,11 @@
         "skill": "Kubernetes",
         "verdict": "fits",
         "reason": "Kubernetes is in the CV \"Backend (DE)\""
+      },
+      {
+        "skill": "Redis",
+        "verdict": "fits",
+        "reason": "Redis is a data store, close to the PostgreSQL in the CV"
       }
     ]
   },

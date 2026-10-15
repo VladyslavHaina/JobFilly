@@ -30,6 +30,8 @@ interface DeliveryRole {
   draft: boolean;
   /** draft.v1 answers by attempt (automatic, after a decision, or Draft a reply). */
   answers: Partial<Record<1 | 2, DraftAnswer>>;
+  /** Skills the chosen CV lacks that the match.v1 answer still calls close (skill → reason). */
+  closeSkills?: Readonly<Record<string, string>>;
 }
 
 export interface DeliverySource {
@@ -126,7 +128,7 @@ export const DELIVERIES: readonly DeliverySource[] = [
     minutesAgo: 95,
     from: { address: "lena.hoffmann@kiezwerk.example", name: "Lena Hoffmann" },
     subject: BERLIN_SUBJECT,
-    body: "Hallo Frau Santos,\n\nich leite das Recruiting bei der Kiezwerk Software GmbH in Berlin. Für unser Payments-Team suchen wir eine Senior Backend-Entwicklerin (m/w/d). Die Stelle ist hybrid: zwei Tage pro Woche arbeiten Sie in unserem Büro in Berlin-Kreuzberg. Das Gehalt liegt bei 80.000–90.000 € brutto pro Jahr. Unser Stack: Go, PostgreSQL und Kubernetes.\n\nWenn Sie Interesse haben, schicken Sie mir bitte Ihren Lebenslauf, dann melde ich mich mit einem Terminvorschlag.\n\nViele Grüße\nLena Hoffmann\nRecruiting, Kiezwerk Software GmbH",
+    body: "Hallo Frau Santos,\n\nich leite das Recruiting bei der Kiezwerk Software GmbH in Berlin. Für unser Payments-Team suchen wir eine Senior Backend-Entwicklerin (m/w/d). Die Stelle ist hybrid: zwei Tage pro Woche arbeiten Sie in unserem Büro in Berlin-Kreuzberg. Das Gehalt liegt bei 80.000–90.000 € brutto pro Jahr. Unser Stack: Go, PostgreSQL, Kubernetes und Redis.\n\nWenn Sie Interesse haben, schicken Sie mir bitte Ihren Lebenslauf, dann melde ich mich mit einem Terminvorschlag.\n\nViele Grüße\nLena Hoffmann\nRecruiting, Kiezwerk Software GmbH",
     footer: RECRUITER_FOOTER_DE,
     language: "de",
     sender: "looks_fine",
@@ -139,11 +141,16 @@ export const DELIVERIES: readonly DeliverySource[] = [
           workMode: "hybrid",
           pay: pay(80000, 90000, "EUR", "year", "80.000–90.000 € brutto pro Jahr"),
           seniority: "Senior",
-          skills: ["Go", "PostgreSQL", "Kubernetes"],
+          skills: ["Go", "PostgreSQL", "Kubernetes", "Redis"],
         }),
         fit: "good",
         needs: [],
         draft: true,
+        // Redis is in no CV and not in the profile. The model calls it close; the scorer must
+        // still show it as missing and never count it as a fit (F4.4, S3).
+        closeSkills: {
+          Redis: "Redis is a data store, close to the PostgreSQL in the CV",
+        },
         answers: {
           1: reply(
             BERLIN_SUBJECT,
@@ -410,7 +417,7 @@ export const DELIVERIES: readonly DeliverySource[] = [
     minutesAgo: 680,
     from: { address: "jan.meier@rheinknie.example", name: "Jan Meier" },
     subject: BASEL_SUBJECT,
-    body: "Hallo Frau Santos,\n\ndie Rheinknie Health AG sucht eine:n Senior Backend-Entwickler (m/w/d). Unser Team sitzt in Basel, die Stelle ist aber vollständig remote innerhalb der EU und der Schweiz, unbefristet. Das Gehalt liegt bei CHF 115.000–130.000 pro Jahr. Wir arbeiten mit Go und Kubernetes.\n\nWas sind Ihre Gehaltsvorstellungen in CHF?\n\nFreundliche Grüße\nJan Meier\nHR Business Partner, Rheinknie Health AG",
+    body: "Hallo Frau Santos,\n\ndie Rheinknie Health AG sucht eine:n Senior Backend-Entwickler (m/w/d). Unser Team sitzt in Basel, die Stelle ist aber vollständig remote innerhalb der EU und der Schweiz, unbefristet. Das Gehalt liegt bei CHF 115.000–135.000 pro Jahr. Wir arbeiten mit Go und Kubernetes.\n\nWas sind Ihre Gehaltsvorstellungen in CHF?\n\nFreundliche Grüße\nJan Meier\nHR Business Partner, Rheinknie Health AG",
     footer: RECRUITER_FOOTER_DE,
     language: "de",
     sender: "looks_fine",
@@ -421,7 +428,9 @@ export const DELIVERIES: readonly DeliverySource[] = [
           company: "Rheinknie Health AG",
           workMode: "remote",
           remoteScope: "innerhalb der EU und der Schweiz",
-          pay: pay(115000, 130000, "CHF", "year", "CHF 115.000–130.000 pro Jahr"),
+          // Its top equals the Zurich role's: whichever of the two opens the CHF decision, every
+          // amount it suggests keeps all three CHF roles at or above the new minimum (S5).
+          pay: pay(115000, 135000, "CHF", "year", "CHF 115.000–135.000 pro Jahr"),
           contract: "unbefristet",
           seniority: "Senior",
           skills: ["Go", "Kubernetes"],

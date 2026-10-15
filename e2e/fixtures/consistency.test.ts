@@ -1292,6 +1292,50 @@ describe("the delivered mail (MVP 2)", () => {
     expect(get("freemail").truth.sender?.verdict).toBe("caution");
   });
 
+  it("gives the Berlin role a skill no CV has, which the model still calls close (F4.4, S3)", () => {
+    const cvSkills = new Set(d.expected.cvs.flatMap((c) => c.skills).map((s) => s.toLowerCase()));
+    const backendDe = d.expected.cvs.find((c) => c.name === "Backend (DE)") as ExpectedCv;
+    const missing = role0("berlin-de").skills.filter(
+      (s) => !backendDe.skills.some((c) => c.toLowerCase() === s.toLowerCase()),
+    );
+    expect(missing.length).toBeGreaterThan(0);
+    // In no CV at all, so no choice of CV turns it into a match.
+    for (const s of missing) expect(cvSkills.has(s.toLowerCase()), s).toBe(false);
+    // The match.v1 answer calls each missing skill close: the scorer must still list it missing.
+    const closeness = m.match[matchKey(get("berlin-de").entry.messageId, 0)]?.skillCloseness ?? [];
+    for (const s of missing) {
+      expect(closeness.find((c) => c.skill === s)?.verdict, s).toBe("fits");
+    }
+    // Matched skills are still most of the list, so the role stays a good match.
+    expect(missing.length * 4).toBeLessThanOrEqual(role0("berlin-de").skills.length);
+  });
+
+  it("keeps every CHF amount the decision can suggest at or under every CHF role's top (S5)", () => {
+    // The decision suggests the pay min and max of whichever role opens it; any of them, once
+    // chosen as the minimum, must leave every CHF role's top at or above it, or a role is capped.
+    const chf = [...m.delivered.values()].flatMap(({ entry, truth }) =>
+      (truth.facts ?? []).map((facts, i) => ({ id: entry.id, facts, role: truth.roles?.[i] })),
+    );
+    const tops = chf
+      .filter((r) => r.facts.pay?.currency === "CHF" && r.facts.pay.period === "year")
+      .map((r) => [r.id, r.facts.pay?.max] as const);
+    expect(tops.length).toBe(3);
+    const openers = chf.filter((r) => r.role?.needs?.includes("min_pay:CHF:year"));
+    expect(openers.map((r) => r.id).sort()).toEqual(["basel", "zurich"]);
+    for (const opener of openers) {
+      for (const amount of [opener.facts.pay?.min, opener.facts.pay?.max]) {
+        expect(typeof amount, opener.id).toBe("number");
+        for (const [id, top] of tops) {
+          expect(typeof top, id).toBe("number");
+          expect(
+            amount as number,
+            `${opener.id} suggests ${amount}, ${id} tops at ${top}`,
+          ).toBeLessThanOrEqual(top as number);
+        }
+      }
+    }
+  });
+
   it("gives every capped role a hard conflict, and only those", () => {
     for (const { entry, truth } of m.delivered.values()) {
       for (const r of truth.roles ?? []) {
@@ -1543,6 +1587,45 @@ describe("the assistant requests (MVP 2)", () => {
       if (c.target === "entry") expect(Array.isArray(c.value)).toBe(true);
     }
     expect(JSON.stringify(changes)).not.toMatch(/"UTC[+-](?!(0\d|1[0-4]):[0-5]\d")/);
+  });
+
+  it("hide by contract no role on a permanent contract, but some of Maria's fixed-term roles", () => {
+    // The rules engine (packages/core/src/rules) matches a text fact case-blind: `in` on the
+    // whole value, `contains` on any part of it. "unbefristet" contains "befristet", so a
+    // careless condition would hide permanent roles.
+    const norm = (s: string) => s.trim().replace(/\s+/g, " ").toLowerCase();
+    const PERMANENT = ["unbefristet", "permanent", "vast contract", "contrato sem termo"];
+    const contracts = [
+      ...new Set(
+        Object.values({ ...data.maria.expected.messages, ...data.maria.expected.deliveries })
+          .flatMap((t) => t.facts ?? [])
+          .map((f) => f.contract)
+          .filter((c): c is string => c !== null),
+      ),
+    ];
+    for (const p of PERMANENT) expect(contracts, p).toContain(p);
+    const hits = (op: string, words: string[], contract: string) => {
+      const value = norm(contract);
+      const wanted = words.map(norm);
+      if (op === "in" || op === "equals") return wanted.includes(value);
+      if (op === "not_in") return !wanted.includes(value);
+      if (op === "contains") return wanted.some((w) => w !== "" && value.includes(w));
+      throw new Error(`no contract check for op ${op}`);
+    };
+    const conditions = requests
+      .flatMap((r) => (r.expected ?? []) as { target?: string; rule?: Record<string, unknown> }[])
+      .filter((c) => c.target === "rule" && c.rule?.then === "hide")
+      .flatMap((c) => c.rule?.when as { fact: string; op: string; value: string[] }[])
+      .filter((w) => w.fact === "contract");
+    expect(conditions.length).toBeGreaterThan(0);
+    for (const w of conditions) {
+      const hidden = contracts.filter((c) => hits(w.op, w.value, c));
+      expect(
+        hidden.filter((c) => PERMANENT.includes(norm(c))),
+        JSON.stringify(w),
+      ).toEqual([]);
+      expect(hidden.length, JSON.stringify(w)).toBeGreaterThan(0);
+    }
   });
 
   it("get fake-AI proposals with exactly the expected changes, at any turn", () => {

@@ -129,8 +129,10 @@
               "fact": "contract",
               "op": "contains",
               "value": [
-                "befristet",
-                "fixed-term"
+                "befristet auf",
+                "fixed-term",
+                "tijdelijk",
+                "a termo"
               ]
             }
           ],

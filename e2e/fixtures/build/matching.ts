@@ -62,27 +62,40 @@ export function hardConflicts(role: JobFacts, profile: ProfileValues): HardConfl
   const out: HardConflict[] = [];
   if (placeConflict(role, profile)) out.push("places");
   const pay = role.pay;
-  if (pay?.currency && pay.period) {
-    const top = pay.max ?? pay.min;
+  if (pay?.currency && pay.period && pay.max !== null) {
     const minimum = profile.min_pay.find(
       (m) => m.currency === pay.currency && m.period === pay.period,
     );
-    // Below the minimum means the whole range is below it, in the same currency and period.
-    if (minimum && top !== null && top < minimum.amount) out.push("min_pay");
+    // Below the minimum means even the top of the range is below it, in the same currency and
+    // period. A pay with no top stated is unknown to the scorer ("highest pay not stated"), never
+    // a conflict.
+    if (minimum && pay.max < minimum.amount) out.push("min_pay");
   }
   return out;
 }
 
-/** The fake AI's match.v1 answer for a role. */
-export function matchAnswer(judge: PersonaJudge, role: JobFacts, cv: CvChoiceSource): MatchAnswer {
+/**
+ * The fake AI's match.v1 answer for a role. `close` names skills the CV lacks that the model
+ * still calls close (skill → reason); the scorer must list them as missing all the same (F4.4).
+ */
+export function matchAnswer(
+  judge: PersonaJudge,
+  role: JobFacts,
+  cv: CvChoiceSource,
+  close: Readonly<Record<string, string>> = {},
+): MatchAnswer {
   const cvSkills = new Set(cv.skills.map((s) => s.toLowerCase()));
   return {
     titleFit: judge.titleFit(role.title),
-    skillCloseness: role.skills.map((skill) =>
-      cvSkills.has(skill.toLowerCase())
-        ? { skill, verdict: "fits", reason: `${skill} is in the CV "${cv.name}"` }
-        : { skill, verdict: "unknown", reason: `${skill} is in neither the CV nor the profile` },
-    ),
+    skillCloseness: role.skills.map((skill) => {
+      if (cvSkills.has(skill.toLowerCase())) {
+        return { skill, verdict: "fits", reason: `${skill} is in the CV "${cv.name}"` };
+      }
+      const closeReason = close[skill];
+      return closeReason === undefined
+        ? { skill, verdict: "unknown", reason: `${skill} is in neither the CV nor the profile` }
+        : { skill, verdict: "fits", reason: closeReason };
+    }),
   };
 }
 

@@ -15972,7 +15972,8 @@
           "skills": [
             "Go",
             "PostgreSQL",
-            "Kubernetes"
+            "Kubernetes",
+            "Redis"
           ],
           "languages": [],
           "applyUrl": null,
@@ -16420,10 +16421,10 @@
           "timeZones": null,
           "pay": {
             "min": 115000,
-            "max": 130000,
+            "max": 135000,
             "currency": "CHF",
             "period": "year",
-            "asWritten": "CHF 115.000–130.000 pro Jahr"
+            "asWritten": "CHF 115.000–135.000 pro Jahr"
           },
           "contract": "unbefristet",
           "seniority": "Senior",

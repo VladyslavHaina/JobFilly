@@ -95,7 +95,12 @@ const REQUESTS: readonly (AssistantRequest & { reply: string; summary: string })
     text: "Zeig mir keine befristeten Stellen mehr",
     expected: [
       hideRule("Stellen mit befristetem Vertrag ausblenden", [
-        { fact: "contract", op: "contains", value: ["befristet", "fixed-term"] },
+        // Not "befristet" alone: "unbefristet" (permanent) contains it.
+        {
+          fact: "contract",
+          op: "contains",
+          value: ["befristet auf", "fixed-term", "tijdelijk", "a termo"],
+        },
       ]),
     ],
     summary: "Stellen mit befristetem Vertrag ausblenden",

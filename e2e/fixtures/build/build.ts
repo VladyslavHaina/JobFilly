@@ -119,11 +119,18 @@ function personaFiles(source: PersonaSource, mvp2: PersonaMvp2): Map<string, Fil
   const match: Record<string, MatchAnswer> = {};
   const draft: Record<string, DraftAnswer> = {};
 
-  /** Every role's CV, hard conflicts and match.v1 answer; `draft` says if it gets a draft. */
-  const judgeRoles = (m: MessageSpec, drafts: (position: number) => boolean): ExpectedRole[] =>
+  /**
+   * Every role's CV, hard conflicts and match.v1 answer; `draft` says if it gets a draft, `close`
+   * which skills the CV lacks that the fake AI still calls close.
+   */
+  const judgeRoles = (
+    m: MessageSpec,
+    drafts: (position: number) => boolean,
+    close: (position: number) => Readonly<Record<string, string>> | undefined = () => undefined,
+  ): ExpectedRole[] =>
     (m.facts ?? []).map((facts, position) => {
       const cv = mvp2.judge.cvFor(facts, m.language);
-      match[matchKey(m.messageId, position)] = matchAnswer(mvp2.judge, facts, cv);
+      match[matchKey(m.messageId, position)] = matchAnswer(mvp2.judge, facts, cv, close(position));
       return {
         cv: cv.name,
         hardConflicts: hardConflicts(facts, mvp2.judge.profile),
@@ -200,7 +207,11 @@ function personaFiles(source: PersonaSource, mvp2: PersonaMvp2): Map<string, Fil
       minutesAgo: m.minutesAgo,
       step: d.step,
     });
-    const roles = judgeRoles(m, (position) => d.roles[position]?.draft ?? false);
+    const roles = judgeRoles(
+      m,
+      (position) => d.roles[position]?.draft ?? false,
+      (position) => d.roles[position]?.closeSkills,
+    );
     d.roles.forEach((r, position) => {
       Object.assign(roles[position] as ExpectedRole, { fit: r.fit, needs: r.needs });
       for (const [attempt, answer] of Object.entries(r.answers)) {

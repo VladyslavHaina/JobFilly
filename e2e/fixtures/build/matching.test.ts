@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { JobFacts, ProfileValues } from "../format.ts";
-import { hardConflicts } from "./matching.ts";
+import { hardConflicts, matchAnswer, type PersonaJudge } from "./matching.ts";
 
 // The generator's hard conflicts follow the place and pay rules of the app's scorer
-// (packages/core/src/match/match.ts), so a regenerated expected.json records what the app finds.
+// (packages/core/src/match/match.ts), so a regenerated expected.json records what the app finds;
+// its match.v1 answers judge each skill by the chosen CV.
 
 const role = (over: Partial<JobFacts>): JobFacts => ({
   title: "Backend Engineer",
@@ -114,7 +115,12 @@ describe("hardConflicts", () => {
       role({ pay: { min, max, currency, period: "year", asWritten: "" } });
     expect(hardConflicts(pay(50000, 65000), p)).toEqual(["min_pay"]);
     expect(hardConflicts(pay(50000, 70000), p)).toEqual([]);
-    expect(hardConflicts(pay(60000, null), p)).toEqual(["min_pay"]);
+    // A top below the minimum conflicts even with no bottom stated.
+    expect(hardConflicts(pay(null, 65000), p)).toEqual(["min_pay"]);
+    // With no top stated the scorer calls the pay unknown ("highest pay not stated"), never a
+    // conflict, whether the bottom is under the minimum or not.
+    expect(hardConflicts(pay(60000, null), p)).toEqual([]);
+    expect(hardConflicts(pay(80000, null), p)).toEqual([]);
     expect(hardConflicts(pay(null, null), p)).toEqual([]);
     expect(hardConflicts(pay(50000, 65000, "GBP"), p)).toEqual([]);
   });
@@ -130,5 +136,31 @@ describe("hardConflicts", () => {
       pay: { min: 40000, max: 50000, currency: "EUR", period: "year", asWritten: "" },
     });
     expect(hardConflicts(r, p)).toEqual(["places", "min_pay"]);
+  });
+});
+
+describe("matchAnswer", () => {
+  const judge: PersonaJudge = {
+    persona: "maria",
+    profile: profile({}),
+    cvFor: () => ({ name: "Backend (EN)", skills: ["Go"] }),
+    titleFit: () => ({ verdict: "fits", reason: "a backend role" }),
+  };
+  const cv = { name: "Backend (EN)", skills: ["go"] };
+
+  it("calls a CV skill a fit and any other skill unknown, unless it is named close", () => {
+    const r = role({ skills: ["Go", "Redis", "Java"] });
+    expect(matchAnswer(judge, r, cv).skillCloseness.map((s) => s.verdict)).toEqual([
+      "fits",
+      "unknown",
+      "unknown",
+    ]);
+    const close = matchAnswer(judge, r, cv, { Redis: "close to PostgreSQL" }).skillCloseness;
+    expect(close.map((s) => [s.skill, s.verdict])).toEqual([
+      ["Go", "fits"],
+      ["Redis", "fits"],
+      ["Java", "unknown"],
+    ]);
+    expect(close[1]?.reason).toBe("close to PostgreSQL");
   });
 });
