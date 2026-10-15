@@ -159,6 +159,24 @@ describe("stopMessage (F4.4)", () => {
     expect(stopMessage("cancelled", 20, 1)).toBe(
       "Stopped: cancelled after 20 of 1 likely job email",
     );
-    expect(stopMessage("failed", 0, 12)).toMatch(/^Stopped: couldn't go on after 0 of 12 /);
+  });
+
+  it("names what a failed run ran into, and where to look (TBD-112)", () => {
+    expect(stopMessage("failed", 3, 12, "mailbox")).toBe(
+      "Stopped: couldn't read your mailbox after 3 of 12 likely job emails. Check Settings › Mailbox, then try again.",
+    );
+    expect(stopMessage("failed", 0, 1, "ai")).toBe(
+      "Stopped: the AI provider couldn't be used after 0 of 1 likely job email. Check Settings › AI, then try again.",
+    );
+    const internal = stopMessage("failed", 20, 345, "internal");
+    expect(internal).toBe(
+      "Stopped: something went wrong on JobFilly's side after 20 of 345 likely job emails. Your settings don't need changing; trying again later may help.",
+    );
+    expect(internal).not.toMatch(/Settings ›/);
+    expect(stopMessage("failed", 0, 12)).toBe(
+      "Stopped: couldn't go on after 0 of 12 likely job emails. Try again.",
+    );
+    // A cause belongs to a failed run only: any other stop reads the same with or without one.
+    expect(stopMessage("cancelled", 2, 5, "ai")).toBe(stopMessage("cancelled", 2, 5));
   });
 });
