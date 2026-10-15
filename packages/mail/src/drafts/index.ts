@@ -42,7 +42,7 @@ function author(from: Address): string {
  * The reply followed by the original, quoted line by line. The attribution line names only the
  * date and the author, with no words, so it reads the same under a reply in any language.
  */
-export function replyText(reply: string, original: OriginalMessage): string {
+function replyText(reply: string, original: OriginalMessage): string {
   const quoted = original.text
     .replace(/\r\n?/g, "\n")
     .split("\n")
