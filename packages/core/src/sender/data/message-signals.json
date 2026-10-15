@@ -10,7 +10,13 @@
         "pay the fee",
         "one-time fee",
         "refundable deposit",
-        "visa fee"
+        "visa fee",
+        "application fee",
+        "upfront fee",
+        "upfront payment",
+        "pay for your training",
+        "pay for the training",
+        "security deposit"
       ],
       "asks_for_id": [
         "passport scan",
@@ -19,7 +25,12 @@
         "copy of your id",
         "photo of your id",
         "national id card",
-        "bank details before"
+        "bank details before",
+        "passport copy",
+        "scan of your id",
+        "copy of your id card",
+        "send your passport",
+        "id documents before"
       ],
       "chat_only": [
         "on whatsapp only",
@@ -27,7 +38,12 @@
         "via telegram",
         "on telegram",
         "interview via chat",
-        "chat interview"
+        "chat interview",
+        "whatsapp only",
+        "telegram only",
+        "only on whatsapp",
+        "only via whatsapp",
+        "text me on whatsapp"
       ]
     },
     "de": {
@@ -36,19 +52,24 @@
         "bearbeitungsgebühr",
         "schulungsgebühr",
         "gebühr überweisen",
-        "kaution"
+        "kaution",
+        "vorabgebühr",
+        "vorauszahlung"
       ],
       "asks_for_id": [
         "kopie ihres reisepasses",
         "scan ihres reisepasses",
         "kopie ihres personalausweises",
-        "foto ihres ausweises"
+        "foto ihres ausweises",
+        "reisepass-scan",
+        "ausweiskopie"
       ],
       "chat_only": [
         "nur über whatsapp",
         "per whatsapp",
         "über telegram",
-        "vorstellungsgespräch per chat"
+        "vorstellungsgespräch per chat",
+        "nur per whatsapp"
       ]
     },
     "pt": {
@@ -57,15 +78,23 @@
         "taxa de processamento",
         "taxa de formação",
         "pagar uma taxa",
-        "caução"
+        "caução",
+        "pagamento antecipado"
       ],
       "asks_for_id": [
         "cópia do passaporte",
         "digitalização do passaporte",
         "cópia do cartão de cidadão",
-        "foto do documento de identificação"
+        "foto do documento de identificação",
+        "cópia do seu passaporte"
       ],
-      "chat_only": ["apenas por whatsapp", "pelo whatsapp", "pelo telegram", "entrevista por chat"]
+      "chat_only": [
+        "apenas por whatsapp",
+        "pelo whatsapp",
+        "pelo telegram",
+        "entrevista por chat",
+        "só pelo whatsapp"
+      ]
     }
   }
 }
