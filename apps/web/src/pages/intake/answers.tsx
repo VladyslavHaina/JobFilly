@@ -19,6 +19,7 @@ import {
   formatPay,
   formatPeriod,
   formatTimeZones,
+  parseAmount,
 } from "../inbox/format";
 
 // One answer of the intake form or the profile, shown and edited by clicking where possible
@@ -317,20 +318,23 @@ function MinPayEditor({ value, disabled, onChange }: EditorProps) {
         label="Add a minimum pay"
         disabled={disabled}
         onSubmit={() => {
-          const n = Number(amount.replace(/[\s,]/g, ""));
-          const amountOk = amount.trim() !== "" && Number.isFinite(n) && n >= 0;
+          // Read with the separators amounts are shown in, never guessed (parseAmount).
+          const parsed = parseAmount(amount);
           const currencyOk = CurrencyCodeSchema.safeParse(upper(currency)).success;
           setError(
-            !amountOk
-              ? "Enter the amount as a number"
+            !parsed.ok
+              ? parsed.message
               : !currencyOk
                 ? "Use the three-letter currency code, like EUR or GBP"
                 : null,
           );
           setPeriodError(period ? null : "Choose a period");
-          if (!amountOk || !currencyOk || !period) return;
+          if (!parsed.ok || !currencyOk || !period) return;
           const asWritten = `${amount.trim()} ${upper(currency)} ${formatPeriod(period)}`;
-          onChange([...pays, { amount: n, currency: upper(currency), period, asWritten }]);
+          onChange([
+            ...pays,
+            { amount: parsed.amount, currency: upper(currency), period, asWritten },
+          ]);
           setAmount("");
           setCurrency("");
           setPeriod("");

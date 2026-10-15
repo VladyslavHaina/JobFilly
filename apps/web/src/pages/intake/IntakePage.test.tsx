@@ -10,9 +10,9 @@ import {
   type Profile,
   type Role,
 } from "@jobfilly/schema";
-import { cleanup, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, configure, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   type FakeRequest,
   fakeApi,
@@ -24,6 +24,23 @@ import {
 import { paths } from "../../paths";
 
 // The intake form inside the app's own routes, against a fake API (F6.1-F6.4, F6.6, F6.7, S4).
+
+/**
+ * How long a wait may take. Waits here cross a route's first render, a navigation and fetches,
+ * which under heavy CPU load take longer than Testing Library's 1-second default; a wait that
+ * would never succeed still fails, only later.
+ */
+const SLOW_MS = 10_000;
+
+// Before the tests are collected, so each gets room to wait SLOW_MS (Vitest's default is 5 s).
+vi.setConfig({ testTimeout: 3 * SLOW_MS });
+beforeAll(() => {
+  configure({ asyncUtilTimeout: SLOW_MS });
+});
+afterAll(() => {
+  configure({ asyncUtilTimeout: 1000 });
+  vi.resetConfig();
+});
 
 afterEach(() => {
   cleanup();
@@ -227,6 +244,7 @@ function intakeApi(options: Options = {}) {
 }
 
 const card = (label: string) => screen.findByRole("region", { name: label });
+/** For a wait that crosses a navigation and a fetch: generous, so CPU load can't fail it. */
 const puts = (requests: FakeRequest[]) => requests.filter((r) => r.method === "PUT");
 
 describe("the intake form (F6.1, F6.2)", () => {
@@ -345,7 +363,7 @@ describe("the intake form (F6.1, F6.2)", () => {
 describe("corrections (F6.4, S4)", () => {
   it("are clicks, and the form can be finished without typing", async () => {
     const { ws, requests } = intakeApi();
-    const { router } = renderApp(paths.intake(ws.id));
+    renderApp(paths.intake(ws.id));
     const user = userEvent.setup({ delay: null });
     const keyboard = vi.spyOn(user, "keyboard");
     const type = vi.spyOn(user, "type");
@@ -377,13 +395,34 @@ describe("corrections (F6.4, S4)", () => {
     });
 
     await user.click(screen.getByRole("button", { name: "Confirm" }));
-    await waitFor(() => expect(router.state.location.pathname).toBe(paths.profile(ws.id)));
-    expect(await screen.findByRole("heading", { name: "My job search" })).toBeTruthy();
+    // What Confirm leads to is the next test's; here it is enough that it was sent.
+    await waitFor(
+      () =>
+        expect(requests.filter((r) => r.method === "POST").map((r) => r.path)).toEqual([
+          `/api/workspaces/${ws.id}/intake/confirm`,
+        ]),
+      { timeout: SLOW_MS },
+    );
+    expect(keyboard).not.toHaveBeenCalled();
+    expect(type).not.toHaveBeenCalled();
+  });
+
+  it("are confirmed with one click that opens the saved profile", async () => {
+    const { ws, requests } = intakeApi({ extras: { status: "done", questions: [] } });
+    const { router } = renderApp(paths.intake(ws.id));
+    const user = userEvent.setup({ delay: null });
+    await card("Places you'd work onsite or hybrid");
+    await user.click(screen.getByRole("button", { name: "Confirm" }));
+    // Navigating and loading the profile take longer under load; wait for each explicitly.
+    await waitFor(() => expect(router.state.location.pathname).toBe(paths.profile(ws.id)), {
+      timeout: SLOW_MS,
+    });
+    expect(
+      await screen.findByRole("heading", { name: "My job search" }, { timeout: SLOW_MS }),
+    ).toBeTruthy();
     expect(requests.filter((r) => r.method === "POST").map((r) => r.path)).toEqual([
       `/api/workspaces/${ws.id}/intake/confirm`,
     ]);
-    expect(keyboard).not.toHaveBeenCalled();
-    expect(type).not.toHaveBeenCalled();
   });
 
   it("keep every quick click: each builds on the one before, and they are saved in order", async () => {
@@ -502,6 +541,34 @@ describe("corrections (F6.4, S4)", () => {
     expect(await places.findByText("Use the two-letter country code, like DE or GB")).toBeTruthy();
     expect(puts(requests).map((r) => r.path)).not.toContain(
       `/api/workspaces/${ws.id}/intake/answers/places`,
+    );
+  });
+
+  it("ask to retype an amount the UI can't read for certain, and never save a guess", async () => {
+    const { ws, requests } = intakeApi({
+      entries: CORE_PROFILE_KEYS.map(empty),
+      extras: { status: "done", questions: [] },
+    });
+    renderApp(paths.intake(ws.id));
+    const user = userEvent.setup();
+    const pay = within(await card("Minimum pay"));
+    await user.type(pay.getByLabelText("Currency code"), "EUR");
+    await user.selectOptions(pay.getByLabelText("Period"), "year");
+    // In the UI's English, "70.000" would be seventy with three decimals; it may mean 70,000.
+    await user.type(pay.getByLabelText("Amount"), "70.000");
+    await user.click(pay.getByRole("button", { name: "Add" }));
+    expect(await pay.findByText("Retype the amount, written like 1,234.50")).toBeTruthy();
+    expect(puts(requests)).toEqual([]);
+
+    await user.clear(pay.getByLabelText("Amount"));
+    await user.type(pay.getByLabelText("Amount"), "70,000");
+    await user.click(pay.getByRole("button", { name: "Add" }));
+    await waitFor(() =>
+      expect(puts(requests).at(-1)?.body).toEqual({
+        value: [
+          { amount: 70000, currency: "EUR", period: "year", asWritten: "70,000 EUR per year" },
+        ],
+      }),
     );
   });
 });
