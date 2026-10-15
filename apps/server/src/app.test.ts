@@ -103,11 +103,12 @@ describe("the workspace route modules", () => {
     ["GET", `messages/${messageId}`, "viewer", 404],
     ["GET", `messages/${messageId}/body`, "viewer", 404],
     ["PUT", `messages/${messageId}/category`, "editor", 400],
-    ["GET", "intake", "viewer"],
-    ["PUT", "intake/answers/min_pay", "editor"],
-    ["POST", "intake/confirm", "editor"],
-    ["GET", "profiles", "viewer"],
-    ["PATCH", "profiles/8f0e1c62-0000-4000-8000-000000000000", "editor"],
+    // No first scan has stopped yet, an empty answer, and no such profile.
+    ["GET", "intake", "viewer", 409],
+    ["PUT", "intake/answers/min_pay", "editor", 400],
+    ["POST", "intake/confirm", "editor", 409],
+    ["GET", "profiles", "viewer", 200],
+    ["PATCH", "profiles/8f0e1c62-0000-4000-8000-000000000000", "editor", 404],
   ];
   const below = { viewer: null, editor: "viewer", admin: "editor" } as const;
 
