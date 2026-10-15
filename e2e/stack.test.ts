@@ -4,8 +4,14 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { parse } from "yaml";
 import { loadAnswers } from "./fake-ai/answers.ts";
+import {
+  F53_PROOF_NEEDS,
+  F53_PROOF_SKIP_REASON,
+  F53_PROOF_SPEC,
+  f53ProofSkipReason,
+  missingF53ProofNeeds,
+} from "./fixtures/f53-proof.ts";
 import { PERSONAS } from "./fixtures/format.ts";
-import { F53_PROOF_NEEDS, f53ProofSkipReason } from "./playwright.config.ts";
 import { ACCOUNTS } from "./seed/accounts.ts";
 import {
   COMPOSE_FILE,
@@ -200,8 +206,7 @@ describe("the e2e image's entry points and fixtures", () => {
 });
 
 describe("e2e/specs/mvp-1", () => {
-  const PROOF = "99-f5.3-stored-equals-expected.spec.ts";
-  const SKIP_REASON = "needs the codified S1–S9 specs; the walkthrough covers F5.3 until then";
+  const PROOF = F53_PROOF_SPEC;
   const entries = readdirSync(join(E2E, "specs", "mvp-1"));
   const byName = (names: readonly string[]) => [...names].sort((a, b) => a.localeCompare(b));
   /** A codified scenario spec: NN-sN-<slug>.spec.ts, NN the scenario number. */
@@ -244,35 +249,63 @@ describe("e2e/specs/mvp-1", () => {
     }
   });
 
-  it("skips the proof, with the reason, while any spec it needs is missing", () => {
-    expect(f53ProofSkipReason(["00-stack.spec.ts", PROOF])).toBe(SKIP_REASON);
-    for (const missing of F53_PROOF_NEEDS) {
-      const others = F53_PROOF_NEEDS.filter((name) => name !== missing);
-      expect(f53ProofSkipReason(["00-stack.spec.ts", ...others, PROOF]), missing).toBe(SKIP_REASON);
-    }
+  it("skips the proof, with the reason, only while no scenario spec is codified", () => {
+    expect(f53ProofSkipReason(["00-stack.spec.ts", PROOF])).toBe(F53_PROOF_SKIP_REASON);
+    expect(f53ProofSkipReason([PROOF])).toBe(F53_PROOF_SKIP_REASON);
   });
 
-  it("never skips the proof once every spec it needs exists", () => {
-    expect(f53ProofSkipReason(["00-stack.spec.ts", ...F53_PROOF_NEEDS, PROOF])).toBeUndefined();
-    expect(
-      f53ProofSkipReason([
-        "00-stack.spec.ts",
-        ...F53_PROOF_NEEDS,
-        "02-s2-maria-picks-the-ai.spec.ts",
-        "10-s10-sign-out.spec.ts",
-        PROOF,
-      ]),
-    ).toBeUndefined();
-    // And on this directory as it is now: skipped exactly while one of them is missing.
-    const complete = F53_PROOF_NEEDS.every((name) => entries.includes(name));
-    expect(f53ProofSkipReason(entries)).toBe(complete ? undefined : SKIP_REASON);
+  it("never skips the proof once any scenario spec exists, so a missing one fails it", () => {
+    // One codified scenario is enough to run the proof: one the proof needs, one it does not
+    // read, or one under a name the list does not know. The proof then requires every spec it
+    // needs, so the missing ones fail it by name instead of silencing it.
+    for (const scenario of [
+      F53_PROOF_NEEDS[0],
+      F53_PROOF_NEEDS.at(-1) ?? "",
+      "02-s2-maria-picks-the-ai.spec.ts",
+      "03-s3-maria-scans.spec.ts",
+    ]) {
+      const some = ["00-stack.spec.ts", scenario, PROOF];
+      expect(f53ProofSkipReason(some), scenario).toBeUndefined();
+      expect(missingF53ProofNeeds(some), scenario).toEqual(
+        F53_PROOF_NEEDS.filter((name) => name !== scenario),
+      );
+    }
+    const all = [
+      "00-stack.spec.ts",
+      ...F53_PROOF_NEEDS,
+      "02-s2-maria-picks-the-ai.spec.ts",
+      "10-s10-sign-out.spec.ts",
+      PROOF,
+    ];
+    expect(f53ProofSkipReason(all)).toBeUndefined();
+    expect(missingF53ProofNeeds(all)).toEqual([]);
+  });
+
+  it("is either before codification or holds every spec the proof needs", () => {
+    // The real directory, now: with no scenario spec the proof may skip; once one is codified
+    // the proof runs, so all of the specs it needs must be here.
+    const scenarios = entries.filter((name) => name !== "00-stack.spec.ts" && name !== PROOF);
+    if (scenarios.length === 0) {
+      expect(f53ProofSkipReason(entries)).toBe(F53_PROOF_SKIP_REASON);
+    } else {
+      expect(
+        missingF53ProofNeeds(entries),
+        "codified, so every spec the proof needs must be present",
+      ).toEqual([]);
+      expect(f53ProofSkipReason(entries)).toBeUndefined();
+    }
   });
 
   it("guards the proof's tests with that reason and nothing else", () => {
     const source = readFileSync(join(E2E, "specs", "mvp-1", PROOF), "utf8");
     expect(source).toContain(
-      "const skipReason = f53ProofSkipReason(readdirSync(import.meta.dirname));\n" +
+      "const entries = readdirSync(import.meta.dirname);\n" +
+        "const skipReason = f53ProofSkipReason(entries);\n" +
         'test.skip(skipReason !== undefined, skipReason ?? "");\n',
+    );
+    expect(source).toContain(
+      "missingF53ProofNeeds(entries),\n" +
+        '      "codified, so every spec the proof needs must be present",\n',
     );
     expect(source.match(/\.(skip|fixme)\(/g)).toHaveLength(1);
     expect(source).toContain("compareWithExpected(persona, stored, { complete: true })");
