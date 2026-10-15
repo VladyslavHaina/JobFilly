@@ -22,12 +22,15 @@ import {
   MessageDetailSchema,
   MessageListItemSchema,
   MessageListQuerySchema,
+  MxLookupResultSchema,
   NEVER_SYNCED,
   POLICY_DEFAULTS,
   ProfileEntrySchema,
   ProfilePatchSchema,
   parseGroupKey,
   profileItemSchema,
+  RdapDomainAnswerSchema,
+  RdapLookupResultSchema,
   RoleEvaluationSchema,
   RuleSchema,
   SenderCheckSchema,
@@ -219,6 +222,22 @@ describe("evaluations, senders, drafts and decisions", () => {
     expect(DecisionAnswerSchema.safeParse({ value: [item], useForSimilar: true }).success).toBe(
       false,
     );
+  });
+
+  it("reads an RDAP answer's events and keeps what the lookup cache stores in shape", () => {
+    const answer = {
+      objectClassName: "domain",
+      ldhName: "quickhire.example",
+      events: [{ eventAction: "registration", eventDate: "2026-10-03T08:00:00Z", extra: 1 }],
+    };
+    expect(RdapDomainAnswerSchema.parse(answer)).toEqual(answer);
+    expect(RdapDomainAnswerSchema.safeParse({ ldhName: "x.example" }).success).toBe(true);
+    expect(RdapDomainAnswerSchema.safeParse({ events: { eventAction: "x" } }).success).toBe(false);
+    expect(RdapDomainAnswerSchema.safeParse({ events: [{ eventAction: 1 }] }).success).toBe(false);
+    expect(RdapLookupResultSchema.safeParse({ registeredAt: null }).success).toBe(true);
+    expect(RdapLookupResultSchema.safeParse({ registeredAt: "yesterday" }).success).toBe(false);
+    expect(MxLookupResultSchema.safeParse(["mx.example"]).success).toBe(true);
+    expect(MxLookupResultSchema.safeParse({ hosts: [] }).success).toBe(false);
   });
 
   it("describes a sender check, a mark and a draft", () => {

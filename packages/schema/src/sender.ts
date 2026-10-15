@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { IsoDateTimeSchema } from "./common";
 
 // The sender check (F5): a verdict with its reasons, worded as an estimate. A lookup that failed
 // leaves the check incomplete, never "looks fine" (F5.3); an editor's mark is named in it (F5.4).
@@ -36,6 +37,29 @@ export const SenderCheckSchema = z.object({
   mark: SenderMarkSchema.nullable(),
 });
 export type SenderCheck = z.infer<typeof SenderCheckSchema>;
+
+/**
+ * The signal of a check whose domain lookup (RDAP or DNS) failed. Such a check is incomplete; it
+ * is checked again once the failure has left the lookup cache (apps/server senders/retry).
+ */
+export const LOOKUP_FAILED_SIGNAL = "lookup_failed";
+
+/**
+ * An RDAP domain answer (RFC 9083) as JOBFILLY_RDAP_URL returns it over HTTP: only its events
+ * are read, for the registration date; everything else in it passes through unread.
+ */
+export const RdapDomainAnswerSchema = z.looseObject({
+  events: z.array(z.looseObject({ eventAction: z.string(), eventDate: z.string() })).optional(),
+});
+export type RdapDomainAnswer = z.infer<typeof RdapDomainAnswerSchema>;
+
+/** A domain's RDAP lookup as the workspace's lookup cache keeps it: its registration date. */
+export const RdapLookupResultSchema = z.object({ registeredAt: IsoDateTimeSchema.nullable() });
+export type RdapLookupResult = z.infer<typeof RdapLookupResultSchema>;
+
+/** A domain's MX lookup as the cache keeps it: the mail servers' host names ([] for none). */
+export const MxLookupResultSchema = z.array(z.string());
+export type MxLookupResult = z.infer<typeof MxLookupResultSchema>;
 
 /**
  * PUT /senders/marks: mark an address or a whole domain trusted or blocked, or clear the mark
