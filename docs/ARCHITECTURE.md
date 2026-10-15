@@ -49,10 +49,10 @@ Rules:
   and are guarded by the lease owner; and the signed-in user's own view across workspaces, by
   user id or email: the workspaces they belong to, and the open invitations to their email (or
   to the invite's email once its token has been checked). Creating an account or a workspace
-  makes the workspace, so it has no id to take yet. Two background reads serve every workspace
-  the way the job claim does: `listWorkspacesWithWork` (the pipeline sweep) and the sync
-  scheduler's mailbox listing; each only finds the workspaces to enqueue a job for, and the job
-  then works through the workspace-scoped functions.
+  makes the workspace, so it has no id to take yet. Three background reads serve every workspace
+  the way the job claim does: `listWorkspacesWithWork` and `listWorkspacesWithFailedLookups`
+  (the pipeline sweep) and the sync scheduler's mailbox listing; each only finds the workspaces
+  to work on, and then works through the workspace-scoped functions.
 - The server resolves the session, then checks membership and role on every workspace route.
   Not a member: `404`. A member without the needed role: `403`. Each route module under
   `/api/workspaces/:workspaceId/<name>` is mounted once behind the membership check
@@ -175,7 +175,7 @@ Rules:
   input); each stage's body lives in its own file and slice (`sender.ts` and `cv-choice.ts`:
   cvs-senders, `match.ts`: rules-match, `reply.ts`: replies).
 - The sender stage runs only when the sender check is missing (new mail, the backlog) or stale (a
-  sender mark changed). It is the only stage that reads the mail body (`ctx.body()`, fetched once,
+  sender mark changed, or its failed domain lookup has expired). It is the only stage that reads the mail body (`ctx.body()`, fetched once,
   never stored). A re-evaluation after a profile, rule, decision or CV change passes the stored
   check on, so re-scoring never touches the mailbox and works while it is down. A failed sender
   stage leaves the check missing for a later sweep; the reply waits for it.
@@ -259,8 +259,12 @@ Rules:
   regenerates its wire samples when it changes.
 - Domain lookups for the sender check go through `deps.domains` (a `DomainPort`: `rdap(domain)`
   through `JOBFILLY_RDAP_URL`, `mx(domain)` through the system resolver), cached per workspace in
-  `domain_lookups`; tests use a fake. A failed lookup makes the check incomplete, never "looks
-  fine".
+  `domain_lookups`; tests use a fake. The RDAP answer is validated with `RdapDomainAnswerSchema`
+  where it comes in, and the cache is read back through the lookup result schemas (a row that
+  doesn't parse is a miss). A failed lookup makes the check incomplete, never "looks fine"; the
+  failure is cached 15 minutes, twice as long each time it repeats (up to a day), and once it has
+  expired the sweep marks that check stale (`apps/server/src/senders/retry.ts`), so it is done
+  again on its own.
 - The server makes every model call through `aiClientFor` (`apps/server/src/ai-usage.ts`), which
   records each call's usage (`ai_usage`, retries and failures included, at the clock's time), so
   the per-scan totals and Settings › AI's calls and tokens per day (`usagePerDay`, F1.5) count
