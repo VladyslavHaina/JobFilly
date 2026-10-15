@@ -16,7 +16,7 @@ const TONES = {
   failed: "danger",
 } as const;
 
-export function DraftStatusBadge({ status }: { status: Draft["status"] }) {
+function DraftStatusBadge({ status }: { status: Draft["status"] }) {
   return (
     <Badge tone={TONES[status]} label={`Draft status: ${STATUS_LABELS[status]}`}>
       {STATUS_LABELS[status]}
