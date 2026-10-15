@@ -24,7 +24,9 @@ import {
   NEVER_SYNCED,
   POLICY_DEFAULTS,
   ProfileEntrySchema,
+  ProfileHistoryListSchema,
   ProfilePatchSchema,
+  ProposalSchema,
   parseGroupKey,
   profileItemSchema,
   RoleEvaluationSchema,
@@ -163,6 +165,49 @@ describe("rules, changes and the assistant (F3, F8)", () => {
       },
     };
     expect(AssistantOutputSchema.safeParse(proposal).success).toBe(true);
+  });
+
+  it("words a proposal card and a history item line by line, before and after (F8.2, F8.4)", () => {
+    const line = {
+      target: "rule",
+      label: "Rule",
+      before: null,
+      after: "Hide roles whose hours are within UTC+5 to UTC+14",
+    };
+    const snapshot = { entries: [], rules: [] };
+    const card = {
+      id,
+      summary: "Hide Asian time zones",
+      changes: [{ op: "add", target: "rule", rule }],
+      before: snapshot,
+      after: snapshot,
+      lines: [line],
+      impact: { hides: 3, shows: 0, scoreMoves: 0, draftsNotCreated: 0, draftsInMailbox: 1 },
+      status: "open",
+      createdAt: at,
+    };
+    expect(ProposalSchema.safeParse(card).success).toBe(true);
+    expect(ProposalSchema.safeParse({ ...card, lines: undefined }).success).toBe(false);
+    expect(
+      ProposalSchema.safeParse({ ...card, lines: [{ ...line, target: "mailbox" }] }).success,
+    ).toBe(false);
+    const item = {
+      id,
+      at,
+      by: id,
+      byName: "Maria Santos",
+      source: "assistant",
+      request: "No Asian time zones",
+      changes: card.changes,
+      before: snapshot,
+      after: snapshot,
+      lines: [line],
+      undoneAt: null,
+    };
+    expect(ProfileHistoryListSchema.safeParse({ items: [item] }).success).toBe(true);
+    expect(
+      ProfileHistoryListSchema.safeParse({ items: [{ ...item, byName: undefined }] }).success,
+    ).toBe(false);
   });
 });
 
