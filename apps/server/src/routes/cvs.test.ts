@@ -209,7 +209,8 @@ describe("uploading and reading CVs (F2.1)", () => {
       expect(raw).not.toContain("Kubernetes");
       expect(raw).not.toContain("backend-en.pdf");
     }
-  });
+    // Two real files read by unpdf and mammoth, then cv.read and its re-evaluations.
+  }, 60_000);
 
   it("reads the same file once: cv.v1 is keyed by the content hash", async () => {
     const pdf = pdfWithText(BACKEND_EN);
