@@ -3,7 +3,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { parse } from "yaml";
-import { COMPOSE_FILE, PERSONAS } from "../stack.ts";
+import { PERSONAS } from "../fixtures/format.ts";
+import { COMPOSE_FILE } from "../stack.ts";
 import { connectWithRetry } from "./connect.ts";
 import { dateFor, loadPersona, rfc5322Date, SeedError, type SeedImap } from "./load.ts";
 
@@ -267,8 +268,9 @@ describe("seed load", () => {
 });
 
 // The real persona fixtures, loaded the way `pnpm e2e:stack up` loads them: `seed load <persona>`
-// for every persona stack.ts names, with the FIXTURES_DIR compose gives the seed service, read
-// from the repository root as the e2e image does (its /repo holds e2e/ where the repository does).
+// for every persona of fixtures/format.ts, with the FIXTURES_DIR compose gives the seed service,
+// read from the repository root as the e2e image does (its /repo holds e2e/ where the repository
+// does). seed/main.test.ts runs the entry point itself with the arguments stack.ts passes.
 describe("seed load over the persona fixtures", () => {
   const ROOT = join(import.meta.dirname, "..", "..");
   const compose = parse(readFileSync(join(ROOT, COMPOSE_FILE), "utf8"), { merge: true }) as {

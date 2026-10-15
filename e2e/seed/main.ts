@@ -1,4 +1,5 @@
 import { ImapFlow } from "imapflow";
+import { isPersona, PERSONAS } from "../fixtures/format.ts";
 import { ACCOUNTS } from "./accounts.ts";
 import { connectWithRetry } from "./connect.ts";
 import { loadPersona, SeedError } from "./load.ts";
@@ -17,11 +18,11 @@ async function main(args: string[]): Promise<number> {
     console.error(USAGE);
     return 2;
   }
-  const account = ACCOUNTS[persona];
-  if (!account) {
-    console.error(`Unknown persona "${persona}". Known: ${Object.keys(ACCOUNTS).join(", ")}`);
+  if (!isPersona(persona)) {
+    console.error(`Unknown persona "${persona}". Known: ${PERSONAS.join(", ")}`);
     return 2;
   }
+  const account = ACCOUNTS[persona];
   const host = process.env.IMAP_HOST ?? "imap";
   const port = Number(process.env.IMAP_PORT ?? "3143");
   const result = await loadPersona({

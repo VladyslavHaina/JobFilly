@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { parse } from "yaml";
 import { loadAnswers } from "./fake-ai/answers.ts";
+import { PERSONAS } from "./fixtures/format.ts";
 import { ACCOUNTS } from "./seed/accounts.ts";
 import {
   COMPOSE_FILE,
@@ -11,7 +12,6 @@ import {
   fileState,
   INTERRUPTED,
   main,
-  PERSONAS,
   projectName,
   READY_TIMEOUT_MS,
   READY_URLS,
@@ -132,12 +132,9 @@ describe("docker/compose.e2e.yaml", () => {
         const at = (rest ?? "").lastIndexOf("@");
         return { user: `${local}@${rest?.slice(at + 1)}`, password: rest?.slice(0, at) };
       });
-    expect(users).toEqual([
-      { user: "maria.santos@inbox.example", password: "E2E-SECRET-maria-imap" },
-      { user: "tom.okafor@inbox.example", password: "E2E-SECRET-tom-imap" },
-    ]);
-    // The seed logs in with the same accounts.
+    // One account per persona, the one the seed logs in with.
     expect(users).toEqual(PERSONAS.map((p) => ACCOUNTS[p]));
+    for (const u of users ?? []) expect(u.password).toMatch(/^E2E-SECRET-/);
   });
 
   it("builds seed and fake-ai from docker/e2e.Dockerfile", () => {
@@ -330,8 +327,8 @@ const CHECKS = [
 ];
 const UP = [
   ["docker", ...C, "up", "--build", "--detach"],
-  ["docker", ...C, "run", "--rm", "seed", "load", "maria"],
-  ["docker", ...C, "run", "--rm", "seed", "load", "tom"],
+  // Every persona of fixtures/format.ts, in its order.
+  ...PERSONAS.map((p) => ["docker", ...C, "run", "--rm", "seed", "load", p]),
 ];
 const PW_INSTALL = ["pnpm", "exec", "playwright", "install", "chromium"];
 const PW_TEST = ["pnpm", "exec", "playwright", "test", "--config", "playwright.config.ts"];

@@ -3,8 +3,8 @@ import { fileURLToPath } from "node:url";
 
 // The single description of every fixture file of the test stack. The generator
 // (e2e/fixtures/build) writes them, the seed and the fake AI read them, and the consistency tests
-// check them. e2e imports no package code, so the shapes are written out here; the server's
-// e2e-fixtures.test.ts checks every file against the real schemas of packages/schema.
+// check them. e2e imports no package code, so the shapes are written out here, and
+// consistency.test.ts checks every file against them.
 //
 // e2e/fixtures/
 //   <persona>/mail/<inbox|sent>/<nnnn>.eml   one RFC 5322 message: multipart/alternative with a
@@ -26,9 +26,19 @@ import { fileURLToPath } from "node:url";
 // BODYSENTINEL-<persona>-<folder>-<nnnn> at least 1,000 characters into its text and its HTML
 // part, so no stored snippet can contain it.
 
+/**
+ * Every persona of the test stack, the one list of them in e2e: the generator writes their
+ * fixtures, the fake AI answers for them, `pnpm e2e:stack up` loads their mail (stack.ts) and the
+ * seed logs in to their mailboxes (seed/accounts.ts).
+ */
 export const PERSONAS = ["maria", "tom"] as const;
 export type Persona = (typeof PERSONAS)[number];
 
+export function isPersona(value: string): value is Persona {
+  return (PERSONAS as readonly string[]).includes(value);
+}
+
+/** Each persona's own address: the From of their replies and their test mailbox's login. */
 export const PERSONA_ADDRESSES: Record<Persona, string> = {
   maria: "maria.santos@inbox.example",
   tom: "tom.okafor@inbox.example",
