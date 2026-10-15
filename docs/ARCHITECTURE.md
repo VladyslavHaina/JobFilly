@@ -168,11 +168,14 @@ Rules:
 - Continuous sync (`mail.sync`, every `JOBFILLY_SYNC_INTERVAL_SECONDS`, after the first scan has
   stopped) reads INBOX by UID per folder (`MailClient.fetchSince`), re-indexes a folder whose
   UIDVALIDITY changed by Message-ID, and records its state and back-off in `mailbox_sync`
-  (`apps/server/src/sync`). Its first cursor is where the first scan's stored INBOX mail ends, and
-  mail older than that scan's window is never read as new. New likely job mail is sorted and
-  extracted by `pipeline/analyze.ts`, the scan's own classify-then-extract step, within the
-  workspace's budget per run; the cursor stays before recent mail the model couldn't sort yet.
-  A failed sync backs off from one interval, doubling to at most 15 minutes, and the mailbox
+  (`apps/server/src/sync`). Its first cursor is where the first scan's stored INBOX mail ends.
+  Every message after a known cursor is new; only when it reads the whole folder (no cursor yet,
+  or a new UIDVALIDITY) does it leave out mail that arrived (`SyncedEnvelope.receivedAt`, the
+  INTERNALDATE) before that scan's window. New likely job mail is sorted and extracted by
+  `pipeline/analyze.ts`, the scan's own classify-then-extract step, within the workspace's budget
+  per run; the cursor stays before mail the model couldn't sort yet, until syncs have failed on a
+  message `MAX_SYNC_ANALYSIS_FAILURES` times (`messages.sync_analysis_failures`), which then
+  waits for "Analyze them". A failed sync backs off from one interval, doubling to at most 15 minutes, and the mailbox
   shows as failing since its first failure until a sync works again. The status carries a reason
   code (`MailboxSyncStatus.reason`, stored in `mailbox_sync.last_error_reason`) that the UI
   branches on; the words beside it come from packages/mail (`UNAVAILABLE_MESSAGES`).

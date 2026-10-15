@@ -46,6 +46,8 @@ type FakeMailOp = (typeof FAKE_MAIL_OPS)[number];
 interface FakeMessage {
   uid: number;
   envelope: Envelope;
+  /** When it arrived in the folder (the server's INTERNALDATE). */
+  receivedAt: string;
   /** The plain-text body. */
   text: string;
 }
@@ -70,7 +72,10 @@ interface DeliverInput {
   messageId: string;
   from?: Address;
   subject?: string;
+  /** The sender's Date header. */
   date?: string;
+  /** When it arrived (INTERNALDATE); by default the Date header's time. */
+  receivedAt?: string;
   text?: string;
   inReplyTo?: string | null;
   references?: string[];
@@ -183,8 +188,8 @@ export function createFakeMailbox(
     async fetchEnvelopes({ folder, since }) {
       enter("fetchEnvelopes", broken);
       return stored[folder]
+        .filter((m) => Date.parse(m.receivedAt) >= since.getTime())
         .map((m) => m.envelope)
-        .filter((e) => Date.parse(e.date) >= since.getTime())
         .sort((a, b) => b.date.localeCompare(a.date) || b.uid - a.uid);
     },
     async fetchBody(ref: MessageRef) {
@@ -204,7 +209,7 @@ export function createFakeMailbox(
         changed,
         messages: stored[folder]
           .filter((m) => m.uid > from)
-          .map((m) => ({ ...m.envelope, receivedAt: m.envelope.date })),
+          .map((m) => ({ ...m.envelope, receivedAt: m.receivedAt })),
       };
     },
     async fetchOriginal(ref) {
@@ -273,7 +278,8 @@ export function createFakeMailbox(
         autoSubmitted: null,
         snippet: (input.text ?? "").slice(0, 200),
       };
-      stored[folder].push({ uid, envelope, text: input.text ?? "" });
+      const receivedAt = input.receivedAt ?? envelope.date;
+      stored[folder].push({ uid, envelope, receivedAt, text: input.text ?? "" });
       return envelope;
     },
     pause() {

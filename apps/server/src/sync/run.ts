@@ -1,6 +1,7 @@
 import type { AiClient } from "@jobfilly/ai";
 import { loadJobPlatforms, stageOne } from "@jobfilly/core";
 import {
+  countSyncAnalysisFailures,
   getAiSettings,
   getLatestScan,
   getMailboxConnection,
@@ -17,9 +18,9 @@ import {
 import { type MailClient, MailUnavailableError, UNAVAILABLE_MESSAGES } from "@jobfilly/mail";
 import {
   AI_BATCH_SIZE,
-  type Envelope,
   SCAN_WINDOW_DAYS,
   type StoredMessage,
+  type SyncedEnvelope,
   type SyncFailureReason,
   type Usage,
 } from "@jobfilly/schema";
@@ -43,14 +44,18 @@ import { open, openAiKey } from "../secrets";
 //   the rest of the pipeline (evaluate.ts: sender check, CV choice and match, reply), so it shows
 //   up in the job inbox within one interval, live for everyone (F1.1);
 // - moves its cursor past what it read, but not past new mail the model couldn't sort yet (no
-//   call left in the run's budget, the provider failing): the next sync tries that one again, for
-//   mail dated up to an hour before the last sync that worked;
+//   call left in the run's budget, the provider failing): the next sync tries that one again.
+//   Only a message that MAX_SYNC_ANALYSIS_FAILURES syncs tried and failed on is let go, so one
+//   the provider keeps failing on can't make every sync re-read the mail after it for ever: it
+//   stays "not analyzed", for "Analyze them";
 // - on failure records it with an exponential back-off and the status "failing since", logs
 //   sync.failed and tells open pages (F1.4); the next sync that works clears it.
 //
 // The sync starts only once the workspace's first scan has stopped: until then the scan reads the
-// mailbox, and the cursor starts where the scan's stored messages end. Mail older than the first
-// scan's window is never read as new, also when a new UIDVALIDITY returns the whole folder.
+// mailbox, and the cursor starts where the scan's stored messages end. Every message after a
+// known cursor is new, whatever its Date header says. Only when the sync reads the whole folder
+// (no cursor yet, or a new UIDVALIDITY) is mail that arrived before the first scan's window left
+// out; how old mail is goes by when it arrived (INTERNALDATE), never by the sender's Date header.
 // The sync reads INBOX only: the Sent folder feeds the first scan's preferences, not job mail.
 
 /** The folder the sync reads; IMAP names the inbox INBOX on every server (RFC 3501). */
@@ -59,8 +64,12 @@ export const SYNC_FOLDER = "INBOX";
 /** The longest back-off: a mailbox that keeps failing is tried at least this often. */
 const MAX_BACKOFF_MS = 15 * MINUTE;
 
-/** How far before the last sync that worked mail may be dated and still hold the cursor. */
-const HOLD_MS = 60 * MINUTE;
+/**
+ * How many syncs may try to have the model sort a message and fail (the provider failing, or no
+ * AI set up) while it still holds the cursor: about an hour at the default two-minute interval,
+ * so a provider that is down for a while doesn't leave new mail unsorted.
+ */
+export const MAX_SYNC_ANALYSIS_FAILURES = 30;
 
 /**
  * How long a sync waits after `failures` failures in a row: one interval after the first, then
@@ -170,10 +179,20 @@ const byUid = (a: StoredMessage, b: StoredMessage) => a.envelope.uid - b.envelop
 const waitsForModel = (m: StoredMessage) =>
   (m.stageOne === "likely_job" || m.stageOne === "job_alert") && m.analysisStatus === "pending";
 
+interface Analyzed {
+  /** The job messages. */
+  jobs: string[];
+  /**
+   * The messages the model was asked to sort, or couldn't be asked about at all (no AI set up);
+   * not those the run's budget or a stop left untouched.
+   */
+  tried: Set<string>;
+}
+
 /**
  * Sorts and extracts the messages with the model, batch by batch within the run's budget. A
  * provider that fails ends the analysis (the messages wait for the next sync); a mailbox that
- * can't be read fails the sync. Returns the job messages.
+ * can't be read fails the sync.
  */
 async function analyze(
   deps: AppDeps,
@@ -182,8 +201,9 @@ async function analyze(
   messages: StoredMessage[],
   log: Logger,
   signal: AbortSignal | undefined,
-): Promise<string[]> {
-  if (messages.length === 0) return [];
+): Promise<Analyzed> {
+  const ids = (batch: StoredMessage[]) => batch.map((m) => m.envelope.messageId);
+  if (messages.length === 0) return { jobs: [], tried: new Set() };
   const setup = await aiFor(deps, workspaceId);
   if (!setup) {
     log.warn("pipeline.stage_failed", {
@@ -191,7 +211,7 @@ async function analyze(
       error: "no_ai",
       waiting: messages.length,
     });
-    return [];
+    return { jobs: [], tried: new Set(ids(messages)) };
   }
   let calls = 0;
   const run: AnalysisRun = {
@@ -215,10 +235,13 @@ async function analyze(
     },
   };
   const jobs: string[] = [];
+  const tried = new Set<string>();
   for (let i = 0; i < messages.length; i += AI_BATCH_SIZE) {
     if (run.stopRequested() || run.callsLeft() <= 0) break;
+    const batch = messages.slice(i, i + AI_BATCH_SIZE);
+    for (const id of ids(batch)) tried.add(id);
     try {
-      jobs.push(...(await analyzeBatch(run, messages.slice(i, i + AI_BATCH_SIZE))).jobs);
+      jobs.push(...(await analyzeBatch(run, batch)).jobs);
     } catch (error) {
       if (error instanceof RunFailed && error.stopCause === "mailbox") {
         throw new SyncFailed(error.code, "unreachable", UNAVAILABLE_MESSAGES.unreachable);
@@ -228,14 +251,14 @@ async function analyze(
       break;
     }
   }
-  return jobs;
+  return { jobs, tried };
 }
 
 /**
  * The last UID the cursor may move to: the highest read, but before the first message still
  * waiting for the model, so the next sync reads that one again.
  */
-function nextLastUid(read: Envelope[], waiting: StoredMessage[], from: number): number {
+function nextLastUid(read: SyncedEnvelope[], waiting: StoredMessage[], from: number): number {
   const firstWaiting = Math.min(...waiting.map((m) => m.envelope.uid));
   const highest = Math.max(from, ...read.map((e) => e.uid));
   return Number.isFinite(firstWaiting) ? Math.min(highest, firstWaiting - 1) : highest;
@@ -279,12 +302,15 @@ export async function syncMailbox(
       });
     }
 
-    // Stored messages move to their UIDs now; the rest is new, unless older than the window.
+    // Stored messages move to their UIDs now; the rest is new. After a known cursor that is
+    // every one of them; reading the whole folder, only what arrived within the scan's window.
     const known = await reindexMessages(db, workspaceId, result.messages);
+    const wholeFolder = cursor.uidValidity === null || result.changed;
     const windowStart = Date.parse(firstScan.startedAt) - SCAN_WINDOW_DAYS * DAY;
-    const fresh = result.messages.filter(
-      (e) => !known.has(e.messageId) && Date.parse(e.date) >= windowStart,
-    );
+    const unknown = result.messages.filter((e) => !known.has(e.messageId));
+    const fresh = wholeFolder
+      ? unknown.filter((e) => Date.parse(e.receivedAt) >= windowStart)
+      : unknown;
     const sorted = stageOne(fresh, {
       ownAddresses: [mailbox.address, mailbox.username],
       platforms: loadJobPlatforms(),
@@ -303,7 +329,14 @@ export async function syncMailbox(
     const toAnalyze = (await getStoredMessages(db, workspaceId, candidates))
       .filter(waitsForModel)
       .sort(byUid);
-    const jobs = await analyze(deps, workspaceId, client, toAnalyze, log, options.signal);
+    const { jobs, tried } = await analyze(
+      deps,
+      workspaceId,
+      client,
+      toAnalyze,
+      log,
+      options.signal,
+    );
 
     // Each job message through the rest of the pipeline, over this sync's connection.
     const shared: MailboxSession = { get: async () => client, close: async () => {} };
@@ -316,17 +349,25 @@ export async function syncMailbox(
       });
     }
 
-    // Mail that arrived since about the last sync that worked holds the cursor; older mail that
-    // still waits is let go, so one message the provider keeps failing on can't make every sync
-    // retry it for ever: it stays "not analyzed", for "Analyze them".
-    const holdFrom = (state?.lastSyncedAt ?? deps.clock.now()).getTime() - HOLD_MS;
-    const waiting = (
+    // Mail still waiting for the model holds the cursor. Each one this sync tried counts a
+    // failure; one that has failed MAX_SYNC_ANALYSIS_FAILURES syncs is let go, so a message the
+    // provider keeps failing on can't make every sync re-read it for ever: it stays "not
+    // analyzed", for "Analyze them". Mail the budget left untouched isn't counted.
+    const still = (
       await getStoredMessages(
         db,
         workspaceId,
         toAnalyze.map((m) => m.envelope.messageId),
       )
-    ).filter((m) => waitsForModel(m) && Date.parse(m.envelope.date) >= holdFrom);
+    ).filter(waitsForModel);
+    const failures = await countSyncAnalysisFailures(
+      db,
+      workspaceId,
+      still.map((m) => m.envelope.messageId).filter((id) => tried.has(id)),
+    );
+    const waiting = still.filter(
+      (m) => (failures.get(m.envelope.messageId) ?? 0) < MAX_SYNC_ANALYSIS_FAILURES,
+    );
     const lastUid = nextLastUid(result.messages, waiting, result.changed ? 0 : cursor.lastUid);
     await recordSyncSuccess(db, workspaceId, mailboxId, {
       folderPath: SYNC_FOLDER,
@@ -334,7 +375,14 @@ export async function syncMailbox(
       lastUid,
       at: deps.clock.now(),
     });
-    log.info("sync.completed", { mailboxId, new: fresh.length });
+    log.info("sync.completed", {
+      mailboxId,
+      new: fresh.length,
+      // Read with the whole folder but arrived before the first scan's window: not stored.
+      beforeWindow: unknown.length - fresh.length,
+      waiting: waiting.length,
+      letGo: still.length - waiting.length,
+    });
     await publish(deps, log, workspaceId, "mailbox.updated");
     return {
       status: "synced",

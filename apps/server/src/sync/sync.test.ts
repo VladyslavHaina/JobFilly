@@ -43,7 +43,7 @@ import {
   type TestDeps,
 } from "../testing";
 import { createMailSyncHandler, enqueueSyncs } from "./jobs";
-import { backoffMs, isDue, SYNC_FOLDER, syncMailbox } from "./run";
+import { backoffMs, isDue, MAX_SYNC_ANALYSIS_FAILURES, SYNC_FOLDER, syncMailbox } from "./run";
 import { createScheduler, type Scheduler } from "./scheduler";
 
 // Continuous sync (F1.1–F1.4) against the fake mailbox, the fake AI, recording pipeline stages
@@ -326,37 +326,99 @@ describe("new mail (F1.1)", () => {
     expect(logged("sync.completed").map((l) => l.new)).toEqual([2, 0]);
   });
 
-  it("lets go of older mail the provider keeps failing on, leaving it not analyzed", async () => {
-    // Dated two hours ago, with no sync before: too old to hold the cursor.
-    deliver("<stuck@agency.example>", 120);
-    deliver("<fresh@agency.example>", 1);
-    knownToAi("<fresh@agency.example>");
+  it("sorts mail whose Date header is hours old on the next sync after one failure", async () => {
+    // Its sender dated it two hours ago (a late delivery, a clock that is off); it arrived now.
+    deliver("<late@agency.example>", 120);
+    knownToAi("<late@agency.example>");
     ai.failNext("classify", "provider_error");
     await interval();
-    expect(await getSyncState(deps.db, ws, mailboxId, SYNC_FOLDER)).toMatchObject({ lastUid: 1 });
-    const calls = ai.log.length;
+    expect(await getSyncState(deps.db, ws, mailboxId, SYNC_FOLDER)).toMatchObject({ lastUid: 0 });
+
     deps.clock.advance(INTERVAL);
     await interval();
-    // Only the fresh one is read and sorted again; the stuck one waits for "Analyze them".
+    const [stored] = await getStoredMessages(deps.db, ws, ["<late@agency.example>"]);
+    expect(stored).toMatchObject({ category: "recruiter_outreach", analysisStatus: "done" });
+    expect(await getSyncState(deps.db, ws, mailboxId, SYNC_FOLDER)).toMatchObject({ lastUid: 1 });
+  });
+
+  it("lets go of mail only after the provider failed on it in many syncs, leaving it not analyzed", async () => {
+    // The fake AI has no answer for this one: the provider fails on it every time.
+    deliver("<stuck@agency.example>");
+    const sync = async () => {
+      await interval();
+      deps.clock.advance(INTERVAL);
+    };
+    for (let i = 1; i < MAX_SYNC_ANALYSIS_FAILURES; i++) await sync();
+    // Every one of those syncs tried it again, and the cursor stayed before it.
+    expect(ai.log.filter((l) => l.key === "<stuck@agency.example>")).toHaveLength(
+      MAX_SYNC_ANALYSIS_FAILURES - 1,
+    );
+    expect(await getSyncState(deps.db, ws, mailboxId, SYNC_FOLDER)).toMatchObject({ lastUid: 0 });
+
+    // The last try: it is let go, and the mail after it holds the cursor now.
+    deliver("<fresh@agency.example>");
+    knownToAi("<fresh@agency.example>");
+    await sync();
+    expect(await getSyncState(deps.db, ws, mailboxId, SYNC_FOLDER)).toMatchObject({ lastUid: 1 });
+    expect(logged("sync.completed").at(-1)).toMatchObject({ waiting: 1, letGo: 1 });
+
+    const calls = ai.log.length;
+    await sync();
+    // Only the fresh one is read and sorted; the stuck one waits for "Analyze them".
     expect(ai.log.slice(calls).map((l) => l.key)).toEqual([
       "<fresh@agency.example>",
       "<fresh@agency.example>",
     ]);
-    const stored = await getStoredMessages(deps.db, ws, ["<stuck@agency.example>"]);
-    expect(stored[0]?.analysisStatus).toBe("pending");
+    const stored = await getStoredMessages(deps.db, ws, [
+      "<stuck@agency.example>",
+      "<fresh@agency.example>",
+    ]);
+    expect(stored.map((m) => m.analysisStatus)).toEqual(["pending", "done"]);
     expect(await getSyncState(deps.db, ws, mailboxId, SYNC_FOLDER)).toMatchObject({ lastUid: 2 });
   });
 
-  it("never reads mail older than the first scan's window as new", async () => {
+  it("reads every message after a known cursor as new, whatever its Date header says", async () => {
+    deliver("<first@agency.example>");
+    knownToAi("<first@agency.example>");
+    await interval();
+    expect(await getSyncState(deps.db, ws, mailboxId, SYNC_FOLDER)).toMatchObject({ lastUid: 1 });
+
+    // Dated by its sender before the first scan's window, it arrives after the cursor.
     mailbox.deliver({
-      messageId: "<ancient@agency.example>",
+      messageId: "<misdated@agency.example>",
       date: new Date(Date.parse(firstScan.startedAt) - 91 * 24 * 3600_000).toISOString(),
+      receivedAt: NOW.toISOString(),
+      text: "A backend role for you.",
+    });
+    knownToAi("<misdated@agency.example>");
+    deps.clock.advance(INTERVAL);
+    await interval();
+    const [stored] = await getStoredMessages(deps.db, ws, ["<misdated@agency.example>"]);
+    expect(stored).toMatchObject({ category: "recruiter_outreach", analysisStatus: "done" });
+    expect(logged("sync.completed").map((l) => l.new)).toEqual([1, 1]);
+    expect(await getSyncState(deps.db, ws, mailboxId, SYNC_FOLDER)).toMatchObject({ lastUid: 2 });
+  });
+
+  it("reading the whole folder, leaves out mail that arrived before the first scan's window", async () => {
+    const beforeWindow = new Date(Date.parse(firstScan.startedAt) - 91 * 24 * 3600_000);
+    mailbox.deliver({ messageId: "<ancient@agency.example>", date: beforeWindow.toISOString() });
+    // Its Date header is as old, but it arrived now: how old mail is goes by its arrival.
+    mailbox.deliver({
+      messageId: "<misdated@agency.example>",
+      date: beforeWindow.toISOString(),
+      receivedAt: minutesAgo(1).toISOString(),
     });
     deliver("<new@agency.example>");
     knownToAi("<new@agency.example>");
+    knownToAi("<misdated@agency.example>");
     await interval();
     expect(await getStoredMessages(deps.db, ws, ["<ancient@agency.example>"])).toEqual([]);
-    expect(logged("sync.completed")).toMatchObject([{ new: 1 }]);
+    expect(
+      (await getStoredMessages(deps.db, ws, ["<misdated@agency.example>"])).map(
+        (m) => m.envelope.messageId,
+      ),
+    ).toEqual(["<misdated@agency.example>"]);
+    expect(logged("sync.completed")).toMatchObject([{ new: 2, beforeWindow: 1 }]);
   });
 });
 
