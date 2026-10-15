@@ -340,7 +340,11 @@ Every MVP keeps these true; the Helm chart after MVP 3 relies on them.
   `e2e/seed/main.ts` and the fixture generator with `e2e/fixtures/build/main.ts`. From MVP 2 the
   fake RDAP service starts with `node e2e/rdap/main.ts` (`PORT` 8080, data in
   `e2e/rdap/domains.json`) and CoreDNS reads `e2e/dns/Corefile` and `e2e/dns/zones`; the
-  generator writes both from the fixtures' sender domains. The seed's `inspect smtp` and
-  `reset-uidvalidity` use the test mail server's REST API (`GREENMAIL_API_URL`). Personas:
+  generator writes both from the fixtures' sender domains. The stack network has the fixed
+  subnet `10.253.53.0/24` (CoreDNS at `.53`), so `stack up` refuses to start while another
+  Docker network overlaps it, and before loading mail it checks from inside `app-a` that MX
+  lookups get the fixture zone's answer and `JOBFILLY_RDAP_URL` answers. The seed's
+  `inspect smtp` and `reset-uidvalidity` use the test mail server's REST API
+  (`GREENMAIL_API_URL`). Personas:
   `maria` (maria.santos@inbox.example) and `tom` (tom.okafor@inbox.example). How
   each MVP is validated is described in [docs/mvp/README.md](mvp/README.md).

@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { parse } from "yaml";
 import { PERSONAS } from "../fixtures/format.ts";
-import { COMPOSE_FILE, main, type StackDeps } from "../stack.ts";
+import { COMPOSE_FILE, main, type StackDeps, WIRING_PROBES } from "../stack.ts";
 import { ACCOUNTS } from "./accounts.ts";
 
 // The seed's entry point run as the test stack runs it, without Docker: node with the entrypoint
@@ -22,6 +22,15 @@ const seed = (
   }
 ).services.seed;
 
+const WIRED = JSON.stringify(
+  WIRING_PROBES.map((p) => ({
+    domain: p.domain,
+    mx: [p.mx],
+    rdap: { status: 200, ldhName: p.domain },
+    error: [],
+  })),
+);
+
 /** The `seed …` arguments of every one-off seed run `stack up` makes, in order. */
 async function seedRunsOfStackUp(): Promise<string[][]> {
   const runs: string[][] = [];
@@ -29,7 +38,8 @@ async function seedRunsOfStackUp(): Promise<string[][]> {
     async run(command) {
       const at = command.args.indexOf("seed");
       if (command.args.includes("run") && at >= 0) runs.push(command.args.slice(at + 1));
-      return { code: 0, stdout: "" };
+      // The wiring check inside app-a: the fixture zones and the fake RDAP service answer.
+      return { code: 0, stdout: command.args.includes("exec") ? WIRED : "" };
     },
     ready: async () => true,
     sleep: async () => {},
