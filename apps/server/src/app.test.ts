@@ -4,6 +4,7 @@ import { createApp } from "./app";
 import {
   createTestDeps,
   type SeededUser,
+  seedMailbox,
   seedUser,
   seedWorkspace,
   signedIn,
@@ -78,26 +79,32 @@ describe("every API request", () => {
 
 describe("the workspace route modules", () => {
   // Every slice-owned module is mounted once, behind workspaceMember, with its own role checks.
-  // `reached` is what a built handler answers this empty request (a stub answers 501).
+  // Each row names the status the handler gives with the needed role: a GET reads, an empty body is
+  // a 400, the seeded mailbox is deleted, a message not in the workspace is a 404, and the routes
+  // whose slice isn't here yet answer 501. A 404 for a route that should read, or a 500, would mean
+  // broken workspace scoping or a crash, so the status is exact.
   const messageId = encodeURIComponent("<a+b/c%d@mail.example>");
+  const MAILBOX = ":mailboxId";
   const routes: [
     method: string,
     path: string,
     role: "viewer" | "editor" | "admin",
-    reached?: number,
+    status: number,
   ][] = [
-    ["GET", "mailboxes", "viewer"],
-    ["GET", "mailboxes/presets", "viewer"],
-    ["POST", "mailboxes/test", "admin"],
-    ["POST", "mailboxes", "admin"],
-    ["DELETE", "mailboxes/8f0e1c62-0000-4000-8000-000000000000", "admin"],
-    ["GET", "ai", "viewer"],
-    ["PUT", "ai", "admin"],
-    ["POST", "ai/test", "admin"],
-    ["GET", "scans/current", "viewer"],
-    ["POST", "scans", "admin"],
-    ["POST", "scans/8f0e1c62-0000-4000-8000-000000000000/cancel", "admin"],
-    ["POST", "scans/analyze-rest", "admin"],
+    ["GET", "mailboxes", "viewer", 200],
+    ["GET", "mailboxes/presets", "viewer", 200],
+    ["POST", "mailboxes/test", "admin", 400],
+    ["POST", "mailboxes", "admin", 400],
+    ["DELETE", `mailboxes/${MAILBOX}`, "admin", 204],
+    ["GET", "ai", "viewer", 200],
+    ["GET", "ai/providers", "viewer", 200],
+    ["PUT", "ai", "admin", 400],
+    ["POST", "ai/test", "admin", 400],
+    ["GET", "scans/current", "viewer", 200],
+    // The mailbox is deleted above, there is no such scan, and no first scan yet.
+    ["POST", "scans", "admin", 409],
+    ["POST", "scans/8f0e1c62-0000-4000-8000-000000000000/cancel", "admin", 404],
+    ["POST", "scans/analyze-rest", "admin", 409],
     ["GET", "messages", "viewer", 200],
     // No such message in the workspace, and an empty correction.
     ["GET", `messages/${messageId}`, "viewer", 404],
@@ -125,20 +132,32 @@ describe("the workspace route modules", () => {
         { user: editor, role: "editor" },
       ],
     });
+    const mailboxId = await seedMailbox(deps, ws.workspaceId, {
+      address: "me@mail.example",
+      conn: {
+        host: "imap.mail.example",
+        port: 993,
+        tlsMode: "tls",
+        username: "me@mail.example",
+        password: "E2E-SECRET-mailbox",
+      },
+      sentFolderPath: null,
+    });
     const as: Record<string, SeededUser> = { viewer, editor, admin: owner, outsider };
     const clients = Object.fromEntries(
       await Promise.all(
         Object.entries(as).map(async ([k, u]) => [k, await signedIn(app, deps, u)] as const),
       ),
     );
-    for (const [method, path, role, reached = 501] of routes) {
-      const url = `/api/workspaces/${ws.workspaceId}/${path}`;
+    for (const [method, path, role, status] of routes) {
+      const url = `/api/workspaces/${ws.workspaceId}/${path.replace(MAILBOX, mailboxId)}`;
       const send = (who: string) =>
         clients[who]?.request(method, url, method === "GET" ? undefined : {});
-      expect((await send(role))?.status, `${method} ${path} as ${role}`).toBe(reached);
+      // The lower role and the outsider go first, so the mailbox is still there for them.
       const lower = below[role];
       if (lower) expect((await send(lower))?.status, `${method} ${path} as ${lower}`).toBe(403);
       expect((await send("outsider"))?.status, `${method} ${path} as outsider`).toBe(404);
+      expect((await send(role))?.status, `${method} ${path} as ${role}`).toBe(status);
     }
   });
 });

@@ -7,7 +7,7 @@ import {
   TextSchema,
   TimeZoneRangeSchema,
 } from "./common";
-import { JobFactsSchema } from "./facts";
+import { ExtraAnswerSchema, JobFactsSchema } from "./facts";
 import { CategorySchema } from "./messages";
 
 /** The core questions of the intake form (F6), in the order the form asks them. */
@@ -190,6 +190,11 @@ export const PreferencesSchema = z.object({
   extra: z.record(TextSchema, TextSchema).optional(),
 });
 export type Preferences = z.infer<typeof PreferencesSchema>;
+
+/** One reply's preferences as the model writes them: `extra` as a list (ExtraAnswerSchema). */
+export const PreferencesAnswerSchema = PreferencesSchema.extend({
+  extra: ExtraAnswerSchema.optional(),
+});
 
 /** What the intake aggregation reads: the user's replies' preferences and the job mail's facts. */
 export const IntakeInputSchema = z.object({

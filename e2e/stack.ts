@@ -1,17 +1,19 @@
 import { spawn } from "node:child_process";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { PERSONAS } from "./fixtures/format.ts";
 
 // The test stack's commands (docs/mvp/README.md › The test stack, F7.8). The root scripts run:
 //   pnpm e2e                  node e2e/stack.ts run [--mvp <n>]    fresh stack, specs, down
 //   pnpm e2e:stack up|down    node e2e/stack.ts stack up|down
 //   pnpm e2e:specs            node e2e/stack.ts specs [--mvp <n>]  specs against the running stack
 // `up` starts docker/compose.e2e.yaml under a project name of its own, waits until the proxy and
-// both replicas answer /api/health/ready, loads every persona's mail, prints the name and keeps
-// it in e2e/.stack/project. `down` removes that project's containers (one-off seed runs too),
-// networks and volumes, checks nothing is left and removes e2e/.stack. Only one stack runs at a
-// time: the proxy's ports are fixed. Ctrl-C stops `up`, `run` and `specs` at the next step (the
-// running child gets it too) and exits 130; `up` and `run` take the stack down first.
+// both replicas answer /api/health/ready, loads the mail of every persona of fixtures/format.ts
+// with `seed load <persona>`, prints the name and keeps it in e2e/.stack/project. `down` removes
+// that project's containers (one-off seed runs too), networks and volumes, checks nothing is left
+// and removes e2e/.stack. Only one stack runs at a time: the proxy's ports are fixed. Ctrl-C stops
+// `up`, `run` and `specs` at the next step (the running child gets it too) and exits 130; `up` and
+// `run` take the stack down first.
 
 const ROOT = resolve(import.meta.dirname, "..");
 const E2E_DIR = join(ROOT, "e2e");
@@ -23,8 +25,6 @@ export const READY_URLS = [
   "http://127.0.0.1:8081/api/health/ready",
   "http://127.0.0.1:8082/api/health/ready",
 ];
-/** The personas whose mail every fresh stack starts with (e2e/fixtures/<persona>). */
-export const PERSONAS = ["maria", "tom"];
 export const READY_TIMEOUT_MS = 180_000;
 /** The exit code of a run stopped by Ctrl-C (128 + SIGINT). */
 export const INTERRUPTED = 130;

@@ -1,0 +1,246 @@
+{
+  "<maria-0010@inbox.example>": {
+    "preferences": {
+      "target_roles": [
+        "Backend Engineer",
+        "Backend Developer"
+      ],
+      "seniority": [
+        "Senior"
+      ],
+      "places": [
+        {
+          "country": "DE",
+          "city": "Berlin",
+          "mode": "hybrid"
+        },
+        {
+          "country": "NL",
+          "city": "Amsterdam",
+          "mode": "hybrid"
+        }
+      ],
+      "remote": [
+        {
+          "scope": "EU",
+          "timeZones": null
+        }
+      ],
+      "contracts": [
+        "permanent",
+        "B2B"
+      ],
+      "min_pay": [
+        {
+          "amount": 70000,
+          "currency": "EUR",
+          "period": "year",
+          "asWritten": "€70,000 a year"
+        },
+        {
+          "amount": 450,
+          "currency": "EUR",
+          "period": "day",
+          "asWritten": "€450 a day"
+        }
+      ],
+      "languages": [
+        "English",
+        "Portuguese"
+      ],
+      "work_permits": [
+        {
+          "country": null,
+          "text": "EU citizen"
+        }
+      ]
+    }
+  },
+  "<maria-0012@inbox.example>": {
+    "preferences": {
+      "target_roles": [
+        "backend engineer"
+      ],
+      "seniority": [
+        "Senior"
+      ]
+    }
+  },
+  "<maria-0014@inbox.example>": {
+    "preferences": {
+      "places": [
+        {
+          "country": "DE",
+          "city": "Berlin",
+          "mode": "hybrid"
+        },
+        {
+          "country": "NL",
+          "city": "Amsterdam",
+          "mode": "hybrid"
+        }
+      ],
+      "remote": [
+        {
+          "scope": "EU",
+          "timeZones": null
+        }
+      ]
+    }
+  },
+  "<maria-0551@inbox.example>": {
+    "preferences": {}
+  },
+  "<maria-0016@inbox.example>": {
+    "preferences": {
+      "contracts": [
+        "permanent",
+        "B2B"
+      ],
+      "min_pay": [
+        {
+          "amount": 70000,
+          "currency": "EUR",
+          "period": "year",
+          "asWritten": "70k EUR per year"
+        },
+        {
+          "amount": 450,
+          "currency": "EUR",
+          "period": "day",
+          "asWritten": "450 EUR per day"
+        }
+      ]
+    }
+  },
+  "<maria-0018@inbox.example>": {
+    "preferences": {
+      "languages": [
+        "English",
+        "Portuguese"
+      ],
+      "work_permits": [
+        {
+          "country": null,
+          "text": "EU citizen"
+        }
+      ]
+    }
+  },
+  "<maria-0020@inbox.example>": {
+    "preferences": {
+      "places": [
+        {
+          "country": "DE",
+          "city": "Berlin",
+          "mode": "hybrid"
+        }
+      ]
+    }
+  },
+  "<maria-0022@inbox.example>": {
+    "preferences": {
+      "contracts": [
+        "B2B"
+      ],
+      "min_pay": [
+        {
+          "amount": 450,
+          "currency": "EUR",
+          "period": "day",
+          "asWritten": "€450 a day"
+        }
+      ]
+    }
+  },
+  "<maria-0024@inbox.example>": {
+    "preferences": {
+      "languages": [
+        "English"
+      ]
+    }
+  },
+  "<maria-0549@inbox.example>": {
+    "preferences": {}
+  },
+  "<maria-0026@inbox.example>": {
+    "preferences": {
+      "work_permits": [
+        {
+          "country": null,
+          "text": "EU citizen"
+        }
+      ],
+      "remote": [
+        {
+          "scope": "EU",
+          "timeZones": null
+        }
+      ]
+    }
+  },
+  "<maria-0028@inbox.example>": {
+    "preferences": {
+      "target_roles": [
+        "Backend Developer"
+      ]
+    }
+  },
+  "<maria-0030@inbox.example>": {
+    "preferences": {
+      "seniority": [
+        "Senior"
+      ],
+      "target_roles": [
+        "Backend Engineer"
+      ]
+    }
+  },
+  "<maria-0032@inbox.example>": {
+    "preferences": {
+      "min_pay": [
+        {
+          "amount": 70000,
+          "currency": "EUR",
+          "period": "year",
+          "asWritten": "€70,000 a year"
+        }
+      ]
+    }
+  },
+  "<maria-0553@inbox.example>": {
+    "preferences": {}
+  },
+  "<maria-0034@inbox.example>": {
+    "preferences": {
+      "places": [
+        {
+          "country": "NL",
+          "city": "Amsterdam",
+          "mode": "hybrid"
+        }
+      ]
+    }
+  },
+  "<maria-0036@inbox.example>": {
+    "preferences": {
+      "contracts": [
+        "permanent"
+      ]
+    }
+  },
+  "<maria-0547@inbox.example>": {
+    "preferences": {}
+  },
+  "<maria-0038@inbox.example>": {
+    "preferences": {
+      "languages": [
+        "English",
+        "Portuguese"
+      ]
+    }
+  },
+  "<maria-0555@inbox.example>": {
+    "preferences": {}
+  }
+}

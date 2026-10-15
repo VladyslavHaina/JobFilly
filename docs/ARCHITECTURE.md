@@ -72,7 +72,8 @@ Rules:
   Docker. One migration per release step; the sender and subject search uses the `pg_trgm`
   extension.
 - A message is named by its RFC `Message-ID` (verbatim, angle brackets included) everywhere
-  outside the database primary key: in the API, prompts, evidence, fixtures and web links.
+  outside the database primary key: in the API, prompts, evidence, fixtures and web links. A
+  header that isn't one lone `<...>` msg-id gets a stable synthetic id instead.
 - The mailbox is the source of truth for mail. Postgres keeps message metadata, a short snippet,
   extracted job facts, and the local state: profiles, rules, CVs, decisions, drafts, corrections.
   Full message bodies are fetched from the mailbox when needed and not stored.
@@ -114,7 +115,8 @@ Rules:
   (sorting, extraction, CV reading, matching, drafting, assistant) can use its own model.
 - Prompts carry a stable task id (for example `classify.v1`) and refer to messages by their
   `Message-ID`. Structured output is validated against its schema; an invalid answer is retried
-  once and then reported, never patched up.
+  once and then reported, never patched up. Output schemas use only shapes every provider can
+  express: no open records (extra facts are a list of `{key, value}`, read back into a record).
 - Mail content and CV text are passed as untrusted data, so instructions inside them can't steer
   the app.
 - The assistant can only propose changes. Applying one is a separate request made by the user.

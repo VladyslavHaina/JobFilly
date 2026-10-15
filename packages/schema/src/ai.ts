@@ -60,10 +60,68 @@ export const AiSettingsPublicSchema = z.object({
 });
 export type AiSettingsPublic = z.infer<typeof AiSettingsPublicSchema>;
 
+/** GET /ai: the workspace's settings, or null before an admin has saved any. */
+export const AiSettingsResponseSchema = z.object({ settings: AiSettingsPublicSchema.nullable() });
+export type AiSettingsResponse = z.infer<typeof AiSettingsResponseSchema>;
+
+/**
+ * One provider as GET /ai/providers serves it to the settings form (F3.2): its name, where its API
+ * lives when no base URL is given, what it needs, and the models pre-selected per task. The
+ * catalogue itself is packages/ai's; every default can be changed in Settings › AI, and none is
+ * used unless the workspace saves it.
+ */
+export const AiProviderSchema = z.object({
+  id: AiProviderIdSchema,
+  label: z.string(),
+  /** The API's host when no base URL is set; null when the user must give one. */
+  defaultHost: z.string().nullable(),
+  keyRequired: z.boolean(),
+  baseUrlRequired: z.boolean(),
+  defaultModels: AiModelsSchema,
+});
+export type AiProvider = z.infer<typeof AiProviderSchema>;
+
+/** GET /ai/providers: the short list of providers, in the order the form shows them. */
+export const AiProviderListSchema = z.object({ items: z.array(AiProviderSchema) });
+export type AiProviderList = z.infer<typeof AiProviderListSchema>;
+
+/**
+ * The authority of scheme://[user[:password]@]host[:port]/..., or undefined when the URL doesn't
+ * have that shape. A URL parser reads a backslash as "/" in http(s) URLs, so one ends the
+ * authority too.
+ */
+const authorityOf = (url: string) => /^[a-z][a-z\d+.-]*:\/\/([^/\\?#]*)/i.exec(url.trim())?.[1];
+
+/**
+ * The host[:port] a base URL sends requests to, lower-cased, for the privacy line "Your mail is
+ * read by <provider> (<host>)" (F3.2); "" while the URL doesn't have that shape. The user part is
+ * never shown: a saved base URL never has one (AiSettingsInputSchema refuses it), but the form
+ * shows the line while the user is still typing. The server and the form both use this, so the
+ * line reads the same before and after saving.
+ */
+export function baseUrlHost(baseUrl: string): string {
+  const authority = authorityOf(baseUrl) ?? "";
+  return authority.slice(authority.lastIndexOf("@") + 1).toLowerCase();
+}
+
+/**
+ * A base URL as the user enters it. It is stored in clear and shown back to every member, so it
+ * may not carry a user name or password (https://user:secret@host/v1): a secret goes in the API
+ * key field, which is sealed and never returned.
+ */
+const AiBaseUrlSchema = z.url().refine(
+  // A URL whose authority can't be found is refused too, rather than trusted to have no user part.
+  (value) => authorityOf(value)?.includes("@") === false,
+  {
+    message:
+      "Leave the user name and password out of the base URL; put the secret in the API key field",
+  },
+);
+
 /** Saving or testing settings. `apiKey` is write-only; leaving it out keeps the stored key. */
 export const AiSettingsInputSchema = z.object({
   provider: AiProviderIdSchema,
-  baseUrl: z.url().nullable(),
+  baseUrl: AiBaseUrlSchema.nullable(),
   models: AiModelsSchema,
   apiKey: z.string().min(1).optional(),
   budgetPerRun: BudgetPerRunSchema.default(DEFAULT_BUDGET_PER_RUN),

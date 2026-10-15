@@ -7,6 +7,7 @@ import {
   batchResultSchema,
   CategorySchema,
   IntakeExtraInputSchema,
+  JobFactsSchema,
   PreferencesSchema,
   TASK_IDS,
   TASK_OUTPUT_SCHEMAS,
@@ -18,8 +19,9 @@ import {
 // (one input, request, response and output per task id). Here it is checked against the schemas
 // it is built from, so a schema change that breaks the samples fails at once. The request samples
 // are the body the AI SDK's openai-compatible provider sends (packages/ai/src/wire.test.ts pins
-// them to the installed SDK): no `stream` field, `strict: true`, and the output schema converted
-// to JSON Schema draft-07 with every object closed.
+// them to the installed SDK): no `stream` field, `strict: true`, and the output schema's input
+// side converted to JSON Schema draft-07 with every object closed. The output samples are what
+// packages/ai returns: the parsed answers, with `extra` as a record again.
 
 const WIRE = fileURLToPath(new URL("../../../e2e/fixtures/wire/", import.meta.url));
 const read = (taskId: TaskId, kind: "input" | "request" | "response" | "output"): unknown =>
@@ -35,11 +37,28 @@ const INPUTS: Record<TaskId, z.ZodType> = {
 
 const OUTPUTS: Record<TaskId, z.ZodType> = {
   "classify.v1": batchResultSchema(z.object({ category: CategorySchema })),
-  "extract.v1": taskResultSchema(TASK_OUTPUT_SCHEMAS["extract.v1"]),
+  "extract.v1": taskResultSchema(
+    z.object({ messageId: z.string(), roles: z.array(JobFactsSchema) }),
+  ),
   "prefs.v1": batchResultSchema(z.object({ preferences: PreferencesSchema })),
   "intake.v1": taskResultSchema(TASK_OUTPUT_SCHEMAS["intake.v1"]),
   "ai.test.v1": taskResultSchema(TASK_OUTPUT_SCHEMAS["ai.test.v1"]),
 };
+
+/**
+ * The JSON Schema the AI SDK sends for an output schema: its input side, what the model writes
+ * (`extra` as a list), with every object closed.
+ */
+const sentSchema = (schema: z.ZodType) =>
+  z.toJSONSchema(schema, {
+    target: "draft-7",
+    io: "input",
+    override: ({ jsonSchema }) => {
+      if (jsonSchema.type === "object" && jsonSchema.additionalProperties === undefined) {
+        jsonSchema.additionalProperties = false;
+      }
+    },
+  });
 
 const RequestSchema = z.strictObject({
   model: z.literal("fixture-model"),
@@ -82,7 +101,7 @@ describe.each(TASK_IDS)("the %s wire sample", (taskId) => {
     const request = RequestSchema.parse(read(taskId, "request"));
     expect(request.response_format.json_schema.name).toBe(taskId.replaceAll(".", "_"));
     expect(request.response_format.json_schema.schema).toEqual(
-      z.toJSONSchema(TASK_OUTPUT_SCHEMAS[taskId], { target: "draft-7" }),
+      sentSchema(TASK_OUTPUT_SCHEMAS[taskId]),
     );
     expect(request.messages[0].content.split("\n")[0]).toBe(`task: ${taskId}`);
     expect(request.messages[1].content.split("\n")[0]).toBe(`task: ${taskId}`);

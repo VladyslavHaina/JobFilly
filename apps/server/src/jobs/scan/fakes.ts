@@ -1,0 +1,211 @@
+import type { AiClient } from "@jobfilly/ai";
+import type { MailClient } from "@jobfilly/mail";
+import {
+  type AiError,
+  type AiMailItem,
+  type BatchResult,
+  type Category,
+  CORE_PROFILE_KEYS,
+  CORE_PROFILE_LABELS,
+  type Envelope,
+  type IntakeInput,
+  type IntakeProposal,
+  type JobFacts,
+  type MailConnection,
+  NOT_ENOUGH_EVIDENCE,
+  type Preferences,
+  type ProfileValue,
+  type TaskId,
+  type Usage,
+} from "@jobfilly/schema";
+import type { AiPort, MailPort } from "../../deps";
+
+// Test doubles for the scan worker's ports, behaving as packages/mail and packages/ai promise:
+// envelopes newest first within the window, bodies on demand; one Usage per model call, invalid
+// items retried once in one follow-up call when maxCalls allows it, else not_retried (TBD-17).
+// Only the scan tests import this file.
+
+/** Every fake body carries this marker, so tests can prove no body is stored or logged (F4.9). */
+export const BODY_SENTINEL = "BODYSENTINEL-scan";
+
+export interface FakeMail {
+  port: MailPort;
+  connections: MailConnection[];
+  fetched: { folder: string; since: Date }[];
+  bodies: string[];
+  closed: number;
+}
+
+export function fakeMail(envelopes: readonly Envelope[]): FakeMail {
+  const fake: FakeMail = {
+    connections: [],
+    fetched: [],
+    bodies: [],
+    closed: 0,
+    port: {
+      connect(conn) {
+        fake.connections.push(conn);
+        const client: MailClient = {
+          async test() {
+            return { ok: true, folders: ["INBOX", "Sent"], sentPath: "Sent" };
+          },
+          async fetchEnvelopes({ folder, since }) {
+            fake.fetched.push({ folder, since });
+            return envelopes
+              .filter((e) => e.folder === folder && Date.parse(e.date) >= since.getTime())
+              .sort((a, b) => Date.parse(b.date) - Date.parse(a.date));
+          },
+          async fetchBody(ref) {
+            const e = envelopes.find(
+              (x) => x.folderPath === ref.folderPath && x.uid === ref.uid,
+            ) as Envelope;
+            fake.bodies.push(e.messageId);
+            return { text: `${e.snippet}\n\n${"More text. ".repeat(100)}${BODY_SENTINEL}` };
+          },
+          async close() {
+            fake.closed += 1;
+          },
+        };
+        return client;
+      },
+    },
+  };
+  return fake;
+}
+
+/** An answer the fake model gives for one message; "invalid" fails its schema every time. */
+type Answer<T> = T | "invalid" | undefined;
+
+export interface FakeAiAnswers {
+  classify?: (messageId: string) => Answer<Category>;
+  extract?: (messageId: string) => Answer<JobFacts[]>;
+  prefs?: (messageId: string) => Answer<Preferences>;
+}
+
+export interface FakeAi {
+  port: AiPort;
+  /** Every call made, in order: the task and the Message-IDs it carried. */
+  calls: { task: TaskId; ids: string[] }[];
+  /** Every call from now on fails the way a provider does. */
+  failWith(kind: AiError["kind"] | null): void;
+  /** Called before every call answers (n counts calls from 1); a test can act mid-run, or
+   * hold one call by returning a promise it resolves later. */
+  beforeAnswer: ((task: TaskId, n: number) => Promise<void> | void) | null;
+}
+
+const usage = (task: TaskId): Usage => ({ task, inputTokens: 100, outputTokens: 10 });
+
+export function fakeAi(answers: FakeAiAnswers): FakeAi {
+  let failure: AiError["kind"] | null = null;
+
+  const fake: FakeAi = {
+    calls: [],
+    beforeAnswer: null,
+    failWith(kind) {
+      failure = kind;
+    },
+    port: { client: () => client },
+  };
+
+  async function request(task: TaskId, ids: string[]) {
+    fake.calls.push({ task, ids });
+    await fake.beforeAnswer?.(task, fake.calls.length);
+  }
+
+  async function batch<T>(
+    task: TaskId,
+    items: AiMailItem[],
+    maxCalls: 1 | 2,
+    answer: (id: string) => Answer<T>,
+  ): Promise<BatchResult<T>> {
+    const result: BatchResult<T> = { items: [], usage: [] };
+    let pending = items.map((i) => i.messageId);
+    for (let attempt = 1; pending.length > 0 && attempt <= maxCalls; attempt++) {
+      await request(task, pending);
+      result.usage.push(usage(task));
+      if (failure) {
+        const error = { kind: failure, message: "fake failure" };
+        for (const messageId of pending) result.items.push({ messageId, ok: false, error });
+        return result;
+      }
+      const next: string[] = [];
+      for (const messageId of pending) {
+        const data = answer(messageId);
+        if (data === undefined) throw new Error(`fake AI has no ${task} answer for ${messageId}`);
+        if (data === "invalid") next.push(messageId);
+        else result.items.push({ messageId, ok: true, data });
+      }
+      pending = next;
+    }
+    const kind = maxCalls === 1 ? "not_retried" : "invalid_output";
+    for (const messageId of pending) {
+      result.items.push({ messageId, ok: false, error: { kind, message: kind } });
+    }
+    return result;
+  }
+
+  const client: AiClient = {
+    async classify(items, options) {
+      const r = await batch("classify.v1", items, options?.maxCalls ?? 2, (id) =>
+        answers.classify?.(id),
+      );
+      return {
+        usage: r.usage,
+        items: r.items.map((i) => (i.ok ? { ...i, data: { category: i.data } } : i)),
+      };
+    },
+    async prefs(items, options) {
+      const r = await batch("prefs.v1", items, options?.maxCalls ?? 2, (id) => answers.prefs?.(id));
+      return {
+        usage: r.usage,
+        items: r.items.map((i) => (i.ok ? { ...i, data: { preferences: i.data } } : i)),
+      };
+    },
+    async extract(item, options) {
+      const r = await batch("extract.v1", [item], options?.maxCalls ?? 2, (id) =>
+        answers.extract?.(id),
+      );
+      const only = r.items[0];
+      if (!only) throw new Error("fake AI returned nothing");
+      return only.ok
+        ? { ok: true, data: { messageId: item.messageId, roles: only.data }, usage: r.usage }
+        : { ok: false, error: only.error, usage: r.usage };
+    },
+    async intake() {
+      throw new Error("the scan never makes the intake.v1 call (TBD-19)");
+    },
+    async test() {
+      throw new Error("the scan never tests the provider");
+    },
+  };
+  return fake;
+}
+
+/**
+ * A stand-in for packages/core's aggregateIntake, built by another slice: each core key's values
+ * are those the user's replies state, with the replies as evidence; 1 reply is low confidence,
+ * 2 medium, 3 or more high. Job mail adds nothing.
+ */
+export function aggregateFromReplies(input: IntakeInput): IntakeProposal {
+  return {
+    entries: CORE_PROFILE_KEYS.map((key) => {
+      const values = new Map<string, unknown>();
+      const evidence: string[] = [];
+      for (const reply of input.replies) {
+        const stated = reply.preferences[key] ?? [];
+        if (stated.length === 0) continue;
+        evidence.push(reply.messageId);
+        for (const v of stated) values.set(JSON.stringify(v), v);
+      }
+      const n = evidence.length;
+      return {
+        key,
+        label: CORE_PROFILE_LABELS[key],
+        value: [...values.values()] as ProfileValue,
+        confidence: n === 0 ? null : n === 1 ? "low" : n === 2 ? "medium" : "high",
+        evidence: evidence.map((messageId) => ({ messageId, reason: `from ${n} of your replies` })),
+        emptyReason: n === 0 ? NOT_ENOUGH_EVIDENCE : null,
+      };
+    }),
+  };
+}

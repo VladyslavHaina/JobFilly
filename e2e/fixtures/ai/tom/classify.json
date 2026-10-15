@@ -1,0 +1,452 @@
+{
+  "<tom-0043@canalwalks.example>": {
+    "category": "not_job"
+  },
+  "<tom-0039@valuemart.example>": {
+    "category": "not_job"
+  },
+  "<tom-0051@councilbins.example>": {
+    "category": "not_job"
+  },
+  "<tom-0056@northernrail.example>": {
+    "category": "not_job"
+  },
+  "<tom-0068@reddevilsfans.example>": {
+    "category": "not_job"
+  },
+  "<tom-0015@mcrevening.example>": {
+    "category": "not_job"
+  },
+  "<tom-0088@reddevilsfans.example>": {
+    "category": "not_job"
+  },
+  "<tom-0036@northernrail.example>": {
+    "category": "not_job"
+  },
+  "<tom-0058@reddevilsfans.example>": {
+    "category": "not_job"
+  },
+  "<tom-0020@picturehouse.example>": {
+    "category": "not_job"
+  },
+  "<tom-0106@northernrail.example>": {
+    "category": "not_job"
+  },
+  "<tom-0050@picturehouse.example>": {
+    "category": "not_job"
+  },
+  "<tom-0001@jobs.nhs.uk>": {
+    "category": "job_alert"
+  },
+  "<tom-0085@mcrevening.example>": {
+    "category": "not_job"
+  },
+  "<tom-0013@canalwalks.example>": {
+    "category": "not_job"
+  },
+  "<tom-0022@bookbarn.example>": {
+    "category": "not_job"
+  },
+  "<tom-0011@councilbins.example>": {
+    "category": "not_job"
+  },
+  "<tom-0098@reddevilsfans.example>": {
+    "category": "not_job"
+  },
+  "<tom-0084@streamflix.example>": {
+    "category": "not_job"
+  },
+  "<tom-0007@fithubgym.example>": {
+    "category": "not_job"
+  },
+  "<tom-0048@reddevilsfans.example>": {
+    "category": "not_job"
+  },
+  "<tom-0057@fithubgym.example>": {
+    "category": "not_job"
+  },
+  "<tom-0037@fithubgym.example>": {
+    "category": "not_job"
+  },
+  "<tom-0116@northernrail.example>": {
+    "category": "not_job"
+  },
+  "<tom-0064@streamflix.example>": {
+    "category": "not_job"
+  },
+  "<tom-0087@fithubgym.example>": {
+    "category": "not_job"
+  },
+  "<tom-0080@picturehouse.example>": {
+    "category": "not_job"
+  },
+  "<tom-0147@inbox.example>": {
+    "category": "not_job"
+  },
+  "<tom-0146@mail.example>": {
+    "category": "not_job"
+  },
+  "<tom-0003@carelinknursing.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<tom-0019@valuemart.example>": {
+    "category": "not_job"
+  },
+  "<tom-0062@bookbarn.example>": {
+    "category": "not_job"
+  },
+  "<tom-0081@councilbins.example>": {
+    "category": "not_job"
+  },
+  "<tom-0034@streamflix.example>": {
+    "category": "not_job"
+  },
+  "<tom-0060@picturehouse.example>": {
+    "category": "not_job"
+  },
+  "<tom-0029@valuemart.example>": {
+    "category": "not_job"
+  },
+  "<tom-0097@fithubgym.example>": {
+    "category": "not_job"
+  },
+  "<tom-0083@canalwalks.example>": {
+    "category": "not_job"
+  },
+  "<tom-0006@northernrail.example>": {
+    "category": "not_job"
+  },
+  "<tom-0049@valuemart.example>": {
+    "category": "not_job"
+  },
+  "<tom-0012@bookbarn.example>": {
+    "category": "not_job"
+  },
+  "<tom-0076@northernrail.example>": {
+    "category": "not_job"
+  },
+  "<tom-0061@councilbins.example>": {
+    "category": "not_job"
+  },
+  "<tom-0125@mcrevening.example>": {
+    "category": "not_job"
+  },
+  "<tom-0108@reddevilsfans.example>": {
+    "category": "not_job"
+  },
+  "<tom-0124@streamflix.example>": {
+    "category": "not_job"
+  },
+  "<tom-0149@inbox.example>": {
+    "category": "not_job"
+  },
+  "<tom-0104@streamflix.example>": {
+    "category": "not_job"
+  },
+  "<tom-0148@mail.example>": {
+    "category": "not_job"
+  },
+  "<tom-0077@fithubgym.example>": {
+    "category": "not_job"
+  },
+  "<tom-0044@streamflix.example>": {
+    "category": "not_job"
+  },
+  "<tom-0139@inbox.example>": {
+    "category": "not_job"
+  },
+  "<tom-0138@mail.example>": {
+    "category": "not_job"
+  },
+  "<tom-0031@councilbins.example>": {
+    "category": "not_job"
+  },
+  "<tom-0089@valuemart.example>": {
+    "category": "not_job"
+  },
+  "<tom-0099@valuemart.example>": {
+    "category": "not_job"
+  },
+  "<tom-0067@fithubgym.example>": {
+    "category": "not_job"
+  },
+  "<tom-0090@picturehouse.example>": {
+    "category": "not_job"
+  },
+  "<tom-0071@councilbins.example>": {
+    "category": "not_job"
+  },
+  "<tom-0105@mcrevening.example>": {
+    "category": "not_job"
+  },
+  "<tom-0135@metrotickets.example>": {
+    "category": "not_job"
+  },
+  "<tom-0079@valuemart.example>": {
+    "category": "not_job"
+  },
+  "<tom-0021@councilbins.example>": {
+    "category": "not_job"
+  },
+  "<tom-0094@streamflix.example>": {
+    "category": "not_job"
+  },
+  "<tom-0004@smartrecruiters.com>": {
+    "category": "application_update"
+  },
+  "<tom-0114@streamflix.example>": {
+    "category": "not_job"
+  },
+  "<tom-0017@fithubgym.example>": {
+    "category": "not_job"
+  },
+  "<tom-0112@bookbarn.example>": {
+    "category": "not_job"
+  },
+  "<tom-0096@northernrail.example>": {
+    "category": "not_job"
+  },
+  "<tom-0002@totaljobs.com>": {
+    "category": "job_alert"
+  },
+  "<tom-0047@fithubgym.example>": {
+    "category": "not_job"
+  },
+  "<tom-0120@picturehouse.example>": {
+    "category": "not_job"
+  },
+  "<tom-0027@fithubgym.example>": {
+    "category": "not_job"
+  },
+  "<tom-0128@reddevilsfans.example>": {
+    "category": "not_job"
+  },
+  "<tom-0086@northernrail.example>": {
+    "category": "not_job"
+  },
+  "<tom-0040@picturehouse.example>": {
+    "category": "not_job"
+  },
+  "<tom-0115@mcrevening.example>": {
+    "category": "not_job"
+  },
+  "<tom-0132@northwater.example>": {
+    "category": "not_job"
+  },
+  "<tom-0070@picturehouse.example>": {
+    "category": "not_job"
+  },
+  "<tom-0032@bookbarn.example>": {
+    "category": "not_job"
+  },
+  "<tom-0052@bookbarn.example>": {
+    "category": "not_job"
+  },
+  "<tom-0069@valuemart.example>": {
+    "category": "not_job"
+  },
+  "<tom-0137@bookbarn.example>": {
+    "category": "not_job"
+  },
+  "<tom-0091@councilbins.example>": {
+    "category": "not_job"
+  },
+  "<tom-0134@valuemart.example>": {
+    "category": "not_job"
+  },
+  "<tom-0100@picturehouse.example>": {
+    "category": "not_job"
+  },
+  "<tom-0016@northernrail.example>": {
+    "category": "not_job"
+  },
+  "<tom-0018@reddevilsfans.example>": {
+    "category": "not_job"
+  },
+  "<tom-0075@mcrevening.example>": {
+    "category": "not_job"
+  },
+  "<tom-0136@northwater.example>": {
+    "category": "not_job"
+  },
+  "<tom-0118@reddevilsfans.example>": {
+    "category": "not_job"
+  },
+  "<tom-0024@streamflix.example>": {
+    "category": "not_job"
+  },
+  "<tom-0113@canalwalks.example>": {
+    "category": "not_job"
+  },
+  "<tom-0110@picturehouse.example>": {
+    "category": "not_job"
+  },
+  "<tom-0008@reddevilsfans.example>": {
+    "category": "not_job"
+  },
+  "<tom-0074@streamflix.example>": {
+    "category": "not_job"
+  },
+  "<tom-0041@councilbins.example>": {
+    "category": "not_job"
+  },
+  "<tom-0026@northernrail.example>": {
+    "category": "not_job"
+  },
+  "<tom-0005@mcrevening.example>": {
+    "category": "not_job"
+  },
+  "<tom-0028@reddevilsfans.example>": {
+    "category": "not_job"
+  },
+  "<tom-0033@canalwalks.example>": {
+    "category": "not_job"
+  },
+  "<tom-0131@metrotickets.example>": {
+    "category": "not_job"
+  },
+  "<tom-0046@northernrail.example>": {
+    "category": "not_job"
+  },
+  "<tom-0095@mcrevening.example>": {
+    "category": "not_job"
+  },
+  "<tom-0030@picturehouse.example>": {
+    "category": "not_job"
+  },
+  "<tom-0053@canalwalks.example>": {
+    "category": "not_job"
+  },
+  "<tom-0059@valuemart.example>": {
+    "category": "not_job"
+  },
+  "<tom-0130@valuemart.example>": {
+    "category": "not_job"
+  },
+  "<tom-0123@canalwalks.example>": {
+    "category": "not_job"
+  },
+  "<tom-0145@inbox.example>": {
+    "category": "not_job"
+  },
+  "<tom-0144@post.example>": {
+    "category": "not_job"
+  },
+  "<tom-0133@bookbarn.example>": {
+    "category": "not_job"
+  },
+  "<tom-0150@post.example>": {
+    "category": "not_job"
+  },
+  "<tom-0093@canalwalks.example>": {
+    "category": "not_job"
+  },
+  "<tom-0122@bookbarn.example>": {
+    "category": "not_job"
+  },
+  "<tom-0073@canalwalks.example>": {
+    "category": "not_job"
+  },
+  "<tom-0065@mcrevening.example>": {
+    "category": "not_job"
+  },
+  "<tom-0129@valuemart.example>": {
+    "category": "not_job"
+  },
+  "<tom-0107@fithubgym.example>": {
+    "category": "not_job"
+  },
+  "<tom-0035@mcrevening.example>": {
+    "category": "not_job"
+  },
+  "<tom-0055@mcrevening.example>": {
+    "category": "not_job"
+  },
+  "<tom-0038@reddevilsfans.example>": {
+    "category": "not_job"
+  },
+  "<tom-0141@inbox.example>": {
+    "category": "not_job"
+  },
+  "<tom-0054@streamflix.example>": {
+    "category": "not_job"
+  },
+  "<tom-0140@mail.example>": {
+    "category": "not_job"
+  },
+  "<tom-0119@valuemart.example>": {
+    "category": "not_job"
+  },
+  "<tom-0111@councilbins.example>": {
+    "category": "not_job"
+  },
+  "<tom-0101@councilbins.example>": {
+    "category": "not_job"
+  },
+  "<tom-0102@bookbarn.example>": {
+    "category": "not_job"
+  },
+  "<tom-0014@streamflix.example>": {
+    "category": "not_job"
+  },
+  "<tom-0117@fithubgym.example>": {
+    "category": "not_job"
+  },
+  "<tom-0063@canalwalks.example>": {
+    "category": "not_job"
+  },
+  "<tom-0103@canalwalks.example>": {
+    "category": "not_job"
+  },
+  "<tom-0109@valuemart.example>": {
+    "category": "not_job"
+  },
+  "<tom-0092@bookbarn.example>": {
+    "category": "not_job"
+  },
+  "<tom-0143@inbox.example>": {
+    "category": "not_job"
+  },
+  "<tom-0045@mcrevening.example>": {
+    "category": "not_job"
+  },
+  "<tom-0142@post.example>": {
+    "category": "not_job"
+  },
+  "<tom-0025@mcrevening.example>": {
+    "category": "not_job"
+  },
+  "<tom-0078@reddevilsfans.example>": {
+    "category": "not_job"
+  },
+  "<tom-0126@northernrail.example>": {
+    "category": "not_job"
+  },
+  "<tom-0023@canalwalks.example>": {
+    "category": "not_job"
+  },
+  "<tom-0010@picturehouse.example>": {
+    "category": "not_job"
+  },
+  "<tom-0127@fithubgym.example>": {
+    "category": "not_job"
+  },
+  "<tom-0082@bookbarn.example>": {
+    "category": "not_job"
+  },
+  "<tom-0042@bookbarn.example>": {
+    "category": "not_job"
+  },
+  "<tom-0121@councilbins.example>": {
+    "category": "not_job"
+  },
+  "<tom-0066@northernrail.example>": {
+    "category": "not_job"
+  },
+  "<tom-0009@valuemart.example>": {
+    "category": "not_job"
+  },
+  "<tom-0072@bookbarn.example>": {
+    "category": "not_job"
+  }
+}

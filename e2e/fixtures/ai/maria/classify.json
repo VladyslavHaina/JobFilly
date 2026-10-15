@@ -1,0 +1,1802 @@
+{
+  "<maria-0504@ginasio-alfama.example>": {
+    "category": "not_job"
+  },
+  "<maria-0002@linkedin.com>": {
+    "category": "job_alert"
+  },
+  "<maria-0256@plantshop.example>": {
+    "category": "not_job"
+  },
+  "<maria-0324@museudigital.example>": {
+    "category": "not_job"
+  },
+  "<maria-0320@gonews.example>": {
+    "category": "not_job"
+  },
+  "<maria-0273@trailrunner.example>": {
+    "category": "not_job"
+  },
+  "<maria-0370@lisboaguide.example>": {
+    "category": "not_job"
+  },
+  "<maria-0001@talentbruecke.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0148@quaysidebank.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0528@vodafino.example>": {
+    "category": "not_job"
+  },
+  "<maria-0172@rheinpfad.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0534@ginasio-alfama.example>": {
+    "category": "not_job"
+  },
+  "<maria-0131@rheinpfad.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0352@lisboaguide.example>": {
+    "category": "not_job"
+  },
+  "<maria-0041@linkedin.com>": {
+    "category": "job_alert"
+  },
+  "<maria-0003@nordlicht-pay.example>": {
+    "category": "interview"
+  },
+  "<maria-0010@inbox.example>": {
+    "category": "other_job"
+  },
+  "<maria-0009@copperleaf.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0228@teamtailor.com>": {
+    "category": "application_update"
+  },
+  "<maria-0144@alfamalabs.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0209@personio.de>": {
+    "category": "application_update"
+  },
+  "<maria-0004@hirewave.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0443@kitchenstories.example>": {
+    "category": "not_job"
+  },
+  "<maria-0321@skylusa.example>": {
+    "category": "not_job"
+  },
+  "<maria-0245@kitchenstories.example>": {
+    "category": "not_job"
+  },
+  "<maria-0465@skylusa.example>": {
+    "category": "not_job"
+  },
+  "<maria-0340@streambox.example>": {
+    "category": "not_job"
+  },
+  "<maria-0005@polder-talent.example>": {
+    "invalid": true
+  },
+  "<maria-0199@smartrecruiters.com>": {
+    "category": "application_update"
+  },
+  "<maria-0372@climbportugal.example>": {
+    "category": "not_job"
+  },
+  "<maria-0043@linkedin.com>": {
+    "category": "job_alert"
+  },
+  "<maria-0077@xing.com>": {
+    "category": "job_alert"
+  },
+  "<maria-0080@grachtwerk.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0042@indeed.com>": {
+    "category": "job_alert"
+  },
+  "<maria-0578@mail.example>": {
+    "category": "not_job"
+  },
+  "<maria-0116@quaysidebank.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0583@mail.example>": {
+    "category": "not_job"
+  },
+  "<maria-0511@skylusa.example>": {
+    "category": "not_job"
+  },
+  "<maria-0480@booknest.example>": {
+    "category": "not_job"
+  },
+  "<maria-0126@dourofintech.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0012@inbox.example>": {
+    "category": "other_job"
+  },
+  "<maria-0354@climbportugal.example>": {
+    "category": "not_job"
+  },
+  "<maria-0136@grachtwerk.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0207@hire.lever.co>": {
+    "category": "application_update"
+  },
+  "<maria-0365@eurobackendconf.example>": {
+    "category": "not_job"
+  },
+  "<maria-0283@pgdigest.example>": {
+    "category": "not_job"
+  },
+  "<maria-0151@atlantico-talent.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0011@talentbruecke.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0258@cinemaforum.example>": {
+    "category": "not_job"
+  },
+  "<maria-0475@devweekly.example>": {
+    "category": "not_job"
+  },
+  "<maria-0574@mail.example>": {
+    "category": "not_job"
+  },
+  "<maria-0201@greenhouse-mail.io>": {
+    "category": "application_update"
+  },
+  "<maria-0322@streambox.example>": {
+    "category": "not_job"
+  },
+  "<maria-0533@streambox.example>": {
+    "category": "not_job"
+  },
+  "<maria-0482@mercadofresco.example>": {
+    "category": "not_job"
+  },
+  "<maria-0216@personio.de>": {
+    "category": "application_update"
+  },
+  "<maria-0497@cityride.example>": {
+    "category": "not_job"
+  },
+  "<maria-0198@alfamalabs.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0284@gonews.example>": {
+    "category": "not_job"
+  },
+  "<maria-0157@isar-personal.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0007@kanaalstraat.example>": {
+    "category": "offer"
+  },
+  "<maria-0290@readly.example>": {
+    "category": "not_job"
+  },
+  "<maria-0232@greenhouse-mail.io>": {
+    "category": "application_update"
+  },
+  "<maria-0195@dourofintech.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0202@personio.de>": {
+    "category": "application_update"
+  },
+  "<maria-0248@gonews.example>": {
+    "category": "not_job"
+  },
+  "<maria-0349@devweekly.example>": {
+    "category": "not_job"
+  },
+  "<maria-0297@lojastejo.example>": {
+    "category": "not_job"
+  },
+  "<maria-0585@mail.example>": {
+    "category": "not_job"
+  },
+  "<maria-0505@parkingpay.example>": {
+    "category": "not_job"
+  },
+  "<maria-0102@grachtwerk.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0082@northbridge-talent.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0530@booknest.example>": {
+    "category": "not_job"
+  },
+  "<maria-0062@linkedin.com>": {
+    "category": "job_alert"
+  },
+  "<maria-0008@hire.lever.co>": {
+    "category": "rejection"
+  },
+  "<maria-0247@pgdigest.example>": {
+    "category": "not_job"
+  },
+  "<maria-0470@readly.example>": {
+    "category": "not_job"
+  },
+  "<maria-0064@nationalevacaturebank.nl>": {
+    "category": "job_alert"
+  },
+  "<maria-0357@skylusa.example>": {
+    "category": "not_job"
+  },
+  "<maria-0081@atlantictech.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0014@inbox.example>": {
+    "category": "other_job"
+  },
+  "<maria-0154@northbridge-talent.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0094@tidewater.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0013@polder-talent.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0230@myworkday.com>": {
+    "category": "application_update"
+  },
+  "<maria-0551@inbox.example>": {
+    "category": "not_job"
+  },
+  "<maria-0063@net-empregos.com>": {
+    "category": "job_alert"
+  },
+  "<maria-0211@personio.de>": {
+    "category": "application_update"
+  },
+  "<maria-0391@pgdigest.example>": {
+    "category": "not_job"
+  },
+  "<maria-0550@mail.example>": {
+    "category": "not_job"
+  },
+  "<maria-0226@smartrecruiters.com>": {
+    "category": "application_update"
+  },
+  "<maria-0280@lisboaguide.example>": {
+    "category": "not_job"
+  },
+  "<maria-0477@cityride.example>": {
+    "category": "not_job"
+  },
+  "<maria-0107@brightwave.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0285@skylusa.example>": {
+    "category": "not_job"
+  },
+  "<maria-0375@skylusa.example>": {
+    "category": "not_job"
+  },
+  "<maria-0167@tidewater.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0096@polder-talent.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0394@streambox.example>": {
+    "category": "not_job"
+  },
+  "<maria-0445@pgdigest.example>": {
+    "category": "not_job"
+  },
+  "<maria-0061@stepstone.de>": {
+    "category": "job_alert"
+  },
+  "<maria-0351@lojastejo.example>": {
+    "category": "not_job"
+  },
+  "<maria-0316@lisboaguide.example>": {
+    "category": "not_job"
+  },
+  "<maria-0039@indeed.com>": {
+    "category": "job_alert"
+  },
+  "<maria-0203@greenhouse-mail.io>": {
+    "category": "application_update"
+  },
+  "<maria-0500@booknest.example>": {
+    "category": "not_job"
+  },
+  "<maria-0135@atlantictech.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0502@mercadofresco.example>": {
+    "category": "not_job"
+  },
+  "<maria-0590@mail.example>": {
+    "category": "not_job"
+  },
+  "<maria-0140@harbour-rec.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0070@xing.com>": {
+    "category": "job_alert"
+  },
+  "<maria-0016@inbox.example>": {
+    "category": "other_job"
+  },
+  "<maria-0125@alfamalabs.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0488@vodafino.example>": {
+    "category": "not_job"
+  },
+  "<maria-0015@dourofintech.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0208@workablemail.com>": {
+    "category": "application_update"
+  },
+  "<maria-0270@museudigital.example>": {
+    "category": "not_job"
+  },
+  "<maria-0183@dijkstra-logistics.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0057@indeed.com>": {
+    "category": "job_alert"
+  },
+  "<maria-0395@linguapal.example>": {
+    "category": "not_job"
+  },
+  "<maria-0055@stepstone.de>": {
+    "category": "job_alert"
+  },
+  "<maria-0072@indeed.com>": {
+    "category": "job_alert"
+  },
+  "<maria-0227@greenhouse-mail.io>": {
+    "category": "application_update"
+  },
+  "<maria-0006@globalcareers-mail.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0451@oceancharity.example>": {
+    "category": "not_job"
+  },
+  "<maria-0295@devweekly.example>": {
+    "category": "not_job"
+  },
+  "<maria-0134@rheinpfad.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0262@lisboaguide.example>": {
+    "category": "not_job"
+  },
+  "<maria-0326@readly.example>": {
+    "category": "not_job"
+  },
+  "<maria-0079@rheinpfad.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0450@museudigital.example>": {
+    "category": "not_job"
+  },
+  "<maria-0159@rheinpfad.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0158@talentbruecke.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0468@museudigital.example>": {
+    "category": "not_job"
+  },
+  "<maria-0147@talentbruecke.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0054@indeed.com>": {
+    "category": "job_alert"
+  },
+  "<maria-0381@trailrunner.example>": {
+    "category": "not_job"
+  },
+  "<maria-0426@climbportugal.example>": {
+    "category": "not_job"
+  },
+  "<maria-0469@oceancharity.example>": {
+    "category": "not_job"
+  },
+  "<maria-0115@alfamalabs.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0180@molenwijkbank.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0325@oceancharity.example>": {
+    "category": "not_job"
+  },
+  "<maria-0311@eurobackendconf.example>": {
+    "category": "not_job"
+  },
+  "<maria-0109@talentbruecke.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0261@lojastejo.example>": {
+    "category": "not_job"
+  },
+  "<maria-0517@cityride.example>": {
+    "category": "not_job"
+  },
+  "<maria-0018@inbox.example>": {
+    "category": "other_job"
+  },
+  "<maria-0194@rheinpfad.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0048@stepstone.de>": {
+    "category": "job_alert"
+  },
+  "<maria-0310@plantshop.example>": {
+    "category": "not_job"
+  },
+  "<maria-0401@eurobackendconf.example>": {
+    "category": "not_job"
+  },
+  "<maria-0543@streambox.example>": {
+    "category": "not_job"
+  },
+  "<maria-0123@talentbruecke.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0017@harbour-rec.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0040@nationalevacaturebank.nl>": {
+    "category": "job_alert"
+  },
+  "<maria-0363@trailrunner.example>": {
+    "category": "not_job"
+  },
+  "<maria-0071@linkedin.com>": {
+    "category": "job_alert"
+  },
+  "<maria-0481@skylusa.example>": {
+    "category": "not_job"
+  },
+  "<maria-0396@museudigital.example>": {
+    "category": "not_job"
+  },
+  "<maria-0382@plantshop.example>": {
+    "category": "not_job"
+  },
+  "<maria-0565@post.example>": {
+    "category": "not_job"
+  },
+  "<maria-0118@dijkstra-logistics.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0243@lojastejo.example>": {
+    "category": "not_job"
+  },
+  "<maria-0484@ginasio-alfama.example>": {
+    "category": "not_job"
+  },
+  "<maria-0515@parkingpay.example>": {
+    "category": "not_job"
+  },
+  "<maria-0509@electra-energia.example>": {
+    "category": "not_job"
+  },
+  "<maria-0441@lojastejo.example>": {
+    "category": "not_job"
+  },
+  "<maria-0272@readly.example>": {
+    "category": "not_job"
+  },
+  "<maria-0111@alfamalabs.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0065@nationalevacaturebank.nl>": {
+    "category": "job_alert"
+  },
+  "<maria-0569@mail.example>": {
+    "category": "not_job"
+  },
+  "<maria-0150@talentbruecke.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0479@electra-energia.example>": {
+    "category": "not_job"
+  },
+  "<maria-0210@workablemail.com>": {
+    "category": "application_update"
+  },
+  "<maria-0355@pgdigest.example>": {
+    "category": "not_job"
+  },
+  "<maria-0268@streambox.example>": {
+    "category": "not_job"
+  },
+  "<maria-0095@molenwijkbank.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0237@atlantictech.example>": {
+    "category": "other_job"
+  },
+  "<maria-0377@linguapal.example>": {
+    "category": "not_job"
+  },
+  "<maria-0570@mail.example>": {
+    "category": "not_job"
+  },
+  "<maria-0519@electra-energia.example>": {
+    "category": "not_job"
+  },
+  "<maria-0397@oceancharity.example>": {
+    "category": "not_job"
+  },
+  "<maria-0173@quaysidebank.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0442@lisboaguide.example>": {
+    "category": "not_job"
+  },
+  "<maria-0347@eurobackendconf.example>": {
+    "category": "not_job"
+  },
+  "<maria-0314@backendbrief.example>": {
+    "category": "not_job"
+  },
+  "<maria-0132@northbridge-talent.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0020@inbox.example>": {
+    "category": "other_job"
+  },
+  "<maria-0276@cinemaforum.example>": {
+    "category": "not_job"
+  },
+  "<maria-0220@greenhouse-mail.io>": {
+    "category": "application_update"
+  },
+  "<maria-0522@mercadofresco.example>": {
+    "category": "not_job"
+  },
+  "<maria-0019@brightwave.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0378@museudigital.example>": {
+    "category": "not_job"
+  },
+  "<maria-0571@mail.example>": {
+    "category": "not_job"
+  },
+  "<maria-0142@brightwave.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0333@lojastejo.example>": {
+    "category": "not_job"
+  },
+  "<maria-0066@net-empregos.com>": {
+    "category": "job_alert"
+  },
+  "<maria-0308@readly.example>": {
+    "category": "not_job"
+  },
+  "<maria-0293@eurobackendconf.example>": {
+    "category": "not_job"
+  },
+  "<maria-0176@harbour-rec.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0175@isar-personal.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0518@vodafino.example>": {
+    "category": "not_job"
+  },
+  "<maria-0193@polder-talent.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0374@gonews.example>": {
+    "category": "not_job"
+  },
+  "<maria-0473@eurobackendconf.example>": {
+    "category": "not_job"
+  },
+  "<maria-0186@brightwave.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0319@pgdigest.example>": {
+    "category": "not_job"
+  },
+  "<maria-0589@post.example>": {
+    "category": "not_job"
+  },
+  "<maria-0388@lisboaguide.example>": {
+    "category": "not_job"
+  },
+  "<maria-0139@elbwerk.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0348@cinemaforum.example>": {
+    "category": "not_job"
+  },
+  "<maria-0376@streambox.example>": {
+    "category": "not_job"
+  },
+  "<maria-0584@mail.example>": {
+    "category": "not_job"
+  },
+  "<maria-0425@kitchenstories.example>": {
+    "category": "not_job"
+  },
+  "<maria-0466@streambox.example>": {
+    "category": "not_job"
+  },
+  "<maria-0303@skylusa.example>": {
+    "category": "not_job"
+  },
+  "<maria-0152@elbwerk.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0535@parkingpay.example>": {
+    "category": "not_job"
+  },
+  "<maria-0305@linguapal.example>": {
+    "category": "not_job"
+  },
+  "<maria-0463@pgdigest.example>": {
+    "category": "not_job"
+  },
+  "<maria-0540@booknest.example>": {
+    "category": "not_job"
+  },
+  "<maria-0556@mail.example>": {
+    "category": "not_job"
+  },
+  "<maria-0587@post.example>": {
+    "category": "not_job"
+  },
+  "<maria-0304@streambox.example>": {
+    "category": "not_job"
+  },
+  "<maria-0092@tidewater.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0138@atlantico-talent.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0022@inbox.example>": {
+    "category": "other_job"
+  },
+  "<maria-0242@backendbrief.example>": {
+    "category": "not_job"
+  },
+  "<maria-0093@ribeira-rh.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0264@climbportugal.example>": {
+    "category": "not_job"
+  },
+  "<maria-0021@talentbruecke.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0436@plantshop.example>": {
+    "category": "not_job"
+  },
+  "<maria-0367@devweekly.example>": {
+    "category": "not_job"
+  },
+  "<maria-0105@atlantico-talent.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0069@net-empregos.com>": {
+    "category": "job_alert"
+  },
+  "<maria-0510@booknest.example>": {
+    "category": "not_job"
+  },
+  "<maria-0149@rheinpfad.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0561@post.example>": {
+    "category": "not_job"
+  },
+  "<maria-0104@dijkstra-logistics.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0430@streambox.example>": {
+    "category": "not_job"
+  },
+  "<maria-0593@post.example>": {
+    "category": "not_job"
+  },
+  "<maria-0338@gonews.example>": {
+    "category": "not_job"
+  },
+  "<maria-0278@backendbrief.example>": {
+    "category": "not_job"
+  },
+  "<maria-0234@workablemail.com>": {
+    "category": "assessment"
+  },
+  "<maria-0437@eurobackendconf.example>": {
+    "category": "not_job"
+  },
+  "<maria-0449@linguapal.example>": {
+    "category": "not_job"
+  },
+  "<maria-0255@trailrunner.example>": {
+    "category": "not_job"
+  },
+  "<maria-0051@net-empregos.com>": {
+    "category": "job_alert"
+  },
+  "<maria-0524@ginasio-alfama.example>": {
+    "category": "not_job"
+  },
+  "<maria-0281@kitchenstories.example>": {
+    "category": "not_job"
+  },
+  "<maria-0330@cinemaforum.example>": {
+    "category": "not_job"
+  },
+  "<maria-0073@stepstone.de>": {
+    "category": "job_alert"
+  },
+  "<maria-0133@atlantico-talent.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0433@oceancharity.example>": {
+    "category": "not_job"
+  },
+  "<maria-0405@lojastejo.example>": {
+    "category": "not_job"
+  },
+  "<maria-0455@eurobackendconf.example>": {
+    "category": "not_job"
+  },
+  "<maria-0046@linkedin.com>": {
+    "category": "job_alert"
+  },
+  "<maria-0512@mercadofresco.example>": {
+    "category": "not_job"
+  },
+  "<maria-0380@readly.example>": {
+    "category": "not_job"
+  },
+  "<maria-0024@inbox.example>": {
+    "category": "other_job"
+  },
+  "<maria-0508@vodafino.example>": {
+    "category": "not_job"
+  },
+  "<maria-0179@talentbruecke.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0421@devweekly.example>": {
+    "category": "not_job"
+  },
+  "<maria-0023@molenwijkbank.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0359@linguapal.example>": {
+    "category": "not_job"
+  },
+  "<maria-0068@xing.com>": {
+    "category": "job_alert"
+  },
+  "<maria-0523@streambox.example>": {
+    "category": "not_job"
+  },
+  "<maria-0246@climbportugal.example>": {
+    "category": "not_job"
+  },
+  "<maria-0260@backendbrief.example>": {
+    "category": "not_job"
+  },
+  "<maria-0527@cityride.example>": {
+    "category": "not_job"
+  },
+  "<maria-0576@mail.example>": {
+    "category": "not_job"
+  },
+  "<maria-0537@cityride.example>": {
+    "category": "not_job"
+  },
+  "<maria-0296@backendbrief.example>": {
+    "category": "not_job"
+  },
+  "<maria-0289@oceancharity.example>": {
+    "category": "not_job"
+  },
+  "<maria-0165@copperleaf.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0130@alfamalabs.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0549@inbox.example>": {
+    "category": "not_job"
+  },
+  "<maria-0548@mail.example>": {
+    "category": "not_job"
+  },
+  "<maria-0336@climbportugal.example>": {
+    "category": "not_job"
+  },
+  "<maria-0219@recruitee.com>": {
+    "category": "application_update"
+  },
+  "<maria-0301@pgdigest.example>": {
+    "category": "not_job"
+  },
+  "<maria-0591@mail.example>": {
+    "category": "not_job"
+  },
+  "<maria-0164@elbwerk.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0279@lojastejo.example>": {
+    "category": "not_job"
+  },
+  "<maria-0562@mail.example>": {
+    "category": "not_job"
+  },
+  "<maria-0467@linguapal.example>": {
+    "category": "not_job"
+  },
+  "<maria-0286@streambox.example>": {
+    "category": "not_job"
+  },
+  "<maria-0492@mercadofresco.example>": {
+    "category": "not_job"
+  },
+  "<maria-0128@quaysidebank.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0026@inbox.example>": {
+    "category": "other_job"
+  },
+  "<maria-0444@climbportugal.example>": {
+    "category": "not_job"
+  },
+  "<maria-0542@mercadofresco.example>": {
+    "category": "not_job"
+  },
+  "<maria-0427@pgdigest.example>": {
+    "category": "not_job"
+  },
+  "<maria-0404@backendbrief.example>": {
+    "category": "not_job"
+  },
+  "<maria-0459@lojastejo.example>": {
+    "category": "not_job"
+  },
+  "<maria-0472@plantshop.example>": {
+    "category": "not_job"
+  },
+  "<maria-0112@polder-talent.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0025@tidewater.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0438@cinemaforum.example>": {
+    "category": "not_job"
+  },
+  "<maria-0269@linguapal.example>": {
+    "category": "not_job"
+  },
+  "<maria-0595@mail.example>": {
+    "category": "not_job"
+  },
+  "<maria-0592@mail.example>": {
+    "category": "not_job"
+  },
+  "<maria-0516@lojastejo.example>": {
+    "category": "not_job"
+  },
+  "<maria-0161@harbour-rec.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0250@streambox.example>": {
+    "category": "not_job"
+  },
+  "<maria-0447@skylusa.example>": {
+    "category": "not_job"
+  },
+  "<maria-0257@eurobackendconf.example>": {
+    "category": "not_job"
+  },
+  "<maria-0085@elbwerk.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0582@mail.example>": {
+    "category": "not_job"
+  },
+  "<maria-0385@devweekly.example>": {
+    "category": "not_job"
+  },
+  "<maria-0346@plantshop.example>": {
+    "category": "not_job"
+  },
+  "<maria-0271@oceancharity.example>": {
+    "category": "not_job"
+  },
+  "<maria-0440@backendbrief.example>": {
+    "category": "not_job"
+  },
+  "<maria-0360@museudigital.example>": {
+    "category": "not_job"
+  },
+  "<maria-0329@eurobackendconf.example>": {
+    "category": "not_job"
+  },
+  "<maria-0189@grachtwerk.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0182@grachtwerk.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0252@museudigital.example>": {
+    "category": "not_job"
+  },
+  "<maria-0408@climbportugal.example>": {
+    "category": "not_job"
+  },
+  "<maria-0564@mail.example>": {
+    "category": "not_job"
+  },
+  "<maria-0028@inbox.example>": {
+    "category": "other_job"
+  },
+  "<maria-0145@polder-talent.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0432@museudigital.example>": {
+    "category": "not_job"
+  },
+  "<maria-0323@linguapal.example>": {
+    "category": "not_job"
+  },
+  "<maria-0337@pgdigest.example>": {
+    "category": "not_job"
+  },
+  "<maria-0184@brightwave.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0153@isar-personal.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0027@atlantico-talent.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0265@pgdigest.example>": {
+    "category": "not_job"
+  },
+  "<maria-0114@dijkstra-logistics.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0235@dijkstra-logistics.example>": {
+    "category": "assessment"
+  },
+  "<maria-0393@skylusa.example>": {
+    "category": "not_job"
+  },
+  "<maria-0253@oceancharity.example>": {
+    "category": "not_job"
+  },
+  "<maria-0345@trailrunner.example>": {
+    "category": "not_job"
+  },
+  "<maria-0188@grachtwerk.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0386@backendbrief.example>": {
+    "category": "not_job"
+  },
+  "<maria-0520@booknest.example>": {
+    "category": "not_job"
+  },
+  "<maria-0557@mail.example>": {
+    "category": "not_job"
+  },
+  "<maria-0596@mail.example>": {
+    "category": "not_job"
+  },
+  "<maria-0049@net-empregos.com>": {
+    "category": "job_alert"
+  },
+  "<maria-0084@quaysidebank.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0493@streambox.example>": {
+    "category": "not_job"
+  },
+  "<maria-0541@skylusa.example>": {
+    "category": "not_job"
+  },
+  "<maria-0417@trailrunner.example>": {
+    "category": "not_job"
+  },
+  "<maria-0409@pgdigest.example>": {
+    "category": "not_job"
+  },
+  "<maria-0327@trailrunner.example>": {
+    "category": "not_job"
+  },
+  "<maria-0490@booknest.example>": {
+    "category": "not_job"
+  },
+  "<maria-0419@eurobackendconf.example>": {
+    "category": "not_job"
+  },
+  "<maria-0536@lojastejo.example>": {
+    "category": "not_job"
+  },
+  "<maria-0406@lisboaguide.example>": {
+    "category": "not_job"
+  },
+  "<maria-0292@plantshop.example>": {
+    "category": "not_job"
+  },
+  "<maria-0187@quaysidebank.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0129@copperleaf.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0214@teamtailor.com>": {
+    "category": "application_update"
+  },
+  "<maria-0414@museudigital.example>": {
+    "category": "not_job"
+  },
+  "<maria-0103@quaysidebank.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0315@lojastejo.example>": {
+    "category": "not_job"
+  },
+  "<maria-0124@northbridge-talent.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0030@inbox.example>": {
+    "category": "other_job"
+  },
+  "<maria-0538@vodafino.example>": {
+    "category": "not_job"
+  },
+  "<maria-0263@kitchenstories.example>": {
+    "category": "not_job"
+  },
+  "<maria-0177@quaysidebank.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0029@tidewater.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0558@mail.example>": {
+    "category": "not_job"
+  },
+  "<maria-0251@linguapal.example>": {
+    "category": "not_job"
+  },
+  "<maria-0156@alfamalabs.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0088@talentbruecke.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0507@cityride.example>": {
+    "category": "not_job"
+  },
+  "<maria-0521@skylusa.example>": {
+    "category": "not_job"
+  },
+  "<maria-0120@rheinpfad.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0122@atlantico-talent.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0398@readly.example>": {
+    "category": "not_job"
+  },
+  "<maria-0448@streambox.example>": {
+    "category": "not_job"
+  },
+  "<maria-0099@isar-personal.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0392@gonews.example>": {
+    "category": "not_job"
+  },
+  "<maria-0529@electra-energia.example>": {
+    "category": "not_job"
+  },
+  "<maria-0307@oceancharity.example>": {
+    "category": "not_job"
+  },
+  "<maria-0513@streambox.example>": {
+    "category": "not_job"
+  },
+  "<maria-0413@linguapal.example>": {
+    "category": "not_job"
+  },
+  "<maria-0485@parkingpay.example>": {
+    "category": "not_job"
+  },
+  "<maria-0588@mail.example>": {
+    "category": "not_job"
+  },
+  "<maria-0205@hire.lever.co>": {
+    "category": "application_update"
+  },
+  "<maria-0361@oceancharity.example>": {
+    "category": "not_job"
+  },
+  "<maria-0045@nationalevacaturebank.nl>": {
+    "category": "job_alert"
+  },
+  "<maria-0600@post.example>": {
+    "category": "not_job"
+  },
+  "<maria-0060@net-empregos.com>": {
+    "category": "job_alert"
+  },
+  "<maria-0078@rheinpfad.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0170@brightwave.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0254@readly.example>": {
+    "category": "not_job"
+  },
+  "<maria-0306@museudigital.example>": {
+    "category": "not_job"
+  },
+  "<maria-0089@dijkstra-logistics.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0389@kitchenstories.example>": {
+    "category": "not_job"
+  },
+  "<maria-0501@skylusa.example>": {
+    "category": "not_job"
+  },
+  "<maria-0383@eurobackendconf.example>": {
+    "category": "not_job"
+  },
+  "<maria-0032@inbox.example>": {
+    "category": "other_job"
+  },
+  "<maria-0031@talentbruecke.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0579@mail.example>": {
+    "category": "not_job"
+  },
+  "<maria-0464@gonews.example>": {
+    "category": "not_job"
+  },
+  "<maria-0580@mail.example>": {
+    "category": "not_job"
+  },
+  "<maria-0456@cinemaforum.example>": {
+    "category": "not_job"
+  },
+  "<maria-0174@atlantico-talent.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0412@streambox.example>": {
+    "category": "not_job"
+  },
+  "<maria-0231@hire.lever.co>": {
+    "category": "application_update"
+  },
+  "<maria-0514@ginasio-alfama.example>": {
+    "category": "not_job"
+  },
+  "<maria-0461@kitchenstories.example>": {
+    "category": "not_job"
+  },
+  "<maria-0454@plantshop.example>": {
+    "category": "not_job"
+  },
+  "<maria-0238@northbridge-talent.example>": {
+    "category": "other_job"
+  },
+  "<maria-0553@inbox.example>": {
+    "category": "not_job"
+  },
+  "<maria-0418@plantshop.example>": {
+    "category": "not_job"
+  },
+  "<maria-0532@mercadofresco.example>": {
+    "category": "not_job"
+  },
+  "<maria-0599@mail.example>": {
+    "category": "not_job"
+  },
+  "<maria-0552@mail.example>": {
+    "category": "not_job"
+  },
+  "<maria-0197@talentbruecke.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0108@isar-personal.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0098@alfamalabs.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0402@cinemaforum.example>": {
+    "category": "not_job"
+  },
+  "<maria-0225@smartrecruiters.com>": {
+    "category": "application_update"
+  },
+  "<maria-0059@xing.com>": {
+    "category": "job_alert"
+  },
+  "<maria-0567@mail.example>": {
+    "category": "not_job"
+  },
+  "<maria-0531@skylusa.example>": {
+    "category": "not_job"
+  },
+  "<maria-0141@atlantictech.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0400@plantshop.example>": {
+    "category": "not_job"
+  },
+  "<maria-0146@ribeira-rh.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0239@ribeira-rh.example>": {
+    "category": "other_job"
+  },
+  "<maria-0241@devweekly.example>": {
+    "category": "not_job"
+  },
+  "<maria-0344@readly.example>": {
+    "category": "not_job"
+  },
+  "<maria-0318@climbportugal.example>": {
+    "category": "not_job"
+  },
+  "<maria-0076@nationalevacaturebank.nl>": {
+    "category": "job_alert"
+  },
+  "<maria-0403@devweekly.example>": {
+    "category": "not_job"
+  },
+  "<maria-0331@devweekly.example>": {
+    "category": "not_job"
+  },
+  "<maria-0309@trailrunner.example>": {
+    "category": "not_job"
+  },
+  "<maria-0457@devweekly.example>": {
+    "category": "not_job"
+  },
+  "<maria-0244@lisboaguide.example>": {
+    "category": "not_job"
+  },
+  "<maria-0598@mail.example>": {
+    "category": "not_job"
+  },
+  "<maria-0121@tidewater.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0229@hire.lever.co>": {
+    "category": "application_update"
+  },
+  "<maria-0034@inbox.example>": {
+    "category": "other_job"
+  },
+  "<maria-0491@skylusa.example>": {
+    "category": "not_job"
+  },
+  "<maria-0415@oceancharity.example>": {
+    "category": "not_job"
+  },
+  "<maria-0033@polder-talent.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0424@lisboaguide.example>": {
+    "category": "not_job"
+  },
+  "<maria-0439@devweekly.example>": {
+    "category": "not_job"
+  },
+  "<maria-0539@electra-energia.example>": {
+    "category": "not_job"
+  },
+  "<maria-0178@alfamalabs.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0277@devweekly.example>": {
+    "category": "not_job"
+  },
+  "<maria-0047@net-empregos.com>": {
+    "category": "job_alert"
+  },
+  "<maria-0169@rheinpfad.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0572@mail.example>": {
+    "category": "not_job"
+  },
+  "<maria-0431@linguapal.example>": {
+    "category": "not_job"
+  },
+  "<maria-0299@kitchenstories.example>": {
+    "category": "not_job"
+  },
+  "<maria-0224@recruitee.com>": {
+    "category": "application_update"
+  },
+  "<maria-0217@smartrecruiters.com>": {
+    "category": "application_update"
+  },
+  "<maria-0212@greenhouse-mail.io>": {
+    "category": "application_update"
+  },
+  "<maria-0233@personio.de>": {
+    "category": "application_update"
+  },
+  "<maria-0298@lisboaguide.example>": {
+    "category": "not_job"
+  },
+  "<maria-0422@backendbrief.example>": {
+    "category": "not_job"
+  },
+  "<maria-0453@trailrunner.example>": {
+    "category": "not_job"
+  },
+  "<maria-0566@post.example>": {
+    "category": "not_job"
+  },
+  "<maria-0236@lisbontechfair.example>": {
+    "category": "other_job"
+  },
+  "<maria-0127@talentbruecke.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0489@electra-energia.example>": {
+    "category": "not_job"
+  },
+  "<maria-0160@atlantictech.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0387@lojastejo.example>": {
+    "category": "not_job"
+  },
+  "<maria-0143@talentbruecke.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0106@elbwerk.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0162@talentbruecke.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0559@mail.example>": {
+    "category": "not_job"
+  },
+  "<maria-0221@greenhouse-mail.io>": {
+    "category": "application_update"
+  },
+  "<maria-0287@linguapal.example>": {
+    "category": "not_job"
+  },
+  "<maria-0407@kitchenstories.example>": {
+    "category": "not_job"
+  },
+  "<maria-0036@inbox.example>": {
+    "category": "other_job"
+  },
+  "<maria-0586@mail.example>": {
+    "category": "not_job"
+  },
+  "<maria-0300@climbportugal.example>": {
+    "category": "not_job"
+  },
+  "<maria-0101@quaysidebank.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0458@backendbrief.example>": {
+    "category": "not_job"
+  },
+  "<maria-0366@cinemaforum.example>": {
+    "category": "not_job"
+  },
+  "<maria-0035@ribeira-rh.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0171@elbwerk.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0339@skylusa.example>": {
+    "category": "not_job"
+  },
+  "<maria-0067@linkedin.com>": {
+    "category": "job_alert"
+  },
+  "<maria-0294@cinemaforum.example>": {
+    "category": "not_job"
+  },
+  "<maria-0581@post.example>": {
+    "category": "not_job"
+  },
+  "<maria-0213@smartrecruiters.com>": {
+    "category": "application_update"
+  },
+  "<maria-0560@mail.example>": {
+    "category": "not_job"
+  },
+  "<maria-0181@rheinpfad.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0597@mail.example>": {
+    "category": "not_job"
+  },
+  "<maria-0334@lisboaguide.example>": {
+    "category": "not_job"
+  },
+  "<maria-0471@trailrunner.example>": {
+    "category": "not_job"
+  },
+  "<maria-0379@oceancharity.example>": {
+    "category": "not_job"
+  },
+  "<maria-0087@brightwave.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0249@skylusa.example>": {
+    "category": "not_job"
+  },
+  "<maria-0275@eurobackendconf.example>": {
+    "category": "not_job"
+  },
+  "<maria-0117@dijkstra-logistics.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0056@stepstone.de>": {
+    "category": "job_alert"
+  },
+  "<maria-0137@dourofintech.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0416@readly.example>": {
+    "category": "not_job"
+  },
+  "<maria-0274@plantshop.example>": {
+    "category": "not_job"
+  },
+  "<maria-0215@myworkday.com>": {
+    "category": "application_update"
+  },
+  "<maria-0547@inbox.example>": {
+    "category": "not_job"
+  },
+  "<maria-0390@climbportugal.example>": {
+    "category": "not_job"
+  },
+  "<maria-0546@post.example>": {
+    "category": "not_job"
+  },
+  "<maria-0223@greenhouse-mail.io>": {
+    "category": "application_update"
+  },
+  "<maria-0452@readly.example>": {
+    "category": "not_job"
+  },
+  "<maria-0435@trailrunner.example>": {
+    "category": "not_job"
+  },
+  "<maria-0487@cityride.example>": {
+    "category": "not_job"
+  },
+  "<maria-0446@gonews.example>": {
+    "category": "not_job"
+  },
+  "<maria-0476@lojastejo.example>": {
+    "category": "not_job"
+  },
+  "<maria-0342@museudigital.example>": {
+    "category": "not_job"
+  },
+  "<maria-0185@elbwerk.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0259@devweekly.example>": {
+    "category": "not_job"
+  },
+  "<maria-0200@recruitee.com>": {
+    "category": "application_update"
+  },
+  "<maria-0312@cinemaforum.example>": {
+    "category": "not_job"
+  },
+  "<maria-0097@molenwijkbank.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0267@skylusa.example>": {
+    "category": "not_job"
+  },
+  "<maria-0478@vodafino.example>": {
+    "category": "not_job"
+  },
+  "<maria-0190@tidewater.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0568@mail.example>": {
+    "category": "not_job"
+  },
+  "<maria-0191@isar-personal.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0288@museudigital.example>": {
+    "category": "not_job"
+  },
+  "<maria-0038@inbox.example>": {
+    "category": "other_job"
+  },
+  "<maria-0358@streambox.example>": {
+    "category": "not_job"
+  },
+  "<maria-0499@electra-energia.example>": {
+    "category": "not_job"
+  },
+  "<maria-0037@quaysidebank.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0428@gonews.example>": {
+    "category": "not_job"
+  },
+  "<maria-0240@mail.example>": {
+    "category": "other_job"
+  },
+  "<maria-0429@skylusa.example>": {
+    "category": "not_job"
+  },
+  "<maria-0495@parkingpay.example>": {
+    "category": "not_job"
+  },
+  "<maria-0503@streambox.example>": {
+    "category": "not_job"
+  },
+  "<maria-0291@trailrunner.example>": {
+    "category": "not_job"
+  },
+  "<maria-0573@mail.example>": {
+    "category": "not_job"
+  },
+  "<maria-0483@streambox.example>": {
+    "category": "not_job"
+  },
+  "<maria-0163@atlantictech.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0044@net-empregos.com>": {
+    "category": "job_alert"
+  },
+  "<maria-0420@cinemaforum.example>": {
+    "category": "not_job"
+  },
+  "<maria-0399@trailrunner.example>": {
+    "category": "not_job"
+  },
+  "<maria-0356@gonews.example>": {
+    "category": "not_job"
+  },
+  "<maria-0384@cinemaforum.example>": {
+    "category": "not_job"
+  },
+  "<maria-0168@dourofintech.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0343@oceancharity.example>": {
+    "category": "not_job"
+  },
+  "<maria-0075@linkedin.com>": {
+    "category": "job_alert"
+  },
+  "<maria-0364@plantshop.example>": {
+    "category": "not_job"
+  },
+  "<maria-0090@dourofintech.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0369@lojastejo.example>": {
+    "category": "not_job"
+  },
+  "<maria-0545@parkingpay.example>": {
+    "category": "not_job"
+  },
+  "<maria-0368@backendbrief.example>": {
+    "category": "not_job"
+  },
+  "<maria-0052@linkedin.com>": {
+    "category": "job_alert"
+  },
+  "<maria-0166@copperleaf.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0563@mail.example>": {
+    "category": "not_job"
+  },
+  "<maria-0222@workablemail.com>": {
+    "category": "application_update"
+  },
+  "<maria-0302@gonews.example>": {
+    "category": "not_job"
+  },
+  "<maria-0110@talentbruecke.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0053@nationalevacaturebank.nl>": {
+    "category": "job_alert"
+  },
+  "<maria-0594@mail.example>": {
+    "category": "not_job"
+  },
+  "<maria-0335@kitchenstories.example>": {
+    "category": "not_job"
+  },
+  "<maria-0317@kitchenstories.example>": {
+    "category": "not_job"
+  },
+  "<maria-0350@backendbrief.example>": {
+    "category": "not_job"
+  },
+  "<maria-0474@cinemaforum.example>": {
+    "category": "not_job"
+  },
+  "<maria-0555@inbox.example>": {
+    "category": "not_job"
+  },
+  "<maria-0119@northbridge-talent.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0554@mail.example>": {
+    "category": "not_job"
+  },
+  "<maria-0525@parkingpay.example>": {
+    "category": "not_job"
+  },
+  "<maria-0486@lojastejo.example>": {
+    "category": "not_job"
+  },
+  "<maria-0544@ginasio-alfama.example>": {
+    "category": "not_job"
+  },
+  "<maria-0577@mail.example>": {
+    "category": "not_job"
+  },
+  "<maria-0328@plantshop.example>": {
+    "category": "not_job"
+  },
+  "<maria-0113@ribeira-rh.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0498@vodafino.example>": {
+    "category": "not_job"
+  },
+  "<maria-0353@kitchenstories.example>": {
+    "category": "not_job"
+  },
+  "<maria-0058@net-empregos.com>": {
+    "category": "job_alert"
+  },
+  "<maria-0373@pgdigest.example>": {
+    "category": "not_job"
+  },
+  "<maria-0371@kitchenstories.example>": {
+    "category": "not_job"
+  },
+  "<maria-0083@northbridge-talent.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0086@polder-talent.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0155@elbwerk.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0411@skylusa.example>": {
+    "category": "not_job"
+  },
+  "<maria-0496@lojastejo.example>": {
+    "category": "not_job"
+  },
+  "<maria-0341@linguapal.example>": {
+    "category": "not_job"
+  },
+  "<maria-0575@mail.example>": {
+    "category": "not_job"
+  },
+  "<maria-0506@lojastejo.example>": {
+    "category": "not_job"
+  },
+  "<maria-0494@ginasio-alfama.example>": {
+    "category": "not_job"
+  },
+  "<maria-0434@readly.example>": {
+    "category": "not_job"
+  },
+  "<maria-0460@lisboaguide.example>": {
+    "category": "not_job"
+  },
+  "<maria-0196@quaysidebank.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0423@lojastejo.example>": {
+    "category": "not_job"
+  },
+  "<maria-0100@copperleaf.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0192@harbour-rec.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0362@readly.example>": {
+    "category": "not_job"
+  },
+  "<maria-0313@devweekly.example>": {
+    "category": "not_job"
+  },
+  "<maria-0091@polder-talent.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-0218@recruitee.com>": {
+    "category": "application_update"
+  },
+  "<maria-0204@myworkday.com>": {
+    "category": "application_update"
+  },
+  "<maria-0206@personio.de>": {
+    "category": "application_update"
+  },
+  "<maria-0074@xing.com>": {
+    "category": "job_alert"
+  },
+  "<maria-0332@backendbrief.example>": {
+    "category": "not_job"
+  },
+  "<maria-0266@gonews.example>": {
+    "category": "not_job"
+  },
+  "<maria-0526@lojastejo.example>": {
+    "category": "not_job"
+  },
+  "<maria-0282@climbportugal.example>": {
+    "category": "not_job"
+  },
+  "<maria-0050@stepstone.de>": {
+    "category": "job_alert"
+  },
+  "<maria-0410@gonews.example>": {
+    "category": "not_job"
+  },
+  "<maria-0462@climbportugal.example>": {
+    "category": "not_job"
+  }
+}

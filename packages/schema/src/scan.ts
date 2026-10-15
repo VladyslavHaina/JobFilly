@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { CountryCodeSchema, IsoDateTimeSchema } from "./common";
+import { CountryCodeSchema, IdSchema, IsoDateTimeSchema } from "./common";
 import { EnvelopeSchema } from "./mailbox";
 import { StageOneVerdictSchema } from "./messages";
 import { IntakeProposalSchema } from "./profile";
@@ -77,6 +77,9 @@ export const CurrentScanSchema = z.object({
   totalTokens: z.number().int().nonnegative(),
 });
 export type CurrentScan = z.infer<typeof CurrentScanSchema>;
+
+/** POST /scans/:scanId/cancel. */
+export const ScanParamsSchema = z.object({ scanId: IdSchema });
 
 /** The payload of a 'scan.run' job in the queue. */
 export const ScanRunPayloadSchema = z.object({ scanId: z.uuid(), workspaceId: z.uuid() });
@@ -156,3 +159,33 @@ export const TrackerStateSchema = z.object({
   budget: z.number().int().nonnegative(),
 });
 export type TrackerState = z.infer<typeof TrackerStateSchema>;
+
+/**
+ * What the confidence tracker remembers between batches, so a run taken over by another replica
+ * resumes with the same count of unchanged batches (it is kept in the scan job's checkpoint).
+ */
+export const TrackerMemorySchema = z.object({
+  /** The answers (each key's value and confidence) after the last batch; null before the first. */
+  lastAnswers: z.string().nullable(),
+  /** How many batches in a row changed no answer. */
+  unchangedBatches: z.number().int().nonnegative(),
+});
+export type TrackerMemory = z.infer<typeof TrackerMemorySchema>;
+
+/**
+ * What a 'scan.run' job saves after every batch, so a replica that takes the run over resumes it
+ * where the last batch ended: stage one is not redone, finished batches are not redone and their
+ * numbers are not reused, and the confidence tracker keeps its count of unchanged batches.
+ */
+export const ScanCheckpointSchema = z.object({
+  /** Likely job emails waiting when the run began: the Y of "after X of Y". */
+  likely: z.number().int().nonnegative(),
+  /** Sorted by stage one without a model call (0 for an "Analyze them" run). */
+  handledWithoutAi: z.number().int().nonnegative(),
+  /** The user's own replies have been read for preferences (the first scan reads them first). */
+  repliesRead: z.boolean(),
+  /** Batches finished so far, replies and likely job mail together; the next is batches + 1. */
+  batches: z.number().int().nonnegative(),
+  tracker: TrackerMemorySchema,
+});
+export type ScanCheckpoint = z.infer<typeof ScanCheckpointSchema>;
