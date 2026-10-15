@@ -1,5 +1,6 @@
 import type {
   AiClientSettings,
+  AiEvent,
   AiMailItem,
   AiTestOutput,
   BatchResult,
@@ -8,7 +9,6 @@ import type {
   IntakeExtraInput,
   IntakeExtraOutput,
   Preferences,
-  TaskId,
   TaskResult,
 } from "@jobfilly/schema";
 
@@ -17,17 +17,6 @@ import type {
 // against @jobfilly/schema, retried once when invalid, and never patched up. Mail content is
 // passed as untrusted data (F3.5). The connect slice implements this module; the names and types
 // below are the contract.
-
-/** Reported when an answer fails its schema; never carries model output or mail content. */
-export interface AiEvent {
-  event: "ai.output_invalid";
-  taskId: TaskId;
-  reason: "schema" | "missing" | "parse";
-  /** How many items were invalid. */
-  items: number;
-  /** 1 for the first answer, 2 for the retry. */
-  attempt: number;
-}
 
 export interface AiClientOptions {
   /** Replaces the global fetch (tests). */
