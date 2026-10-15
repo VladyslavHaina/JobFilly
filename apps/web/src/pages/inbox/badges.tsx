@@ -1,0 +1,27 @@
+import type { Category } from "@jobfilly/schema";
+import { CATEGORY_LABELS } from "./format";
+
+// The small labels of the job inbox: the category chip and the "Couldn't analyze" mark.
+
+const CATEGORY_TONES: Record<Category, string> = {
+  recruiter_outreach: "bg-sky-50 text-sky-800 ring-sky-200",
+  job_alert: "bg-violet-50 text-violet-800 ring-violet-200",
+  application_update: "bg-stone-100 text-stone-700 ring-stone-200",
+  interview: "bg-emerald-50 text-emerald-800 ring-emerald-200",
+  assessment: "bg-teal-50 text-teal-800 ring-teal-200",
+  offer: "bg-amber-50 text-amber-900 ring-amber-200",
+  rejection: "bg-rose-50 text-rose-800 ring-rose-200",
+  other_job: "bg-indigo-50 text-indigo-800 ring-indigo-200",
+  not_job: "bg-white text-stone-500 ring-stone-200",
+};
+
+const chip =
+  "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset";
+
+export function CategoryChip({ category }: { category: Category }) {
+  return <span className={`${chip} ${CATEGORY_TONES[category]}`}>{CATEGORY_LABELS[category]}</span>;
+}
+
+export function CouldNotAnalyze() {
+  return <span className={`${chip} bg-red-50 text-red-800 ring-red-200`}>Couldn't analyze</span>;
+}

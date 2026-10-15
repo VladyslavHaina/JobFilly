@@ -1,7 +1,11 @@
 {
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
-    "types": ["node"]
+    "types": ["node"],
+    // Node runs the test stack's entry points (stack.ts, seed, fake AI) as TypeScript directly,
+    // stripping the types: relative imports name the .ts file, and only erasable syntax is used.
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true
   },
   "include": ["**/*.ts"],
   "exclude": ["node_modules", ".stack", "reports"]

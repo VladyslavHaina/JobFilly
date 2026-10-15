@@ -80,8 +80,9 @@ describe("every API request", () => {
 describe("the workspace route modules", () => {
   // Every slice-owned module is mounted once, behind workspaceMember, with its own role checks.
   // Each row names the status the handler gives with the needed role: a GET reads, an empty body is
-  // a 400, the seeded mailbox is deleted, and the routes whose slice isn't here yet answer 501. A
-  // 404 or a 500 there would mean broken workspace scoping or a crash, so the status is exact.
+  // a 400, the seeded mailbox is deleted, a message not in the workspace is a 404, and the routes
+  // whose slice isn't here yet answer 501. A 404 for a route that should read, or a 500, would mean
+  // broken workspace scoping or a crash, so the status is exact.
   const messageId = encodeURIComponent("<a+b/c%d@mail.example>");
   const MAILBOX = ":mailboxId";
   const routes: [
@@ -102,10 +103,11 @@ describe("the workspace route modules", () => {
     ["POST", "scans", "admin", 501],
     ["POST", "scans/8f0e1c62-0000-4000-8000-000000000000/cancel", "admin", 501],
     ["POST", "scans/analyze-rest", "admin", 501],
-    ["GET", "messages", "viewer", 501],
-    ["GET", `messages/${messageId}`, "viewer", 501],
-    ["GET", `messages/${messageId}/body`, "viewer", 501],
-    ["PUT", `messages/${messageId}/category`, "editor", 501],
+    ["GET", "messages", "viewer", 200],
+    // No such message in the workspace, and an empty correction.
+    ["GET", `messages/${messageId}`, "viewer", 404],
+    ["GET", `messages/${messageId}/body`, "viewer", 404],
+    ["PUT", `messages/${messageId}/category`, "editor", 400],
     ["GET", "intake", "viewer", 501],
     ["PUT", "intake/answers/min_pay", "editor", 501],
     ["POST", "intake/confirm", "editor", 501],

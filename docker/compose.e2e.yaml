@@ -1,0 +1,117 @@
+# The test stack (docs/mvp/README.md › The test stack). Disposable: e2e/stack.ts starts it fresh
+# under its own project name and takes it down with its volumes:
+#   pnpm e2e:stack up      prints the project name
+#   pnpm e2e:stack down
+# Infrastructure steps name that project, e.g.
+#   docker compose -p <project> -f docker/compose.e2e.yaml kill app-b
+#   docker compose -p <project> -f docker/compose.e2e.yaml run --rm seed load maria
+# Every password and key in here is a test value for this loopback-only stack, never a real one.
+
+# The app, as two interchangeable replicas built from the production image.
+x-app: &app
+  build:
+    context: ..
+    dockerfile: docker/Dockerfile
+  image: jobfilly-e2e-app
+  user: node
+  read_only: true
+  tmpfs:
+    - /tmp
+  stop_grace_period: 30s
+  environment:
+    DATABASE_URL: postgres://jobfilly:E2E-SECRET-postgres@postgres:5432/jobfilly
+    # 32 bytes, base64; readable so nobody takes it for a real key.
+    JOBFILLY_SECRET_KEY: E2ESECRETjobfillyTestStackOnlyKeyNotForUse0=
+    PUBLIC_URL: http://127.0.0.1:8080
+    HOST: 0.0.0.0
+    # Not the default 8787, so the image is shown to listen on $PORT.
+    PORT: "9090"
+    JOBFILLY_ALLOW_INSECURE_MAIL: "true"
+  depends_on:
+    postgres:
+      condition: service_healthy
+
+# The seed and the fake AI: e2e/ only, never app code.
+x-e2e-node: &e2e-node
+  build:
+    context: ..
+    dockerfile: docker/e2e.Dockerfile
+  image: jobfilly-e2e-node
+  user: node
+  read_only: true
+
+services:
+  proxy:
+    image: haproxy:3.2
+    ports:
+      # Loopback only.
+      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:8081:8081"
+      - "127.0.0.1:8082:8082"
+    volumes:
+      - ./proxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    depends_on:
+      - app-a
+      - app-b
+
+  app-a:
+    <<: *app
+    hostname: app-a
+
+  app-b:
+    <<: *app
+    hostname: app-b
+
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: jobfilly
+      POSTGRES_PASSWORD: E2E-SECRET-postgres
+      POSTGRES_DB: jobfilly
+    # A volume, not tmpfs: stopping and starting postgres (S11) keeps the data; down removes it.
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # Over TCP: during its first start the image runs a temporary server on the socket only, so
+    # the socket alone would report ready too early.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U jobfilly -d jobfilly"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  # GreenMail keeps all mail in memory: pause it to simulate an outage, never stop it.
+  # Plain-text IMAP on 3143 and SMTP on 3025; logins are the full addresses.
+  imap:
+    image: greenmail/standalone:2.1.14
+    environment:
+      GREENMAIL_OPTS: >-
+        -Dgreenmail.setup.test.imap
+        -Dgreenmail.setup.test.smtp
+        -Dgreenmail.hostname=0.0.0.0
+        -Dgreenmail.users.login=email
+        -Dgreenmail.users=maria.santos:E2E-SECRET-maria-imap@inbox.example,tom.okafor:E2E-SECRET-tom-imap@inbox.example
+
+  # Run on demand only (`run --rm seed <command>`), so `up` doesn't start it.
+  seed:
+    <<: *e2e-node
+    profiles: ["tools"]
+    entrypoint: ["node", "e2e/seed/main.ts"]
+    environment:
+      IMAP_HOST: imap
+      IMAP_PORT: "3143"
+      FIXTURES_DIR: e2e/fixtures
+    depends_on:
+      - imap
+
+  # OpenAI-compatible stub, set up in the app as http://fake-ai:8080/v1.
+  fake-ai:
+    <<: *e2e-node
+    command: ["node", "e2e/fake-ai/main.ts"]
+    environment:
+      PORT: "8080"
+      FIXTURES_DIR: e2e/fixtures
+      FAKE_AI_DELAY_MS: "300"
+      FAKE_AI_SLOW_TEST_MS: ${FAKE_AI_SLOW_TEST_MS:-0}
+
+volumes:
+  pgdata:

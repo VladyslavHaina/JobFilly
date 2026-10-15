@@ -27,8 +27,7 @@
         "playwright.config.ts",
         "specs/**/*.spec.ts"
       ],
-      "project": ["**/*.ts"],
-      "ignoreDependencies": ["@playwright/test", "imapflow"]
+      "project": ["**/*.ts"]
     }
   }
 }
