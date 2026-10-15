@@ -30,6 +30,16 @@ describe("the secret box", () => {
     expect(() => open(key, "plain")).toThrow(/not a sealed secret/);
   });
 
+  it("refuses a truncated authentication tag", () => {
+    const sealed = seal(key, "E2E-SECRET-ai-key");
+    const [v, n, c, t] = sealed.split(".") as [string, string, string, string];
+    expect(Buffer.from(t, "base64url")).toHaveLength(16);
+    for (const length of [4, 8, 12, 15]) {
+      const cut = Buffer.from(t, "base64url").subarray(0, length).toString("base64url");
+      expect(() => open(key, [v, n, c, cut].join("."))).toThrow(/can't be opened/);
+    }
+  });
+
   it("needs a 32-byte key", () => {
     expect(() => seal(new Uint8Array(16), "x")).toThrow(/32 bytes/);
   });

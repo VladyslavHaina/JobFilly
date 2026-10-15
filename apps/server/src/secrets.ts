@@ -5,6 +5,8 @@ import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 // gives different values. The stored form is "v1.<nonce>.<ciphertext>.<tag>" in base64url.
 
 const VERSION = "v1";
+/** The full 128-bit GCM tag; a shorter one would weaken the integrity check, so it is refused. */
+const TAG_LENGTH = 16;
 
 function checkKey(key: Uint8Array): Uint8Array {
   if (key.length !== 32) throw new Error("the secret key must be 32 bytes");
@@ -14,7 +16,9 @@ function checkKey(key: Uint8Array): Uint8Array {
 /** Seals `plaintext` with `key` (config.secretKey). */
 export function seal(key: Uint8Array, plaintext: string): string {
   const nonce = randomBytes(12);
-  const cipher = createCipheriv("aes-256-gcm", checkKey(key), nonce);
+  const cipher = createCipheriv("aes-256-gcm", checkKey(key), nonce, {
+    authTagLength: TAG_LENGTH,
+  });
   const ciphertext = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
   const tag = cipher.getAuthTag();
   return [VERSION, nonce, ciphertext, tag]
@@ -28,9 +32,13 @@ export function open(key: Uint8Array, sealed: string): string {
   if (version !== VERSION || !nonce || ciphertext === undefined || !tag || rest.length > 0) {
     throw new Error("not a sealed secret");
   }
-  const decipher = createDecipheriv("aes-256-gcm", checkKey(key), Buffer.from(nonce, "base64url"));
-  decipher.setAuthTag(Buffer.from(tag, "base64url"));
+  const authTag = Buffer.from(tag, "base64url");
+  if (authTag.length !== TAG_LENGTH) throw new Error("the secret can't be opened with this key");
+  const decipher = createDecipheriv("aes-256-gcm", checkKey(key), Buffer.from(nonce, "base64url"), {
+    authTagLength: TAG_LENGTH,
+  });
   try {
+    decipher.setAuthTag(authTag);
     return Buffer.concat([
       decipher.update(Buffer.from(ciphertext, "base64url")),
       decipher.final(),
