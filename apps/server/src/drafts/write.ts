@@ -1,0 +1,264 @@
+import {
+  type DraftAnswer,
+  draftEntries,
+  findPlaceholders,
+  groupNeeds,
+  isOpen,
+  needsFromQuestions,
+} from "@jobfilly/core";
+import {
+  getAiSettings,
+  getCv,
+  getEvaluations,
+  listProfiles,
+  liveDraftFor,
+  loadMessageInputs,
+  markDraftFailed,
+  markDraftSaved,
+  releaseClaimWithNeeds,
+  roleDecisions,
+  type StoredDraft,
+  saveDraftText,
+} from "@jobfilly/db";
+import type {
+  AiError,
+  DraftCreatePayload,
+  DraftFailureKind,
+  DraftTaskInput,
+  JobFacts,
+  MailFolder,
+  OriginalMessage,
+  Profile,
+} from "@jobfilly/schema";
+import { aiClientFor } from "../ai-usage";
+import type { AppDeps } from "../deps";
+import type { Logger } from "../log";
+import { mailboxSession } from "../pipeline/evaluate";
+import { openAiKey } from "../secrets";
+import {
+  attachmentFor,
+  contentHash,
+  DraftMailboxError,
+  isMailboxError,
+  mailboxReason,
+  originalFor,
+} from "./mailbox";
+
+// The draft.create job's work (F6.1–F6.3): one role's reply, written by draft.v1 and saved to the
+// mailbox's Drafts folder, on the role's claim (a `saving` row, packages/db draft-claims). Only
+// the claim holder gets here, so two evaluations racing for a role save one copy (F6.4).
+//
+// 1. The original is fetched from the mailbox (threading headers and the text to quote).
+// 2. draft.v1 writes the reply from the profile and the chosen CV only (F6.2). Questions it can't
+//    answer from them release the claim and become decisions (F7). A template placeholder is
+//    regenerated once (Attempt: 2), then the draft fails with kind content, never retried
+//    automatically. No answer at all fails it with kind ai.
+// 3. The text is kept on the row, then saved to the mailbox with the chosen CV attached when the
+//    message asks for one (draft.v1's attachCv). A mailbox failure leaves the text, so the sweep's
+//    retry saves the same reply without another model call. No row is left in saving.
+
+const AI_REASONS: Record<AiError["kind"], string> = {
+  auth: "The AI provider didn't accept the key",
+  unreachable: "Couldn't reach the AI provider",
+  invalid_output: "The AI's answer didn't fit, even after a retry",
+  not_retried: "The AI's answer didn't fit",
+  provider_error: "The AI provider returned an error",
+};
+
+type Written =
+  | { kind: "text"; subject: string; body: string; language: string; cvId: string | null }
+  | { kind: "questions" }
+  | { kind: "failed"; failure: DraftFailureKind; reason: string };
+
+interface Role {
+  messageId: string;
+  position: number;
+  facts: JobFacts;
+  folder: MailFolder;
+}
+
+async function confirmedProfile(deps: AppDeps, ws: string): Promise<Profile | null> {
+  return (await listProfiles(deps.db, ws)).find((p) => p.confirmedAt !== null) ?? null;
+}
+
+/** The answers given for this role alone, which the draft may use besides the profile. */
+function roleAnswers(rows: Awaited<ReturnType<typeof roleDecisions>>): DraftAnswer[] {
+  return rows.flatMap((r) =>
+    r.state === "resolved" && r.decisionStatus === "answered" && r.profileKey && r.answer !== null
+      ? [{ profileKey: r.profileKey, value: r.answer }]
+      : [],
+  );
+}
+
+/** Asks draft.v1 for the reply (attempt 1, and attempt 2 after a placeholder). */
+async function writeReply(
+  deps: AppDeps,
+  ws: string,
+  draft: StoredDraft,
+  role: Role,
+  original: OriginalMessage,
+  log: Logger,
+): Promise<Written> {
+  const settings = await getAiSettings(deps.db, ws);
+  if (!settings) return { kind: "failed", failure: "ai", reason: "No AI model is set up" };
+  let ai: ReturnType<typeof aiClientFor>;
+  try {
+    ai = aiClientFor(deps, ws, {
+      provider: settings.provider,
+      baseUrl: settings.baseUrl,
+      models: settings.models,
+      apiKey: openAiKey(deps.config.secretKey, settings.keyCiphertext),
+    });
+  } catch {
+    return { kind: "failed", failure: "ai", reason: "The AI provider isn't set up correctly" };
+  }
+  const profile = await confirmedProfile(deps, ws);
+  const [evaluation] = (await getEvaluations(deps.db, ws, [role.messageId])).filter(
+    (e) => e.position === role.position,
+  );
+  const cvId = evaluation?.cvChoice.cvId ?? null;
+  const cv = cvId ? await getCv(deps.db, ws, cvId) : null;
+  const decided = await roleDecisions(deps.db, ws, [role]);
+  const answeredHere = new Set(
+    decided
+      .filter((r) => r.state === "resolved" && r.decisionStatus === "answered")
+      .map((r) => r.groupKey),
+  );
+  const input: Omit<DraftTaskInput, "attempt"> = {
+    mail: {
+      messageId: original.messageId,
+      folder: role.folder,
+      from: original.from,
+      date: original.date,
+      subject: original.subject,
+      text: original.text,
+    },
+    position: role.position,
+    role: role.facts,
+    entries: draftEntries(profile?.entries ?? [], roleAnswers(decided)),
+    cv:
+      cv && cv.text !== null
+        ? { name: cv.name, language: cv.language, skills: cv.skills, text: cv.text }
+        : null,
+  };
+
+  for (const attempt of [1, 2] as const) {
+    const result = await ai.draft({ ...input, attempt });
+    if (!result.ok) return { kind: "failed", failure: "ai", reason: AI_REASONS[result.error.kind] };
+    const out = result.data;
+    // What it couldn't back up from the profile and the CV is asked, never guessed (F6.2).
+    const needs = needsFromQuestions(out.questions).filter((n) => isOpen(n, profile, answeredHere));
+    if (needs.length > 0) {
+      const now = deps.clock.now();
+      const groups = groupNeeds(
+        needs.map((n) => ({
+          ...n,
+          source: "draft",
+          messageId: role.messageId,
+          position: role.position,
+        })),
+      );
+      const { released, created } = await releaseClaimWithNeeds(deps.db, ws, draft.id, groups, now);
+      if (released) {
+        for (const d of created)
+          log.info("decision.created", { decisionId: d.id, source: "draft" });
+        await deps.live.publish(ws, { type: "decisions.updated", data: {} });
+      }
+      return { kind: "questions" };
+    }
+    const placeholders = findPlaceholders(`${out.subject}\n${out.body}`);
+    if (placeholders.length > 0) {
+      log.warn("draft.rejected_placeholder", { draftId: draft.id, attempt });
+      continue;
+    }
+    log.info("draft.created", {
+      draftId: draft.id,
+      origin: draft.origin,
+      attempt,
+      language: out.language,
+      attachCv: out.attachCv && cv !== null,
+    });
+    return {
+      kind: "text",
+      subject: out.subject,
+      body: out.body,
+      language: out.language,
+      cvId: out.attachCv && cv ? cv.id : null,
+    };
+  }
+  return {
+    kind: "failed",
+    failure: "content",
+    reason: "The draft still held a template placeholder after one retry",
+  };
+}
+
+/**
+ * Writes the role's claimed draft and saves it to the mailbox. A role with no `saving` claim has
+ * nothing to do (another job finished it). Aborted on shutdown, it leaves the claim for the job's
+ * next run or the sweep.
+ */
+export async function createDraft(
+  deps: AppDeps,
+  payload: DraftCreatePayload,
+  options: { signal?: AbortSignal } = {},
+): Promise<void> {
+  const ws = payload.workspaceId;
+  const draft = await liveDraftFor(deps.db, ws, payload);
+  if (draft?.status !== "saving") return;
+  const log = deps.log.child({ workspaceId: ws, draftId: draft.id });
+  const publish = () =>
+    deps.live.publish(ws, { type: "drafts.updated", data: { messageIds: [payload.messageId] } });
+  const fail = async (kind: DraftFailureKind, reason: string) => {
+    await markDraftFailed(deps.db, ws, draft.id, { kind, reason, now: deps.clock.now() });
+    log.warn("pipeline.stage_failed", { stage: "draft", kind, attempts: draft.attempts });
+    await publish();
+  };
+
+  const session = mailboxSession(deps, ws);
+  try {
+    const [message] = await loadMessageInputs(deps.db, ws, [payload.messageId]);
+    const facts = message?.facts[payload.position];
+    if (!facts) return await fail("content", "This role is no longer in the message");
+    const original = await originalFor(deps, ws, session, payload.messageId);
+
+    let text: { subject: string; body: string; cvId: string | null };
+    if (draft.subject !== null && draft.body !== null) {
+      // A retry after a mailbox failure: the reply is written already.
+      text = { subject: draft.subject, body: draft.body, cvId: draft.cvId };
+    } else {
+      const role = { ...payload, facts, folder: message.folder };
+      const written = await writeReply(deps, ws, draft, role, original, log);
+      if (written.kind === "questions") return await publish();
+      if (written.kind === "failed") return await fail(written.failure, written.reason);
+      await saveDraftText(deps.db, ws, draft.id, { ...written, now: deps.clock.now() });
+      text = written;
+    }
+
+    const attachment = await attachmentFor(deps, ws, text.cvId);
+    const client = await session.get();
+    if (!client) throw new DraftMailboxError("No mailbox is connected");
+    const mail = { original, reply: { subject: text.subject, body: text.body }, attachment };
+    const ref = await client.saveDraft(mail);
+    await markDraftSaved(deps.db, ws, draft.id, {
+      ref,
+      contentHash: contentHash(mail),
+      now: deps.clock.now(),
+    });
+    log.info("draft.saved_to_mailbox", { draftId: draft.id, attached: attachment !== null });
+    await publish();
+    await deps.live.publish(ws, {
+      type: "messages.updated",
+      data: { messageIds: [payload.messageId] },
+    });
+  } catch (error) {
+    if (options.signal?.aborted) throw error;
+    if (!isMailboxError(error)) {
+      const name = error instanceof Error ? error.name : "unknown";
+      log.warn("pipeline.stage_failed", { stage: "draft", error: name });
+    }
+    await fail("mailbox", mailboxReason(error));
+  } finally {
+    await session.close();
+  }
+}

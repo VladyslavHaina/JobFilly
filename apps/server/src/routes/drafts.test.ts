@@ -1,0 +1,196 @@
+import { addMember } from "@jobfilly/db";
+import { DraftListSchema, DraftSchema } from "@jobfilly/schema";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { createHarness, draftAnswer, type Harness } from "../drafts/harness";
+import { requestReevaluation } from "../profile/changes";
+import { seedUser, type TestClient } from "../testing";
+
+// Drafts over HTTP (F6.4, F6.5, F6.7): the list with each status and the failed reason, editing
+// (the mailbox copy is replaced, one copy remains), discarding (deleted from the mailbox, never
+// recreated automatically), Draft a reply on any role, and viewers who read but can't change.
+
+const BERLIN = "<berlin@talentbruecke.example>";
+const DATA = "<data-eng@agency.example>";
+const key = (id: string, attempt = 1) => `${id}#0#${attempt}`;
+
+let h: Harness;
+let maria: TestClient;
+let base: string;
+beforeEach(async () => {
+  h = await createHarness();
+  maria = await h.client();
+  base = `/api/workspaces/${h.ws}/drafts`;
+});
+afterEach(() => h.close());
+
+const events = (name: string) => h.deps.logs.filter((l) => l.event === name);
+
+async function drafted(id: string) {
+  await h.deliver(id);
+  h.ai.answers.draft[key(id)] = draftAnswer();
+  await h.evaluate(id);
+  await h.drain();
+  const draft = await h.live(id);
+  if (!draft) throw new Error("expected a draft");
+  return draft;
+}
+
+describe("the Drafts list (F6.7)", () => {
+  it("shows each draft's status and the failed reason", async () => {
+    const saved = await drafted(BERLIN);
+    await h.deliver(DATA);
+    h.mailbox.failNext("saveDraft");
+    h.ai.answers.draft[key(DATA)] = draftAnswer();
+    await h.evaluate(DATA);
+    await h.drain();
+    const res = await maria.get(base);
+    expect(res.status).toBe(200);
+    const { items } = DraftListSchema.parse(await res.json());
+    expect(items.map((d) => [d.messageId, d.status, d.failureReason])).toEqual([
+      [DATA, "failed", "Couldn't reach the mail server"],
+      [BERLIN, "in_mailbox", null],
+    ]);
+    // Nothing but the API's fields: no mailbox reference or claim bookkeeping.
+    expect(Object.keys(items[1] ?? {}).sort()).toEqual(Object.keys(DraftSchema.shape).sort());
+    const one = await maria.get(`${base}?messageId=${encodeURIComponent(BERLIN)}`);
+    expect(DraftListSchema.parse(await one.json()).items.map((d) => d.id)).toEqual([saved.id]);
+    expect((await maria.get(`${base}/${saved.id}`)).status).toBe(200);
+  });
+});
+
+describe("editing and discarding (F6.4)", () => {
+  it("saving an edit replaces the mailbox draft, so exactly one copy remains", async () => {
+    const draft = await drafted(BERLIN);
+    const res = await maria.patch(`${base}/${draft.id}`, {
+      subject: "Re: A role for you",
+      body: "Hello Jonas,\n\nyes, let's talk on Monday.\n\nMaria",
+    });
+    expect(res.status).toBe(200);
+    expect(DraftSchema.parse(await res.json())).toMatchObject({ status: "edited" });
+    const copies = h.mailbox.drafts();
+    expect(copies).toHaveLength(1);
+    expect(copies[0]?.reply.body).toBe("Hello Jonas,\n\nyes, let's talk on Monday.\n\nMaria");
+    expect(copies[0]?.original.messageId).toBe(BERLIN);
+    expect(events("draft.updated")).toEqual([expect.objectContaining({ draftId: draft.id })]);
+    // A second edit replaces the edited copy.
+    await maria.patch(`${base}/${draft.id}`, { subject: "Re: A role", body: "Second" });
+    expect(h.mailbox.drafts().map((d) => d.reply.body)).toEqual(["Second"]);
+  });
+
+  it("keeps the edit out when the mailbox can't take it, and says so", async () => {
+    const draft = await drafted(BERLIN);
+    h.mailbox.pause();
+    const res = await maria.patch(`${base}/${draft.id}`, { subject: "s", body: "New" });
+    expect(res.status).toBe(503);
+    expect(await res.json()).toMatchObject({ error: "mailbox" });
+    h.mailbox.resume();
+    expect((await h.live(BERLIN))?.status).toBe("in_mailbox");
+    expect(h.mailbox.drafts().map((d) => d.reply.body)).toEqual([draftAnswer().body]);
+  });
+
+  it("discarding deletes it from the mailbox, and no change brings it back", async () => {
+    const draft = await drafted(BERLIN);
+    const res = await maria.post(`${base}/${draft.id}/discard`);
+    expect(res.status).toBe(200);
+    expect(DraftSchema.parse(await res.json()).status).toBe("discarded");
+    expect(h.mailbox.drafts()).toEqual([]);
+    expect(events("draft.discarded")).toEqual([expect.objectContaining({ draftId: draft.id })]);
+
+    // A rule change re-evaluates everything; a decision answer too. Neither drafts it again.
+    await requestReevaluation(h.deps, h.ws, { all: true }, "rule.changed");
+    await h.drain();
+    await h.deliver("<zurich@x.example>", {
+      roles: [
+        {
+          needs: [
+            {
+              groupKey: "min_pay:CHF:year",
+              profileKey: "min_pay",
+              question: "Minimum pay in CHF per year?",
+              choices: [],
+            },
+          ],
+        },
+      ],
+    });
+    await h.evaluate("<zurich@x.example>");
+    const decisions = (await (await maria.get(`/api/workspaces/${h.ws}/decisions`)).json()) as {
+      items: { id: string }[];
+    };
+    h.ai.answers.draft[key("<zurich@x.example>")] = draftAnswer();
+    const answered = await maria.post(
+      `/api/workspaces/${h.ws}/decisions/${decisions.items[0]?.id}/answer`,
+      { value: "CHF 120,000", useForSimilar: true },
+    );
+    expect(answered.status).toBe(200);
+    await h.drain();
+    expect(await h.live(BERLIN)).toBeNull();
+    expect(h.mailbox.drafts().map((d) => d.original.messageId)).toEqual(["<zurich@x.example>"]);
+
+    // Draft a reply after the discard makes a new one.
+    const again = await maria.post(base, { messageId: BERLIN, position: 0 });
+    expect(again.status).toBe(202);
+    await h.drain();
+    expect(await h.live(BERLIN)).toMatchObject({ status: "in_mailbox", auto: false });
+    expect(h.mailbox.drafts()).toHaveLength(2);
+  });
+});
+
+describe("Draft a reply (F6.5)", () => {
+  it("drafts a role below the threshold", async () => {
+    await h.deliver(DATA, { roles: [{ score: 52 }] });
+    await h.evaluate(DATA);
+    await h.drain();
+    expect(await h.live(DATA)).toBeNull();
+    h.ai.answers.draft[key(DATA)] = draftAnswer();
+    const res = await maria.post(base, { messageId: DATA, position: 0 });
+    expect(res.status).toBe(202);
+    expect(DraftSchema.parse(await res.json())).toMatchObject({ status: "saving", auto: false });
+    await h.drain();
+    expect(await h.live(DATA)).toMatchObject({ status: "in_mailbox", origin: "on_demand" });
+    expect(h.mailbox.drafts()).toHaveLength(1);
+    // The role has its draft now: asking again is a conflict, not a second copy.
+    expect((await maria.post(base, { messageId: DATA, position: 0 })).status).toBe(409);
+  });
+
+  it("takes a failed draft's row back", async () => {
+    await h.deliver(BERLIN);
+    h.ai.answers.draft[key(BERLIN, 1)] = draftAnswer({ body: "Dear [Name]" });
+    h.ai.answers.draft[key(BERLIN, 2)] = draftAnswer({ body: "Hi {company}" });
+    await h.evaluate(BERLIN);
+    await h.drain();
+    const failed = await h.live(BERLIN);
+    expect(failed?.status).toBe("failed");
+    h.ai.answers.draft[key(BERLIN, 1)] = draftAnswer();
+    const res = await maria.post(base, { messageId: BERLIN, position: 0 });
+    expect(res.status).toBe(202);
+    await h.drain();
+    expect(await h.live(BERLIN)).toMatchObject({ id: failed?.id, status: "in_mailbox" });
+  });
+
+  it("refuses a role that doesn't exist", async () => {
+    await h.deliver(BERLIN);
+    expect((await maria.post(base, { messageId: BERLIN, position: 3 })).status).toBe(404);
+    expect((await maria.post(base, { messageId: "<nope@x.example>", position: 0 })).status).toBe(
+      404,
+    );
+  });
+});
+
+describe("viewers (F6.7)", () => {
+  it("read drafts but get 403 on every change", async () => {
+    const draft = await drafted(BERLIN);
+    const tom = await seedUser(h.deps, { name: "Tom Okafor" });
+    await addMember(h.deps.db, h.ws, tom.id, "viewer");
+    const viewer = await h.client(tom);
+    expect((await viewer.get(base)).status).toBe(200);
+    expect((await viewer.get(`${base}/${draft.id}`)).status).toBe(200);
+    expect((await viewer.post(base, { messageId: BERLIN, position: 0 })).status).toBe(403);
+    expect((await viewer.patch(`${base}/${draft.id}`, { subject: "s", body: "b" })).status).toBe(
+      403,
+    );
+    expect((await viewer.post(`${base}/${draft.id}/discard`)).status).toBe(403);
+    expect(h.mailbox.drafts()).toHaveLength(1);
+    expect((await h.live(BERLIN))?.status).toBe("in_mailbox");
+  });
+});
