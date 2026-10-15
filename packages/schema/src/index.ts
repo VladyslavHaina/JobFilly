@@ -8,6 +8,7 @@ export * from "./common";
 export * from "./events";
 export * from "./facts";
 export * from "./health";
+export * from "./jobs";
 export * from "./mailbox";
 export * from "./messages";
 export * from "./profile";

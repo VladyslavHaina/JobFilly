@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { IsoDateTimeSchema } from "./common";
 import { JobFactsSchema } from "./facts";
-import { AddressSchema } from "./mailbox";
+import { AddressSchema, EnvelopeSchema } from "./mailbox";
 
 /** The nine categories of F5, in the order the UI lists them. */
 export const CATEGORIES = [
@@ -37,6 +37,18 @@ export type AnalysisStatus = z.infer<typeof AnalysisStatusSchema>;
  */
 export const StageOneVerdictSchema = z.enum(["not_job", "likely_job", "own_reply", "job_alert"]);
 export type StageOneVerdict = z.infer<typeof StageOneVerdictSchema>;
+
+/** A stored message as packages/db reads it back: the envelope and the state of its analysis. */
+export const StoredMessageSchema = z.object({
+  envelope: EnvelopeSchema,
+  stageOne: StageOneVerdictSchema,
+  stageOneReason: z.string().nullable(),
+  category: CategorySchema.nullable(),
+  categorySource: CategorySourceSchema.nullable(),
+  analysisStatus: AnalysisStatusSchema,
+  analyzedByScanId: z.uuid().nullable(),
+});
+export type StoredMessage = z.infer<typeof StoredMessageSchema>;
 
 /** One row of the job inbox. `id` is the RFC Message-ID (URL-encoded in paths). */
 export const MessageListItemSchema = z.object({

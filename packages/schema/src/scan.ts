@@ -1,5 +1,8 @@
 import { z } from "zod";
 import { CountryCodeSchema, IsoDateTimeSchema } from "./common";
+import { EnvelopeSchema } from "./mailbox";
+import { StageOneVerdictSchema } from "./messages";
+import { IntakeProposalSchema } from "./profile";
 
 /** The first scan, or an "Analyze them" run over what a confident stop left unread. */
 export const ScanKindSchema = z.enum(["first", "analyze_rest"]);
@@ -105,3 +108,51 @@ export const JobPlatformsFileSchema = z.object({
   ),
 });
 export type JobPlatformsFile = z.infer<typeof JobPlatformsFileSchema>;
+
+/** What stage one needs besides the envelopes (packages/core › stageOne). */
+export const StageOneContextSchema = z.object({
+  /** The mailbox's own addresses, to recognise the user's replies and who they replied to. */
+  ownAddresses: z.array(z.string()),
+  platforms: JobPlatformsFileSchema,
+});
+export type StageOneContext = z.infer<typeof StageOneContextSchema>;
+
+/**
+ * One envelope with stage one's verdict: what packages/core's stageOne decides and what
+ * packages/db's saveEnvelopes stores, in one shape.
+ */
+export const StageOneResultSchema = z.object({
+  envelope: EnvelopeSchema,
+  verdict: StageOneVerdictSchema,
+  /** Why stage one decided so, in a few words (no subject or address). */
+  reason: z.string().nullable(),
+});
+export type StageOneResult = z.infer<typeof StageOneResultSchema>;
+
+/**
+ * Stage one's sorting of a set of envelopes. Every envelope is in exactly one of the three lists,
+ * so `[...handled, ...candidates, ...ownReplies]` is what saveEnvelopes takes.
+ */
+export const StageOneOutcomeSchema = z.object({
+  /** Sorted without a model call. */
+  handled: z.array(
+    StageOneResultSchema.extend({
+      verdict: StageOneVerdictSchema.extract(["not_job", "job_alert"]),
+    }),
+  ),
+  /** Likely job messages for the model. */
+  candidates: z.array(StageOneResultSchema.extend({ verdict: z.literal("likely_job") })),
+  /** The user's own replies, read for preferences. */
+  ownReplies: z.array(StageOneResultSchema.extend({ verdict: z.literal("own_reply") })),
+});
+export type StageOneOutcome = z.infer<typeof StageOneOutcomeSchema>;
+
+/** What the confidence tracker looks at after every batch (F4.4). */
+export const TrackerStateSchema = z.object({
+  proposal: IntakeProposalSchema,
+  /** Likely messages still unread in the window. */
+  remaining: z.number().int().nonnegative(),
+  callsUsed: z.number().int().nonnegative(),
+  budget: z.number().int().nonnegative(),
+});
+export type TrackerState = z.infer<typeof TrackerStateSchema>;

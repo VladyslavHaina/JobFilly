@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  AiEventSchema,
   AiSettingsInputSchema,
   batchResultSchema,
   CATEGORIES,
   CategorySchema,
+  ClaimedJobSchema,
   ClassifyOutputSchema,
   CreateInviteInputSchema,
   DEFAULT_BUDGET_PER_RUN,
@@ -20,11 +22,14 @@ import {
   LiveEventSchema,
   MailTestResultSchema,
   MemberParamsSchema,
+  MessageRefSchema,
   PreferencesSchema,
   ProfileEntrySchema,
   ProfileKeySchema,
   RegisterInputSchema,
   roleAtLeast,
+  StageOneOutcomeSchema,
+  StageOneResultSchema,
   StageOneVerdictSchema,
   syntheticMessageId,
   TASK_IDS,
@@ -331,5 +336,57 @@ describe("path params and the live envelope", () => {
     expect(
       LiveEnvelopeSchema.safeParse({ workspaceId: id, event: { type: "nope", data: {} } }).success,
     ).toBe(false);
+  });
+});
+
+describe("the contracts between packages", () => {
+  it("gives stage one's outcome the shape saveEnvelopes takes, each list with its verdicts", () => {
+    const result = (verdict: string) => ({ envelope, verdict, reason: null });
+    const outcome = {
+      handled: [result("not_job"), result("job_alert")],
+      candidates: [result("likely_job")],
+      ownReplies: [result("own_reply")],
+    };
+    const parsed = StageOneOutcomeSchema.parse(outcome);
+    const all = [...parsed.handled, ...parsed.candidates, ...parsed.ownReplies];
+    expect(all.every((r) => StageOneResultSchema.safeParse(r).success)).toBe(true);
+    expect(
+      StageOneOutcomeSchema.safeParse({ ...outcome, handled: [result("likely_job")] }).success,
+    ).toBe(false);
+    expect(
+      StageOneOutcomeSchema.safeParse({ ...outcome, candidates: [result("own_reply")] }).success,
+    ).toBe(false);
+  });
+
+  it("names a message in the mailbox by its folder path, UIDVALIDITY and UID only", () => {
+    expect(MessageRefSchema.parse(envelope)).toEqual({
+      folderPath: "INBOX",
+      uidValidity: 1700000000,
+      uid: 42,
+    });
+  });
+
+  it("hands a claimed job and an AI event over with fixed shapes", () => {
+    const job = {
+      id: "00000000-0000-4000-8000-0000000000aa",
+      type: "scan.run",
+      workspaceId: "00000000-0000-4000-8000-0000000000bb",
+      payload: { anything: true },
+      checkpoint: null,
+      attempts: 1,
+      previousOwner: null,
+      leaseExpired: false,
+    };
+    expect(ClaimedJobSchema.safeParse(job).success).toBe(true);
+    expect(ClaimedJobSchema.safeParse({ ...job, attempts: 0 }).success).toBe(false);
+    const event = {
+      event: "ai.output_invalid",
+      taskId: "classify.v1",
+      reason: "schema",
+      items: 2,
+      attempt: 1,
+    };
+    expect(AiEventSchema.safeParse(event).success).toBe(true);
+    expect(AiEventSchema.safeParse({ ...event, attempt: 3 }).success).toBe(false);
   });
 });

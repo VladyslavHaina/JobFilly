@@ -126,6 +126,14 @@ export const EnvelopeSchema = z.object({
 });
 export type Envelope = z.infer<typeof EnvelopeSchema>;
 
+/** Where one message lives in the mailbox, to fetch its body on demand (packages/mail). */
+export const MessageRefSchema = EnvelopeSchema.pick({
+  folderPath: true,
+  uidValidity: true,
+  uid: true,
+});
+export type MessageRef = z.infer<typeof MessageRefSchema>;
+
 /** The synthetic Message-ID of a message whose header is missing. */
 export function syntheticMessageId(folder: MailFolder, uidValidity: number, uid: number): string {
   return `<${folder}.${uidValidity}.${uid}@jobfilly.invalid>`;

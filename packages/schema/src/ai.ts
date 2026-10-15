@@ -23,6 +23,18 @@ export const TASK_IDS = [
 export const TaskIdSchema = z.enum(TASK_IDS);
 export type TaskId = z.infer<typeof TaskIdSchema>;
 
+/** Reported by packages/ai when an answer fails its schema; never carries model output or mail. */
+export const AiEventSchema = z.object({
+  event: z.literal("ai.output_invalid"),
+  taskId: TaskIdSchema,
+  reason: z.enum(["schema", "missing", "parse"]),
+  /** How many items were invalid. */
+  items: z.number().int().nonnegative(),
+  /** 1 for the first answer, 2 for the retry. */
+  attempt: z.union([z.literal(1), z.literal(2)]),
+});
+export type AiEvent = z.infer<typeof AiEventSchema>;
+
 /** A model name per task. */
 export const AiModelsSchema = z.object({
   classify: z.string().trim().min(1),
