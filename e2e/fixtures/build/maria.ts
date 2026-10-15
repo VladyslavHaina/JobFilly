@@ -147,7 +147,7 @@ const REPLIES: readonly Reply[] = [
 ];
 
 /** The 14-day reply window of MVP 2 plus a margin, in minutes. */
-export const REPLY_WINDOW_EDGE = days(14.6);
+const REPLY_WINDOW_EDGE = days(14.6);
 
 /**
  * When each replied-to recruiter mail arrived, in days ago (REPLIES order). Only the first is

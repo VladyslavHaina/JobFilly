@@ -155,7 +155,22 @@
         }
       ],
       "ownReply": false,
-      "invalid": false
+      "invalid": false,
+      "sender": {
+        "verdict": "looks_fine"
+      },
+      "roles": [
+        {
+          "cv": "Nurse (EN)",
+          "hardConflicts": [],
+          "draft": false
+        },
+        {
+          "cv": "Nurse (EN)",
+          "hardConflicts": [],
+          "draft": false
+        }
+      ]
     },
     "<tom-0085@mcrevening.example>": {
       "folder": "inbox",
@@ -318,7 +333,17 @@
         }
       ],
       "ownReply": false,
-      "invalid": false
+      "invalid": false,
+      "sender": {
+        "verdict": "looks_fine"
+      },
+      "roles": [
+        {
+          "cv": "Nurse (EN)",
+          "hardConflicts": [],
+          "draft": false
+        }
+      ]
     },
     "<tom-0019@valuemart.example>": {
       "folder": "inbox",
@@ -616,7 +641,17 @@
         }
       ],
       "ownReply": false,
-      "invalid": false
+      "invalid": false,
+      "sender": {
+        "verdict": "looks_fine"
+      },
+      "roles": [
+        {
+          "cv": "Nurse (EN)",
+          "hardConflicts": [],
+          "draft": false
+        }
+      ]
     },
     "<tom-0114@streamflix.example>": {
       "folder": "inbox",
@@ -701,7 +736,22 @@
         }
       ],
       "ownReply": false,
-      "invalid": false
+      "invalid": false,
+      "sender": {
+        "verdict": "looks_fine"
+      },
+      "roles": [
+        {
+          "cv": "Nurse (EN)",
+          "hardConflicts": [],
+          "draft": false
+        },
+        {
+          "cv": "Nurse (EN)",
+          "hardConflicts": [],
+          "draft": false
+        }
+      ]
     },
     "<tom-0047@fithubgym.example>": {
       "folder": "inbox",
@@ -1388,5 +1438,23 @@
       }
     },
     "extraQuestions": []
-  }
+  },
+  "cvs": [
+    {
+      "name": "Nurse (EN)",
+      "tags": [
+        "en",
+        "Nursing",
+        "Mid-level"
+      ],
+      "skills": [
+        "Patient assessment",
+        "Medication administration",
+        "Wound care",
+        "IV therapy",
+        "Triage"
+      ]
+    }
+  ],
+  "deliveries": {}
 }

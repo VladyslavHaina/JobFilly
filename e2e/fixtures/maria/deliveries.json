@@ -1,0 +1,100 @@
+[
+  {
+    "id": "berlin-de",
+    "file": "berlin-de.eml",
+    "messageId": "<maria-deliver-berlin-de@kiezwerk.example>",
+    "minutesAgo": 95,
+    "step": "S2"
+  },
+  {
+    "id": "remote-eu",
+    "file": "remote-eu.eml",
+    "messageId": "<maria-deliver-remote-eu@fjordline.example>",
+    "minutesAgo": 140,
+    "step": "S2"
+  },
+  {
+    "id": "amsterdam",
+    "file": "amsterdam.eml",
+    "messageId": "<maria-deliver-amsterdam@grachtenbank.example>",
+    "minutesAgo": 210,
+    "step": "S2"
+  },
+  {
+    "id": "singapore",
+    "file": "singapore.eml",
+    "messageId": "<maria-deliver-singapore@merlion-pay.example>",
+    "minutesAgo": 260,
+    "step": "S2"
+  },
+  {
+    "id": "apac-1",
+    "file": "apac-1.eml",
+    "messageId": "<maria-deliver-apac-1@lanterncommerce.example>",
+    "minutesAgo": 320,
+    "step": "S2"
+  },
+  {
+    "id": "apac-2",
+    "file": "apac-2.eml",
+    "messageId": "<maria-deliver-apac-2@harborline.example>",
+    "minutesAgo": 380,
+    "step": "S2"
+  },
+  {
+    "id": "apac-3",
+    "file": "apac-3.eml",
+    "messageId": "<maria-deliver-apac-3@wattledata.example>",
+    "minutesAgo": 450,
+    "step": "S2"
+  },
+  {
+    "id": "data-eng",
+    "file": "data-eng.eml",
+    "messageId": "<maria-deliver-data-eng@nordkap-data.example>",
+    "minutesAgo": 520,
+    "step": "S2"
+  },
+  {
+    "id": "zurich",
+    "file": "zurich.eml",
+    "messageId": "<maria-deliver-zurich@limmatledger.example>",
+    "minutesAgo": 600,
+    "step": "S2"
+  },
+  {
+    "id": "basel",
+    "file": "basel.eml",
+    "messageId": "<maria-deliver-basel@rheinknie.example>",
+    "minutesAgo": 680,
+    "step": "S2"
+  },
+  {
+    "id": "dublin",
+    "file": "dublin.eml",
+    "messageId": "<maria-deliver-dublin@liffeylabs.example>",
+    "minutesAgo": 760,
+    "step": "S2"
+  },
+  {
+    "id": "zurich-2",
+    "file": "zurich-2.eml",
+    "messageId": "<maria-deliver-zurich-2@uetliberg.example>",
+    "minutesAgo": 45,
+    "step": "S5"
+  },
+  {
+    "id": "scam",
+    "file": "scam.eml",
+    "messageId": "<maria-deliver-scam@quickhire-global.example>",
+    "minutesAgo": 840,
+    "step": "S2"
+  },
+  {
+    "id": "freemail",
+    "file": "freemail.eml",
+    "messageId": "<maria-deliver-freemail@gmail.com>",
+    "minutesAgo": 900,
+    "step": "S2"
+  }
+]

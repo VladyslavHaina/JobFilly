@@ -8733,5 +8733,455 @@
         "extra": {}
       }
     ]
+  },
+  "<maria-deliver-berlin-de@kiezwerk.example>": {
+    "roles": [
+      {
+        "title": "Senior Backend-Entwicklerin (m/w/d)",
+        "company": "Kiezwerk Software GmbH",
+        "agency": null,
+        "places": [
+          {
+            "country": "DE",
+            "city": "Berlin"
+          }
+        ],
+        "workMode": "hybrid",
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": {
+          "min": 80000,
+          "max": 90000,
+          "currency": "EUR",
+          "period": "year",
+          "asWritten": "80.000–90.000 € brutto pro Jahr"
+        },
+        "contract": null,
+        "seniority": "Senior",
+        "workPermit": null,
+        "skills": [
+          "Go",
+          "PostgreSQL",
+          "Kubernetes"
+        ],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-deliver-remote-eu@fjordline.example>": {
+    "roles": [
+      {
+        "title": "Senior Backend Engineer",
+        "company": "Fjordline Analytics",
+        "agency": null,
+        "places": [],
+        "workMode": "remote",
+        "remoteScope": "within the EU",
+        "timeZones": {
+          "from": "UTC+01:00",
+          "to": "UTC+02:00"
+        },
+        "pay": {
+          "min": 85000,
+          "max": 95000,
+          "currency": "EUR",
+          "period": "year",
+          "asWritten": "€85,000–95,000 a year"
+        },
+        "contract": "permanent",
+        "seniority": "Senior",
+        "workPermit": null,
+        "skills": [
+          "Go",
+          "Kafka",
+          "PostgreSQL"
+        ],
+        "languages": [
+          "English"
+        ],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-deliver-amsterdam@grachtenbank.example>": {
+    "roles": [
+      {
+        "title": "Backend Engineer",
+        "company": "Grachten Bank",
+        "agency": null,
+        "places": [
+          {
+            "country": "NL",
+            "city": "Amsterdam"
+          }
+        ],
+        "workMode": "hybrid",
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": {
+          "min": 80000,
+          "max": 90000,
+          "currency": "EUR",
+          "period": "year",
+          "asWritten": "€80,000–90,000 a year"
+        },
+        "contract": "permanent",
+        "seniority": null,
+        "workPermit": null,
+        "skills": [
+          "Go"
+        ],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-deliver-singapore@merlion-pay.example>": {
+    "roles": [
+      {
+        "title": "Senior Backend Engineer",
+        "company": "Merlion Pay",
+        "agency": null,
+        "places": [
+          {
+            "country": "SG",
+            "city": "Singapore"
+          }
+        ],
+        "workMode": "onsite",
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": null,
+        "contract": null,
+        "seniority": "Senior",
+        "workPermit": null,
+        "skills": [
+          "Go",
+          "PostgreSQL"
+        ],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-deliver-apac-1@lanterncommerce.example>": {
+    "roles": [
+      {
+        "title": "Senior Backend Engineer",
+        "company": "Lantern Commerce",
+        "agency": null,
+        "places": [],
+        "workMode": "remote",
+        "remoteScope": "from anywhere",
+        "timeZones": {
+          "from": "UTC+08:00",
+          "to": "UTC+08:00"
+        },
+        "pay": {
+          "min": 80000,
+          "max": 95000,
+          "currency": "EUR",
+          "period": "year",
+          "asWritten": "€80,000–95,000 a year"
+        },
+        "contract": "permanent",
+        "seniority": "Senior",
+        "workPermit": null,
+        "skills": [
+          "Go",
+          "PostgreSQL",
+          "Kubernetes"
+        ],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-deliver-apac-2@harborline.example>": {
+    "roles": [
+      {
+        "title": "Backend Developer",
+        "company": "Harborline Logistics",
+        "agency": null,
+        "places": [],
+        "workMode": "remote",
+        "remoteScope": "from anywhere",
+        "timeZones": {
+          "from": "UTC+08:00",
+          "to": "UTC+08:00"
+        },
+        "pay": {
+          "min": 50000,
+          "max": 60000,
+          "currency": "EUR",
+          "period": "year",
+          "asWritten": "€50,000–60,000 a year"
+        },
+        "contract": null,
+        "seniority": null,
+        "workPermit": null,
+        "skills": [
+          "Go",
+          "Redis"
+        ],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-deliver-apac-3@wattledata.example>": {
+    "roles": [
+      {
+        "title": "Backend Engineer",
+        "company": "Wattle Data",
+        "agency": null,
+        "places": [],
+        "workMode": "remote",
+        "remoteScope": null,
+        "timeZones": {
+          "from": "UTC+10:00",
+          "to": "UTC+10:00"
+        },
+        "pay": {
+          "min": 55000,
+          "max": 65000,
+          "currency": "EUR",
+          "period": "year",
+          "asWritten": "€55,000–65,000 a year"
+        },
+        "contract": null,
+        "seniority": null,
+        "workPermit": null,
+        "skills": [
+          "Kotlin",
+          "PostgreSQL"
+        ],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-deliver-data-eng@nordkap-data.example>": {
+    "roles": [
+      {
+        "title": "Data Engineer",
+        "company": "Nordkap Data",
+        "agency": null,
+        "places": [],
+        "workMode": "remote",
+        "remoteScope": "within the EU",
+        "timeZones": null,
+        "pay": {
+          "min": 60000,
+          "max": 65000,
+          "currency": "EUR",
+          "period": "year",
+          "asWritten": "€60,000–65,000 a year"
+        },
+        "contract": null,
+        "seniority": null,
+        "workPermit": null,
+        "skills": [
+          "Python",
+          "SQL",
+          "Apache Airflow",
+          "dbt"
+        ],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-deliver-zurich@limmatledger.example>": {
+    "roles": [
+      {
+        "title": "Senior Backend Engineer",
+        "company": "Limmat Ledger AG",
+        "agency": null,
+        "places": [],
+        "workMode": "remote",
+        "remoteScope": "within the EU and Switzerland",
+        "timeZones": null,
+        "pay": {
+          "min": 120000,
+          "max": 135000,
+          "currency": "CHF",
+          "period": "year",
+          "asWritten": "CHF 120,000–135,000 a year"
+        },
+        "contract": "permanent",
+        "seniority": "Senior",
+        "workPermit": null,
+        "skills": [
+          "Go",
+          "PostgreSQL"
+        ],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {
+          "office": "Zurich"
+        }
+      }
+    ]
+  },
+  "<maria-deliver-basel@rheinknie.example>": {
+    "roles": [
+      {
+        "title": "Senior Backend-Entwickler (m/w/d)",
+        "company": "Rheinknie Health AG",
+        "agency": null,
+        "places": [],
+        "workMode": "remote",
+        "remoteScope": "innerhalb der EU und der Schweiz",
+        "timeZones": null,
+        "pay": {
+          "min": 115000,
+          "max": 130000,
+          "currency": "CHF",
+          "period": "year",
+          "asWritten": "CHF 115.000–130.000 pro Jahr"
+        },
+        "contract": "unbefristet",
+        "seniority": "Senior",
+        "workPermit": null,
+        "skills": [
+          "Go",
+          "Kubernetes"
+        ],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {
+          "office": "Basel"
+        }
+      }
+    ]
+  },
+  "<maria-deliver-dublin@liffeylabs.example>": {
+    "roles": [
+      {
+        "title": "Senior Backend Engineer",
+        "company": "Liffey Labs",
+        "agency": null,
+        "places": [],
+        "workMode": "remote",
+        "remoteScope": "within the EU",
+        "timeZones": null,
+        "pay": {
+          "min": 85000,
+          "max": 100000,
+          "currency": "EUR",
+          "period": "year",
+          "asWritten": "€85,000–100,000 a year"
+        },
+        "contract": "permanent",
+        "seniority": "Senior",
+        "workPermit": null,
+        "skills": [
+          "Go",
+          "PostgreSQL"
+        ],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {
+          "office": "Dublin"
+        }
+      }
+    ]
+  },
+  "<maria-deliver-zurich-2@uetliberg.example>": {
+    "roles": [
+      {
+        "title": "Backend Engineer (Go)",
+        "company": "Uetliberg Systems AG",
+        "agency": null,
+        "places": [],
+        "workMode": "remote",
+        "remoteScope": "within the EU and Switzerland",
+        "timeZones": null,
+        "pay": {
+          "min": 125000,
+          "max": 140000,
+          "currency": "CHF",
+          "period": "year",
+          "asWritten": "CHF 125,000–140,000 a year"
+        },
+        "contract": "permanent",
+        "seniority": null,
+        "workPermit": null,
+        "skills": [
+          "Go"
+        ],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {
+          "office": "Zurich"
+        }
+      }
+    ]
+  },
+  "<maria-deliver-scam@quickhire-global.example>": {
+    "roles": [
+      {
+        "title": "Remote Data Entry Assistant",
+        "company": "QuickHire Global",
+        "agency": null,
+        "places": [],
+        "workMode": "remote",
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": null,
+        "contract": null,
+        "seniority": null,
+        "workPermit": null,
+        "skills": [],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-deliver-freemail@gmail.com>": {
+    "roles": [
+      {
+        "title": "Backend Engineer",
+        "company": "Hanseatic Freight Group",
+        "agency": null,
+        "places": [
+          {
+            "country": "DE",
+            "city": "Hamburg"
+          }
+        ],
+        "workMode": "onsite",
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": {
+          "min": 75000,
+          "max": 85000,
+          "currency": "EUR",
+          "period": "year",
+          "asWritten": "€75,000–85,000 a year"
+        },
+        "contract": null,
+        "seniority": null,
+        "workPermit": null,
+        "skills": [
+          "Java",
+          "PostgreSQL"
+        ],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
   }
 }

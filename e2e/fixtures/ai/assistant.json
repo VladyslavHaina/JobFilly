@@ -1,0 +1,397 @@
+{
+  "lately i don't want jobs in asian time zones anymore, ignore them": {
+    "*": {
+      "reply": "I can hide roles on Asian time zones for you. Here is a proposal.",
+      "clarify": null,
+      "proposal": {
+        "summary": "Hide roles whose working hours are UTC+5 or later",
+        "changes": [
+          {
+            "op": "add",
+            "target": "rule",
+            "rule": {
+              "description": "Hide roles whose working hours are UTC+5 or later",
+              "when": [
+                {
+                  "fact": "timeZones",
+                  "op": "within",
+                  "value": {
+                    "from": "UTC+05:00",
+                    "to": "UTC+14:00"
+                  }
+                }
+              ],
+              "then": "hide",
+              "enabled": true
+            }
+          }
+        ]
+      }
+    }
+  },
+  "ask me first before replying to anyone from hirewave.example": {
+    "*": {
+      "reply": "Sure. From now on I'll ask you before drafting a reply to hirewave.example.",
+      "clarify": null,
+      "proposal": {
+        "summary": "Ask you before drafting a reply to mail from hirewave.example",
+        "changes": [
+          {
+            "op": "add",
+            "target": "rule",
+            "rule": {
+              "description": "Ask me before drafting a reply to mail from hirewave.example",
+              "when": [
+                {
+                  "fact": "sender.domain",
+                  "op": "in",
+                  "value": [
+                    "hirewave.example"
+                  ]
+                }
+              ],
+              "then": "ask_first",
+              "enabled": true
+            }
+          }
+        ]
+      }
+    }
+  },
+  "stop showing me roles in the netherlands": {
+    "*": {
+      "reply": "Here is a rule that hides roles in the Netherlands.",
+      "clarify": null,
+      "proposal": {
+        "summary": "Hide roles in the Netherlands",
+        "changes": [
+          {
+            "op": "add",
+            "target": "rule",
+            "rule": {
+              "description": "Hide roles in the Netherlands",
+              "when": [
+                {
+                  "fact": "places.country",
+                  "op": "in",
+                  "value": [
+                    "NL"
+                  ]
+                }
+              ],
+              "then": "hide",
+              "enabled": true
+            }
+          }
+        ]
+      }
+    }
+  },
+  "i'd now also take a hybrid job in munich": {
+    "*": {
+      "reply": "I'll add Munich, hybrid, to the places you'd work.",
+      "clarify": null,
+      "proposal": {
+        "summary": "Add Munich, hybrid to the places you'd work",
+        "changes": [
+          {
+            "op": "add",
+            "target": "entry",
+            "key": "places",
+            "value": [
+              {
+                "country": "DE",
+                "city": "Munich",
+                "mode": "hybrid"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "raise my minimum salary to €75,000 a year": {
+    "*": {
+      "reply": "Here is the change: €75,000 a year, and your day rate stays as it is.",
+      "clarify": null,
+      "proposal": {
+        "summary": "Raise your minimum pay to €75,000 a year; your day rate stays €450",
+        "changes": [
+          {
+            "op": "update",
+            "target": "entry",
+            "key": "min_pay",
+            "value": [
+              {
+                "amount": 75000,
+                "currency": "EUR",
+                "period": "year",
+                "asWritten": "€75,000 a year"
+              },
+              {
+                "amount": 450,
+                "currency": "EUR",
+                "period": "day",
+                "asWritten": "€450 a day"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "zeig mir keine befristeten stellen mehr": {
+    "*": {
+      "reply": "Gern. Mit dieser Regel blende ich befristete Stellen aus.",
+      "clarify": null,
+      "proposal": {
+        "summary": "Stellen mit befristetem Vertrag ausblenden",
+        "changes": [
+          {
+            "op": "add",
+            "target": "rule",
+            "rule": {
+              "description": "Stellen mit befristetem Vertrag ausblenden",
+              "when": [
+                {
+                  "fact": "contract",
+                  "op": "contains",
+                  "value": [
+                    "befristet",
+                    "fixed-term"
+                  ]
+                }
+              ],
+              "then": "hide",
+              "enabled": true
+            }
+          }
+        ]
+      }
+    }
+  },
+  "ich spreche inzwischen auch deutsch, nimm das bitte in mein profil auf": {
+    "*": {
+      "reply": "Ich füge Deutsch zu deinen Sprachen hinzu.",
+      "clarify": null,
+      "proposal": {
+        "summary": "Deutsch zu deinen Sprachen hinzufügen",
+        "changes": [
+          {
+            "op": "add",
+            "target": "entry",
+            "key": "languages",
+            "value": [
+              "German"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "entwürfe bitte nur noch ab einem fit-score von 80": {
+    "*": {
+      "reply": "Verstanden: Automatische Entwürfe gibt es dann erst ab einem Fit-Score von 80.",
+      "clarify": null,
+      "proposal": {
+        "summary": "Automatische Entwürfe erst ab einem Fit-Score von 80",
+        "changes": [
+          {
+            "op": "update",
+            "target": "entry",
+            "key": "reply_threshold",
+            "value": [
+              80
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "só quero rascunhos para emails dos últimos 7 dias": {
+    "*": {
+      "reply": "Combinado: só crio rascunhos automáticos para emails dos últimos 7 dias.",
+      "clarify": null,
+      "proposal": {
+        "summary": "Rascunhos automáticos só para emails dos últimos 7 dias",
+        "changes": [
+          {
+            "op": "update",
+            "target": "entry",
+            "key": "reply_window_days",
+            "value": [
+              7
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "esconde as vagas presenciais, só quero híbrido ou remoto": {
+    "*": {
+      "reply": "Aqui está uma regra que esconde as vagas presenciais.",
+      "clarify": null,
+      "proposal": {
+        "summary": "Esconder vagas presenciais",
+        "changes": [
+          {
+            "op": "add",
+            "target": "rule",
+            "rule": {
+              "description": "Esconder vagas presenciais",
+              "when": [
+                {
+                  "fact": "workMode",
+                  "op": "in",
+                  "value": [
+                    "onsite"
+                  ]
+                }
+              ],
+              "then": "hide",
+              "enabled": true
+            }
+          }
+        ]
+      }
+    }
+  },
+  "stop showing me bad jobs": {
+    "*": {
+      "reply": "I can do that, but what makes a job bad for you?",
+      "clarify": {
+        "question": "Which jobs should I stop showing you?",
+        "choices": [
+          "Hide roles that pay below my minimum",
+          "Hide onsite roles",
+          "Hide job alerts"
+        ]
+      },
+      "proposal": null
+    }
+  },
+  "hide roles that pay below my minimum": {
+    "*": {
+      "reply": "Here is a rule that hides roles paying less than €70,000 a year.",
+      "clarify": null,
+      "proposal": {
+        "summary": "Hide roles that pay below €70,000 a year",
+        "changes": [
+          {
+            "op": "add",
+            "target": "rule",
+            "rule": {
+              "description": "Hide roles that pay below €70,000 a year",
+              "when": [
+                {
+                  "fact": "pay",
+                  "op": "below",
+                  "value": {
+                    "amount": 70000,
+                    "currency": "EUR",
+                    "period": "year"
+                  }
+                }
+              ],
+              "then": "hide",
+              "enabled": true
+            }
+          }
+        ]
+      }
+    }
+  },
+  "hide onsite roles": {
+    "*": {
+      "reply": "Here is a rule that hides onsite roles.",
+      "clarify": null,
+      "proposal": {
+        "summary": "Hide onsite roles",
+        "changes": [
+          {
+            "op": "add",
+            "target": "rule",
+            "rule": {
+              "description": "Hide onsite roles",
+              "when": [
+                {
+                  "fact": "workMode",
+                  "op": "in",
+                  "value": [
+                    "onsite"
+                  ]
+                }
+              ],
+              "then": "hide",
+              "enabled": true
+            }
+          }
+        ]
+      }
+    }
+  },
+  "hide job alerts": {
+    "*": {
+      "reply": "Here is a rule that hides job alerts.",
+      "clarify": null,
+      "proposal": {
+        "summary": "Hide job alerts",
+        "changes": [
+          {
+            "op": "add",
+            "target": "rule",
+            "rule": {
+              "description": "Hide job alerts",
+              "when": [
+                {
+                  "fact": "category",
+                  "op": "in",
+                  "value": [
+                    "job_alert"
+                  ]
+                }
+              ],
+              "then": "hide",
+              "enabled": true
+            }
+          }
+        ]
+      }
+    }
+  },
+  "send my reply to the berlin recruiter": {
+    "*": {
+      "reply": "I can't send mail. Your reply to the Berlin recruiter is waiting on the Drafts page and in your mailbox's Drafts folder; review it there and send it from your mail app.",
+      "clarify": null,
+      "proposal": null
+    }
+  },
+  "invite tom as an editor": {
+    "*": {
+      "reply": "I can't invite people. An admin invites members under Settings › Members.",
+      "clarify": null,
+      "proposal": null
+    }
+  },
+  "delete all my data": {
+    "*": {
+      "reply": "I can't delete data. Removing mail, CVs or your account is done in Settings.",
+      "clarify": null,
+      "proposal": null
+    }
+  },
+  "switch my ai provider": {
+    "*": {
+      "reply": "I can't change the AI settings. An admin changes them under Settings › AI.",
+      "clarify": null,
+      "proposal": null
+    }
+  },
+  "welche regeln habe ich gerade?": {
+    "*": {
+      "reply": "Ich kann dein Profil und deine Regeln ändern, wenn du mir sagst, was du möchtest. Deine Regeln stehen auf der Profilseite unter „Regeln“.",
+      "clarify": null,
+      "proposal": null
+    }
+  }
+}

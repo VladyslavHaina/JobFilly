@@ -1798,5 +1798,47 @@
   },
   "<maria-0462@climbportugal.example>": {
     "category": "not_job"
+  },
+  "<maria-deliver-berlin-de@kiezwerk.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-deliver-remote-eu@fjordline.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-deliver-amsterdam@grachtenbank.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-deliver-singapore@merlion-pay.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-deliver-apac-1@lanterncommerce.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-deliver-apac-2@harborline.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-deliver-apac-3@wattledata.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-deliver-data-eng@nordkap-data.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-deliver-zurich@limmatledger.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-deliver-basel@rheinknie.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-deliver-dublin@liffeylabs.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-deliver-zurich-2@uetliberg.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-deliver-scam@quickhire-global.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-deliver-freemail@gmail.com>": {
+    "category": "recruiter_outreach"
   }
 }

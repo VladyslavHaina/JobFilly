@@ -1,18 +1,34 @@
+import { createHash } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { crc32 } from "node:zlib";
 import { describe, expect, it } from "vitest";
 import {
   AI_TEST_PATH,
   type AnswerFile,
+  ASSISTANT_ANSWERS_PATH,
+  ASSISTANT_ANY_TURN,
+  ASSISTANT_REQUESTS_PATH,
+  type AssistantAnswerFile,
+  type AssistantRequest,
   ATS_DOMAINS,
+  assistantMessageKey,
   type ClassifyAnswer,
   CORE_KEYS,
   type CoreKey,
+  type CvAnswer,
+  type CvFixture,
   comparedForF53,
+  type DeliveryEntry,
+  type DraftAnswer,
+  draftKey,
   type EnvelopeEntry,
   type ExpectedAnswer,
-  type ExpectedFile,
+  type ExpectedCv,
+  type ExpectedFileMvp2,
   type ExpectedMessage,
+  type ExpectedMessageAll,
+  type ExpectedRole,
   type ExtractAnswer,
   FIXTURE_REFERENCE_TIME,
   FOLDER_PATHS,
@@ -24,6 +40,8 @@ import {
   JOB_ALERT_SENDERS,
   type JobFacts,
   MARIA_KEY_MESSAGES,
+  type MatchAnswer,
+  matchKey,
   NONE_INTAKE_PATH,
   PERSONA_ADDRESSES,
   PERSONAS,
@@ -32,6 +50,7 @@ import {
   type Preferences,
   type PrefsAnswer,
   personaPaths,
+  personaPathsMvp2,
   REPLY_ONLY_KEYS,
   readJson,
   STAGE_ONE_VERDICTS,
@@ -256,7 +275,8 @@ function aggregate(replies: Reply[], jobs: Job[]): Record<CoreKey, ExpectedAnswe
 function load(persona: Persona) {
   const paths = personaPaths(persona);
   const envelopes = read<EnvelopeEntry[]>(paths.envelopes);
-  const expected = read<ExpectedFile>(paths.expected);
+  const expected = read<ExpectedFileMvp2>(paths.expected);
+  const deliveries = read<DeliveryEntry[]>(personaPathsMvp2(persona).deliveries);
   const classify = read<AnswerFile<ClassifyAnswer>>(paths.classify);
   const extract = read<AnswerFile<ExtractAnswer>>(paths.extract);
   const prefs = read<AnswerFile<PrefsAnswer>>(paths.prefs);
@@ -267,7 +287,7 @@ function load(persona: Persona) {
     .sort();
   const eml = new Map(files.map((f) => [f, parseEml(readFileSync(join(mailDir, f), "utf8"))]));
   const byId = new Map(envelopes.map((e) => [e.messageId, e]));
-  const truth = (id: string) => expected.messages[id] as ExpectedFile["messages"][string];
+  const truth = (id: string) => expected.messages[id] as ExpectedMessageAll;
   const inboxIds = new Set(envelopes.filter((e) => e.folder === "inbox").map((e) => e.messageId));
   const sent = envelopes.filter((e) => e.folder === "sent");
   const repliedTo = new Set(
@@ -297,6 +317,7 @@ function load(persona: Persona) {
     .sort((a, b) => a.minutesAgo - b.minutesAgo);
   return {
     envelopes,
+    deliveries,
     expected,
     classify,
     extract,
@@ -514,8 +535,10 @@ describe.each(PERSONAS)("%s's fixtures", (persona) => {
     const ids = d.envelopes.map((e) => e.messageId);
     const jobIds = ids.filter((id) => isJobCategory(d.truth(id).category));
     const sentIds = d.envelopes.filter((e) => e.folder === "sent").map((e) => e.messageId);
-    expect(Object.keys(d.classify).sort()).toEqual([...ids].sort());
-    expect(Object.keys(d.extract).sort()).toEqual([...jobIds].sort());
+    // The delivered mail (MVP 2) is all job mail; the MVP 2 checks below compare its answers.
+    const delivered = d.deliveries.map((e) => e.messageId);
+    expect(Object.keys(d.classify).sort()).toEqual([...ids, ...delivered].sort());
+    expect(Object.keys(d.extract).sort()).toEqual([...jobIds, ...delivered].sort());
     expect(Object.keys(d.prefs).sort()).toEqual([...sentIds].sort());
     for (const id of ids) {
       const t = d.truth(id);
@@ -622,14 +645,32 @@ describe.each(PERSONAS)("%s's fixtures", (persona) => {
   it("write envelopes, ground truth and roles with exactly the fields format.ts names", () => {
     const keys = (value: object) => Object.keys(value).sort();
     for (const e of d.envelopes) expect(keys(e), e.file).toEqual([...ENVELOPE_KEYS].sort());
-    expect(keys(d.expected)).toEqual(["address", "messages", "persona", "profile"]);
+    expect(keys(d.expected)).toEqual([
+      "address",
+      "cvs",
+      "deliveries",
+      "messages",
+      "persona",
+      "profile",
+    ]);
     expect(keys(d.expected.profile)).toEqual(["answers", "extraQuestions"]);
+    const all = { ...d.expected.messages, ...d.expected.deliveries };
     const roles = [
-      ...Object.values(d.expected.messages).flatMap((m) => m.facts ?? []),
+      ...Object.values(all).flatMap((m) => m.facts ?? []),
       ...Object.values(d.extract).flatMap((a) => (isInvalid(a) ? [] : a.roles)),
     ];
-    for (const [id, m] of Object.entries(d.expected.messages)) {
-      expect(keys(m), id).toEqual([...EXPECTED_MESSAGE_KEYS].sort());
+    for (const [id, m] of Object.entries(all)) {
+      // MVP 2 adds the sender verdict and the roles' expectations to analysed job mail.
+      const analysed = isJobCategory(m.category) && !m.ownReply && !m.invalid;
+      expect(keys(m), id).toEqual(
+        [...EXPECTED_MESSAGE_KEYS, ...(analysed ? (["roles", "sender"] as const) : [])].sort(),
+      );
+      for (const r of m.roles ?? []) {
+        const delivered = id in d.expected.deliveries;
+        expect(keys(r), id).toEqual(
+          ["cv", "draft", "hardConflicts", ...(delivered ? ["fit", "needs"] : [])].sort(),
+        );
+      }
     }
     for (const r of roles) {
       expect(keys(r), r.title ?? "").toEqual([...JOB_FACTS_KEYS].sort());
@@ -878,5 +919,657 @@ describe("the shared fake-AI answers", () => {
   it("keep Message-IDs and sentinels unique across both personas", () => {
     const ids = PERSONAS.flatMap((p) => data[p].envelopes.map((e) => e.messageId));
     expect(new Set(ids).size).toBe(ids.length);
+  });
+});
+
+// --- MVP 2 ----------------------------------------------------------------------------------
+// The CVs, the delivered mail, the backlog's matches, the sender ground truth and the assistant
+// requests, checked from the files alone like everything above.
+
+const DAY_MINUTES = 24 * 60;
+const REPLY_WINDOW_MINUTES = 14 * DAY_MINUTES;
+/** A template placeholder the draft check rejects (F6.2): "[Name]", "{company}". */
+const PLACEHOLDER = /\[[^\]\n]+\]|\{[^}\n]+\}/;
+
+// Reading the CV files, without a PDF or zip library.
+
+/** The text a PDF shows: every string its content streams paint, one line per Tj. */
+function pdfText(bytes: Buffer): string {
+  const pdf = bytes.toString("latin1");
+  expect(pdf.startsWith("%PDF-1.")).toBe(true);
+  expect(pdf.trimEnd().endsWith("%%EOF")).toBe(true);
+  const startxref = Number(/startxref\n(\d+)\n%%EOF\s*$/.exec(pdf)?.[1]);
+  expect(pdf.slice(startxref, startxref + 5)).toBe("xref\n");
+  const [, first, size] = /^xref\n(\d+) (\d+)\n/.exec(pdf.slice(startxref)) ?? [];
+  expect(Number(first)).toBe(0);
+  const entries = pdf
+    .slice(startxref)
+    .split("\n")
+    .slice(2, 2 + Number(size));
+  expect(entries).toHaveLength(Number(size));
+  entries.forEach((entry, i) => {
+    expect(entry).toMatch(/^\d{10} \d{5} [nf] $/);
+    if (entry.endsWith("n ")) {
+      const offset = Number(entry.slice(0, 10));
+      expect(pdf.slice(offset).startsWith(`${i} 0 obj\n`), `object ${i}`).toBe(true);
+    }
+  });
+  expect(pdf).toMatch(/\/Root 1 0 R/);
+  const lines: string[] = [];
+  for (const m of pdf.matchAll(/<< \/Length (\d+) >>\nstream\n/g)) {
+    const start = (m.index ?? 0) + m[0].length;
+    const stream = pdf.slice(start, start + Number(m[1]));
+    expect(pdf.slice(start + Number(m[1])).startsWith("endstream")).toBe(true);
+    for (const s of stream.matchAll(/\(((?:\\.|[^\\)])*)\) Tj/g)) {
+      lines.push(
+        (s[1] as string).replace(/\\([0-7]{3}|.)/g, (_, c: string) =>
+          c.length === 3 ? String.fromCharCode(Number.parseInt(c, 8)) : c,
+        ),
+      );
+    }
+  }
+  return lines.join("\n");
+}
+
+/** The entries of a zip whose members are stored, each checked against its CRC-32. */
+function storedZipEntries(bytes: Buffer): Map<string, Buffer> {
+  const end = bytes.length - 22;
+  expect(bytes.readUInt32LE(end)).toBe(0x06054b50);
+  const count = bytes.readUInt16LE(end + 10);
+  let at = bytes.readUInt32LE(end + 16);
+  const out = new Map<string, Buffer>();
+  for (let i = 0; i < count; i++) {
+    expect(bytes.readUInt32LE(at)).toBe(0x02014b50);
+    expect(bytes.readUInt16LE(at + 10), "stored, not compressed").toBe(0);
+    const crc = bytes.readUInt32LE(at + 16);
+    const size = bytes.readUInt32LE(at + 20);
+    const nameLength = bytes.readUInt16LE(at + 28);
+    const local = bytes.readUInt32LE(at + 42);
+    const name = bytes.toString("utf8", at + 46, at + 46 + nameLength);
+    expect(bytes.readUInt32LE(local)).toBe(0x04034b50);
+    const dataAt = local + 30 + bytes.readUInt16LE(local + 26) + bytes.readUInt16LE(local + 28);
+    const data = bytes.subarray(dataAt, dataAt + size);
+    expect(crc32(data), name).toBe(crc);
+    out.set(name, data);
+    at += 46 + nameLength;
+  }
+  return out;
+}
+
+/** The text a .docx shows: its paragraphs' text runs, one line per paragraph. */
+function docxText(bytes: Buffer): string {
+  const parts = storedZipEntries(bytes);
+  expect([...parts.keys()].sort()).toEqual([
+    "[Content_Types].xml",
+    "_rels/.rels",
+    "word/document.xml",
+  ]);
+  expect(parts.get("_rels/.rels")?.toString("utf8")).toContain('Target="word/document.xml"');
+  const xml = parts.get("word/document.xml")?.toString("utf8") ?? "";
+  expect(xml).toMatch(/^<\?xml [^>]+\?>\n<w:document [^>]+><w:body>.*<\/w:body><\/w:document>$/s);
+  return [...xml.matchAll(/<w:p\/>|<w:p>(.*?)<\/w:p>/g)]
+    .map(([, p]) =>
+      [...(p ?? "").matchAll(/<w:t[^>]*>([^<]*)<\/w:t>/g)]
+        .map(([, t]) => (t as string).replace(/&lt;/g, "<").replace(/&gt;/g, ">"))
+        .join("")
+        .replace(/&amp;/g, "&"),
+    )
+    .join("\n");
+}
+
+/** Whether `text` writes `skill` as a word (case aside). */
+const writes = (text: string, skill: string) =>
+  new RegExp(
+    `(^|[^\\p{L}\\p{N}])${skill.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}($|[^\\p{L}\\p{N}])`,
+    "iu",
+  ).test(text);
+
+// Loading MVP 2's files.
+
+function loadMvp2(persona: Persona) {
+  const paths = personaPathsMvp2(persona);
+  const d = data[persona];
+  const cvList = read<CvFixture[]>(paths.cvList);
+  const cvAnswers = read<Record<string, CvAnswer>>(paths.cv);
+  const match = read<Record<string, MatchAnswer>>(paths.match);
+  const draft = read<Record<string, DraftAnswer>>(paths.draft);
+  const cvText = new Map(
+    cvList.map((c) => {
+      const bytes = readFileSync(join(root, paths.cvs, c.file));
+      return [c.name, { bytes, text: c.mediaType === "pdf" ? pdfText(bytes) : docxText(bytes) }];
+    }),
+  );
+  const delivered = new Map(
+    d.deliveries.map((e) => [
+      e.id,
+      {
+        entry: e,
+        eml: parseEml(readFileSync(join(root, paths.deliver, e.file), "utf8")),
+        truth: d.expected.deliveries[e.messageId] as ExpectedMessageAll,
+      },
+    ]),
+  );
+  return { cvList, cvAnswers, match, draft, cvText, delivered };
+}
+
+const mvp2 = Object.fromEntries(PERSONAS.map((p) => [p, loadMvp2(p)])) as Record<
+  Persona,
+  ReturnType<typeof loadMvp2>
+>;
+
+/** Every analysed job message of a persona, backlog and delivered, with its ground truth. */
+function analysed(persona: Persona): [string, ExpectedMessageAll][] {
+  const e = data[persona].expected;
+  return Object.entries({ ...e.messages, ...e.deliveries }).filter(
+    ([, t]) => isJobCategory(t.category) && !t.ownReply && !t.invalid,
+  );
+}
+
+const signals = readJson<{ languages: Record<string, Record<string, string[]>> }>(
+  join(root, "../../packages/core/src/sender/data/message-signals.json"),
+);
+const freeMail = new Set(
+  readJson<{ domains: string[] }>(
+    join(root, "../../packages/core/src/sender/data/free-mail-domains.json"),
+  ).domains,
+);
+
+/** The signal phrases (of every language) a text contains, as "<signal>: <phrase>". */
+function signalsIn(text: string): string[] {
+  const lower = text.toLowerCase();
+  return Object.values(signals.languages).flatMap((bySignal) =>
+    Object.entries(bySignal).flatMap(([signal, phrases]) =>
+      phrases.filter((p) => lower.includes(p)).map((p) => `${signal}: ${p}`),
+    ),
+  );
+}
+
+describe("the CVs (MVP 2)", () => {
+  it("are Maria's three and Tom's one, in the formats the spec names", () => {
+    const list = (p: Persona) => mvp2[p].cvList.map((c) => [c.name, c.mediaType]);
+    expect(list("maria")).toEqual([
+      ["Backend (EN)", "pdf"],
+      ["Backend (DE)", "docx"],
+      ["Data engineering (EN)", "pdf"],
+    ]);
+    expect(list("tom")).toEqual([["Nurse (EN)", "docx"]]);
+  });
+
+  describe.each(PERSONAS)("%s's", (persona) => {
+    const m = mvp2[persona];
+    const expectedCvs = data[persona].expected.cvs;
+
+    it("parse as a PDF or a store-only DOCX showing the persona's name", () => {
+      for (const c of m.cvList) {
+        const { text } = m.cvText.get(c.name) as { text: string };
+        expect(text.split("\n")[0], c.name).toBe(
+          { maria: "Maria Santos", tom: "Tom Okafor" }[persona],
+        );
+        expect(c.file.endsWith(`.${c.mediaType}`)).toBe(true);
+      }
+    });
+
+    it("are keyed in cv.json by the SHA-256 of their bytes", () => {
+      for (const c of m.cvList) {
+        const { bytes } = m.cvText.get(c.name) as { bytes: Buffer };
+        expect(createHash("sha256").update(bytes).digest("hex"), c.name).toBe(c.contentHash);
+      }
+      expect(Object.keys(m.cvAnswers).sort()).toEqual(m.cvList.map((c) => c.contentHash).sort());
+      expect(readdirSync(join(root, personaPathsMvp2(persona).cvs)).sort()).toEqual(
+        m.cvList.map((c) => c.file).sort(),
+      );
+    });
+
+    it("get answers whose skills are all written in the CV, but the one dropped skill", () => {
+      for (const c of m.cvList) {
+        const answer = m.cvAnswers[c.contentHash] as CvAnswer;
+        const { text } = m.cvText.get(c.name) as { text: string };
+        const notWritten = answer.skills.filter((s) => !writes(text, s));
+        const truth = expectedCvs.find((e) => e.name === c.name) as ExpectedCv;
+        expect(notWritten, c.name).toEqual(truth.droppedSkill ? [truth.droppedSkill] : []);
+        expect(truth.skills).toEqual(answer.skills.filter((s) => s !== truth.droppedSkill));
+        expect(truth.tags).toEqual(
+          [answer.language, ...answer.roleFamilies, answer.seniority].filter((t) => t !== null),
+        );
+      }
+    });
+
+    it("list each CV once in expected.json", () => {
+      expect(expectedCvs.map((c) => c.name)).toEqual(m.cvList.map((c) => c.name));
+    });
+  });
+
+  it("give 'Data engineering (EN)' exactly one skill the CV doesn't have, and only it", () => {
+    const dropped = PERSONAS.flatMap((p) =>
+      data[p].expected.cvs.filter((c) => c.droppedSkill).map((c) => c.name),
+    );
+    expect(dropped).toEqual(["Data engineering (EN)"]);
+  });
+
+  it("read the German CV as German and the others as English", () => {
+    const languages = PERSONAS.flatMap((p) =>
+      mvp2[p].cvList.map((c) => [c.name, mvp2[p].cvAnswers[c.contentHash]?.language]),
+    );
+    expect(Object.fromEntries(languages)).toEqual({
+      "Backend (EN)": "en",
+      "Backend (DE)": "de",
+      "Data engineering (EN)": "en",
+      "Nurse (EN)": "en",
+    });
+  });
+});
+
+describe("the delivered mail (MVP 2)", () => {
+  const m = mvp2.maria;
+  const d = data.maria;
+  const get = (id: string) => {
+    const found = m.delivered.get(id);
+    if (!found) throw new Error(`no delivery ${id}`);
+    return found;
+  };
+  const role0 = (id: string) => get(id).truth.facts?.[0] as JobFacts;
+  const expected0 = (id: string) => get(id).truth.roles?.[0] as ExpectedRole;
+  const answer = (id: string, attempt: 1 | 2) =>
+    m.draft[draftKey(get(id).entry.messageId, 0, attempt)];
+
+  it("is Maria's only, one .eml per deliveries.json entry, ids unique", () => {
+    expect(data.tom.deliveries).toEqual([]);
+    const ids = d.deliveries.map((e) => e.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(readdirSync(join(root, personaPathsMvp2("maria").deliver)).sort()).toEqual(
+      d.deliveries.map((e) => e.file).sort(),
+    );
+    expect(Object.keys(d.expected.deliveries).sort()).toEqual(
+      d.deliveries.map((e) => e.messageId).sort(),
+    );
+  });
+
+  it("is dated within the 14-day reply window, with headers and sentinels like the mailbox's", () => {
+    const reference = Date.parse(FIXTURE_REFERENCE_TIME);
+    for (const { entry, eml } of m.delivered.values()) {
+      expect(entry.minutesAgo).toBeGreaterThan(0);
+      expect(entry.minutesAgo).toBeLessThan(REPLY_WINDOW_MINUTES);
+      expect(eml.headers.get("message-id")).toBe(entry.messageId);
+      expect(Date.parse(eml.headers.get("date") as string)).toBe(
+        reference - entry.minutesAgo * 60_000,
+      );
+      expect(parseAddresses(eml.headers.get("to"))).toEqual([
+        { address: PERSONA_ADDRESSES.maria, name: "Maria Santos" },
+      ]);
+      const sentinel = `BODYSENTINEL-maria-deliver-${entry.id}`;
+      for (const body of [eml.text, eml.html]) {
+        expect(body.indexOf(sentinel)).toBeGreaterThanOrEqual(1000);
+        expect(body.split("BODYSENTINEL-")).toHaveLength(2);
+      }
+    }
+  });
+
+  it("has classify, extract, match and sender ground truth for every message and role", () => {
+    for (const { entry, truth } of m.delivered.values()) {
+      expect(d.classify[entry.messageId]).toEqual({ category: truth.category });
+      expect(d.extract[entry.messageId]).toEqual({ roles: truth.facts });
+      expect(truth.category).toBe("recruiter_outreach");
+      expect(truth.sender?.verdict).toBeDefined();
+      expect(truth.roles?.length).toBe(truth.facts?.length);
+      expect(truth.facts?.length).toBeGreaterThan(0);
+      truth.facts?.forEach((_, i) => {
+        expect(m.match[matchKey(entry.messageId, i)], `${entry.id} role ${i}`).toBeDefined();
+      });
+    }
+  });
+
+  it("is delivered in S2, but the second Zurich role, which waits for S5", () => {
+    expect(
+      Object.fromEntries(d.deliveries.map((e) => [e.id, e.step]).filter(([, s]) => s !== "S2")),
+    ).toEqual({ "zurich-2": "S5" });
+  });
+
+  it("holds the roles the spec lists", () => {
+    // A Berlin backend role in German that asks for a CV.
+    expect(role0("berlin-de")).toMatchObject({
+      places: [{ country: "DE", city: "Berlin" }],
+      workMode: "hybrid",
+    });
+    expect(get("berlin-de").eml.text).toMatch(/Lebenslauf/);
+    expect(expected0("berlin-de")).toMatchObject({ cv: "Backend (DE)", fit: "good", draft: true });
+    expect(answer("berlin-de", 1)).toMatchObject({ language: "de", attachCv: true });
+    // A remote EU role in English on CET hours.
+    expect(role0("remote-eu")).toMatchObject({
+      workMode: "remote",
+      remoteScope: "within the EU",
+      timeZones: { from: "UTC+01:00", to: "UTC+02:00" },
+    });
+    expect(expected0("remote-eu")).toMatchObject({ cv: "Backend (EN)", fit: "good", draft: true });
+    // A hybrid Amsterdam role and an onsite role in Singapore, both capped by their place.
+    expect(role0("amsterdam")).toMatchObject({
+      places: [{ country: "NL", city: "Amsterdam" }],
+      workMode: "hybrid",
+    });
+    expect(role0("singapore")).toMatchObject({
+      places: [{ country: "SG", city: "Singapore" }],
+      workMode: "onsite",
+    });
+    for (const id of ["amsterdam", "singapore"]) {
+      expect(expected0(id)).toMatchObject({
+        fit: "capped",
+        hardConflicts: ["places"],
+        draft: false,
+      });
+    }
+    // Three remote roles on Asia-Pacific hours (UTC+8, UTC+8, UTC+10), one scoring 70 or more.
+    const apac = ["apac-1", "apac-2", "apac-3"];
+    expect(apac.map((id) => [role0(id).workMode, role0(id).timeZones?.from])).toEqual([
+      ["remote", "UTC+08:00"],
+      ["remote", "UTC+08:00"],
+      ["remote", "UTC+10:00"],
+    ]);
+    expect(apac.filter((id) => expected0(id).fit === "good")).toEqual(["apac-1"]);
+    expect(apac.filter((id) => expected0(id).draft)).toEqual(["apac-1"]);
+    // A data-engineering role below the reply threshold.
+    expect(role0("data-eng").title).toMatch(/Data Engineer/);
+    expect(expected0("data-eng")).toMatchObject({ cv: "Data engineering (EN)", draft: false });
+    expect(expected0("data-eng").fit).not.toBe("good");
+    // A Zurich and a Basel role in CHF asking for her rate, and a second Zurich role in CHF.
+    for (const id of ["zurich", "basel", "zurich-2"]) {
+      expect(role0(id).pay).toMatchObject({ currency: "CHF", period: "year" });
+      expect(expected0(id)).toMatchObject({ fit: "good", draft: true });
+    }
+    expect(role0("zurich").extra.office).toBe("Zurich");
+    expect(role0("basel").extra.office).toBe("Basel");
+    expect(role0("zurich-2").extra.office).toBe("Zurich");
+    expect(get("zurich").eml.text).toMatch(/salary expectation be in CHF\?/);
+    expect(get("basel").eml.text).toMatch(/Gehaltsvorstellungen in CHF\?/);
+    expect(get("basel").entry.messageId).toBeDefined();
+    expect(expected0("zurich").needs).toEqual(["min_pay:CHF:year"]);
+    expect(expected0("basel").needs).toEqual(["min_pay:CHF:year"]);
+    expect(expected0("zurich-2").needs).toEqual([]);
+    // A remote-first role with a Dublin office that asks about relocating later.
+    expect(role0("dublin")).toMatchObject({ workMode: "remote", extra: { office: "Dublin" } });
+    expect(get("dublin").eml.text).toMatch(/relocating to Dublin/);
+    expect(expected0("dublin")).toMatchObject({ fit: "good", draft: false });
+    // A scam asking for a fee and a passport scan, and a free-mail "recruiter".
+    expect(get("scam").truth.sender?.verdict).toBe("high_risk");
+    expect(get("freemail").truth.sender?.verdict).toBe("caution");
+  });
+
+  it("gives every capped role a hard conflict, and only those", () => {
+    for (const { entry, truth } of m.delivered.values()) {
+      for (const r of truth.roles ?? []) {
+        expect(r.fit === "capped", entry.id).toBe(r.hardConflicts.length > 0);
+      }
+    }
+  });
+
+  it("gives a good role a fitting title, a CV with its skills and no hard conflict", () => {
+    for (const { entry, truth } of m.delivered.values()) {
+      truth.roles?.forEach((r, i) => {
+        if (r.fit !== "good") return;
+        expect(m.match[matchKey(entry.messageId, i)]?.titleFit.verdict, entry.id).toBe("fits");
+        expect(r.hardConflicts).toEqual([]);
+      });
+    }
+  });
+
+  it("has draft answers for every role that gets a draft, and only for delivered roles", () => {
+    const keys = new Set(Object.keys(m.draft));
+    for (const { entry, truth } of m.delivered.values()) {
+      truth.roles?.forEach((r, i) => {
+        if (r.draft) expect(keys.has(draftKey(entry.messageId, i, 1)), entry.id).toBe(true);
+      });
+    }
+    const delivered = new Set(d.deliveries.map((e) => e.messageId));
+    for (const key of keys) expect(delivered.has(key.split("#")[0] as string), key).toBe(true);
+    expect(Object.keys(data.tom.expected.deliveries)).toEqual([]);
+  });
+
+  it("drafts the remote-EU role with '[Name]' first and without a placeholder the second time", () => {
+    expect(answer("remote-eu", 1)?.body).toContain("[Name]");
+    expect(answer("remote-eu", 2)?.body).not.toMatch(PLACEHOLDER);
+    for (const [key, a] of Object.entries(m.draft)) {
+      if (key === draftKey(get("remote-eu").entry.messageId, 0, 1)) continue;
+      expect(`${a.subject}\n${a.body}`, key).not.toMatch(PLACEHOLDER);
+    }
+  });
+
+  it("drafts the roles the CHF answer releases, the Dublin role with its question, and data engineering on demand", () => {
+    for (const id of ["zurich", "basel", "zurich-2", "data-eng"]) {
+      expect(answer(id, 1)?.questions, id).toEqual([]);
+    }
+    expect(answer("basel", 1)?.language).toBe("de");
+    expect(answer("dublin", 1)?.questions).toEqual([
+      {
+        profileKey: "extra.relocation-ireland",
+        groupKey: "extra.relocation-ireland",
+        question: "Would you relocate to Ireland?",
+        choices: ["Yes", "No", "Maybe later"],
+      },
+    ]);
+  });
+
+  it("writes every draft in the language of the message it answers", () => {
+    for (const { entry } of m.delivered.values()) {
+      for (const attempt of [1, 2] as const) {
+        const a = m.draft[draftKey(entry.messageId, 0, attempt)];
+        if (a)
+          expect(a.language, entry.id).toBe(
+            entry.id === "berlin-de" || entry.id === "basel" ? "de" : "en",
+          );
+      }
+    }
+  });
+});
+
+describe("the first scan's backlog (MVP 2)", () => {
+  it.each(PERSONAS)(
+    "has a match.v1 answer for every role %s's mailbox and deliveries hold",
+    (persona) => {
+      const keys = analysed(persona).flatMap(([id, t]) =>
+        (t.facts ?? []).map((_, i) => matchKey(id, i)),
+      );
+      expect(Object.keys(mvp2[persona].match).sort()).toEqual(keys.sort());
+    },
+  );
+
+  it.each(PERSONAS)(
+    "records %s's CV choice and hard conflicts per role, and no automatic draft",
+    (persona) => {
+      const cvs = new Set(mvp2[persona].cvList.map((c) => c.name));
+      for (const [id, t] of Object.entries(data[persona].expected.messages)) {
+        if (!isJobCategory(t.category) || t.ownReply || t.invalid) continue;
+        expect(t.roles?.length, id).toBe(t.facts?.length);
+        for (const r of t.roles ?? []) {
+          expect(cvs.has(r.cv as string), id).toBe(true);
+          expect(r.draft, id).toBe(false);
+        }
+      }
+    },
+  );
+
+  it.each(PERSONAS)(
+    "dates every possible good match of %s's mailbox past the reply window",
+    (persona) => {
+      const d = data[persona];
+      for (const [id, t] of Object.entries(d.expected.messages)) {
+        if (t.category !== "recruiter_outreach" || t.ownReply || t.invalid) continue;
+        if (t.sender?.verdict === "high_risk") continue;
+        const possible = (t.roles ?? []).some(
+          (r, i) =>
+            r.hardConflicts.length === 0 &&
+            mvp2[persona].match[matchKey(id, i)]?.titleFit.verdict !== "conflicts",
+        );
+        if (possible) {
+          expect((d.byId.get(id) as EnvelopeEntry).minutesAgo, id).toBeGreaterThan(
+            REPLY_WINDOW_MINUTES,
+          );
+        }
+      }
+    },
+  );
+
+  it("chooses Backend (DE) for German mail, Data engineering (EN) for data roles, else Backend (EN)", () => {
+    const de = analysed("maria").filter(([, t]) =>
+      (t.roles ?? []).some((r) => r.cv === "Backend (DE)"),
+    );
+    expect(de.length).toBeGreaterThan(10);
+    const dataRoles = analysed("maria").flatMap(([, t]) =>
+      (t.facts ?? []).map((f, i) => [f.title, t.roles?.[i]?.cv]),
+    );
+    for (const [title, cv] of dataRoles) {
+      if (/data engineer/i.test(title ?? "")) expect(cv).toBe("Data engineering (EN)");
+    }
+  });
+
+  it("puts exactly three roles on UTC+5 or later, the delivered Asia-Pacific ones, one with a draft", () => {
+    const east = analysed("maria").flatMap(([id, t]) =>
+      (t.facts ?? [])
+        .map((f, i) => ({ id, f, r: t.roles?.[i] as ExpectedRole }))
+        .filter(({ f }) => f.timeZones !== null && f.timeZones.from >= "UTC+05:00"),
+    );
+    expect(east.map((e) => e.id).sort()).toEqual(
+      ["apac-1", "apac-2", "apac-3"]
+        .map((id) => mvp2.maria.delivered.get(id)?.entry.messageId)
+        .sort(),
+    );
+    expect(east.filter((e) => e.r.draft)).toHaveLength(1);
+  });
+});
+
+describe("the sender ground truth (MVP 2)", () => {
+  const texts = (persona: Persona) =>
+    analysed(persona).map(([id, t]) => {
+      const env = data[persona].byId.get(id);
+      const delivery = [...mvp2[persona].delivered.values()].find((x) => x.entry.messageId === id);
+      const eml = env ? data[persona].eml.get(env.file) : delivery?.eml;
+      const from = env
+        ? env.from.address
+        : (parseAddresses(delivery?.eml.headers.get("from"))[0]?.address ?? "");
+      return { id, t, text: (eml as ParsedEml).text, domain: domainOf(from) };
+    });
+  const scams = [MARIA_KEY_MESSAGES.scam, mvp2.maria.delivered.get("scam")?.entry.messageId];
+
+  it("gives both scams a phrase for a fee and one for a passport from message-signals.json", () => {
+    for (const { id, text } of texts("maria").filter((x) => scams.includes(x.id))) {
+      const found = signalsIn(text);
+      expect(
+        found.some((s) => s.startsWith("asks_for_fee: ")),
+        id,
+      ).toBe(true);
+      expect(
+        found.some((s) => s.startsWith("asks_for_id: ") && s.includes("passport")),
+        id,
+      ).toBe(true);
+    }
+  });
+
+  it.each(PERSONAS)("gives no other job mail of %s a signal phrase", (persona) => {
+    for (const { id, text } of texts(persona)) {
+      if (!scams.includes(id)) expect(signalsIn(text), id).toEqual([]);
+    }
+  });
+
+  it("writes the free-mail recruiter from a domain in free-mail-domains.json, and nobody else", () => {
+    const free = PERSONAS.flatMap((p) =>
+      texts(p)
+        .filter((x) => freeMail.has(x.domain))
+        .map((x) => x.id),
+    );
+    expect(free).toEqual([mvp2.maria.delivered.get("freemail")?.entry.messageId]);
+  });
+
+  it.each(PERSONAS)(
+    "calls %s's scams high risk, the free-mail recruiter caution, the rest fine",
+    (persona) => {
+      const verdicts = Object.fromEntries(
+        texts(persona).map(({ id, t }) => [id, t.sender?.verdict]),
+      );
+      for (const [id, verdict] of Object.entries(verdicts)) {
+        const want = scams.includes(id)
+          ? "high_risk"
+          : id === mvp2.maria.delivered.get("freemail")?.entry.messageId
+            ? "caution"
+            : "looks_fine";
+        expect(verdict, id).toBe(want);
+      }
+    },
+  );
+});
+
+describe("the assistant requests (MVP 2)", () => {
+  const requests = read<AssistantRequest[]>(ASSISTANT_REQUESTS_PATH);
+  const answers = read<AssistantAnswerFile>(ASSISTANT_ANSWERS_PATH);
+  const anyTurn = (text: string) => answers[assistantMessageKey(text)]?.[ASSISTANT_ANY_TURN];
+  const RULE_FACTS = [
+    "places.country",
+    "workMode",
+    "timeZones",
+    "pay",
+    "contract",
+    "company",
+    "agency",
+    "sender.domain",
+    "category",
+    "skills",
+    "languages",
+  ];
+  const RULE_OPS = ["in", "not_in", "within", "outside", "below", "contains", "equals", "missing"];
+
+  it("are ten, in English, German and Portuguese, each with the change it should produce", () => {
+    expect(requests).toHaveLength(10);
+    expect(new Set(requests.map((r) => r.language))).toEqual(new Set(["en", "de", "pt"]));
+    for (const r of requests) {
+      expect(Array.isArray(r.expected) && r.expected.length > 0, r.text).toBe(true);
+      expect(r.text).not.toMatch(/E2E-CHAT/);
+    }
+  });
+
+  it("propose only Changes packages/schema accepts in shape", () => {
+    const changes = requests.flatMap((r) => (r.expected ?? []) as Record<string, unknown>[]);
+    for (const c of changes) {
+      expect(["add", "update", "remove"]).toContain(c.op);
+      expect(["rule", "entry"]).toContain(c.target);
+      if (c.target === "rule" && c.op !== "remove") {
+        const rule = c.rule as {
+          description: string;
+          when: { fact: string; op: string }[];
+          then: string;
+        };
+        expect(rule.description.length).toBeGreaterThan(0);
+        expect(["hide", "no_draft", "ask_first", "cap_score"]).toContain(rule.then);
+        for (const w of rule.when) {
+          expect(RULE_FACTS, w.fact).toContain(w.fact);
+          expect(RULE_OPS, w.op).toContain(w.op);
+        }
+      }
+      if (c.target === "entry") expect(Array.isArray(c.value)).toBe(true);
+    }
+    expect(JSON.stringify(changes)).not.toMatch(/"UTC[+-](?!(0\d|1[0-4]):[0-5]\d")/);
+  });
+
+  it("get fake-AI proposals with exactly the expected changes, at any turn", () => {
+    for (const r of requests) {
+      expect(anyTurn(r.text)?.proposal?.changes, r.text).toEqual(r.expected);
+      expect(anyTurn(r.text)?.clarify).toBeNull();
+    }
+  });
+
+  it("answer the scenarios: the time-zone proposal, a clarifying question, what it can't do", () => {
+    const tz = anyTurn(
+      "Lately I don't want jobs in Asian time zones anymore, ignore them E2E-CHAT-1",
+    );
+    expect(tz?.proposal?.summary).toBe("Hide roles whose working hours are UTC+5 or later");
+    const unclear = anyTurn("stop showing me bad jobs");
+    expect(unclear?.proposal).toBeNull();
+    expect(unclear?.clarify?.choices.length).toBeGreaterThan(1);
+    for (const choice of unclear?.clarify?.choices ?? []) {
+      expect(anyTurn(choice)?.proposal?.changes.length, choice).toBeGreaterThan(0);
+    }
+    const send = anyTurn("send my reply to the Berlin recruiter");
+    expect(send).toMatchObject({ clarify: null, proposal: null });
+    expect(send?.reply).toMatch(/can't send mail/);
+    expect(send?.reply).toMatch(/Drafts/);
+  });
+
+  it("key every answer as assistantMessageKey does", () => {
+    for (const key of Object.keys(answers)) expect(assistantMessageKey(key)).toBe(key);
   });
 });

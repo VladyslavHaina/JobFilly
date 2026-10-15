@@ -1,0 +1,4261 @@
+{
+  "<maria-0002@linkedin.com>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Senior Backend Engineer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0002@linkedin.com>#1": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0002@linkedin.com>#2": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Platform Engineer\" may or may not be backend work"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0041@linkedin.com>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Go Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0041@linkedin.com>#1": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Platform Engineer\" may or may not be backend work"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0041@linkedin.com>#2": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Engineer (Java)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0041@linkedin.com>#3": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Staff Software Engineer\" may or may not be backend work"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0003@nordlicht-pay.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Senior Backend Engineer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0009@copperleaf.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"API Engineer\" may or may not be backend work"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Python",
+        "verdict": "unknown",
+        "reason": "Python is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Kafka",
+        "verdict": "fits",
+        "reason": "Kafka is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "AWS",
+        "verdict": "unknown",
+        "reason": "AWS is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Kotlin",
+        "verdict": "unknown",
+        "reason": "Kotlin is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0043@linkedin.com>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Software Engineer – Backend\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0043@linkedin.com>#1": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0077@xing.com>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Softwareentwickler Backend (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0077@xing.com>#1": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Senior Backend Engineer (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0077@xing.com>#2": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend-Entwickler (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0042@indeed.com>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Senior Backend Engineer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0042@indeed.com>#1": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Software Engineer – Backend\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0007@kanaalstraat.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Engineer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0062@linkedin.com>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Staff Software Engineer\" may or may not be backend work"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0062@linkedin.com>#1": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0062@linkedin.com>#2": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Engineer (Java)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0008@hire.lever.co>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Senior Backend Engineer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0064@nationalevacaturebank.nl>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Software Engineer Backend\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0064@nationalevacaturebank.nl>#1": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Senior Java Developer\" may or may not be backend work"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0063@net-empregos.com>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Programador Backend (m/f)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0063@net-empregos.com>#1": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Engenheiro de Software Backend\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0063@net-empregos.com>#2": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0061@stepstone.de>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend-Entwickler (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0061@stepstone.de>#1": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Senior Backend Engineer (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0061@stepstone.de>#2": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Softwareentwickler Backend (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0001@talentbruecke.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Senior Backend-Entwickler (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Go",
+        "verdict": "fits",
+        "reason": "Go is in the CV \"Backend (DE)\""
+      },
+      {
+        "skill": "PostgreSQL",
+        "verdict": "fits",
+        "reason": "PostgreSQL is in the CV \"Backend (DE)\""
+      },
+      {
+        "skill": "Kubernetes",
+        "verdict": "fits",
+        "reason": "Kubernetes is in the CV \"Backend (DE)\""
+      }
+    ]
+  },
+  "<maria-0004@hirewave.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Python Developer\" may or may not be backend work"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0011@talentbruecke.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Go-Entwickler (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Python",
+        "verdict": "unknown",
+        "reason": "Python is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Kubernetes",
+        "verdict": "fits",
+        "reason": "Kubernetes is in the CV \"Backend (DE)\""
+      },
+      {
+        "skill": "AWS",
+        "verdict": "unknown",
+        "reason": "AWS is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0039@indeed.com>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0039@indeed.com>#1": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Go Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0039@indeed.com>#2": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Senior Backend Engineer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0039@indeed.com>#3": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Platform Engineer\" may or may not be backend work"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0203@greenhouse-mail.io>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Senior Backend Engineer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0013@polder-talent.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Platform Engineer\" may or may not be backend work"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Redis",
+        "verdict": "unknown",
+        "reason": "Redis is in neither the CV nor the profile"
+      },
+      {
+        "skill": "PostgreSQL",
+        "verdict": "fits",
+        "reason": "PostgreSQL is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Kotlin",
+        "verdict": "unknown",
+        "reason": "Kotlin is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Go",
+        "verdict": "fits",
+        "reason": "Go is in the CV \"Backend (EN)\""
+      }
+    ]
+  },
+  "<maria-0135@atlantictech.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Software Engineer, Payments\" may or may not be backend work"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Go",
+        "verdict": "fits",
+        "reason": "Go is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Kafka",
+        "verdict": "fits",
+        "reason": "Kafka is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Kotlin",
+        "verdict": "unknown",
+        "reason": "Kotlin is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0148@quaysidebank.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Software Engineer, Payments\" may or may not be backend work"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Kafka",
+        "verdict": "fits",
+        "reason": "Kafka is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "TypeScript",
+        "verdict": "unknown",
+        "reason": "TypeScript is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Terraform",
+        "verdict": "fits",
+        "reason": "Terraform is in the CV \"Backend (EN)\""
+      }
+    ]
+  },
+  "<maria-0140@harbour-rec.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Python Backend Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Go",
+        "verdict": "fits",
+        "reason": "Go is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Terraform",
+        "verdict": "fits",
+        "reason": "Terraform is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Java",
+        "verdict": "unknown",
+        "reason": "Java is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0070@xing.com>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Softwareentwickler Backend (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0070@xing.com>#1": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Senior Backend Engineer (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0070@xing.com>#2": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Cloud Engineer (m/w/d)\" may or may not be backend work"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0070@xing.com>#3": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend-Entwickler (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0172@rheinpfad.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Engineer (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Python",
+        "verdict": "unknown",
+        "reason": "Python is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Java",
+        "verdict": "unknown",
+        "reason": "Java is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Kotlin",
+        "verdict": "unknown",
+        "reason": "Kotlin is in neither the CV nor the profile"
+      },
+      {
+        "skill": "TypeScript",
+        "verdict": "unknown",
+        "reason": "TypeScript is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0131@rheinpfad.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Platform Engineer (m/w/d)\" may or may not be backend work"
+    },
+    "skillCloseness": [
+      {
+        "skill": "PostgreSQL",
+        "verdict": "fits",
+        "reason": "PostgreSQL is in the CV \"Backend (DE)\""
+      },
+      {
+        "skill": "Java",
+        "verdict": "unknown",
+        "reason": "Java is in neither the CV nor the profile"
+      },
+      {
+        "skill": "AWS",
+        "verdict": "unknown",
+        "reason": "AWS is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Terraform",
+        "verdict": "fits",
+        "reason": "Terraform is in the CV \"Backend (DE)\""
+      }
+    ]
+  },
+  "<maria-0125@alfamalabs.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Programador(a) Java\" may or may not be backend work"
+    },
+    "skillCloseness": [
+      {
+        "skill": "gRPC",
+        "verdict": "fits",
+        "reason": "gRPC is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "PostgreSQL",
+        "verdict": "fits",
+        "reason": "PostgreSQL is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Redis",
+        "verdict": "unknown",
+        "reason": "Redis is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Python",
+        "verdict": "unknown",
+        "reason": "Python is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0015@dourofintech.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Engenheiro(a) de Backend\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0208@workablemail.com>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0183@dijkstra-logistics.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Java Developer\" may or may not be backend work"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Kotlin",
+        "verdict": "unknown",
+        "reason": "Kotlin is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Java",
+        "verdict": "unknown",
+        "reason": "Java is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Redis",
+        "verdict": "unknown",
+        "reason": "Redis is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Kafka",
+        "verdict": "fits",
+        "reason": "Kafka is in the CV \"Backend (EN)\""
+      }
+    ]
+  },
+  "<maria-0228@teamtailor.com>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Engineer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0144@alfamalabs.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Programador(a) Backend\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "PostgreSQL",
+        "verdict": "fits",
+        "reason": "PostgreSQL is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "AWS",
+        "verdict": "unknown",
+        "reason": "AWS is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Java",
+        "verdict": "unknown",
+        "reason": "Java is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0057@indeed.com>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0057@indeed.com>#1": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Go Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0057@indeed.com>#2": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Engineer (Java)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0209@personio.de>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Senior Backend Engineer (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0055@stepstone.de>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Senior Backend Engineer (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0055@stepstone.de>#1": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Softwareentwickler Backend (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0055@stepstone.de>#2": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Cloud Engineer (m/w/d)\" may or may not be backend work"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0072@indeed.com>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Software Engineer – Backend\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0072@indeed.com>#1": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Engineer (Java)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0072@indeed.com>#2": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Senior Backend Engineer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0072@indeed.com>#3": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Staff Software Engineer\" may or may not be backend work"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0227@greenhouse-mail.io>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0006@globalcareers-mail.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Remote Software Engineer\" may or may not be backend work"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0199@smartrecruiters.com>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Platform Engineer\" may or may not be backend work"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0134@rheinpfad.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Softwareentwickler Java (m/w/d)\" may or may not be backend work"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Terraform",
+        "verdict": "fits",
+        "reason": "Terraform is in the CV \"Backend (DE)\""
+      },
+      {
+        "skill": "Kafka",
+        "verdict": "fits",
+        "reason": "Kafka is in the CV \"Backend (DE)\""
+      },
+      {
+        "skill": "Go",
+        "verdict": "fits",
+        "reason": "Go is in the CV \"Backend (DE)\""
+      },
+      {
+        "skill": "PostgreSQL",
+        "verdict": "fits",
+        "reason": "PostgreSQL is in the CV \"Backend (DE)\""
+      }
+    ]
+  },
+  "<maria-0079@rheinpfad.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Go-Entwickler (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Terraform",
+        "verdict": "fits",
+        "reason": "Terraform is in the CV \"Backend (DE)\""
+      },
+      {
+        "skill": "AWS",
+        "verdict": "unknown",
+        "reason": "AWS is in neither the CV nor the profile"
+      },
+      {
+        "skill": "gRPC",
+        "verdict": "fits",
+        "reason": "gRPC is in the CV \"Backend (DE)\""
+      },
+      {
+        "skill": "Kubernetes",
+        "verdict": "fits",
+        "reason": "Kubernetes is in the CV \"Backend (DE)\""
+      }
+    ]
+  },
+  "<maria-0080@grachtwerk.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Platform Engineer\" may or may not be backend work"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0159@rheinpfad.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Softwareentwickler Java (m/w/d)\" may or may not be backend work"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Java",
+        "verdict": "unknown",
+        "reason": "Java is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Kafka",
+        "verdict": "fits",
+        "reason": "Kafka is in the CV \"Backend (DE)\""
+      },
+      {
+        "skill": "PostgreSQL",
+        "verdict": "fits",
+        "reason": "PostgreSQL is in the CV \"Backend (DE)\""
+      },
+      {
+        "skill": "Terraform",
+        "verdict": "fits",
+        "reason": "Terraform is in the CV \"Backend (DE)\""
+      }
+    ]
+  },
+  "<maria-0158@talentbruecke.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend-Entwickler (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Kubernetes",
+        "verdict": "fits",
+        "reason": "Kubernetes is in the CV \"Backend (DE)\""
+      },
+      {
+        "skill": "Terraform",
+        "verdict": "fits",
+        "reason": "Terraform is in the CV \"Backend (DE)\""
+      },
+      {
+        "skill": "TypeScript",
+        "verdict": "unknown",
+        "reason": "TypeScript is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Kafka",
+        "verdict": "fits",
+        "reason": "Kafka is in the CV \"Backend (DE)\""
+      }
+    ]
+  },
+  "<maria-0147@talentbruecke.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Engineer (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Kubernetes",
+        "verdict": "fits",
+        "reason": "Kubernetes is in the CV \"Backend (DE)\""
+      },
+      {
+        "skill": "AWS",
+        "verdict": "unknown",
+        "reason": "AWS is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Redis",
+        "verdict": "unknown",
+        "reason": "Redis is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Kotlin",
+        "verdict": "unknown",
+        "reason": "Kotlin is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0054@indeed.com>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0054@indeed.com>#1": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Software Engineer – Backend\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0116@quaysidebank.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Python Backend Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Terraform",
+        "verdict": "fits",
+        "reason": "Terraform is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Redis",
+        "verdict": "unknown",
+        "reason": "Redis is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Kubernetes",
+        "verdict": "fits",
+        "reason": "Kubernetes is in the CV \"Backend (EN)\""
+      }
+    ]
+  },
+  "<maria-0115@alfamalabs.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Programador(a) Java\" may or may not be backend work"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0180@molenwijkbank.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Engineer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "PostgreSQL",
+        "verdict": "fits",
+        "reason": "PostgreSQL is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Kubernetes",
+        "verdict": "fits",
+        "reason": "Kubernetes is in the CV \"Backend (EN)\""
+      }
+    ]
+  },
+  "<maria-0126@dourofintech.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Engenheiro(a) de Backend\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Redis",
+        "verdict": "unknown",
+        "reason": "Redis is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Java",
+        "verdict": "unknown",
+        "reason": "Java is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Go",
+        "verdict": "fits",
+        "reason": "Go is in the CV \"Backend (EN)\""
+      }
+    ]
+  },
+  "<maria-0136@grachtwerk.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Python",
+        "verdict": "unknown",
+        "reason": "Python is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Kotlin",
+        "verdict": "unknown",
+        "reason": "Kotlin is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Terraform",
+        "verdict": "fits",
+        "reason": "Terraform is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "TypeScript",
+        "verdict": "unknown",
+        "reason": "TypeScript is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0207@hire.lever.co>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Engineer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0109@talentbruecke.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Engineer (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Go",
+        "verdict": "fits",
+        "reason": "Go is in the CV \"Backend (DE)\""
+      },
+      {
+        "skill": "Java",
+        "verdict": "unknown",
+        "reason": "Java is in neither the CV nor the profile"
+      },
+      {
+        "skill": "PostgreSQL",
+        "verdict": "fits",
+        "reason": "PostgreSQL is in the CV \"Backend (DE)\""
+      }
+    ]
+  },
+  "<maria-0151@atlantico-talent.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Programador(a) Java\" may or may not be backend work"
+    },
+    "skillCloseness": [
+      {
+        "skill": "TypeScript",
+        "verdict": "unknown",
+        "reason": "TypeScript is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Terraform",
+        "verdict": "fits",
+        "reason": "Terraform is in the CV \"Backend (EN)\""
+      }
+    ]
+  },
+  "<maria-0194@rheinpfad.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Softwareentwickler Java (m/w/d)\" may or may not be backend work"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Terraform",
+        "verdict": "fits",
+        "reason": "Terraform is in the CV \"Backend (DE)\""
+      },
+      {
+        "skill": "Go",
+        "verdict": "fits",
+        "reason": "Go is in the CV \"Backend (DE)\""
+      },
+      {
+        "skill": "Java",
+        "verdict": "unknown",
+        "reason": "Java is in neither the CV nor the profile"
+      },
+      {
+        "skill": "TypeScript",
+        "verdict": "unknown",
+        "reason": "TypeScript is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0048@stepstone.de>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend-Entwickler (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0048@stepstone.de>#1": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Senior Backend Engineer (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0048@stepstone.de>#2": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Softwareentwickler Backend (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0048@stepstone.de>#3": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Cloud Engineer (m/w/d)\" may or may not be backend work"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0123@talentbruecke.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Go-Entwickler (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Java",
+        "verdict": "unknown",
+        "reason": "Java is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Terraform",
+        "verdict": "fits",
+        "reason": "Terraform is in the CV \"Backend (DE)\""
+      }
+    ]
+  },
+  "<maria-0017@harbour-rec.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Software Engineer, Payments\" may or may not be backend work"
+    },
+    "skillCloseness": [
+      {
+        "skill": "AWS",
+        "verdict": "unknown",
+        "reason": "AWS is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Redis",
+        "verdict": "unknown",
+        "reason": "Redis is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Kafka",
+        "verdict": "fits",
+        "reason": "Kafka is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "PostgreSQL",
+        "verdict": "fits",
+        "reason": "PostgreSQL is in the CV \"Backend (EN)\""
+      }
+    ]
+  },
+  "<maria-0040@nationalevacaturebank.nl>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Software Engineer Backend\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0040@nationalevacaturebank.nl>#1": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0040@nationalevacaturebank.nl>#2": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Senior Java Developer\" may or may not be backend work"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0201@greenhouse-mail.io>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0216@personio.de>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend-Entwickler (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0198@alfamalabs.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Engenheiro(a) de Backend\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Kafka",
+        "verdict": "fits",
+        "reason": "Kafka is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Kubernetes",
+        "verdict": "fits",
+        "reason": "Kubernetes is in the CV \"Backend (EN)\""
+      }
+    ]
+  },
+  "<maria-0071@linkedin.com>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Go Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0071@linkedin.com>#1": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Software Engineer – Backend\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0071@linkedin.com>#2": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0157@isar-personal.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend-Entwickler (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Kotlin",
+        "verdict": "unknown",
+        "reason": "Kotlin is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Python",
+        "verdict": "unknown",
+        "reason": "Python is in neither the CV nor the profile"
+      },
+      {
+        "skill": "TypeScript",
+        "verdict": "unknown",
+        "reason": "TypeScript is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0232@greenhouse-mail.io>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0195@dourofintech.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Engenheiro(a) de Backend\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "gRPC",
+        "verdict": "fits",
+        "reason": "gRPC is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Python",
+        "verdict": "unknown",
+        "reason": "Python is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Terraform",
+        "verdict": "fits",
+        "reason": "Terraform is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Kotlin",
+        "verdict": "unknown",
+        "reason": "Kotlin is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0202@personio.de>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend-Entwickler (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0118@dijkstra-logistics.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Platform Engineer\" may or may not be backend work"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Terraform",
+        "verdict": "fits",
+        "reason": "Terraform is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Redis",
+        "verdict": "unknown",
+        "reason": "Redis is in neither the CV nor the profile"
+      },
+      {
+        "skill": "PostgreSQL",
+        "verdict": "fits",
+        "reason": "PostgreSQL is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Kubernetes",
+        "verdict": "fits",
+        "reason": "Kubernetes is in the CV \"Backend (EN)\""
+      }
+    ]
+  },
+  "<maria-0102@grachtwerk.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Engineer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Kotlin",
+        "verdict": "unknown",
+        "reason": "Kotlin is in neither the CV nor the profile"
+      },
+      {
+        "skill": "AWS",
+        "verdict": "unknown",
+        "reason": "AWS is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0082@northbridge-talent.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Engineer (Kotlin)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0111@alfamalabs.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Programador(a) Java\" may or may not be backend work"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0065@nationalevacaturebank.nl>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Software Engineer Backend\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0065@nationalevacaturebank.nl>#1": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Senior Java Developer\" may or may not be backend work"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0065@nationalevacaturebank.nl>#2": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0150@talentbruecke.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend-Entwickler (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0210@workablemail.com>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0095@molenwijkbank.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "TypeScript",
+        "verdict": "unknown",
+        "reason": "TypeScript is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Java",
+        "verdict": "unknown",
+        "reason": "Java is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Terraform",
+        "verdict": "fits",
+        "reason": "Terraform is in the CV \"Backend (EN)\""
+      }
+    ]
+  },
+  "<maria-0081@atlantictech.example>#0": {
+    "titleFit": {
+      "verdict": "conflicts",
+      "reason": "\"Site Reliability Engineer\" is not a backend role"
+    },
+    "skillCloseness": [
+      {
+        "skill": "TypeScript",
+        "verdict": "unknown",
+        "reason": "TypeScript is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Python",
+        "verdict": "unknown",
+        "reason": "Python is in neither the CV nor the profile"
+      },
+      {
+        "skill": "PostgreSQL",
+        "verdict": "fits",
+        "reason": "PostgreSQL is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Kotlin",
+        "verdict": "unknown",
+        "reason": "Kotlin is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0154@northbridge-talent.example>#0": {
+    "titleFit": {
+      "verdict": "conflicts",
+      "reason": "\"Data Engineer\" is not a backend role"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Kotlin",
+        "verdict": "unknown",
+        "reason": "Kotlin is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Kafka",
+        "verdict": "fits",
+        "reason": "Kafka is in the CV \"Data engineering (EN)\""
+      }
+    ]
+  },
+  "<maria-0094@tidewater.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Platform Engineer\" may or may not be backend work"
+    },
+    "skillCloseness": [
+      {
+        "skill": "TypeScript",
+        "verdict": "unknown",
+        "reason": "TypeScript is in neither the CV nor the profile"
+      },
+      {
+        "skill": "AWS",
+        "verdict": "unknown",
+        "reason": "AWS is in neither the CV nor the profile"
+      },
+      {
+        "skill": "gRPC",
+        "verdict": "fits",
+        "reason": "gRPC is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "PostgreSQL",
+        "verdict": "fits",
+        "reason": "PostgreSQL is in the CV \"Backend (EN)\""
+      }
+    ]
+  },
+  "<maria-0173@quaysidebank.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Platform Engineer\" may or may not be backend work"
+    },
+    "skillCloseness": [
+      {
+        "skill": "PostgreSQL",
+        "verdict": "fits",
+        "reason": "PostgreSQL is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "gRPC",
+        "verdict": "fits",
+        "reason": "gRPC is in the CV \"Backend (EN)\""
+      }
+    ]
+  },
+  "<maria-0132@northbridge-talent.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Python Backend Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Python",
+        "verdict": "unknown",
+        "reason": "Python is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Kafka",
+        "verdict": "fits",
+        "reason": "Kafka is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Go",
+        "verdict": "fits",
+        "reason": "Go is in the CV \"Backend (EN)\""
+      }
+    ]
+  },
+  "<maria-0230@myworkday.com>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0211@personio.de>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend-Entwickler (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0220@greenhouse-mail.io>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Engineer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0226@smartrecruiters.com>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0019@brightwave.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Engineer (Kotlin)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Go",
+        "verdict": "fits",
+        "reason": "Go is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Kotlin",
+        "verdict": "unknown",
+        "reason": "Kotlin is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Redis",
+        "verdict": "unknown",
+        "reason": "Redis is in neither the CV nor the profile"
+      },
+      {
+        "skill": "AWS",
+        "verdict": "unknown",
+        "reason": "AWS is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0107@brightwave.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Platform Engineer\" may or may not be backend work"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0142@brightwave.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Python Backend Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Kotlin",
+        "verdict": "unknown",
+        "reason": "Kotlin is in neither the CV nor the profile"
+      },
+      {
+        "skill": "TypeScript",
+        "verdict": "unknown",
+        "reason": "TypeScript is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Redis",
+        "verdict": "unknown",
+        "reason": "Redis is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0167@tidewater.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Engineer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Kotlin",
+        "verdict": "unknown",
+        "reason": "Kotlin is in neither the CV nor the profile"
+      },
+      {
+        "skill": "TypeScript",
+        "verdict": "unknown",
+        "reason": "TypeScript is in neither the CV nor the profile"
+      },
+      {
+        "skill": "PostgreSQL",
+        "verdict": "fits",
+        "reason": "PostgreSQL is in the CV \"Backend (EN)\""
+      }
+    ]
+  },
+  "<maria-0066@net-empregos.com>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0066@net-empregos.com>#1": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Engenheiro de Software Backend\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0066@net-empregos.com>#2": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Programador Backend (m/f)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0176@harbour-rec.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Python Backend Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Redis",
+        "verdict": "unknown",
+        "reason": "Redis is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Terraform",
+        "verdict": "fits",
+        "reason": "Terraform is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "TypeScript",
+        "verdict": "unknown",
+        "reason": "TypeScript is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Kafka",
+        "verdict": "fits",
+        "reason": "Kafka is in the CV \"Backend (EN)\""
+      }
+    ]
+  },
+  "<maria-0175@isar-personal.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Platform Engineer (m/w/d)\" may or may not be backend work"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Python",
+        "verdict": "unknown",
+        "reason": "Python is in neither the CV nor the profile"
+      },
+      {
+        "skill": "gRPC",
+        "verdict": "fits",
+        "reason": "gRPC is in the CV \"Backend (DE)\""
+      },
+      {
+        "skill": "Java",
+        "verdict": "unknown",
+        "reason": "Java is in neither the CV nor the profile"
+      },
+      {
+        "skill": "TypeScript",
+        "verdict": "unknown",
+        "reason": "TypeScript is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0193@polder-talent.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Engineer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Kafka",
+        "verdict": "fits",
+        "reason": "Kafka is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "gRPC",
+        "verdict": "fits",
+        "reason": "gRPC is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Terraform",
+        "verdict": "fits",
+        "reason": "Terraform is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Kubernetes",
+        "verdict": "fits",
+        "reason": "Kubernetes is in the CV \"Backend (EN)\""
+      }
+    ]
+  },
+  "<maria-0186@brightwave.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Engineer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Python",
+        "verdict": "unknown",
+        "reason": "Python is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Java",
+        "verdict": "unknown",
+        "reason": "Java is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Kafka",
+        "verdict": "fits",
+        "reason": "Kafka is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "TypeScript",
+        "verdict": "unknown",
+        "reason": "TypeScript is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0096@polder-talent.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Platform Engineer\" may or may not be backend work"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Go",
+        "verdict": "fits",
+        "reason": "Go is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "TypeScript",
+        "verdict": "unknown",
+        "reason": "TypeScript is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0139@elbwerk.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend-Entwickler (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Kotlin",
+        "verdict": "unknown",
+        "reason": "Kotlin is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Redis",
+        "verdict": "unknown",
+        "reason": "Redis is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Kafka",
+        "verdict": "fits",
+        "reason": "Kafka is in the CV \"Backend (DE)\""
+      },
+      {
+        "skill": "AWS",
+        "verdict": "unknown",
+        "reason": "AWS is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0152@elbwerk.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Go-Entwickler (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Kotlin",
+        "verdict": "unknown",
+        "reason": "Kotlin is in neither the CV nor the profile"
+      },
+      {
+        "skill": "PostgreSQL",
+        "verdict": "fits",
+        "reason": "PostgreSQL is in the CV \"Backend (DE)\""
+      },
+      {
+        "skill": "Kafka",
+        "verdict": "fits",
+        "reason": "Kafka is in the CV \"Backend (DE)\""
+      }
+    ]
+  },
+  "<maria-0092@tidewater.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Platform Engineer\" may or may not be backend work"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Terraform",
+        "verdict": "fits",
+        "reason": "Terraform is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "gRPC",
+        "verdict": "fits",
+        "reason": "gRPC is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Python",
+        "verdict": "unknown",
+        "reason": "Python is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0138@atlantico-talent.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Engenheiro(a) de Backend\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Terraform",
+        "verdict": "fits",
+        "reason": "Terraform is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "gRPC",
+        "verdict": "fits",
+        "reason": "gRPC is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Go",
+        "verdict": "fits",
+        "reason": "Go is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Kotlin",
+        "verdict": "unknown",
+        "reason": "Kotlin is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0093@ribeira-rh.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Engenheiro(a) de Software – Pagamentos\" may or may not be backend work"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Kubernetes",
+        "verdict": "fits",
+        "reason": "Kubernetes is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Kafka",
+        "verdict": "fits",
+        "reason": "Kafka is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Kotlin",
+        "verdict": "unknown",
+        "reason": "Kotlin is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0021@talentbruecke.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Platform Engineer (m/w/d)\" may or may not be backend work"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Go",
+        "verdict": "fits",
+        "reason": "Go is in the CV \"Backend (DE)\""
+      },
+      {
+        "skill": "Redis",
+        "verdict": "unknown",
+        "reason": "Redis is in neither the CV nor the profile"
+      },
+      {
+        "skill": "TypeScript",
+        "verdict": "unknown",
+        "reason": "TypeScript is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0105@atlantico-talent.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Engenheiro(a) de Backend\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Kafka",
+        "verdict": "fits",
+        "reason": "Kafka is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Kubernetes",
+        "verdict": "fits",
+        "reason": "Kubernetes is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "gRPC",
+        "verdict": "fits",
+        "reason": "gRPC is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Redis",
+        "verdict": "unknown",
+        "reason": "Redis is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0069@net-empregos.com>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0069@net-empregos.com>#1": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Programador Backend (m/f)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0069@net-empregos.com>#2": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Engenheiro de Software Backend\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0149@rheinpfad.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Engineer (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Python",
+        "verdict": "unknown",
+        "reason": "Python is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Kafka",
+        "verdict": "fits",
+        "reason": "Kafka is in the CV \"Backend (DE)\""
+      },
+      {
+        "skill": "gRPC",
+        "verdict": "fits",
+        "reason": "gRPC is in the CV \"Backend (DE)\""
+      },
+      {
+        "skill": "Kotlin",
+        "verdict": "unknown",
+        "reason": "Kotlin is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0104@dijkstra-logistics.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Java Developer\" may or may not be backend work"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0234@workablemail.com>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Engineer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0051@net-empregos.com>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0051@net-empregos.com>#1": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Engenheiro de Software Backend\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0051@net-empregos.com>#2": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Programador Backend (m/f)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0073@stepstone.de>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Senior Backend Engineer (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0073@stepstone.de>#1": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Cloud Engineer (m/w/d)\" may or may not be backend work"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0073@stepstone.de>#2": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend-Entwickler (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0133@atlantico-talent.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Programador(a) Java\" may or may not be backend work"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Terraform",
+        "verdict": "fits",
+        "reason": "Terraform is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "AWS",
+        "verdict": "unknown",
+        "reason": "AWS is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0046@linkedin.com>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Staff Software Engineer\" may or may not be backend work"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0046@linkedin.com>#1": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Platform Engineer\" may or may not be backend work"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0046@linkedin.com>#2": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0046@linkedin.com>#3": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Senior Backend Engineer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0179@talentbruecke.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend-Entwickler (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Kafka",
+        "verdict": "fits",
+        "reason": "Kafka is in the CV \"Backend (DE)\""
+      },
+      {
+        "skill": "PostgreSQL",
+        "verdict": "fits",
+        "reason": "PostgreSQL is in the CV \"Backend (DE)\""
+      },
+      {
+        "skill": "Go",
+        "verdict": "fits",
+        "reason": "Go is in the CV \"Backend (DE)\""
+      },
+      {
+        "skill": "Python",
+        "verdict": "unknown",
+        "reason": "Python is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0023@molenwijkbank.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0068@xing.com>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Softwareentwickler Backend (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0068@xing.com>#1": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Cloud Engineer (m/w/d)\" may or may not be backend work"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0068@xing.com>#2": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend-Entwickler (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0165@copperleaf.example>#0": {
+    "titleFit": {
+      "verdict": "conflicts",
+      "reason": "\"Data Engineer\" is not a backend role"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Terraform",
+        "verdict": "unknown",
+        "reason": "Terraform is in neither the CV nor the profile"
+      },
+      {
+        "skill": "TypeScript",
+        "verdict": "unknown",
+        "reason": "TypeScript is in neither the CV nor the profile"
+      },
+      {
+        "skill": "AWS",
+        "verdict": "unknown",
+        "reason": "AWS is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0130@alfamalabs.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Programador(a) Java\" may or may not be backend work"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Kotlin",
+        "verdict": "unknown",
+        "reason": "Kotlin is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Redis",
+        "verdict": "unknown",
+        "reason": "Redis is in neither the CV nor the profile"
+      },
+      {
+        "skill": "PostgreSQL",
+        "verdict": "fits",
+        "reason": "PostgreSQL is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "AWS",
+        "verdict": "unknown",
+        "reason": "AWS is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0219@recruitee.com>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Senior Backend Engineer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0164@elbwerk.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Softwareentwickler Java (m/w/d)\" may or may not be backend work"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Java",
+        "verdict": "unknown",
+        "reason": "Java is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Terraform",
+        "verdict": "fits",
+        "reason": "Terraform is in the CV \"Backend (DE)\""
+      }
+    ]
+  },
+  "<maria-0128@quaysidebank.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Python Backend Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Java",
+        "verdict": "unknown",
+        "reason": "Java is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Go",
+        "verdict": "fits",
+        "reason": "Go is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "TypeScript",
+        "verdict": "unknown",
+        "reason": "TypeScript is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0112@polder-talent.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Kubernetes",
+        "verdict": "fits",
+        "reason": "Kubernetes is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Terraform",
+        "verdict": "fits",
+        "reason": "Terraform is in the CV \"Backend (EN)\""
+      }
+    ]
+  },
+  "<maria-0025@tidewater.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Developer (Go)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Terraform",
+        "verdict": "fits",
+        "reason": "Terraform is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Python",
+        "verdict": "unknown",
+        "reason": "Python is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0161@harbour-rec.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Developer (Go)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Terraform",
+        "verdict": "fits",
+        "reason": "Terraform is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Kotlin",
+        "verdict": "unknown",
+        "reason": "Kotlin is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0085@elbwerk.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Go-Entwickler (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Go",
+        "verdict": "fits",
+        "reason": "Go is in the CV \"Backend (DE)\""
+      },
+      {
+        "skill": "Kotlin",
+        "verdict": "unknown",
+        "reason": "Kotlin is in neither the CV nor the profile"
+      },
+      {
+        "skill": "PostgreSQL",
+        "verdict": "fits",
+        "reason": "PostgreSQL is in the CV \"Backend (DE)\""
+      },
+      {
+        "skill": "Terraform",
+        "verdict": "fits",
+        "reason": "Terraform is in the CV \"Backend (DE)\""
+      }
+    ]
+  },
+  "<maria-0189@grachtwerk.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Platform Engineer\" may or may not be backend work"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Python",
+        "verdict": "unknown",
+        "reason": "Python is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Kotlin",
+        "verdict": "unknown",
+        "reason": "Kotlin is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Terraform",
+        "verdict": "fits",
+        "reason": "Terraform is in the CV \"Backend (EN)\""
+      }
+    ]
+  },
+  "<maria-0182@grachtwerk.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Platform Engineer\" may or may not be backend work"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Kotlin",
+        "verdict": "unknown",
+        "reason": "Kotlin is in neither the CV nor the profile"
+      },
+      {
+        "skill": "AWS",
+        "verdict": "unknown",
+        "reason": "AWS is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0145@polder-talent.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Engineer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Kubernetes",
+        "verdict": "fits",
+        "reason": "Kubernetes is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "AWS",
+        "verdict": "unknown",
+        "reason": "AWS is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Redis",
+        "verdict": "unknown",
+        "reason": "Redis is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0184@brightwave.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Developer (Go)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Kafka",
+        "verdict": "fits",
+        "reason": "Kafka is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Kubernetes",
+        "verdict": "fits",
+        "reason": "Kubernetes is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "PostgreSQL",
+        "verdict": "fits",
+        "reason": "PostgreSQL is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Python",
+        "verdict": "unknown",
+        "reason": "Python is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0153@isar-personal.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend-Entwickler (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "AWS",
+        "verdict": "unknown",
+        "reason": "AWS is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Kafka",
+        "verdict": "fits",
+        "reason": "Kafka is in the CV \"Backend (DE)\""
+      }
+    ]
+  },
+  "<maria-0027@atlantico-talent.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Programador(a) Backend\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "TypeScript",
+        "verdict": "unknown",
+        "reason": "TypeScript is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Kotlin",
+        "verdict": "unknown",
+        "reason": "Kotlin is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0114@dijkstra-logistics.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Java Developer\" may or may not be backend work"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0235@dijkstra-logistics.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0188@grachtwerk.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Platform Engineer\" may or may not be backend work"
+    },
+    "skillCloseness": [
+      {
+        "skill": "PostgreSQL",
+        "verdict": "fits",
+        "reason": "PostgreSQL is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Java",
+        "verdict": "unknown",
+        "reason": "Java is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Python",
+        "verdict": "unknown",
+        "reason": "Python is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0049@net-empregos.com>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Engenheiro de Software Backend\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0049@net-empregos.com>#1": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Programador Backend (m/f)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0049@net-empregos.com>#2": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0084@quaysidebank.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Software Engineer, Payments\" may or may not be backend work"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Python",
+        "verdict": "unknown",
+        "reason": "Python is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Go",
+        "verdict": "fits",
+        "reason": "Go is in the CV \"Backend (EN)\""
+      }
+    ]
+  },
+  "<maria-0187@quaysidebank.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Developer (Go)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Terraform",
+        "verdict": "fits",
+        "reason": "Terraform is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Go",
+        "verdict": "fits",
+        "reason": "Go is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Python",
+        "verdict": "unknown",
+        "reason": "Python is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0129@copperleaf.example>#0": {
+    "titleFit": {
+      "verdict": "conflicts",
+      "reason": "\"Site Reliability Engineer\" is not a backend role"
+    },
+    "skillCloseness": [
+      {
+        "skill": "TypeScript",
+        "verdict": "unknown",
+        "reason": "TypeScript is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Kotlin",
+        "verdict": "unknown",
+        "reason": "Kotlin is in neither the CV nor the profile"
+      },
+      {
+        "skill": "AWS",
+        "verdict": "unknown",
+        "reason": "AWS is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0214@teamtailor.com>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Senior Backend Engineer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0103@quaysidebank.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Software Engineer, Payments\" may or may not be backend work"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0124@northbridge-talent.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"API Engineer\" may or may not be backend work"
+    },
+    "skillCloseness": [
+      {
+        "skill": "TypeScript",
+        "verdict": "unknown",
+        "reason": "TypeScript is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Kafka",
+        "verdict": "fits",
+        "reason": "Kafka is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Redis",
+        "verdict": "unknown",
+        "reason": "Redis is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Java",
+        "verdict": "unknown",
+        "reason": "Java is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0177@quaysidebank.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Engineer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Kotlin",
+        "verdict": "unknown",
+        "reason": "Kotlin is in neither the CV nor the profile"
+      },
+      {
+        "skill": "PostgreSQL",
+        "verdict": "fits",
+        "reason": "PostgreSQL is in the CV \"Backend (EN)\""
+      }
+    ]
+  },
+  "<maria-0029@tidewater.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Software Engineer, Payments\" may or may not be backend work"
+    },
+    "skillCloseness": [
+      {
+        "skill": "TypeScript",
+        "verdict": "unknown",
+        "reason": "TypeScript is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Python",
+        "verdict": "unknown",
+        "reason": "Python is in neither the CV nor the profile"
+      },
+      {
+        "skill": "PostgreSQL",
+        "verdict": "fits",
+        "reason": "PostgreSQL is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "AWS",
+        "verdict": "unknown",
+        "reason": "AWS is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0156@alfamalabs.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Engenheiro(a) de Backend\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0088@talentbruecke.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Platform Engineer (m/w/d)\" may or may not be backend work"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Kubernetes",
+        "verdict": "fits",
+        "reason": "Kubernetes is in the CV \"Backend (DE)\""
+      },
+      {
+        "skill": "Redis",
+        "verdict": "unknown",
+        "reason": "Redis is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Java",
+        "verdict": "unknown",
+        "reason": "Java is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0120@rheinpfad.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Go-Entwickler (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "PostgreSQL",
+        "verdict": "fits",
+        "reason": "PostgreSQL is in the CV \"Backend (DE)\""
+      },
+      {
+        "skill": "Kafka",
+        "verdict": "fits",
+        "reason": "Kafka is in the CV \"Backend (DE)\""
+      }
+    ]
+  },
+  "<maria-0122@atlantico-talent.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Programador(a) Backend\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Redis",
+        "verdict": "unknown",
+        "reason": "Redis is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Java",
+        "verdict": "unknown",
+        "reason": "Java is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Kafka",
+        "verdict": "fits",
+        "reason": "Kafka is in the CV \"Backend (EN)\""
+      }
+    ]
+  },
+  "<maria-0099@isar-personal.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Softwareentwickler Java (m/w/d)\" may or may not be backend work"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0205@hire.lever.co>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Engineer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0045@nationalevacaturebank.nl>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Senior Java Developer\" may or may not be backend work"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0045@nationalevacaturebank.nl>#1": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Software Engineer Backend\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0060@net-empregos.com>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Programador Backend (m/f)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0060@net-empregos.com>#1": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0078@rheinpfad.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Softwareentwickler Java (m/w/d)\" may or may not be backend work"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Redis",
+        "verdict": "unknown",
+        "reason": "Redis is in neither the CV nor the profile"
+      },
+      {
+        "skill": "gRPC",
+        "verdict": "fits",
+        "reason": "gRPC is in the CV \"Backend (DE)\""
+      },
+      {
+        "skill": "Kafka",
+        "verdict": "fits",
+        "reason": "Kafka is in the CV \"Backend (DE)\""
+      },
+      {
+        "skill": "Kotlin",
+        "verdict": "unknown",
+        "reason": "Kotlin is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0170@brightwave.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"API Engineer\" may or may not be backend work"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0089@dijkstra-logistics.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Java",
+        "verdict": "unknown",
+        "reason": "Java is in neither the CV nor the profile"
+      },
+      {
+        "skill": "AWS",
+        "verdict": "unknown",
+        "reason": "AWS is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0031@talentbruecke.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend-Entwickler (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0174@atlantico-talent.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Engenheiro(a) de Software – Pagamentos\" may or may not be backend work"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Kafka",
+        "verdict": "fits",
+        "reason": "Kafka is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Go",
+        "verdict": "fits",
+        "reason": "Go is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Kubernetes",
+        "verdict": "fits",
+        "reason": "Kubernetes is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Kotlin",
+        "verdict": "unknown",
+        "reason": "Kotlin is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0231@hire.lever.co>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Senior Backend Engineer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0197@talentbruecke.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Platform Engineer (m/w/d)\" may or may not be backend work"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Go",
+        "verdict": "fits",
+        "reason": "Go is in the CV \"Backend (DE)\""
+      },
+      {
+        "skill": "Kotlin",
+        "verdict": "unknown",
+        "reason": "Kotlin is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Python",
+        "verdict": "unknown",
+        "reason": "Python is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Kubernetes",
+        "verdict": "fits",
+        "reason": "Kubernetes is in the CV \"Backend (DE)\""
+      }
+    ]
+  },
+  "<maria-0108@isar-personal.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend-Entwickler (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Kotlin",
+        "verdict": "unknown",
+        "reason": "Kotlin is in neither the CV nor the profile"
+      },
+      {
+        "skill": "AWS",
+        "verdict": "unknown",
+        "reason": "AWS is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Kubernetes",
+        "verdict": "fits",
+        "reason": "Kubernetes is in the CV \"Backend (DE)\""
+      },
+      {
+        "skill": "Kafka",
+        "verdict": "fits",
+        "reason": "Kafka is in the CV \"Backend (DE)\""
+      }
+    ]
+  },
+  "<maria-0098@alfamalabs.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Engenheiro(a) de Software – Pagamentos\" may or may not be backend work"
+    },
+    "skillCloseness": [
+      {
+        "skill": "gRPC",
+        "verdict": "fits",
+        "reason": "gRPC is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Kafka",
+        "verdict": "fits",
+        "reason": "Kafka is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Java",
+        "verdict": "unknown",
+        "reason": "Java is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0225@smartrecruiters.com>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0059@xing.com>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Cloud Engineer (m/w/d)\" may or may not be backend work"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0059@xing.com>#1": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Senior Backend Engineer (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0059@xing.com>#2": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Softwareentwickler Backend (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0059@xing.com>#3": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend-Entwickler (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0141@atlantictech.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Python Backend Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Python",
+        "verdict": "unknown",
+        "reason": "Python is in neither the CV nor the profile"
+      },
+      {
+        "skill": "TypeScript",
+        "verdict": "unknown",
+        "reason": "TypeScript is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0146@ribeira-rh.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Programador(a) Backend\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Kafka",
+        "verdict": "fits",
+        "reason": "Kafka is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Go",
+        "verdict": "fits",
+        "reason": "Go is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "AWS",
+        "verdict": "unknown",
+        "reason": "AWS is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Java",
+        "verdict": "unknown",
+        "reason": "Java is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0076@nationalevacaturebank.nl>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Software Engineer Backend\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0076@nationalevacaturebank.nl>#1": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Senior Java Developer\" may or may not be backend work"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0121@tidewater.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Engineer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0229@hire.lever.co>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0033@polder-talent.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Platform Engineer\" may or may not be backend work"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Terraform",
+        "verdict": "fits",
+        "reason": "Terraform is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Kafka",
+        "verdict": "fits",
+        "reason": "Kafka is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Python",
+        "verdict": "unknown",
+        "reason": "Python is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Redis",
+        "verdict": "unknown",
+        "reason": "Redis is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0178@alfamalabs.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Engenheiro(a) de Software – Pagamentos\" may or may not be backend work"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Go",
+        "verdict": "fits",
+        "reason": "Go is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Kafka",
+        "verdict": "fits",
+        "reason": "Kafka is in the CV \"Backend (EN)\""
+      }
+    ]
+  },
+  "<maria-0047@net-empregos.com>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0047@net-empregos.com>#1": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Programador Backend (m/f)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0169@rheinpfad.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Engineer (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Kubernetes",
+        "verdict": "fits",
+        "reason": "Kubernetes is in the CV \"Backend (DE)\""
+      },
+      {
+        "skill": "TypeScript",
+        "verdict": "unknown",
+        "reason": "TypeScript is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Kafka",
+        "verdict": "fits",
+        "reason": "Kafka is in the CV \"Backend (DE)\""
+      },
+      {
+        "skill": "Kotlin",
+        "verdict": "unknown",
+        "reason": "Kotlin is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0224@recruitee.com>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0217@smartrecruiters.com>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Platform Engineer\" may or may not be backend work"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0212@greenhouse-mail.io>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Senior Backend Engineer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0233@personio.de>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Senior Backend Engineer (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0127@talentbruecke.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Go-Entwickler (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0160@atlantictech.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Engineer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Terraform",
+        "verdict": "fits",
+        "reason": "Terraform is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "TypeScript",
+        "verdict": "unknown",
+        "reason": "TypeScript is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0143@talentbruecke.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Softwareentwickler Java (m/w/d)\" may or may not be backend work"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Java",
+        "verdict": "unknown",
+        "reason": "Java is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Go",
+        "verdict": "fits",
+        "reason": "Go is in the CV \"Backend (DE)\""
+      },
+      {
+        "skill": "gRPC",
+        "verdict": "fits",
+        "reason": "gRPC is in the CV \"Backend (DE)\""
+      }
+    ]
+  },
+  "<maria-0106@elbwerk.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Platform Engineer (m/w/d)\" may or may not be backend work"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0162@talentbruecke.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Engineer (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Go",
+        "verdict": "fits",
+        "reason": "Go is in the CV \"Backend (DE)\""
+      },
+      {
+        "skill": "gRPC",
+        "verdict": "fits",
+        "reason": "gRPC is in the CV \"Backend (DE)\""
+      }
+    ]
+  },
+  "<maria-0221@greenhouse-mail.io>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Senior Backend Engineer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0101@quaysidebank.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Engineer (Kotlin)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "gRPC",
+        "verdict": "fits",
+        "reason": "gRPC is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Kubernetes",
+        "verdict": "fits",
+        "reason": "Kubernetes is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "AWS",
+        "verdict": "unknown",
+        "reason": "AWS is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Java",
+        "verdict": "unknown",
+        "reason": "Java is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0035@ribeira-rh.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Programador(a) Java\" may or may not be backend work"
+    },
+    "skillCloseness": [
+      {
+        "skill": "AWS",
+        "verdict": "unknown",
+        "reason": "AWS is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Python",
+        "verdict": "unknown",
+        "reason": "Python is in neither the CV nor the profile"
+      },
+      {
+        "skill": "gRPC",
+        "verdict": "fits",
+        "reason": "gRPC is in the CV \"Backend (EN)\""
+      }
+    ]
+  },
+  "<maria-0171@elbwerk.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Platform Engineer (m/w/d)\" may or may not be backend work"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Kafka",
+        "verdict": "fits",
+        "reason": "Kafka is in the CV \"Backend (DE)\""
+      },
+      {
+        "skill": "PostgreSQL",
+        "verdict": "fits",
+        "reason": "PostgreSQL is in the CV \"Backend (DE)\""
+      },
+      {
+        "skill": "Terraform",
+        "verdict": "fits",
+        "reason": "Terraform is in the CV \"Backend (DE)\""
+      }
+    ]
+  },
+  "<maria-0067@linkedin.com>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Senior Backend Engineer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0067@linkedin.com>#1": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Go Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0067@linkedin.com>#2": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Staff Software Engineer\" may or may not be backend work"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0067@linkedin.com>#3": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0213@smartrecruiters.com>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0181@rheinpfad.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Platform Engineer (m/w/d)\" may or may not be backend work"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Go",
+        "verdict": "fits",
+        "reason": "Go is in the CV \"Backend (DE)\""
+      },
+      {
+        "skill": "gRPC",
+        "verdict": "fits",
+        "reason": "gRPC is in the CV \"Backend (DE)\""
+      },
+      {
+        "skill": "Kafka",
+        "verdict": "fits",
+        "reason": "Kafka is in the CV \"Backend (DE)\""
+      }
+    ]
+  },
+  "<maria-0087@brightwave.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Developer (Go)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "TypeScript",
+        "verdict": "unknown",
+        "reason": "TypeScript is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Python",
+        "verdict": "unknown",
+        "reason": "Python is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Terraform",
+        "verdict": "fits",
+        "reason": "Terraform is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Kafka",
+        "verdict": "fits",
+        "reason": "Kafka is in the CV \"Backend (EN)\""
+      }
+    ]
+  },
+  "<maria-0117@dijkstra-logistics.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Java Developer\" may or may not be backend work"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Terraform",
+        "verdict": "fits",
+        "reason": "Terraform is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "PostgreSQL",
+        "verdict": "fits",
+        "reason": "PostgreSQL is in the CV \"Backend (EN)\""
+      }
+    ]
+  },
+  "<maria-0056@stepstone.de>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend-Entwickler (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0056@stepstone.de>#1": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Cloud Engineer (m/w/d)\" may or may not be backend work"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0137@dourofintech.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Engenheiro(a) de Backend\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "PostgreSQL",
+        "verdict": "fits",
+        "reason": "PostgreSQL is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "TypeScript",
+        "verdict": "unknown",
+        "reason": "TypeScript is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Terraform",
+        "verdict": "fits",
+        "reason": "Terraform is in the CV \"Backend (EN)\""
+      }
+    ]
+  },
+  "<maria-0215@myworkday.com>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Engineer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0223@greenhouse-mail.io>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Engineer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0185@elbwerk.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Engineer (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Go",
+        "verdict": "fits",
+        "reason": "Go is in the CV \"Backend (DE)\""
+      },
+      {
+        "skill": "PostgreSQL",
+        "verdict": "fits",
+        "reason": "PostgreSQL is in the CV \"Backend (DE)\""
+      },
+      {
+        "skill": "gRPC",
+        "verdict": "fits",
+        "reason": "gRPC is in the CV \"Backend (DE)\""
+      }
+    ]
+  },
+  "<maria-0200@recruitee.com>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0097@molenwijkbank.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Kotlin",
+        "verdict": "unknown",
+        "reason": "Kotlin is in neither the CV nor the profile"
+      },
+      {
+        "skill": "AWS",
+        "verdict": "unknown",
+        "reason": "AWS is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Java",
+        "verdict": "unknown",
+        "reason": "Java is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Python",
+        "verdict": "unknown",
+        "reason": "Python is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0190@tidewater.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Platform Engineer\" may or may not be backend work"
+    },
+    "skillCloseness": [
+      {
+        "skill": "AWS",
+        "verdict": "unknown",
+        "reason": "AWS is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Python",
+        "verdict": "unknown",
+        "reason": "Python is in neither the CV nor the profile"
+      },
+      {
+        "skill": "PostgreSQL",
+        "verdict": "fits",
+        "reason": "PostgreSQL is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Go",
+        "verdict": "fits",
+        "reason": "Go is in the CV \"Backend (EN)\""
+      }
+    ]
+  },
+  "<maria-0191@isar-personal.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend-Entwickler (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Python",
+        "verdict": "unknown",
+        "reason": "Python is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Kotlin",
+        "verdict": "unknown",
+        "reason": "Kotlin is in neither the CV nor the profile"
+      },
+      {
+        "skill": "AWS",
+        "verdict": "unknown",
+        "reason": "AWS is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0037@quaysidebank.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Developer (Go)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0163@atlantictech.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Engineer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Kafka",
+        "verdict": "fits",
+        "reason": "Kafka is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Kubernetes",
+        "verdict": "fits",
+        "reason": "Kubernetes is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "PostgreSQL",
+        "verdict": "fits",
+        "reason": "PostgreSQL is in the CV \"Backend (EN)\""
+      }
+    ]
+  },
+  "<maria-0044@net-empregos.com>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Engenheiro de Software Backend\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0044@net-empregos.com>#1": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Programador Backend (m/f)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0044@net-empregos.com>#2": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0168@dourofintech.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Programador(a) Backend\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Redis",
+        "verdict": "unknown",
+        "reason": "Redis is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Kotlin",
+        "verdict": "unknown",
+        "reason": "Kotlin is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0075@linkedin.com>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Staff Software Engineer\" may or may not be backend work"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0075@linkedin.com>#1": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Platform Engineer\" may or may not be backend work"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0090@dourofintech.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Programador(a) Backend\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0052@linkedin.com>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Senior Backend Engineer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0052@linkedin.com>#1": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Go Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0052@linkedin.com>#2": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Staff Software Engineer\" may or may not be backend work"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0166@copperleaf.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Developer (Go)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Kotlin",
+        "verdict": "unknown",
+        "reason": "Kotlin is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Java",
+        "verdict": "unknown",
+        "reason": "Java is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0222@workablemail.com>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0110@talentbruecke.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Platform Engineer (m/w/d)\" may or may not be backend work"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Kotlin",
+        "verdict": "unknown",
+        "reason": "Kotlin is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Go",
+        "verdict": "fits",
+        "reason": "Go is in the CV \"Backend (DE)\""
+      }
+    ]
+  },
+  "<maria-0053@nationalevacaturebank.nl>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Senior Java Developer\" may or may not be backend work"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0053@nationalevacaturebank.nl>#1": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0053@nationalevacaturebank.nl>#2": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Software Engineer Backend\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0119@northbridge-talent.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Software Engineer, Payments\" may or may not be backend work"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0113@ribeira-rh.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Programador(a) Backend\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Kafka",
+        "verdict": "fits",
+        "reason": "Kafka is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Kubernetes",
+        "verdict": "fits",
+        "reason": "Kubernetes is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "TypeScript",
+        "verdict": "unknown",
+        "reason": "TypeScript is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Python",
+        "verdict": "unknown",
+        "reason": "Python is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0058@net-empregos.com>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Engenheiro de Software Backend\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0058@net-empregos.com>#1": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Programador Backend (m/f)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0058@net-empregos.com>#2": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0083@northbridge-talent.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Software Engineer, Payments\" may or may not be backend work"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Redis",
+        "verdict": "unknown",
+        "reason": "Redis is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Terraform",
+        "verdict": "fits",
+        "reason": "Terraform is in the CV \"Backend (EN)\""
+      }
+    ]
+  },
+  "<maria-0086@polder-talent.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Engineer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Java",
+        "verdict": "unknown",
+        "reason": "Java is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Go",
+        "verdict": "fits",
+        "reason": "Go is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Kotlin",
+        "verdict": "unknown",
+        "reason": "Kotlin is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0155@elbwerk.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Engineer (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Python",
+        "verdict": "unknown",
+        "reason": "Python is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Java",
+        "verdict": "unknown",
+        "reason": "Java is in neither the CV nor the profile"
+      },
+      {
+        "skill": "Go",
+        "verdict": "fits",
+        "reason": "Go is in the CV \"Backend (DE)\""
+      },
+      {
+        "skill": "TypeScript",
+        "verdict": "unknown",
+        "reason": "TypeScript is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0196@quaysidebank.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Developer (Go)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Go",
+        "verdict": "fits",
+        "reason": "Go is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Python",
+        "verdict": "unknown",
+        "reason": "Python is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0100@copperleaf.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Software Engineer, Payments\" may or may not be backend work"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Go",
+        "verdict": "fits",
+        "reason": "Go is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Kafka",
+        "verdict": "fits",
+        "reason": "Kafka is in the CV \"Backend (EN)\""
+      }
+    ]
+  },
+  "<maria-0192@harbour-rec.example>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Software Engineer, Payments\" may or may not be backend work"
+    },
+    "skillCloseness": [
+      {
+        "skill": "gRPC",
+        "verdict": "fits",
+        "reason": "gRPC is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Kotlin",
+        "verdict": "unknown",
+        "reason": "Kotlin is in neither the CV nor the profile"
+      },
+      {
+        "skill": "AWS",
+        "verdict": "unknown",
+        "reason": "AWS is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0091@polder-talent.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "gRPC",
+        "verdict": "fits",
+        "reason": "gRPC is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "AWS",
+        "verdict": "unknown",
+        "reason": "AWS is in neither the CV nor the profile"
+      },
+      {
+        "skill": "TypeScript",
+        "verdict": "unknown",
+        "reason": "TypeScript is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-0218@recruitee.com>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Senior Backend Engineer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0204@myworkday.com>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0206@personio.de>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Senior Backend Engineer (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0074@xing.com>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Softwareentwickler Backend (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0074@xing.com>#1": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Cloud Engineer (m/w/d)\" may or may not be backend work"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0050@stepstone.de>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Senior Backend Engineer (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0050@stepstone.de>#1": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Softwareentwickler Backend (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": []
+  },
+  "<maria-0050@stepstone.de>#2": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Cloud Engineer (m/w/d)\" may or may not be backend work"
+    },
+    "skillCloseness": []
+  },
+  "<maria-deliver-berlin-de@kiezwerk.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Senior Backend-Entwicklerin (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Go",
+        "verdict": "fits",
+        "reason": "Go is in the CV \"Backend (DE)\""
+      },
+      {
+        "skill": "PostgreSQL",
+        "verdict": "fits",
+        "reason": "PostgreSQL is in the CV \"Backend (DE)\""
+      },
+      {
+        "skill": "Kubernetes",
+        "verdict": "fits",
+        "reason": "Kubernetes is in the CV \"Backend (DE)\""
+      }
+    ]
+  },
+  "<maria-deliver-remote-eu@fjordline.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Senior Backend Engineer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Go",
+        "verdict": "fits",
+        "reason": "Go is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Kafka",
+        "verdict": "fits",
+        "reason": "Kafka is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "PostgreSQL",
+        "verdict": "fits",
+        "reason": "PostgreSQL is in the CV \"Backend (EN)\""
+      }
+    ]
+  },
+  "<maria-deliver-amsterdam@grachtenbank.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Engineer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Go",
+        "verdict": "fits",
+        "reason": "Go is in the CV \"Backend (EN)\""
+      }
+    ]
+  },
+  "<maria-deliver-singapore@merlion-pay.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Senior Backend Engineer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Go",
+        "verdict": "fits",
+        "reason": "Go is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "PostgreSQL",
+        "verdict": "fits",
+        "reason": "PostgreSQL is in the CV \"Backend (EN)\""
+      }
+    ]
+  },
+  "<maria-deliver-apac-1@lanterncommerce.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Senior Backend Engineer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Go",
+        "verdict": "fits",
+        "reason": "Go is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "PostgreSQL",
+        "verdict": "fits",
+        "reason": "PostgreSQL is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Kubernetes",
+        "verdict": "fits",
+        "reason": "Kubernetes is in the CV \"Backend (EN)\""
+      }
+    ]
+  },
+  "<maria-deliver-apac-2@harborline.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Developer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Go",
+        "verdict": "fits",
+        "reason": "Go is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "Redis",
+        "verdict": "unknown",
+        "reason": "Redis is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "<maria-deliver-apac-3@wattledata.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Engineer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Kotlin",
+        "verdict": "unknown",
+        "reason": "Kotlin is in neither the CV nor the profile"
+      },
+      {
+        "skill": "PostgreSQL",
+        "verdict": "fits",
+        "reason": "PostgreSQL is in the CV \"Backend (EN)\""
+      }
+    ]
+  },
+  "<maria-deliver-data-eng@nordkap-data.example>#0": {
+    "titleFit": {
+      "verdict": "conflicts",
+      "reason": "\"Data Engineer\" is not a backend role"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Python",
+        "verdict": "fits",
+        "reason": "Python is in the CV \"Data engineering (EN)\""
+      },
+      {
+        "skill": "SQL",
+        "verdict": "fits",
+        "reason": "SQL is in the CV \"Data engineering (EN)\""
+      },
+      {
+        "skill": "Apache Airflow",
+        "verdict": "fits",
+        "reason": "Apache Airflow is in the CV \"Data engineering (EN)\""
+      },
+      {
+        "skill": "dbt",
+        "verdict": "fits",
+        "reason": "dbt is in the CV \"Data engineering (EN)\""
+      }
+    ]
+  },
+  "<maria-deliver-zurich@limmatledger.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Senior Backend Engineer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Go",
+        "verdict": "fits",
+        "reason": "Go is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "PostgreSQL",
+        "verdict": "fits",
+        "reason": "PostgreSQL is in the CV \"Backend (EN)\""
+      }
+    ]
+  },
+  "<maria-deliver-basel@rheinknie.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Senior Backend-Entwickler (m/w/d)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Go",
+        "verdict": "fits",
+        "reason": "Go is in the CV \"Backend (DE)\""
+      },
+      {
+        "skill": "Kubernetes",
+        "verdict": "fits",
+        "reason": "Kubernetes is in the CV \"Backend (DE)\""
+      }
+    ]
+  },
+  "<maria-deliver-dublin@liffeylabs.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Senior Backend Engineer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Go",
+        "verdict": "fits",
+        "reason": "Go is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "PostgreSQL",
+        "verdict": "fits",
+        "reason": "PostgreSQL is in the CV \"Backend (EN)\""
+      }
+    ]
+  },
+  "<maria-deliver-zurich-2@uetliberg.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Engineer (Go)\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Go",
+        "verdict": "fits",
+        "reason": "Go is in the CV \"Backend (EN)\""
+      }
+    ]
+  },
+  "<maria-deliver-scam@quickhire-global.example>#0": {
+    "titleFit": {
+      "verdict": "conflicts",
+      "reason": "\"Remote Data Entry Assistant\" is not a backend role"
+    },
+    "skillCloseness": []
+  },
+  "<maria-deliver-freemail@gmail.com>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Engineer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Java",
+        "verdict": "unknown",
+        "reason": "Java is in neither the CV nor the profile"
+      },
+      {
+        "skill": "PostgreSQL",
+        "verdict": "fits",
+        "reason": "PostgreSQL is in the CV \"Backend (EN)\""
+      }
+    ]
+  }
+}
