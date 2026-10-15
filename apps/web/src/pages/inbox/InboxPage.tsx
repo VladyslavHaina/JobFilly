@@ -9,8 +9,9 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { ApiError, api } from "../../api";
 import { Alert, Button, Loading, PageHeader, TextField } from "../../components";
-import { queryKeys } from "../../hooks";
+import { queryKeys, useWorkspace } from "../../hooks";
 import { apiPaths, paths } from "../../paths";
+import { likelyJobEmails, useCurrentScan } from "../scan/queries";
 import { CategoryChip, CouldNotAnalyze } from "./badges";
 import { CATEGORY_LABELS, formatListDate } from "./format";
 import { MessageDetailView } from "./MessageDetail";
@@ -18,7 +19,8 @@ import { MessageDetailView } from "./MessageDetail";
 // The job inbox (F5): job mail newest first with category chips, filters, search and pages of
 // 100; non-job mail behind a count and a Show toggle. A message opens on its deep link
 // (paths.message), which is also how intake evidence links open the user's own replies; Esc
-// goes back to the list.
+// goes back to the list. Search and the category filter only reach analysed mail, so while
+// likely job mail is left unanalysed, filtered results say how much is left out (F4.10, F5.5).
 
 const SEARCH_DELAY_MS = 250;
 
@@ -78,6 +80,39 @@ function CategoryFilter(props: {
         );
       })}
     </fieldset>
+  );
+}
+
+/**
+ * Under a search or filter: "N likely job emails aren't analyzed yet and aren't included", and
+ * who can change that. The count is the current scan's live notAnalyzed, from the same query as
+ * NotAnalyzedBanner above the inbox (routes.tsx), which holds the one Analyze them; admins are
+ * pointed there rather than given a second button with its own state.
+ */
+function LeftOutNote({ workspaceId }: { workspaceId: string }) {
+  const { can } = useWorkspace();
+  const current = useCurrentScan(workspaceId);
+  const progress = current.data?.progress;
+  if (!progress || progress.notAnalyzed === 0) return null;
+  const n = progress.notAnalyzed;
+  const verb = n === 1 ? "isn't" : "aren't";
+  const hint =
+    progress.status !== "stopped"
+      ? "They're being analyzed now."
+      : can.admin
+        ? "Use Analyze them above to include them."
+        : "An admin of this workspace can analyze them.";
+  return (
+    <div
+      role="note"
+      aria-label="Not included"
+      className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950"
+    >
+      <p>
+        {likelyJobEmails(n)} {verb} analyzed yet and {verb} included.
+      </p>
+      <p className="text-xs text-amber-900">{hint}</p>
+    </div>
   );
 }
 
@@ -209,6 +244,7 @@ export function InboxPage({
           </div>
 
           <div className="mt-4">
+            {data && filtered && <LeftOutNote workspaceId={workspaceId} />}
             {list.isPending && <Loading />}
             {list.isError && (
               <Alert>

@@ -1,18 +1,14 @@
 import { SCAN_WINDOW_DAYS, type ScanProgress } from "@jobfilly/schema";
 import { Link } from "react-router";
-import { ApiError } from "../../api";
 import { Alert, Button, Card, Loading, PageHeader } from "../../components";
 import { useWorkspace } from "../../hooks";
 import { paths } from "../../paths";
-import { likelyJobEmails, useCurrentScan, useScanAction } from "./queries";
+import { likelyJobEmails, scanActionError, useCurrentScan, useScanAction } from "./queries";
 import { StopTime } from "./StopTime";
 
 // The scan screen (F4): start the first scan, watch its counts change live in every open browser
 // of the workspace (F4.6), and read why it stopped (F4.4). Admins start, cancel and analyze the
 // rest; everyone else watches.
-
-const errorText = (error: unknown) =>
-  error instanceof ApiError ? error.message : error ? "That didn't work. Try again." : null;
 
 const number = new Intl.NumberFormat("en");
 
@@ -114,7 +110,7 @@ export function ScanPage({ workspaceId }: { workspaceId: string }) {
   const { can } = useWorkspace();
   const current = useCurrentScan(workspaceId);
   const action = useScanAction(workspaceId);
-  const error = errorText(action.error);
+  const error = scanActionError(action.error);
 
   if (current.isPending) return <Loading />;
   if (current.isError) return <Alert>Couldn't load the scan. Reload the page to try again.</Alert>;

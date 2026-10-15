@@ -1,9 +1,12 @@
-import type {
-  JobFacts,
-  MessageBody,
-  MessageDetail,
-  MessageList,
-  MessageListItem,
+import {
+  type CurrentScan,
+  CurrentScanSchema,
+  type JobFacts,
+  type MessageBody,
+  type MessageDetail,
+  type MessageList,
+  type MessageListItem,
+  type ScanProgress,
 } from "@jobfilly/schema";
 import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -16,6 +19,7 @@ import {
   TEST_USER,
   testWorkspace,
 } from "../../components/testing";
+import { queryKeys } from "../../hooks";
 import { paths } from "../../paths";
 
 // The job inbox inside the app's own routes, against a fake API (F5.1, F5.2, F5.4, F5.5).
@@ -145,14 +149,57 @@ const BODIES: Record<string, MessageBody> = {
 
 const JOB_ITEMS = [RECRUITER, ALERT, FAILED, INTERVIEW];
 
+/** The latest scan: by default the first one, stopped confident with 305 likely job emails left. */
+const currentScan = (overrides: Partial<ScanProgress> = {}): CurrentScan => {
+  const progress: ScanProgress = {
+    scanId: "00000000-0000-4000-8000-0000000000c1",
+    kind: "first",
+    status: "stopped",
+    stopReason: "confident",
+    handledWithoutAi: 275,
+    likely: 345,
+    analyzed: 40,
+    jobFound: 30,
+    answersFirm: 8,
+    notAnalyzed: 305,
+    calls: 38,
+    tokens: 19000,
+    ...overrides,
+  };
+  return {
+    progress,
+    stopMessage: null,
+    stoppedAt: progress.status === "stopped" ? "2026-10-01T10:05:00.000Z" : null,
+    totalTokens: 19000,
+  };
+};
+
+/** What GET /scans/current answers before any scan: 200 with no progress, never a 404. */
+const NO_SCAN: CurrentScan = { progress: null, stopMessage: null, stoppedAt: null, totalTokens: 0 };
+
 /** A fake inbox API that filters and searches like the server. */
-function inboxApi(options: { role?: "viewer" | "editor" | "admin"; pages?: number } = {}) {
+function inboxApi(
+  options: { role?: "viewer" | "editor" | "admin"; pages?: number; scan?: CurrentScan } = {},
+) {
   const ws = testWorkspace({ role: options.role ?? "admin" });
   const details = structuredClone(DETAILS);
+  let scan = options.scan;
   const requests = fakeApi({
     "GET /api/auth/session": { user: TEST_USER },
     "GET /api/workspaces": { items: [ws] },
     "GET /api/invites": { items: [] },
+    // Both answer what the real routes answer, checked against the shared schema so the fake
+    // can't drift from the contract.
+    "GET /api/workspaces/:id/scans/current": () => CurrentScanSchema.parse(scan ?? NO_SCAN),
+    "POST /api/workspaces/:id/scans/analyze-rest": () => {
+      scan = currentScan({
+        kind: "analyze_rest",
+        status: "running",
+        stopReason: null,
+        analyzed: 0,
+      });
+      return json(CurrentScanSchema.parse(scan), 201);
+    },
     "GET /api/workspaces/:id/messages": (req: FakeRequest): MessageList => {
       const category = req.search.get("category");
       const q = req.search.get("q")?.toLowerCase();
@@ -304,6 +351,105 @@ describe("the list (F5.1)", () => {
     expect(await screen.findByText("Page 2")).toBeTruthy();
     expect(listRequests(requests).at(-1)?.search.get("page")).toBe("2");
     expect(screen.getByRole("button", { name: "Older" })).toHaveProperty("disabled", true);
+  });
+});
+
+describe("search and filter while likely job mail isn't analysed (F4.10, F5.5)", () => {
+  const search = async (text: string) => {
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText("Search sender or subject"), text);
+    return user;
+  };
+  const note = () => screen.findByRole("note", { name: "Not included" });
+
+  it("says how many are left out of an empty search, with the banner's one Analyze them", async () => {
+    const { ws, requests } = inboxApi({ scan: currentScan({ notAnalyzed: 305 }) });
+    renderApp(paths.inbox(ws.id));
+    await messageList();
+    // The unfiltered inbox leaves the count to the banner above it.
+    expect(await screen.findByText("305 more likely job emails not analyzed")).toBeTruthy();
+    expect(screen.queryByRole("note", { name: "Not included" })).toBeNull();
+
+    const user = await search("Jonas Weber");
+    expect(await screen.findByText("No messages match.")).toBeTruthy();
+    const left = await note();
+    expect(left.textContent).toContain(
+      "305 likely job emails aren't analyzed yet and aren't included.",
+    );
+    expect(within(left).getByText("Use Analyze them above to include them.")).toBeTruthy();
+    // One Analyze them on the page, the banner's: the note has none of its own.
+    expect(within(left).queryByRole("button")).toBeNull();
+    const buttons = screen.getAllByRole("button", { name: "Analyze them" });
+    expect(buttons).toHaveLength(1);
+    await user.click(buttons[0] as HTMLElement);
+    await waitFor(() =>
+      expect(requests.filter((r) => r.path.endsWith("/scans/analyze-rest"))).toHaveLength(1),
+    );
+    // The note follows the run the banner started, from the same query.
+    await waitFor(() => expect(within(left).getByText("They're being analyzed now.")).toBeTruthy());
+    expect(screen.queryByRole("button", { name: "Analyze them" })).toBeNull();
+  });
+
+  it("says nothing is left out of a search before any scan", async () => {
+    const { ws, requests } = inboxApi();
+    const { queryClient } = renderApp(paths.inbox(ws.id));
+    await messageList();
+    await search("Jonas Weber");
+    expect(await screen.findByText("No messages match.")).toBeTruthy();
+    // The scan query has had its answer (200, no progress), so the note had its chance to show.
+    const scanKey = [...queryKeys.area(ws.id, "scan"), "current"];
+    await waitFor(() => expect(queryClient.getQueryState(scanKey)?.status).toBe("success"));
+    expect(requests.some((r) => r.path.endsWith("/scans/current"))).toBe(true);
+    expect(screen.queryByRole("note", { name: "Not included" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Analyze them" })).toBeNull();
+  });
+
+  it("says so under a category filter that finds results too", async () => {
+    const { ws } = inboxApi({ scan: currentScan({ notAnalyzed: 1 }) });
+    renderApp(paths.inbox(ws.id));
+    await messageList();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Interview" }));
+    await waitFor(() =>
+      expect(
+        within(screen.getByRole("list", { name: "Messages" })).getAllByRole("link"),
+      ).toHaveLength(1),
+    );
+    expect((await note()).textContent).toContain(
+      "1 likely job email isn't analyzed yet and isn't included.",
+    );
+  });
+
+  it("keeps the plain empty search when nothing is left unanalysed", async () => {
+    const { ws } = inboxApi({
+      scan: {
+        ...currentScan({ kind: "analyze_rest", stopReason: "done", notAnalyzed: 0 }),
+        stopMessage: "Stopped: done, all 345 likely job emails analyzed",
+      },
+    });
+    renderApp(paths.inbox(ws.id));
+    await messageList();
+    // The banner reads the same scan, so once it shows, the note has had its answer.
+    expect(
+      await screen.findByText("Stopped: done, all 345 likely job emails analyzed"),
+    ).toBeTruthy();
+    await search("Jonas Weber");
+    expect(await screen.findByText("No messages match.")).toBeTruthy();
+    expect(screen.queryByRole("note", { name: "Not included" })).toBeNull();
+  });
+
+  it("tells viewers an admin can analyze them, without the button", async () => {
+    const { ws } = inboxApi({ role: "viewer", scan: currentScan({ notAnalyzed: 305 }) });
+    renderApp(paths.inbox(ws.id));
+    await messageList();
+    await search("Jonas Weber");
+    expect(await screen.findByText("No messages match.")).toBeTruthy();
+    const left = await note();
+    expect(left.textContent).toContain(
+      "305 likely job emails aren't analyzed yet and aren't included.",
+    );
+    expect(within(left).getByText("An admin of this workspace can analyze them.")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Analyze them" })).toBeNull();
   });
 });
 

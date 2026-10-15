@@ -1,6 +1,6 @@
 import { type CurrentScan, CurrentScanSchema } from "@jobfilly/schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "../../api";
+import { ApiError, api } from "../../api";
 import { queryKeys } from "../../hooks";
 import { apiPaths } from "../../paths";
 
@@ -46,6 +46,12 @@ export function useScanAction(workspaceId: string) {
       void client.invalidateQueries({ queryKey: queryKeys.area(workspaceId, "scan") });
     },
   });
+}
+
+/** What a failed scan action says: the server's plain reason, or else a generic retry. */
+export function scanActionError(error: unknown): string | null {
+  if (error instanceof ApiError) return error.message;
+  return error ? "That didn't work. Try again." : null;
 }
 
 /** "1 likely job email", "26 likely job emails". */
