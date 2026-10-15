@@ -247,6 +247,7 @@ describe("evaluations, senders, drafts and decisions", () => {
       updatedAt: at,
     };
     expect(DraftSchema.safeParse(draft).success).toBe(true);
+    expect(DraftSchema.safeParse({ ...draft, failureKind: "ai" }).success).toBe(true);
     expect(DraftSchema.safeParse({ ...draft, failureKind: "smtp" }).success).toBe(false);
   });
 
