@@ -5,20 +5,41 @@ import type {
   AnalysisStatus,
   Category,
   CategorySource,
+  Change,
+  Condition,
+  CvMediaType,
+  CvReadOutput,
+  CvReadStatus,
+  CvTag,
+  DecisionChoice,
+  DraftFailureKind,
+  DraftOrigin,
+  DraftStatus,
   ExtraQuestion,
+  Impact,
   IntakeExtrasStatus,
   JobFacts,
   JobStatus,
   MailboxStatus,
   MailFolder,
+  Match,
+  MatchAiOutput,
   Preferences,
   ProfileEntry,
+  ProfileItem,
+  ProfileSnapshot,
   ProfileSource,
   ProfileValue,
   Role,
+  RuleAction,
+  RuleEffect,
+  RuleSource,
   ScanCounts,
   ScanKind,
   ScanStatus,
+  SenderMark,
+  SenderReason,
+  SenderVerdict,
   StageOneVerdict,
   StopCause,
   StopReason,
@@ -28,7 +49,9 @@ import type {
 import { sql } from "drizzle-orm";
 import {
   bigint,
+  boolean,
   check,
+  customType,
   foreignKey,
   index,
   integer,
@@ -43,9 +66,10 @@ import {
   varchar,
 } from "drizzle-orm/pg-core";
 
-// Every MVP 1 table. Every workspace-owned row carries workspace_id, and the queries in
-// ./queries only ever read or write it with a workspace id. Slices add no tables: a column a
-// slice needs is added here, in a new migration, by the foundation.
+// Every table. Every workspace-owned row carries workspace_id, and the queries in ./queries only
+// ever read or write it with a workspace id. Slices add no tables: a column a slice needs is
+// added here, in a new migration, by the foundation. MVP 1's tables come first, then MVP 2's
+// (migration 0001_mvp2).
 
 const at = (name: string) => timestamp(name, { withTimezone: true, mode: "date" });
 const createdAt = () => at("created_at").notNull().defaultNow();
@@ -385,11 +409,506 @@ export const jobs = pgTable(
     previousOwner: text("previous_owner"),
     attempts: integer("attempts").notNull().default(0),
     checkpoint: jsonb("checkpoint").$type<unknown>(),
+    /**
+     * Jobs with the same key are one piece of work (TBD-178): at most one waits (the unique
+     * index while queued), and the claim skips a queued one while another with the key runs
+     * under a live lease (claimJob).
+     */
+    dedupeKey: text("dedupe_key"),
     createdAt: at("created_at").notNull(),
     updatedAt: at("updated_at").notNull(),
   },
   (t) => [
     index("jobs_status_lease_idx").on(t.status, t.leaseExpiresAt),
+    uniqueIndex("jobs_dedupe_queued_idx")
+      .on(t.dedupeKey)
+      .where(sql`status = 'queued' and dedupe_key is not null`),
+    index("jobs_dedupe_running_idx")
+      .on(t.dedupeKey)
+      .where(sql`status = 'running' and dedupe_key is not null`),
     check("jobs_status_check", oneOf("status", ["queued", "running", "done", "failed"])),
   ],
+);
+
+// --- MVP 2 ---------------------------------------------------------------------------------------
+//
+// CV foreign keys (TBD-197) are simple keys on cvs.id, so deleting a CV (cvs-senders) never hits
+// a key held elsewhere: links (profile_cvs), overrides (role_cv_choices) and stored match answers
+// go with it (CASCADE); drafts and role evaluations stay and forget it (SET NULL), so a draft
+// already in the mailbox stays there (F2.5) and the next evaluation chooses a CV again.
+
+/** bytea as a Uint8Array (node-postgres gives a Buffer, PGlite a Uint8Array). */
+const bytea = customType<{ data: Uint8Array; driverData: Uint8Array | string }>({
+  dataType: () => "bytea",
+  toDriver: (value) => Buffer.from(value),
+  fromDriver: (value) =>
+    typeof value === "string"
+      ? new Uint8Array(Buffer.from(value.replace(/^\\x/, ""), "hex"))
+      : new Uint8Array(value),
+});
+
+/** The largest CV file (MAX_CV_BYTES in @jobfilly/schema): 5 MB. */
+const MAX_CV_BYTES_SQL = 5 * 1024 * 1024;
+
+export const cvs = pgTable(
+  "cvs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: workspaceId(),
+    name: text("name").notNull(),
+    fileName: text("file_name").notNull(),
+    mediaType: text("media_type").$type<CvMediaType>().notNull(),
+    sizeBytes: integer("size_bytes").notNull(),
+    /** The file itself (F2.4): in Postgres, never on a replica's disk. */
+    content: bytea("content").notNull(),
+    /** SHA-256 of the content, lower-case hex: cv.v1's key. */
+    contentHash: text("content_hash").notNull(),
+    /** The text read from the file; null until read. */
+    text: text("text"),
+    /** What cv.v1 read, skills already checked against the text (F2.2); null until read. */
+    metadata: jsonb("metadata").$type<CvReadOutput>(),
+    tags: jsonb("tags").$type<CvTag[]>().notNull().default([]),
+    readStatus: text("read_status").$type<CvReadStatus>().notNull().default("pending"),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index("cvs_workspace_idx").on(t.workspaceId),
+    check("cvs_size_check", sql`octet_length(content) <= ${sql.raw(String(MAX_CV_BYTES_SQL))}`),
+    check("cvs_media_type_check", oneOf("media_type", ["pdf", "docx"])),
+    check("cvs_read_status_check", oneOf("read_status", ["pending", "done", "failed"])),
+  ],
+);
+
+/** Which CVs a profile uses (F2). */
+export const profileCvs = pgTable(
+  "profile_cvs",
+  {
+    workspaceId: workspaceId(),
+    profileId: uuid("profile_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    cvId: uuid("cv_id")
+      .notNull()
+      .references(() => cvs.id, { onDelete: "cascade" }),
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.profileId, t.cvId] }), index("profile_cvs_cv_idx").on(t.cvId)],
+);
+
+/** An editor's CV choice for one role (F2.3); no row means the automatic choice. */
+export const roleCvChoices = pgTable(
+  "role_cv_choices",
+  {
+    workspaceId: workspaceId(),
+    messageId: text("message_id").notNull(),
+    position: integer("position").notNull(),
+    cvId: uuid("cv_id")
+      .notNull()
+      .references(() => cvs.id, { onDelete: "cascade" }),
+    chosenBy: uuid("chosen_by").references(() => users.id, { onDelete: "set null" }),
+    chosenAt: at("chosen_at").notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.workspaceId, t.messageId, t.position] }),
+    foreignKey({
+      name: "role_cv_choices_message_fk",
+      columns: [t.workspaceId, t.messageId],
+      foreignColumns: [messages.workspaceId, messages.messageId],
+    }).onDelete("cascade"),
+    index("role_cv_choices_cv_idx").on(t.cvId),
+  ],
+);
+
+const RULE_ACTIONS_SQL = ["hide", "no_draft", "ask_first", "cap_score"] as const;
+const RULE_SOURCES_SQL = ["you", "decision", "assistant"] as const;
+
+/** Rules in the profile (F3). */
+export const rules = pgTable(
+  "rules",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: workspaceId(),
+    profileId: uuid("profile_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    description: text("description").notNull(),
+    conditions: jsonb("conditions").$type<Condition[]>().notNull(),
+    action: text("action").$type<RuleAction>().notNull(),
+    enabled: boolean("enabled").notNull().default(true),
+    source: text("source").$type<RuleSource>().notNull(),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: at("created_at").notNull(),
+    updatedAt: at("updated_at").notNull(),
+  },
+  (t) => [
+    index("rules_workspace_profile_idx").on(t.workspaceId, t.profileId),
+    check("rules_action_check", oneOf("action", RULE_ACTIONS_SQL)),
+    check("rules_source_check", oneOf("source", RULE_SOURCES_SQL)),
+  ],
+);
+
+/**
+ * One role's evaluation (RoleEvaluation): its match, the rule hiding it, every rule's effect and
+ * the CV chosen. `stale` marks it out of date after a change, until it is evaluated again.
+ */
+export const roleEvaluations = pgTable(
+  "role_evaluations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: workspaceId(),
+    messageId: text("message_id").notNull(),
+    position: integer("position").notNull(),
+    score: integer("score"),
+    capped: boolean("capped").notNull().default(false),
+    match: jsonb("match").$type<Match>(),
+    hiddenRuleId: uuid("hidden_rule_id"),
+    hiddenReason: text("hidden_reason"),
+    ruleEffects: jsonb("rule_effects").$type<RuleEffect[]>().notNull().default([]),
+    cvId: uuid("cv_id").references(() => cvs.id, { onDelete: "set null" }),
+    cvReason: text("cv_reason").notNull(),
+    cvSource: text("cv_source").$type<"auto" | "you">().notNull().default("auto"),
+    stale: boolean("stale").notNull().default(false),
+    /** When it was last marked stale; null while current. */
+    staleSince: at("stale_since"),
+    evaluatedAt: at("evaluated_at").notNull(),
+  },
+  (t) => [
+    unique("role_evaluations_role_key").on(t.workspaceId, t.messageId, t.position),
+    foreignKey({
+      name: "role_evaluations_role_fk",
+      columns: [t.workspaceId, t.messageId, t.position],
+      foreignColumns: [roles.workspaceId, roles.messageId, roles.position],
+    }).onDelete("cascade"),
+    index("role_evaluations_cv_idx").on(t.cvId),
+    check("role_evaluations_cv_source_check", oneOf("cv_source", ["auto", "you"])),
+  ],
+);
+
+/**
+ * Stored match.v1 answers (TBD-175): keyed by the role, the CV and the hash of exactly what the
+ * model saw, so a rule or pay change re-scores without a model call.
+ */
+export const matchAiAnswers = pgTable(
+  "match_ai_answers",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: workspaceId(),
+    messageId: text("message_id").notNull(),
+    position: integer("position").notNull(),
+    cvId: uuid("cv_id").references(() => cvs.id, { onDelete: "cascade" }),
+    inputHash: text("input_hash").notNull(),
+    answer: jsonb("answer").$type<MatchAiOutput>().notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    unique("match_ai_answers_key")
+      .on(t.workspaceId, t.messageId, t.position, t.cvId, t.inputHash)
+      .nullsNotDistinct(),
+    foreignKey({
+      name: "match_ai_answers_role_fk",
+      columns: [t.workspaceId, t.messageId, t.position],
+      foreignColumns: [roles.workspaceId, roles.messageId, roles.position],
+    }).onDelete("cascade"),
+    index("match_ai_answers_cv_idx").on(t.cvId),
+  ],
+);
+
+/** A message sender's check (F5); stale after a mark changes, until checked again. */
+export const senderChecks = pgTable(
+  "sender_checks",
+  {
+    workspaceId: workspaceId(),
+    messageId: text("message_id").notNull(),
+    verdict: text("verdict").$type<SenderVerdict>().notNull(),
+    complete: boolean("complete").notNull(),
+    reasons: jsonb("reasons").$type<SenderReason[]>().notNull(),
+    mark: text("mark").$type<SenderMark>(),
+    stale: boolean("stale").notNull().default(false),
+    staleSince: at("stale_since"),
+    checkedAt: at("checked_at").notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.workspaceId, t.messageId] }),
+    foreignKey({
+      name: "sender_checks_message_fk",
+      columns: [t.workspaceId, t.messageId],
+      foreignColumns: [messages.workspaceId, messages.messageId],
+    }).onDelete("cascade"),
+    check("sender_checks_verdict_check", oneOf("verdict", ["looks_fine", "caution", "high_risk"])),
+    check(
+      "sender_checks_mark_check",
+      sql`mark is null or ${oneOf("mark", ["trusted", "blocked"])}`,
+    ),
+  ],
+);
+
+/** An editor's trusted or blocked mark on an address or a domain (F5.4). */
+export const senderMarks = pgTable(
+  "sender_marks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: workspaceId(),
+    scope: text("scope").$type<"address" | "domain">().notNull(),
+    /** Lower case. */
+    value: text("value").notNull(),
+    mark: text("mark").$type<SenderMark>().notNull(),
+    markedBy: uuid("marked_by").references(() => users.id, { onDelete: "set null" }),
+    markedAt: at("marked_at").notNull(),
+  },
+  (t) => [
+    unique("sender_marks_key").on(t.workspaceId, t.scope, t.value),
+    check("sender_marks_scope_check", oneOf("scope", ["address", "domain"])),
+    check("sender_marks_mark_check", oneOf("mark", ["trusted", "blocked"])),
+  ],
+);
+
+/** Cached RDAP and MX lookups, per workspace (TBD-165). */
+export const domainLookups = pgTable(
+  "domain_lookups",
+  {
+    workspaceId: workspaceId(),
+    domain: text("domain").notNull(),
+    kind: text("kind").$type<"rdap" | "mx">().notNull(),
+    ok: boolean("ok").notNull(),
+    result: jsonb("result").$type<unknown>(),
+    lookedUpAt: at("looked_up_at").notNull(),
+    expiresAt: at("expires_at").notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.workspaceId, t.domain, t.kind] }),
+    check("domain_lookups_kind_check", oneOf("kind", ["rdap", "mx"])),
+  ],
+);
+
+const DRAFT_STATUSES_SQL = ["saving", "in_mailbox", "edited", "discarded", "failed"] as const;
+
+/**
+ * Reply drafts (F6). The row holds the reply text only; the quote of the original is added when
+ * the MIME message is built. One live draft per role (TBD-179): the partial unique index allows a
+ * new row only once the previous one is discarded.
+ */
+export const drafts = pgTable(
+  "drafts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: workspaceId(),
+    messageId: text("message_id").notNull(),
+    position: integer("position").notNull(),
+    status: text("status").$type<DraftStatus>().notNull(),
+    failureKind: text("failure_kind").$type<DraftFailureKind>(),
+    failureReason: text("failure_reason"),
+    /** How many times draft.create has tried to write it (retries count). */
+    attempts: integer("attempts").notNull().default(1),
+    /** When the current saving claim was taken. */
+    claimedAt: at("claimed_at"),
+    origin: text("origin").$type<DraftOrigin>().notNull(),
+    subject: text("subject"),
+    /** The reply text only, never the quoted original. */
+    body: text("body"),
+    language: text("language"),
+    cvId: uuid("cv_id").references(() => cvs.id, { onDelete: "set null" }),
+    /** Where the mailbox copy is. */
+    mailboxFolder: text("mailbox_folder"),
+    uid: bigint("uid", { mode: "number" }),
+    uidValidity: bigint("uid_validity", { mode: "number" }),
+    draftMessageId: text("draft_message_id"),
+    /** SHA-256 of the subject, body and attachment of the mailbox copy. */
+    contentHash: text("content_hash"),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: at("created_at").notNull(),
+    updatedAt: at("updated_at").notNull(),
+  },
+  (t) => [
+    uniqueIndex("drafts_one_live_idx")
+      .on(t.workspaceId, t.messageId, t.position)
+      .where(sql`status <> 'discarded'`),
+    index("drafts_workspace_status_idx").on(t.workspaceId, t.status),
+    foreignKey({
+      name: "drafts_message_fk",
+      columns: [t.workspaceId, t.messageId],
+      foreignColumns: [messages.workspaceId, messages.messageId],
+    }).onDelete("cascade"),
+    index("drafts_cv_idx").on(t.cvId),
+    check("drafts_status_check", oneOf("status", DRAFT_STATUSES_SQL)),
+    check(
+      "drafts_failure_kind_check",
+      sql`failure_kind is null or ${oneOf("failure_kind", ["mailbox", "content"])}`,
+    ),
+    check("drafts_origin_check", oneOf("origin", ["auto", "on_demand", "decision", "retry"])),
+  ],
+);
+
+/** The decision inbox (F7): one open decision per group key. */
+export const decisions = pgTable(
+  "decisions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: workspaceId(),
+    groupKey: text("group_key").notNull(),
+    /** The entry an answer writes; null for an ask_first rule. */
+    profileKey: text("profile_key"),
+    question: text("question").notNull(),
+    choices: jsonb("choices").$type<DecisionChoice[]>().notNull(),
+    status: text("status").$type<"open" | "answered">().notNull().default("open"),
+    answer: jsonb("answer").$type<ProfileItem>(),
+    answeredBy: uuid("answered_by").references(() => users.id, { onDelete: "set null" }),
+    answeredAt: at("answered_at"),
+    createdAt: at("created_at").notNull(),
+  },
+  (t) => [
+    uniqueIndex("decisions_one_open_idx").on(t.workspaceId, t.groupKey).where(sql`status = 'open'`),
+    check("decisions_status_check", oneOf("status", ["open", "answered"])),
+  ],
+);
+
+/** The roles waiting on a decision, and what became of each (F7.2, F7.5). */
+export const decisionMessages = pgTable(
+  "decision_messages",
+  {
+    decisionId: uuid("decision_id")
+      .notNull()
+      .references(() => decisions.id, { onDelete: "cascade" }),
+    workspaceId: workspaceId(),
+    messageId: text("message_id").notNull(),
+    position: integer("position").notNull(),
+    state: text("state").$type<"waiting" | "dismissed" | "resolved">().notNull(),
+    source: text("source").$type<"draft" | "match" | "rule">().notNull(),
+    createdAt: at("created_at").notNull(),
+    updatedAt: at("updated_at").notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.decisionId, t.messageId, t.position] }),
+    foreignKey({
+      name: "decision_messages_message_fk",
+      columns: [t.workspaceId, t.messageId],
+      foreignColumns: [messages.workspaceId, messages.messageId],
+    }).onDelete("cascade"),
+    index("decision_messages_role_idx").on(t.workspaceId, t.messageId, t.position),
+    check("decision_messages_state_check", oneOf("state", ["waiting", "dismissed", "resolved"])),
+    check("decision_messages_source_check", oneOf("source", ["draft", "match", "rule"])),
+  ],
+);
+
+/** One member's conversation with the assistant (F8). */
+export const assistantThreads = pgTable(
+  "assistant_threads",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: workspaceId(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: at("created_at").notNull(),
+    updatedAt: at("updated_at").notNull(),
+  },
+  (t) => [index("assistant_threads_workspace_user_idx").on(t.workspaceId, t.userId)],
+);
+
+/** The messages of a thread: stored for the history, never logged (F8.10). */
+export const assistantMessages = pgTable(
+  "assistant_messages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: workspaceId(),
+    threadId: uuid("thread_id")
+      .notNull()
+      .references(() => assistantThreads.id, { onDelete: "cascade" }),
+    role: text("role").$type<"user" | "assistant">().notNull(),
+    /** 1 for the first user message of the thread; the assistant's reply shares its turn. */
+    turn: integer("turn").notNull(),
+    text: text("text").notNull(),
+    clarify: jsonb("clarify").$type<{ question: string; choices: string[] }>(),
+    proposalId: uuid("proposal_id"),
+    createdAt: at("created_at").notNull(),
+  },
+  (t) => [
+    index("assistant_messages_thread_idx").on(t.threadId, t.createdAt),
+    check("assistant_messages_role_check", oneOf("role", ["user", "assistant"])),
+  ],
+);
+
+/** A proposal card (TBD-167): its changes, before and after, impact and status. */
+export const assistantProposals = pgTable(
+  "assistant_proposals",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: workspaceId(),
+    threadId: uuid("thread_id")
+      .notNull()
+      .references(() => assistantThreads.id, { onDelete: "cascade" }),
+    profileId: uuid("profile_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    /** The user's words that led to it, kept for the profile history (F8.4). */
+    request: text("request").notNull(),
+    summary: text("summary").notNull(),
+    changes: jsonb("changes").$type<Change[]>().notNull(),
+    before: jsonb("before").$type<ProfileSnapshot>().notNull(),
+    after: jsonb("after").$type<ProfileSnapshot>().notNull(),
+    impact: jsonb("impact").$type<Impact>().notNull(),
+    status: text("status").$type<"open" | "applied" | "discarded">().notNull().default("open"),
+    decidedBy: uuid("decided_by").references(() => users.id, { onDelete: "set null" }),
+    decidedAt: at("decided_at"),
+    createdAt: at("created_at").notNull(),
+    updatedAt: at("updated_at").notNull(),
+  },
+  (t) => [
+    index("assistant_proposals_thread_idx").on(t.threadId),
+    check("assistant_proposals_status_check", oneOf("status", ["open", "applied", "discarded"])),
+  ],
+);
+
+/** Every applied change to a profile's entries and rules (F8.4), with before and after. */
+export const profileHistory = pgTable(
+  "profile_history",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: workspaceId(),
+    profileId: uuid("profile_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    at: at("at").notNull(),
+    by: uuid("by").references(() => users.id, { onDelete: "set null" }),
+    source: text("source").$type<ProfileSource>().notNull(),
+    request: text("request"),
+    changes: jsonb("changes").$type<Change[]>().notNull(),
+    before: jsonb("before").$type<ProfileSnapshot>().notNull(),
+    after: jsonb("after").$type<ProfileSnapshot>().notNull(),
+    undoneAt: at("undone_at"),
+    undoneBy: uuid("undone_by").references(() => users.id, { onDelete: "set null" }),
+  },
+  (t) => [
+    index("profile_history_profile_at_idx").on(t.workspaceId, t.profileId, t.at.desc()),
+    check(
+      "profile_history_source_check",
+      oneOf("source", ["scan", "you", "decision", "assistant"]),
+    ),
+  ],
+);
+
+/**
+ * The continuous sync's state per mailbox and folder (F1): where it got to (UIDVALIDITY and the
+ * last UID), when it last worked, since when it fails, and when it may try again (back-off, F1.4).
+ */
+export const mailboxSync = pgTable(
+  "mailbox_sync",
+  {
+    workspaceId: workspaceId(),
+    mailboxId: uuid("mailbox_id")
+      .notNull()
+      .references(() => mailboxes.id, { onDelete: "cascade" }),
+    folderPath: text("folder_path").notNull(),
+    uidValidity: bigint("uid_validity", { mode: "number" }),
+    lastUid: bigint("last_uid", { mode: "number" }),
+    lastSyncedAt: at("last_synced_at"),
+    failingSince: at("failing_since"),
+    /** Plain words, never the server's own text. */
+    lastError: text("last_error"),
+    failures: integer("failures").notNull().default(0),
+    nextAttemptAt: at("next_attempt_at"),
+    updatedAt: updatedAt(),
+  },
+  (t) => [primaryKey({ columns: [t.mailboxId, t.folderPath] })],
 );

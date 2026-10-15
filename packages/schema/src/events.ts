@@ -20,6 +20,21 @@ export const LiveEventSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("intake.updated"), data: z.object({}) }),
   /** Members, invites, the mailbox or the AI settings changed. */
   z.object({ type: z.literal("workspace.updated"), data: z.object({}) }),
+  /** A CV was uploaded, read, re-tagged or deleted. */
+  z.object({ type: z.literal("cvs.updated"), data: z.object({}) }),
+  /** Drafts changed: created, saved to the mailbox, edited, discarded or failed. */
+  z.object({
+    type: z.literal("drafts.updated"),
+    data: z.object({ messageIds: z.array(z.string()).optional() }),
+  }),
+  /** The decision inbox changed (a decision created, answered, dismissed). */
+  z.object({ type: z.literal("decisions.updated"), data: z.object({}) }),
+  /** A profile's entries, rules or history changed. */
+  z.object({ type: z.literal("profiles.updated"), data: z.object({}) }),
+  /** The assistant thread or a proposal changed. */
+  z.object({ type: z.literal("assistant.updated"), data: z.object({}) }),
+  /** A mailbox's sync status changed (synced, failing, recovered). */
+  z.object({ type: z.literal("mailbox.updated"), data: z.object({}) }),
 ]);
 export type LiveEvent = z.infer<typeof LiveEventSchema>;
 
@@ -37,6 +52,12 @@ export const LIVE_EVENT_TYPES = [
   "messages.updated",
   "intake.updated",
   "workspace.updated",
+  "cvs.updated",
+  "drafts.updated",
+  "decisions.updated",
+  "profiles.updated",
+  "assistant.updated",
+  "mailbox.updated",
 ] as const satisfies readonly LiveEventType[];
 
 /**

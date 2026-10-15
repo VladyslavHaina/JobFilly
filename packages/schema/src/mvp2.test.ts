@@ -1,0 +1,380 @@
+import { describe, expect, it } from "vitest";
+import {
+  AssistantOutputSchema,
+  ChangeSchema,
+  CORE_PROFILE_KEYS,
+  ConditionSchema,
+  CvChoiceOverrideSchema,
+  CvSchema,
+  DecisionAnswerSchema,
+  DraftCreatePayloadSchema,
+  DraftOutputSchema,
+  DraftSchema,
+  groupKeyFor,
+  isListProfileKey,
+  jobDedupeKey,
+  LIST_PROFILE_KEYS,
+  LIVE_EVENT_TYPES,
+  LiveEventSchema,
+  MAX_CV_BYTES,
+  MailboxPublicSchema,
+  MessageDetailSchema,
+  MessageListItemSchema,
+  MessageListQuerySchema,
+  NEVER_SYNCED,
+  POLICY_DEFAULTS,
+  ProfileEntrySchema,
+  ProfilePatchSchema,
+  parseGroupKey,
+  profileItemSchema,
+  RoleEvaluationSchema,
+  RuleSchema,
+  SenderCheckSchema,
+  SenderMarkInputSchema,
+} from "./index";
+
+const id = "11111111-1111-4111-8111-111111111111";
+const at = "2026-10-01T09:30:00.000Z";
+
+describe("group keys (F7.3)", () => {
+  it("joins the profile key and its parts, and parses back exactly", () => {
+    expect(groupKeyFor("min_pay", ["CHF", "year"])).toBe("min_pay:CHF:year");
+    expect(parseGroupKey("min_pay:CHF:year")).toEqual({
+      profileKey: "min_pay",
+      parts: ["CHF", "year"],
+    });
+    expect(groupKeyFor("extra.relocate")).toBe("extra.relocate");
+    expect(parseGroupKey("extra.relocate")).toEqual({ profileKey: "extra.relocate", parts: [] });
+  });
+
+  it("keeps a part holding ':' or '%' as one part", () => {
+    const key = groupKeyFor("rule", ["a:b", "50%", "%3A"]);
+    expect(key.split(":")).toHaveLength(4);
+    expect(parseGroupKey(key)).toEqual({ profileKey: "rule", parts: ["a:b", "50%", "%3A"] });
+  });
+});
+
+describe("profile keys of MVP 2", () => {
+  const entry = {
+    label: "x",
+    confidence: null,
+    evidence: [],
+    updatedAt: at,
+    updatedBy: null,
+  };
+
+  it("takes the policy keys as one-number lists, with their defaults", () => {
+    expect(POLICY_DEFAULTS).toEqual({ reply_threshold: 70, reply_window_days: 14 });
+    const policy = { ...entry, key: "reply_threshold", value: [75], source: "you" };
+    expect(ProfileEntrySchema.safeParse(policy).success).toBe(true);
+    expect(ProfileEntrySchema.safeParse({ ...policy, value: [70, 80] }).success).toBe(false);
+    expect(ProfileEntrySchema.safeParse({ ...policy, value: ["70"] }).success).toBe(false);
+    expect(
+      ProfilePatchSchema.safeParse({ entries: [{ key: "reply_window_days", value: [7] }] }).success,
+    ).toBe(true);
+  });
+
+  it("records entries set by a decision or the assistant", () => {
+    for (const source of ["decision", "assistant"]) {
+      const e = { ...entry, key: "deal_breakers", value: ["night shifts"], source };
+      expect(ProfileEntrySchema.safeParse(e).success).toBe(true);
+    }
+  });
+
+  it("lists every core key as a list key, and no policy or extra key", () => {
+    expect([...LIST_PROFILE_KEYS].sort()).toEqual([...CORE_PROFILE_KEYS].sort());
+    expect(isListProfileKey("min_pay")).toBe(true);
+    expect(isListProfileKey("reply_threshold")).toBe(false);
+    expect(isListProfileKey("extra.relocate")).toBe(false);
+  });
+
+  it("knows the shape of one item of each key", () => {
+    const chf = { amount: 120000, currency: "CHF", period: "year", asWritten: "CHF 120k" };
+    expect(profileItemSchema("min_pay").safeParse(chf).success).toBe(true);
+    expect(profileItemSchema("min_pay").safeParse("CHF 120k").success).toBe(false);
+    expect(profileItemSchema("reply_to").safeParse("interview").success).toBe(true);
+    expect(profileItemSchema("reply_threshold").safeParse(80).success).toBe(true);
+    expect(profileItemSchema("extra.relocate").safeParse("No").success).toBe(true);
+  });
+});
+
+describe("rules, changes and the assistant (F3, F8)", () => {
+  const rule = {
+    description: "Hide roles whose hours are UTC+05:00 or later",
+    when: [{ fact: "timeZones", op: "within", value: { from: "UTC+05:00", to: "UTC+14:00" } }],
+    then: "hide",
+    enabled: true,
+  };
+
+  it("takes the facts and ops of F3 with a closed value union", () => {
+    expect(ConditionSchema.safeParse(rule.when[0]).success).toBe(true);
+    const pay = { fact: "pay", op: "below", value: { amount: 1, currency: "CHF", period: "year" } };
+    expect(ConditionSchema.safeParse(pay).success).toBe(true);
+    expect(
+      ConditionSchema.safeParse({ fact: "extra.b2b", op: "missing", value: null }).success,
+    ).toBe(true);
+    expect(ConditionSchema.safeParse({ fact: "salary", op: "below", value: 3 }).success).toBe(
+      false,
+    );
+    expect(ConditionSchema.safeParse({ fact: "pay", op: "above", value: 3 }).success).toBe(false);
+    expect(ConditionSchema.safeParse({ fact: "pay", op: "below", value: { a: 1 } }).success).toBe(
+      false,
+    );
+    const stored = {
+      ...rule,
+      id,
+      profileId: id,
+      source: "assistant",
+      createdAt: at,
+      createdBy: null,
+    };
+    expect(RuleSchema.safeParse(stored).success).toBe(true);
+    expect(RuleSchema.safeParse({ ...stored, then: "delete" }).success).toBe(false);
+  });
+
+  it("closes Change over add, update and remove of rules and entries", () => {
+    const changes = [
+      { op: "add", target: "rule", rule },
+      { op: "update", target: "rule", ruleId: id, rule },
+      { op: "remove", target: "rule", ruleId: id },
+      { op: "add", target: "entry", key: "places", value: [] },
+      { op: "remove", target: "entry", key: "places", value: null },
+    ];
+    for (const c of changes) expect(ChangeSchema.safeParse(c).success).toBe(true);
+    expect(ChangeSchema.safeParse({ op: "remove", target: "rule" }).success).toBe(false);
+    expect(ChangeSchema.safeParse({ op: "send", target: "entry", key: "places" }).success).toBe(
+      false,
+    );
+  });
+
+  it("lets assistant.v1 answer with a clarifying question or a proposal", () => {
+    const clarify = {
+      reply: "Which ones?",
+      clarify: { question: "What makes a job bad for you?", choices: ["Low pay", "Far away"] },
+      proposal: null,
+    };
+    expect(AssistantOutputSchema.safeParse(clarify).success).toBe(true);
+    const proposal = {
+      reply: "Here is a proposal.",
+      clarify: null,
+      proposal: {
+        summary: "Hide Asian time zones",
+        changes: [{ op: "add", target: "rule", rule }],
+      },
+    };
+    expect(AssistantOutputSchema.safeParse(proposal).success).toBe(true);
+  });
+});
+
+describe("evaluations, senders, drafts and decisions", () => {
+  const need = {
+    groupKey: "min_pay:CHF:year",
+    profileKey: "min_pay",
+    question: "Minimum pay in CHF per year?",
+    choices: [
+      {
+        label: "CHF 120,000",
+        value: { amount: 120000, currency: "CHF", period: "year", asWritten: "CHF 120,000" },
+      },
+    ],
+  };
+  const evaluation = {
+    position: 0,
+    match: {
+      score: 72,
+      verdicts: [
+        {
+          entryKey: "min_pay",
+          ruleId: null,
+          verdict: "unknown",
+          reason: "different currency",
+          hard: false,
+          need,
+        },
+      ],
+      skills: { matched: ["Go"], missing: ["Kafka"] },
+      cvId: null,
+      capped: false,
+    },
+    hidden: null,
+    ruleEffects: [{ ruleId: id, action: "ask_first", reason: "Ask first", need }],
+    cvChoice: { cvId: null, reason: "No CV uploaded yet", source: "auto" },
+    stale: false,
+    evaluatedAt: at,
+  };
+
+  it("carries a need on a verdict and on a rule effect", () => {
+    expect(RoleEvaluationSchema.safeParse(evaluation).success).toBe(true);
+    const over = { ...evaluation, match: { ...evaluation.match, score: 101 } };
+    expect(RoleEvaluationSchema.safeParse(over).success).toBe(false);
+  });
+
+  it("answers a decision with one item, never a whole list", () => {
+    const item = { amount: 120000, currency: "CHF", period: "year", asWritten: "CHF 120,000" };
+    expect(DecisionAnswerSchema.safeParse({ value: item, useForSimilar: true }).success).toBe(true);
+    expect(DecisionAnswerSchema.safeParse({ value: "No", useForSimilar: false }).success).toBe(
+      true,
+    );
+    expect(DecisionAnswerSchema.safeParse({ value: [item], useForSimilar: true }).success).toBe(
+      false,
+    );
+  });
+
+  it("describes a sender check, a mark and a draft", () => {
+    expect(
+      SenderCheckSchema.safeParse({
+        verdict: "high_risk",
+        complete: true,
+        reasons: [{ signal: "asks_for_fee", reason: "asks for a fee" }],
+        mark: null,
+      }).success,
+    ).toBe(true);
+    expect(
+      SenderMarkInputSchema.parse({ scope: "address", value: " Ann@X.Example ", mark: "trusted" }),
+    ).toEqual({ scope: "address", value: "ann@x.example", mark: "trusted" });
+    const draft = {
+      id,
+      messageId: "<a@x>",
+      position: 0,
+      status: "failed",
+      failureKind: "mailbox",
+      failureReason: "Couldn't reach the mail server",
+      subject: null,
+      body: null,
+      language: null,
+      cvId: null,
+      auto: true,
+      updatedAt: at,
+    };
+    expect(DraftSchema.safeParse(draft).success).toBe(true);
+    expect(DraftSchema.safeParse({ ...draft, failureKind: "smtp" }).success).toBe(false);
+  });
+
+  it("asks draft.v1 for questions instead of guesses", () => {
+    const answer = {
+      subject: "Re: Backend role",
+      body: "Hallo …",
+      language: "de",
+      usedEntries: ["target_roles"],
+      attachCv: true,
+      questions: [
+        {
+          profileKey: "extra.relocate",
+          groupKey: "extra.relocate",
+          question: "Would you relocate to Ireland?",
+          choices: ["Yes", "No"],
+        },
+      ],
+    };
+    expect(DraftOutputSchema.safeParse(answer).success).toBe(true);
+  });
+
+  it("limits a CV to 5 MB and takes null to go back to the automatic choice", () => {
+    expect(MAX_CV_BYTES).toBe(5 * 1024 * 1024);
+    const cv = {
+      id,
+      name: "Backend (EN)",
+      fileName: "backend-en.pdf",
+      mediaType: "pdf",
+      sizeBytes: MAX_CV_BYTES + 1,
+      contentHash: "a".repeat(64),
+      language: null,
+      skills: [],
+      roleFamilies: [],
+      seniority: null,
+      countryHints: [],
+      formatHints: [],
+      tags: [{ label: "preferred", source: "you" }],
+      readStatus: "pending",
+      uploadedAt: at,
+    };
+    expect(CvSchema.safeParse(cv).success).toBe(false);
+    expect(CvSchema.safeParse({ ...cv, sizeBytes: 1000 }).success).toBe(true);
+    expect(CvChoiceOverrideSchema.safeParse({ cvId: null }).success).toBe(true);
+  });
+});
+
+describe("the inbox, live events, jobs and the mailbox of MVP 2", () => {
+  const row = {
+    id: "<a@x>",
+    from: { address: "a@x.example", name: null },
+    subject: "s",
+    date: at,
+    category: "recruiter_outreach",
+    categorySource: "scan",
+    analysisStatus: "done",
+    fit: { score: 72, capped: false, stale: true },
+    sender: { verdict: "caution", complete: false },
+    hidden: null,
+    draft: { status: "in_mailbox" },
+  };
+
+  it("gives a list row its fit, sender, hidden reason and draft", () => {
+    expect(MessageListItemSchema.safeParse(row).success).toBe(true);
+    expect(MessageListQuerySchema.parse({ hidden: "true" })).toEqual({ hidden: "true" });
+    const role = {
+      title: null,
+      company: null,
+      agency: null,
+      places: [],
+      workMode: null,
+      remoteScope: null,
+      timeZones: null,
+      pay: null,
+      contract: null,
+      seniority: null,
+      workPermit: null,
+      skills: [],
+      languages: [],
+      applyUrl: null,
+      extra: {},
+      evaluation: null,
+      cvChoice: null,
+    };
+    expect(
+      MessageDetailSchema.safeParse({ ...row, roles: [role], ownReply: false, senderCheck: null })
+        .success,
+    ).toBe(true);
+  });
+
+  it("types the new live events", () => {
+    for (const type of [
+      "cvs.updated",
+      "drafts.updated",
+      "decisions.updated",
+      "profiles.updated",
+      "assistant.updated",
+      "mailbox.updated",
+    ] as const) {
+      expect(LIVE_EVENT_TYPES).toContain(type);
+      expect(LiveEventSchema.safeParse({ type, data: {} }).success).toBe(true);
+    }
+  });
+
+  it("keys each job so at most one waits", () => {
+    expect(jobDedupeKey.draft(id, "<a@x>", 1)).toBe(`draft:${id}:<a@x>:1`);
+    expect(jobDedupeKey.reevaluate(id)).toBe(`reevaluate:${id}`);
+    expect(
+      DraftCreatePayloadSchema.safeParse({
+        workspaceId: id,
+        messageId: "<a@x>",
+        position: 0,
+        origin: "decision",
+      }).success,
+    ).toBe(true);
+  });
+
+  it("reads a mailbox without a sync status as never synced", () => {
+    const mailbox = {
+      id,
+      address: "a@x.example",
+      host: "imap",
+      port: 993,
+      tlsMode: "tls",
+      username: "a",
+      sentFolderPath: null,
+      status: "connected",
+    };
+    expect(MailboxPublicSchema.parse(mailbox).sync).toEqual(NEVER_SYNCED);
+  });
+});

@@ -70,6 +70,13 @@ const AREA: Record<LiveEvent["type"], LiveArea[]> = {
   "messages.updated": ["messages"],
   "intake.updated": ["intake", "profiles"],
   "workspace.updated": ["workspace"],
+  "cvs.updated": ["cvs"],
+  // A draft's status shows in the inbox rows too.
+  "drafts.updated": ["drafts", "messages"],
+  "decisions.updated": ["decisions"],
+  "profiles.updated": ["profiles"],
+  "assistant.updated": ["assistant"],
+  "mailbox.updated": ["mailbox"],
 };
 
 /** Refetches the queries of the area an event touches; mounted once by the app shell. */

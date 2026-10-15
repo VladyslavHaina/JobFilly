@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { IdSchema, IsoDateTimeSchema } from "./common";
+import { MailboxSyncStatusSchema, NEVER_SYNCED } from "./sync";
 
 export const TlsModeSchema = z.enum(["tls", "starttls", "none"]);
 export type TlsMode = z.infer<typeof TlsModeSchema>;
@@ -82,12 +83,15 @@ export const MailboxPublicSchema = z.object({
   username: z.string(),
   sentFolderPath: z.string().nullable(),
   status: MailboxStatusSchema,
+  /** The continuous sync's status (F1.4); "never" until the first sync. */
+  sync: MailboxSyncStatusSchema.default(NEVER_SYNCED),
 });
-export type MailboxPublic = z.infer<typeof MailboxPublicSchema>;
+/** As the server writes it: `sync` may be left out before the first sync. */
+export type MailboxPublic = z.input<typeof MailboxPublicSchema>;
 
 /** GET /mailboxes: the workspace's mailbox (one per workspace in MVP 1), if any. */
 export const MailboxListSchema = z.object({ items: z.array(MailboxPublicSchema) });
-export type MailboxList = z.infer<typeof MailboxListSchema>;
+export type MailboxList = z.input<typeof MailboxListSchema>;
 
 /** The path of /mailboxes/:mailboxId, for disconnecting. */
 export const MailboxParamsSchema = z.object({ mailboxId: IdSchema });
@@ -154,3 +158,59 @@ export function isMsgId(value: string): boolean {
 export function syntheticMessageId(folder: MailFolder, uidValidity: number, uid: number): string {
   return `<${folder}.${uidValidity}.${uid}@jobfilly.invalid>`;
 }
+
+// --- MVP 2: continuous sync and drafts in the mailbox (packages/mail's MailClient) -------------
+
+/**
+ * fetchSince's answer: the folder's UIDVALIDITY now and the envelopes of every message after
+ * `afterUid`. `changed` is true when the UIDVALIDITY differs from the one asked with: the folder
+ * was rebuilt, its UIDs mean other messages, and `messages` then holds every message of the
+ * folder, so the caller re-indexes them by Message-ID (F1.3).
+ */
+export const FetchSinceResultSchema = z.object({
+  uidValidity: z.number().int().nonnegative(),
+  changed: z.boolean(),
+  messages: z.array(EnvelopeSchema),
+});
+export type FetchSinceResult = z.infer<typeof FetchSinceResultSchema>;
+
+/**
+ * What a reply is threaded to (In-Reply-To, References) and quotes, read from the mailbox when
+ * the draft is made (fetchOriginal): never stored, as no mail body is.
+ */
+export const OriginalMessageSchema = z.object({
+  messageId: z.string().min(1),
+  references: z.array(z.string()),
+  inReplyTo: z.string().nullable(),
+  subject: z.string(),
+  from: AddressSchema,
+  date: IsoDateTimeSchema,
+  text: z.string(),
+});
+export type OriginalMessage = z.infer<typeof OriginalMessageSchema>;
+
+/** Where a saved draft is in the mailbox's Drafts folder, to replace or delete it (F6.4). */
+export const DraftRefSchema = z.object({
+  path: z.string().min(1),
+  uid: z.number().int().nonnegative(),
+  uidValidity: z.number().int().nonnegative(),
+  /** The draft's own Message-ID header. */
+  draftMessageId: z.string().min(1),
+});
+export type DraftRef = z.infer<typeof DraftRefSchema>;
+
+/** A file attached to a draft (the chosen CV, F6.3). */
+export const DraftAttachmentSchema = z.object({
+  fileName: z.string().min(1),
+  contentType: z.string().min(1),
+  bytes: z.instanceof(Uint8Array),
+});
+export type DraftAttachment = z.infer<typeof DraftAttachmentSchema>;
+
+/** saveDraft's and replaceDraft's input: the original it replies to, the reply, an attachment. */
+export const DraftMailInputSchema = z.object({
+  original: OriginalMessageSchema,
+  reply: z.object({ subject: z.string(), body: z.string() }),
+  attachment: DraftAttachmentSchema.nullable(),
+});
+export type DraftMailInput = z.infer<typeof DraftMailInputSchema>;

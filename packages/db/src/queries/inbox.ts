@@ -1,15 +1,19 @@
 import {
   type Category,
+  type CvChoice,
+  type DraftStatus,
   JOB_CATEGORIES,
   MESSAGE_PAGE_SIZE,
   type MessageDetail,
   type MessageList,
   type MessageListItem,
   type MessageRef,
+  type SenderVerdict,
 } from "@jobfilly/schema";
-import { and, asc, count, eq, inArray, isNull, ne, or, type SQL, sql } from "drizzle-orm";
+import { and, asc, count, eq, inArray, isNull, ne, not, or, type SQL, sql } from "drizzle-orm";
 import type { Database } from "../client";
-import { messages, roles } from "../tables";
+import { messages, roleCvChoices, roles } from "../tables";
+import { getEvaluations, getSenderChecks } from "./evaluations";
 
 // The job inbox (F5): the list with filters, search and paging, one message's detail, where its
 // body lives in the mailbox, and the category correction. Which rows show where follows the state
@@ -23,6 +27,11 @@ import { messages, roles } from "../tables";
 // The list is newest first. A category filter matches the (workspace_id, category, date desc)
 // index, the plain list the (workspace_id, date desc) one, and the search the pg_trgm index on
 // search_text; ORDER BY spells out NULLS LAST so it matches the indexes' order.
+//
+// From MVP 2 each row carries its best fit score (from a role not hidden, if any), its sender
+// verdict, its live draft's status and, for a message whose roles are all hidden by a rule, the
+// reason. Such a message is left out of the list unless the Hidden filter asks for exactly those
+// (F3.4).
 
 export interface InboxListQuery {
   /** Only this category (not_job included, which shows non-job mail on its own). */
@@ -33,19 +42,9 @@ export interface InboxListQuery {
   showNonJob?: boolean;
   /** 1-based page of MESSAGE_PAGE_SIZE messages. */
   page?: number;
+  /** Only messages whose roles are all hidden by a rule (the Hidden filter); else none of them. */
+  hidden?: boolean;
 }
-
-type ListRow = Pick<
-  typeof messages.$inferSelect,
-  | "messageId"
-  | "fromAddress"
-  | "fromName"
-  | "subject"
-  | "date"
-  | "category"
-  | "categorySource"
-  | "analysisStatus"
->;
 
 const listColumns = {
   messageId: messages.messageId,
@@ -56,7 +55,58 @@ const listColumns = {
   category: messages.category,
   categorySource: messages.categorySource,
   analysisStatus: messages.analysisStatus,
+  fit: sql<{ score: number; capped: boolean; stale: boolean } | null>`(
+    select json_build_object('score', e.score, 'capped', e.capped, 'stale', e.stale)
+    from role_evaluations e
+    where e.workspace_id = ${messages.workspaceId} and e.message_id = ${messages.messageId}
+      and e.score is not null
+    order by (e.hidden_rule_id is null) desc, e.score desc, e.position
+    limit 1)`,
+  sender: sql<{ verdict: SenderVerdict; complete: boolean } | null>`(
+    select json_build_object('verdict', sc.verdict, 'complete', sc.complete)
+    from sender_checks sc
+    where sc.workspace_id = ${messages.workspaceId} and sc.message_id = ${messages.messageId})`,
+  hiddenReason: sql<string | null>`(
+    select e.hidden_reason from role_evaluations e
+    where e.workspace_id = ${messages.workspaceId} and e.message_id = ${messages.messageId}
+      and e.hidden_rule_id is not null
+    order by e.position limit 1)`,
+  draft: sql<{ status: DraftStatus } | null>`(
+    select json_build_object('status', d.status) from drafts d
+    where d.workspace_id = ${messages.workspaceId} and d.message_id = ${messages.messageId}
+      and d.status <> 'discarded'
+    order by d.updated_at desc limit 1)`,
 };
+
+/** Every role of the message is evaluated and hidden by a rule (it has at least one). */
+const allHidden = sql`(exists (
+    select 1 from roles r
+    where r.workspace_id = ${messages.workspaceId} and r.message_id = ${messages.messageId})
+  and not exists (
+    select 1 from roles r
+    left join role_evaluations e on e.workspace_id = r.workspace_id
+      and e.message_id = r.message_id and e.position = r.position
+    where r.workspace_id = ${messages.workspaceId} and r.message_id = ${messages.messageId}
+      and (e.id is null or e.hidden_rule_id is null)))`;
+
+interface ListRow {
+  messageId: string;
+  fromAddress: string;
+  fromName: string | null;
+  subject: string;
+  date: Date;
+  category: Category | null;
+  categorySource: MessageListItem["categorySource"];
+  analysisStatus: MessageListItem["analysisStatus"];
+  fit: MessageListItem["fit"];
+  sender: MessageListItem["sender"];
+  hiddenReason: string | null;
+  draft: MessageListItem["draft"];
+  allHidden?: boolean;
+}
+
+const asJson = <T>(value: T | string | null): T | null =>
+  typeof value === "string" ? (JSON.parse(value) as T) : value;
 
 function toListItem(row: ListRow): MessageListItem {
   return {
@@ -67,6 +117,10 @@ function toListItem(row: ListRow): MessageListItem {
     category: row.category,
     categorySource: row.categorySource,
     analysisStatus: row.analysisStatus,
+    fit: asJson(row.fit),
+    sender: asJson(row.sender),
+    hidden: row.allHidden && row.hiddenReason !== null ? { reason: row.hiddenReason } : null,
+    draft: asJson(row.draft),
   };
 }
 
@@ -96,11 +150,12 @@ export async function listInbox(
   if (query.category) shown = eq(messages.category, query.category);
   else if (query.showNonJob) shown = or(jobMail, couldNotAnalyze, nonJob);
   else shown = or(jobMail, couldNotAnalyze);
+  const hiddenFilter = query.hidden ? allHidden : not(allHidden);
 
   const rows = await db
-    .select(listColumns)
+    .select({ ...listColumns, allHidden: sql<boolean>`${allHidden}` })
     .from(messages)
-    .where(and(eq(messages.workspaceId, workspaceId), notOwnReply, shown, search))
+    .where(and(eq(messages.workspaceId, workspaceId), notOwnReply, shown, search, hiddenFilter))
     .orderBy(sql`${messages.date} desc nulls last`, sql`${messages.messageId} desc`)
     .limit(MESSAGE_PAGE_SIZE + 1)
     .offset((page - 1) * MESSAGE_PAGE_SIZE);
@@ -119,8 +174,9 @@ export async function listInbox(
 }
 
 /**
- * One message with the facts of every role it names (a job alert lists several), or null when
- * the workspace has no message with this Message-ID. Own replies open too, marked as such.
+ * One message with every role it names (a job alert lists several), each with its facts, its
+ * evaluation and the CV the app would use, and the sender check; null when the workspace has no
+ * message with this Message-ID. Own replies open too, marked as such.
  */
 export async function getInboxMessage(
   db: Database,
@@ -128,20 +184,57 @@ export async function getInboxMessage(
   messageId: string,
 ): Promise<MessageDetail | null> {
   const [row] = await db
-    .select({ ...listColumns, stageOne: messages.stageOne })
+    .select({ ...listColumns, stageOne: messages.stageOne, allHidden: sql<boolean>`${allHidden}` })
     .from(messages)
     .where(and(eq(messages.workspaceId, workspaceId), eq(messages.messageId, messageId)));
   if (!row) return null;
   const facts = await db
-    .select({ facts: roles.facts })
+    .select({ position: roles.position, facts: roles.facts })
     .from(roles)
     .where(and(eq(roles.workspaceId, workspaceId), eq(roles.messageId, messageId)))
     .orderBy(asc(roles.position));
+  const evaluations = new Map(
+    (await getEvaluations(db, workspaceId, [messageId])).map((e) => [e.position, e]),
+  );
+  const overrides = new Map(
+    (
+      await db
+        .select({ position: roleCvChoices.position, cvId: roleCvChoices.cvId })
+        .from(roleCvChoices)
+        .where(
+          and(eq(roleCvChoices.workspaceId, workspaceId), eq(roleCvChoices.messageId, messageId)),
+        )
+    ).map((o) => [o.position, o.cvId]),
+  );
+  const [check] = await getSenderChecks(db, workspaceId, [messageId]);
   return {
     ...toListItem(row),
-    roles: facts.map((f) => f.facts),
+    roles: facts.map((f) => {
+      const stored = evaluations.get(f.position);
+      const evaluation = stored ? (({ messageId: _m, ...e }) => e)(stored) : null;
+      return {
+        ...f.facts,
+        evaluation,
+        cvChoice: cvChoiceOf(evaluation?.cvChoice ?? null, overrides.get(f.position)),
+      };
+    }),
     ownReply: row.stageOne === "own_reply",
+    senderCheck: check
+      ? {
+          verdict: check.verdict,
+          complete: check.complete,
+          reasons: check.reasons,
+          mark: check.mark,
+        }
+      : null,
   };
+}
+
+/** An editor's override wins over the evaluated (automatic) choice until it is re-evaluated. */
+function cvChoiceOf(evaluated: CvChoice | null, override: string | undefined): CvChoice | null {
+  if (override === undefined) return evaluated;
+  if (evaluated?.source === "you" && evaluated.cvId === override) return evaluated;
+  return { cvId: override, reason: "Chosen by an editor for this role", source: "you" };
 }
 
 /**

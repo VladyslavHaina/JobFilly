@@ -1,7 +1,17 @@
 // Query keys. Workspace data lives under ["w", workspaceId, area, ...]: a live event for an area
 // refetches every query of that area (see useLiveInvalidation), so pages need no polling.
 
-export type LiveArea = "workspace" | "messages" | "intake" | "scan" | "profiles";
+export type LiveArea =
+  | "workspace"
+  | "messages"
+  | "intake"
+  | "scan"
+  | "profiles"
+  | "cvs"
+  | "drafts"
+  | "decisions"
+  | "assistant"
+  | "mailbox";
 
 export const queryKeys = {
   session: ["session"] as const,

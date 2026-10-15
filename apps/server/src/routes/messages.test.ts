@@ -235,6 +235,10 @@ describe("GET /messages (F5.1)", () => {
       category: "interview",
       categorySource: "scan",
       analysisStatus: "done",
+      fit: null,
+      sender: null,
+      hidden: null,
+      draft: null,
     });
     expect(page).toMatchObject({ nonJobCount: 1, page: 1, nextPage: null });
   });
@@ -297,7 +301,8 @@ describe("GET /messages/:messageId (F5.2)", () => {
       category: "recruiter_outreach",
       ownReply: false,
     });
-    expect(detail.roles).toEqual([BERLIN]);
+    expect(detail.roles).toEqual([{ ...BERLIN, evaluation: null, cvChoice: null }]);
+    expect(detail.senderCheck).toBeNull();
   });
 
   it("returns every role of a job alert", async () => {

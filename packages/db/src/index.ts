@@ -5,20 +5,33 @@
 // email or token; the queue worker's lease operations on a job it claimed by id (claimJob,
 // renewLease, saveJobCheckpoint, completeJob, handBackJob), which are guarded by the lease
 // owner; and the signed-in user's own view across workspaces (listWorkspacesForUser by user id,
-// listPendingInvitations by the email the server matched to them). registerAccount and
+// listPendingInvitations by the email the server matched to them). Two cross-workspace reads
+// serve every workspace the way the job claim does: listWorkspacesWithWork (the pipeline sweep)
+// and, from the mailbox slice, the scheduler's mailbox listing. registerAccount and
 // createWorkspace make a workspace, so they have no id to take yet. There is no raw-SQL export.
 
 export { type Database, type DatabaseConnection, openDatabase } from "./client";
 export type { Notifier, Unlisten } from "./notify";
 export * from "./queries/accounts";
 export * from "./queries/ai-settings";
+export * from "./queries/assistant";
+export * from "./queries/cvs";
+export * from "./queries/decisions";
+export * from "./queries/draft-claims";
+export * from "./queries/drafts";
+export * from "./queries/evaluations";
 export * from "./queries/inbox";
 export * from "./queries/invites";
 export * from "./queries/jobs";
 export * from "./queries/mailboxes";
+export * from "./queries/match";
 export * from "./queries/messages";
+export * from "./queries/profile-changes";
 export * from "./queries/profiles";
+export * from "./queries/rules";
 export * from "./queries/scans";
+export * from "./queries/senders";
 export * from "./queries/sessions";
+export * from "./queries/sync";
 export * from "./queries/usage";
 export * from "./queries/workspaces";

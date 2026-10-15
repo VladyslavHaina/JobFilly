@@ -1,8 +1,12 @@
 import { z } from "zod";
 import { CategorySchema } from "./category";
 import { IsoDateTimeSchema } from "./common";
+import { CvChoiceSchema } from "./cv";
+import { DraftStatusSchema } from "./drafts";
 import { JobFactsSchema } from "./facts";
 import { AddressSchema, EnvelopeSchema } from "./mailbox";
+import { RoleEvaluationSchema } from "./match";
+import { SenderCheckSchema, SenderVerdictSchema } from "./sender";
 
 export { CATEGORIES, type Category, CategorySchema, JOB_CATEGORIES } from "./category";
 
@@ -33,7 +37,12 @@ export const StoredMessageSchema = z.object({
 });
 export type StoredMessage = z.infer<typeof StoredMessageSchema>;
 
-/** One row of the job inbox. `id` is the RFC Message-ID (URL-encoded in paths). */
+/**
+ * One row of the job inbox. `id` is the RFC Message-ID (URL-encoded in paths). From MVP 2 a row
+ * also carries, when they exist: the best fit score of its roles (stale while a change hasn't
+ * been re-scored, F4.6), the sender verdict (F5), why it is hidden (only under the Hidden filter,
+ * F3.4) and its live draft's status.
+ */
 export const MessageListItemSchema = z.object({
   id: z.string(),
   from: AddressSchema,
@@ -42,6 +51,12 @@ export const MessageListItemSchema = z.object({
   category: CategorySchema.nullable(),
   categorySource: CategorySourceSchema.nullable(),
   analysisStatus: AnalysisStatusSchema,
+  fit: z
+    .object({ score: z.number().int().min(0).max(100), capped: z.boolean(), stale: z.boolean() })
+    .nullable(),
+  sender: z.object({ verdict: SenderVerdictSchema, complete: z.boolean() }).nullable(),
+  hidden: z.object({ reason: z.string() }).nullable(),
+  draft: z.object({ status: DraftStatusSchema }).nullable(),
 });
 export type MessageListItem = z.infer<typeof MessageListItemSchema>;
 
@@ -54,6 +69,11 @@ export const MessageListQuerySchema = z.object({
   q: z.string().trim().max(200).optional(),
   /** Include non-job mail (the Show toggle of F5.1). */
   showNonJob: z.enum(["true", "false"]).optional(),
+  /**
+   * The Hidden filter (F3.4): "true" lists only messages whose roles are all hidden by a rule,
+   * each with its reason. By default they are left out.
+   */
+  hidden: z.enum(["true", "false"]).optional(),
   page: z.coerce.number().int().min(1).optional(),
 });
 export type MessageListQuery = z.infer<typeof MessageListQuerySchema>;
@@ -67,8 +87,20 @@ export const MessageListSchema = z.object({
 });
 export type MessageList = z.infer<typeof MessageListSchema>;
 
+/**
+ * A role of the message detail: its facts, its evaluation (null until evaluated) and the CV the
+ * app would use for it (null until chosen).
+ */
+export const MessageRoleSchema = JobFactsSchema.extend({
+  evaluation: RoleEvaluationSchema.nullable(),
+  cvChoice: CvChoiceSchema.nullable(),
+});
+export type MessageRole = z.infer<typeof MessageRoleSchema>;
+
 export const MessageDetailSchema = MessageListItemSchema.extend({
-  roles: z.array(JobFactsSchema),
+  roles: z.array(MessageRoleSchema),
+  /** The sender check with its reasons (F5.1), null until checked. */
+  senderCheck: SenderCheckSchema.nullable(),
   /** True for the user's own replies (Sent), which evidence links may point at. */
   ownReply: z.boolean(),
 });

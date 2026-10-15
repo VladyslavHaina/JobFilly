@@ -108,4 +108,25 @@ describe("useLiveInvalidation", () => {
       { queryKey: queryKeys.workspaces },
     ]);
   });
+
+  it("refetches the MVP 2 areas on their events", () => {
+    const client = new QueryClient();
+    const spy = vi.spyOn(client, "invalidateQueries");
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+    renderHook(() => useLiveInvalidation(W), { wrapper });
+    const es = FakeEventSource.all[0];
+    const areas = (type: string) => {
+      spy.mockClear();
+      act(() => es?.emit(type, "{}"));
+      return spy.mock.calls.map((c) => (c[0] as { queryKey: unknown[] }).queryKey[2]);
+    };
+    expect(areas("cvs.updated")).toEqual(["cvs"]);
+    expect(areas("drafts.updated")).toEqual(["drafts", "messages"]);
+    expect(areas("decisions.updated")).toEqual(["decisions"]);
+    expect(areas("profiles.updated")).toEqual(["profiles"]);
+    expect(areas("assistant.updated")).toEqual(["assistant"]);
+    expect(areas("mailbox.updated")).toEqual(["mailbox"]);
+  });
 });

@@ -9,6 +9,17 @@ import { jobs } from "../tables";
 // owner and resumes from the last checkpoint. Every write by a worker is guarded by its lease.
 // The worker's operations (claim, renew, checkpoint, complete, hand back) take no workspace id on
 // purpose: a worker serves every workspace, and the job it holds carries its workspace id.
+//
+// Dedupe (TBD-178): jobs with the same dedupe key are one piece of work. At most one of them
+// waits: enqueueing while one is queued is a no-op (a partial unique index while queued). At most
+// one runs: the claim skips a queued job while another job with its key runs under a live lease,
+// and takes a per-key advisory lock for its own transaction, so two workers claiming at the same
+// moment can't both start one. A job enqueued while its key runs still queues, so a change made
+// during a run always gets a later one. A running job whose lease expired is taken over as any
+// other.
+
+/** The advisory lock space of the per-key claim lock (the migration lock is a single key). */
+const DEDUPE_LOCK_SPACE = 74_617;
 
 /** The longest lease a worker may hold; it renews well before the end. */
 export const MAX_LEASE_MS = 30_000;
@@ -17,29 +28,52 @@ function leaseUntil(now: Date, leaseMs: number): Date {
   return new Date(now.getTime() + Math.min(Math.max(leaseMs, 1), MAX_LEASE_MS));
 }
 
-/** Adds a job to the queue. Pass a transaction to enqueue together with other writes. */
+/**
+ * Adds a job to the queue. Pass a transaction to enqueue together with other writes. With a
+ * dedupe key, a job with the same key already waiting makes this a no-op: `enqueued` is false and
+ * `id` is the waiting job's.
+ */
 export async function enqueueJob(
   db: Database,
   workspaceId: string,
-  input: { type: string; payload: unknown; now: Date },
-): Promise<{ id: string }> {
-  const [row] = await db
-    .insert(jobs)
-    .values({
-      type: input.type,
-      workspaceId,
-      payload: input.payload,
-      createdAt: input.now,
-      updatedAt: input.now,
-    })
-    .returning({ id: jobs.id });
-  if (!row) throw new Error("job insert returned nothing");
-  return row;
+  input: { type: string; payload: unknown; now: Date; dedupeKey?: string },
+): Promise<{ id: string; enqueued: boolean }> {
+  const values = {
+    type: input.type,
+    workspaceId,
+    payload: input.payload,
+    dedupeKey: input.dedupeKey ?? null,
+    createdAt: input.now,
+    updatedAt: input.now,
+  };
+  if (input.dedupeKey === undefined) {
+    const [row] = await db.insert(jobs).values(values).returning({ id: jobs.id });
+    if (!row) throw new Error("job insert returned nothing");
+    return { id: row.id, enqueued: true };
+  }
+  for (;;) {
+    const [row] = await db
+      .insert(jobs)
+      .values(values)
+      .onConflictDoNothing({
+        target: jobs.dedupeKey,
+        where: sql`status = 'queued' and dedupe_key is not null`,
+      })
+      .returning({ id: jobs.id });
+    if (row) return { id: row.id, enqueued: true };
+    const [waiting] = await db
+      .select({ id: jobs.id })
+      .from(jobs)
+      .where(and(eq(jobs.dedupeKey, input.dedupeKey), eq(jobs.status, "queued")));
+    // The waiting job was claimed in between: try again, it no longer blocks the insert.
+    if (waiting) return { id: waiting.id, enqueued: false };
+  }
 }
 
 /**
  * Claims the oldest queued job of one of `types`, or a running one whose lease has expired, and
- * leases it to `owner`. Concurrent workers never claim the same job.
+ * leases it to `owner`. Concurrent workers never claim the same job, and never two jobs with the
+ * same dedupe key: a queued job waits while its key runs under a live lease (see the top).
  */
 export async function claimJob(
   db: Database,
@@ -66,7 +100,14 @@ export async function claimJob(
         select id, status as old_status, lease_owner as old_owner
         from jobs
         where type in (${types})
-          and (status = 'queued' or (status = 'running' and lease_expires_at <= ${input.now}))
+          and (
+            (status = 'queued' and (dedupe_key is null or not exists (
+              select 1 from jobs live
+              where live.dedupe_key = jobs.dedupe_key and live.status = 'running'
+                and live.lease_expires_at > ${input.now})))
+            or (status = 'running' and lease_expires_at <= ${input.now}))
+          and (dedupe_key is null
+            or pg_try_advisory_xact_lock(${sql.raw(String(DEDUPE_LOCK_SPACE))}, hashtext(dedupe_key)))
         order by created_at, id
         limit 1
         for update skip locked
@@ -142,7 +183,11 @@ export async function completeJob(
   return rows.length > 0;
 }
 
-/** Hands the job back to the queue (graceful shutdown), so another worker resumes it at once. */
+/**
+ * Hands the job back to the queue (graceful shutdown), so another worker resumes it at once. A
+ * job whose dedupe key already has another job waiting is not queued a second time: the waiting
+ * one does the same work from the start (handlers are idempotent), so this one ends as done.
+ */
 export async function handBackJob(
   db: Database,
   jobId: string,
@@ -151,7 +196,10 @@ export async function handBackJob(
   const rows = await db
     .update(jobs)
     .set({
-      status: "queued",
+      status: sql`case when ${jobs.dedupeKey} is not null and exists (
+        select 1 from jobs waiting
+        where waiting.dedupe_key = ${jobs.dedupeKey} and waiting.status = 'queued')
+        then 'done' else 'queued' end`,
       leaseOwner: null,
       leaseExpiresAt: null,
       previousOwner: input.owner,

@@ -36,3 +36,53 @@ export const StoredJobSchema = z.object({
   checkpoint: z.unknown(),
 });
 export type StoredJob = z.infer<typeof StoredJobSchema>;
+
+// The job types of MVP 2 and their payloads. Each worker validates its payload with these when it
+// takes the job; the dedupe key keeps at most one of each waiting (and one running).
+
+/** mail.sync: one sync of one mailbox (F1); dedupe key `sync:<mailboxId>`. */
+export const MAIL_SYNC_JOB = "mail.sync";
+export const MailSyncPayloadSchema = z.object({ mailboxId: z.uuid() });
+export type MailSyncPayload = z.infer<typeof MailSyncPayloadSchema>;
+
+/**
+ * pipeline.reevaluate: evaluates every job message whose evaluation or sender check is missing or
+ * stale, and re-claims drafts to retry; dedupe key `reevaluate:<workspaceId>`.
+ */
+export const PIPELINE_REEVALUATE_JOB = "pipeline.reevaluate";
+export const PipelineReevaluatePayloadSchema = z.object({
+  workspaceId: z.uuid(),
+  /** Why it was asked for ("sweep", "intake.confirmed", "rule.changed", …), for the logs. */
+  reason: z.string().min(1).max(100),
+});
+export type PipelineReevaluatePayload = z.infer<typeof PipelineReevaluatePayloadSchema>;
+
+/** cv.read: reads one uploaded CV with cv.v1; dedupe key `cv:<cvId>`. */
+export const CV_READ_JOB = "cv.read";
+export const CvReadPayloadSchema = z.object({ workspaceId: z.uuid(), cvId: z.uuid() });
+export type CvReadPayload = z.infer<typeof CvReadPayloadSchema>;
+
+/**
+ * draft.create: writes one role's draft and saves it to the mailbox; dedupe key
+ * `draft:<workspaceId>:<messageId>:<position>`. `origin` says what asked for it: the pipeline
+ * (auto), Draft a reply (on_demand), a decision answer, or the sweep retrying a failed one.
+ */
+export const DRAFT_CREATE_JOB = "draft.create";
+export const DraftOriginSchema = z.enum(["auto", "on_demand", "decision", "retry"]);
+export type DraftOrigin = z.infer<typeof DraftOriginSchema>;
+export const DraftCreatePayloadSchema = z.object({
+  workspaceId: z.uuid(),
+  messageId: z.string().min(1),
+  position: z.number().int().nonnegative(),
+  origin: DraftOriginSchema,
+});
+export type DraftCreatePayload = z.infer<typeof DraftCreatePayloadSchema>;
+
+/** The dedupe key of each MVP 2 job, one place for every caller. */
+export const jobDedupeKey = {
+  sync: (mailboxId: string) => `sync:${mailboxId}`,
+  reevaluate: (workspaceId: string) => `reevaluate:${workspaceId}`,
+  cvRead: (cvId: string) => `cv:${cvId}`,
+  draft: (workspaceId: string, messageId: string, position: number) =>
+    `draft:${workspaceId}:${messageId}:${position}`,
+};

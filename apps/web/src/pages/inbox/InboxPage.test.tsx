@@ -65,8 +65,15 @@ const item = (overrides: Partial<MessageListItem> & { id: string }): MessageList
   category: "recruiter_outreach",
   categorySource: "scan",
   analysisStatus: "done",
+  fit: null,
+  sender: null,
+  hidden: null,
+  draft: null,
   ...overrides,
 });
+
+/** A role of the detail: its facts, not evaluated yet. */
+const role = (f: JobFacts) => ({ ...f, evaluation: null, cvChoice: null });
 
 const RECRUITER = item({
   id: "<rec-1@nordlicht.example>",
@@ -116,24 +123,27 @@ const REPLY = item({
 });
 
 const DETAILS: Record<string, MessageDetail> = {
-  [RECRUITER.id]: { ...RECRUITER, roles: [BERLIN], ownReply: false },
+  [RECRUITER.id]: { ...RECRUITER, roles: [role(BERLIN)], ownReply: false, senderCheck: null },
   [ALERT.id]: {
     ...ALERT,
     ownReply: false,
+    senderCheck: null,
     roles: [
-      facts({
-        title: "Platform Engineer",
-        places: [{ country: "PT", city: "Lisbon" }],
-        pay: { min: 450, max: 550, currency: "EUR", period: "day", asWritten: "450-550 EUR/day" },
-      }),
-      facts({ title: "Go Developer", places: [{ country: "NL", city: "Amsterdam" }] }),
-      facts({ title: "SRE", workMode: "remote", remoteScope: "EU" }),
+      role(
+        facts({
+          title: "Platform Engineer",
+          places: [{ country: "PT", city: "Lisbon" }],
+          pay: { min: 450, max: 550, currency: "EUR", period: "day", asWritten: "450-550 EUR/day" },
+        }),
+      ),
+      role(facts({ title: "Go Developer", places: [{ country: "NL", city: "Amsterdam" }] })),
+      role(facts({ title: "SRE", workMode: "remote", remoteScope: "EU" })),
     ],
   },
-  [FAILED.id]: { ...FAILED, roles: [], ownReply: false },
-  [INTERVIEW.id]: { ...INTERVIEW, roles: [BERLIN], ownReply: false },
-  [NEWSLETTER.id]: { ...NEWSLETTER, roles: [], ownReply: false },
-  [REPLY.id]: { ...REPLY, roles: [], ownReply: true },
+  [FAILED.id]: { ...FAILED, roles: [], ownReply: false, senderCheck: null },
+  [INTERVIEW.id]: { ...INTERVIEW, roles: [role(BERLIN)], ownReply: false, senderCheck: null },
+  [NEWSLETTER.id]: { ...NEWSLETTER, roles: [], ownReply: false, senderCheck: null },
+  [REPLY.id]: { ...REPLY, roles: [], ownReply: true, senderCheck: null },
 };
 
 const BODIES: Record<string, MessageBody> = {

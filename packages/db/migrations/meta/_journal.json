@@ -8,6 +8,13 @@
       "when": 1792036500961,
       "tag": "0000_mvp1",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792081487529,
+      "tag": "0001_mvp2",
+      "breakpoints": true
     }
   ]
 }

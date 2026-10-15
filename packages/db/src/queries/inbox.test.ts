@@ -5,6 +5,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { Database, DatabaseConnection } from "../client";
 import { openTestDatabase } from "../testing";
 import { registerAccount } from "./accounts";
+import { claimDraft } from "./draft-claims";
+import { saveEvaluation, saveSenderCheck } from "./evaluations";
 import { correctCategory, getInboxMessage, getMessageRef, listInbox } from "./inbox";
 import { getStoredMessages, markAnalysisFailed, saveAnalysis, saveEnvelopes } from "./messages";
 
@@ -128,6 +130,10 @@ describe("listInbox (F5.1)", () => {
       category: "interview",
       categorySource: "scan",
       analysisStatus: "done",
+      fit: null,
+      sender: null,
+      hidden: null,
+      draft: null,
     });
     // A message the model failed on is listed, to say "Couldn't analyze".
     expect(list.items[1]).toMatchObject({ category: null, analysisStatus: "failed" });
@@ -336,5 +342,87 @@ describe("correctCategory (F5.4)", () => {
     expect(await correctCategory(conn.db, other, id(2), "offer")).toBe("not_found");
     const [stored] = await getStoredMessages(conn.db, ws, [id(2)]);
     expect(stored?.category).toBe("recruiter_outreach");
+  });
+});
+
+describe("the inbox of MVP 2: fit, sender, drafts and the Hidden filter (F3.4)", () => {
+  const RULE = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  const at = new Date(BASE);
+  const evaluated = (
+    position: number,
+    options: { score?: number; hidden?: string; stale?: boolean } = {},
+  ) => ({
+    position,
+    match: {
+      score: options.score ?? 70,
+      verdicts: [],
+      skills: { matched: [], missing: [] },
+      cvId: null,
+      capped: false,
+    },
+    hidden: options.hidden ? { ruleId: RULE, reason: options.hidden } : null,
+    ruleEffects: [],
+    cvChoice: { cvId: null, reason: "No CV yet", source: "auto" as const },
+  });
+
+  it("gives each row its best visible fit score, sender verdict and live draft", async () => {
+    await seedMix();
+    // The alert: one role hidden (scored 90), one shown (scored 55).
+    await saveEvaluation(
+      conn.db,
+      ws,
+      id(3),
+      evaluated(0, { score: 90, hidden: "Hidden by your rule" }),
+      at,
+    );
+    await saveEvaluation(conn.db, ws, id(3), evaluated(1, { score: 55 }), at);
+    await saveSenderCheck(
+      conn.db,
+      ws,
+      id(3),
+      { verdict: "caution", complete: false, reasons: [], mark: null },
+      at,
+    );
+    await claimDraft(conn.db, ws, { messageId: id(3), position: 1 }, { origin: "auto", now: at });
+    const row = (await listInbox(conn.db, ws)).items.find((m) => m.id === id(3));
+    expect(row).toMatchObject({
+      fit: { score: 55, capped: false, stale: false },
+      sender: { verdict: "caution", complete: false },
+      hidden: null,
+      draft: { status: "saving" },
+    });
+  });
+
+  it("lists a message whose roles are all hidden only under the Hidden filter, with the reason", async () => {
+    await seedMix();
+    const reason = "Hidden by your rule: hours outside UTC−1 to UTC+3";
+    await saveEvaluation(conn.db, ws, id(3), evaluated(0, { hidden: reason }), at);
+    expect((await listInbox(conn.db, ws)).items.map((m) => m.id)).toContain(id(3));
+    await saveEvaluation(conn.db, ws, id(3), evaluated(1, { hidden: reason }), at);
+    expect((await listInbox(conn.db, ws)).items.map((m) => m.id)).toEqual([id(8), id(5), id(2)]);
+    const hidden = await listInbox(conn.db, ws, { hidden: true });
+    expect(hidden.items.map((m) => [m.id, m.hidden])).toEqual([[id(3), { reason }]]);
+    expect((await listInbox(conn.db, other, { hidden: true })).items).toEqual([]);
+  });
+
+  it("opens a message with each role's evaluation, CV choice and the sender check", async () => {
+    await seedMix();
+    await saveEvaluation(conn.db, ws, id(3), evaluated(1, { score: 61 }), at);
+    const check = {
+      verdict: "high_risk" as const,
+      complete: true,
+      reasons: [{ signal: "asks_for_fee", reason: "asks for a fee" }],
+      mark: null,
+    };
+    await saveSenderCheck(conn.db, ws, id(3), check, at);
+    const detail = await getInboxMessage(conn.db, ws, id(3));
+    expect(detail?.senderCheck).toEqual(check);
+    expect(
+      detail?.roles.map((r) => [r.title, r.evaluation?.match?.score ?? null, r.cvChoice]),
+    ).toEqual([
+      ["Platform Engineer", null, null],
+      ["Go Developer", 61, { cvId: null, reason: "No CV yet", source: "auto" }],
+    ]);
+    expect((await getInboxMessage(conn.db, ws, id(2)))?.senderCheck).toBeNull();
   });
 });

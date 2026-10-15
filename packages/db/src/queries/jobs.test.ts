@@ -147,3 +147,61 @@ describe("the job queue", () => {
     expect((await getJob(conn.db, workspaceId, id))?.status).toBe("done");
   });
 });
+
+describe("dedupe keys (TBD-178)", () => {
+  const job = (dedupeKey: string, now = t0) =>
+    enqueueJob(conn.db, workspaceId, { type: "scan.run", payload: {}, now, dedupeKey });
+
+  it("keeps at most one job of a key waiting", async () => {
+    const first = await job("k");
+    const second = await job("k", after(1));
+    expect(first.enqueued).toBe(true);
+    expect(second).toEqual({ id: first.id, enqueued: false });
+    expect((await job("other")).enqueued).toBe(true);
+  });
+
+  it("queues a new one while one runs, but doesn't start it until the running one ends", async () => {
+    const first = await job("k");
+    expect((await claim("app-a", t0))?.id).toBe(first.id);
+    const second = await job("k", after(1));
+    expect(second.enqueued).toBe(true);
+    expect(await claim("app-b", after(2))).toBeNull();
+    await completeJob(conn.db, first.id, { owner: "app-a", status: "done", now: after(3) });
+    expect((await claim("app-b", after(4)))?.id).toBe(second.id);
+  });
+
+  it("takes over an expired lease, and the waiting job still waits for it", async () => {
+    const first = await job("k");
+    await claim("app-a", t0, 10_000);
+    const second = await job("k", after(1));
+    const taken = await claim("app-b", after(10_000));
+    expect(taken).toMatchObject({ id: first.id, leaseExpired: true });
+    expect(await claim("app-c", after(10_001))).toBeNull();
+    expect((await getJob(conn.db, workspaceId, second.id))?.status).toBe("queued");
+  });
+
+  it("never lets two workers claiming at once start two jobs of one key", async () => {
+    await job("k");
+    await claim("app-a", t0, 10_000);
+    await job("k", after(1));
+    // The running one's lease expired: both it and the waiting one could be claimed.
+    const claimed = await Promise.all([
+      claim("app-b", after(10_000)),
+      claim("app-c", after(10_000)),
+      claim("app-d", after(10_000)),
+    ]);
+    expect(claimed.filter((c) => c !== null)).toHaveLength(1);
+  });
+
+  it("hands a job back as done when another of its key already waits", async () => {
+    const first = await job("k");
+    await claim("app-a", t0);
+    const second = await job("k", after(1));
+    expect(await handBackJob(conn.db, first.id, { owner: "app-a", now: after(2) })).toBe(true);
+    expect((await getJob(conn.db, workspaceId, first.id))?.status).toBe("done");
+    expect((await claim("app-b", after(3)))?.id).toBe(second.id);
+    // Alone, it is queued again as before.
+    expect(await handBackJob(conn.db, second.id, { owner: "app-b", now: after(4) })).toBe(true);
+    expect((await getJob(conn.db, workspaceId, second.id))?.status).toBe("queued");
+  });
+});
