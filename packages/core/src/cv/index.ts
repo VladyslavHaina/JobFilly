@@ -1,4 +1,4 @@
-// Pure logic for CV choice per role (tags, metadata, language) with its reason, and the skill check
-// that drops any skill not found in the CV text (F2). Created by the foundation and exported from
-// ../index.ts; the cvs-senders slice writes it.
-export {};
+// CVs (F2): the skill check that drops any skill not found in the CV text, the tags a read
+// suggests, and the CV choice per role with its reason. Pure logic, no I/O.
+export { type CvCandidate, type CvChoiceInput, type CvChoiceOutcome, chooseCv } from "./choice";
+export { checkSkills, type SkillCheck, tagsAfterRead } from "./skills";
