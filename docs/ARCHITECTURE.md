@@ -49,7 +49,10 @@ Rules:
   and are guarded by the lease owner; and the signed-in user's own view across workspaces, by
   user id or email: the workspaces they belong to, and the open invitations to their email (or
   to the invite's email once its token has been checked). Creating an account or a workspace
-  makes the workspace, so it has no id to take yet.
+  makes the workspace, so it has no id to take yet. Two background reads serve every workspace
+  the way the job claim does: `listWorkspacesWithWork` (the pipeline sweep) and the sync
+  scheduler's mailbox listing; each only finds the workspaces to enqueue a job for, and the job
+  then works through the workspace-scoped functions.
 - The server resolves the session, then checks membership and role on every workspace route.
   Not a member: `404`. A member without the needed role: `403`. Each route module under
   `/api/workspaces/:workspaceId/<name>` is mounted once behind the membership check
@@ -77,7 +80,29 @@ Rules:
 - The mailbox is the source of truth for mail. Postgres keeps message metadata, a short snippet,
   extracted job facts, and the local state: profiles, rules, CVs, decisions, drafts, corrections.
   Full message bodies are fetched from the mailbox when needed and not stored.
-- CV files are stored in Postgres (size-limited), so replicas need no shared disk.
+- CV files are stored in Postgres (`cvs.content`, bytea, at most 5 MB by a check constraint), so
+  replicas need no shared disk.
+- MVP 2's tables (migration `0001_mvp2`, add-only): `cvs`, `profile_cvs`, `role_cv_choices`
+  (an editor's CV per role), `rules`, `role_evaluations` (one per role: the match, the rule
+  hiding it, every rule's effect, the chosen CV, `stale`), `match_ai_answers`, `sender_checks`
+  (with `stale`), `sender_marks`, `domain_lookups` (the RDAP and MX cache, workspace-scoped),
+  `drafts`, `decisions` and `decision_messages`, `assistant_threads`, `assistant_messages`,
+  `assistant_proposals`, `profile_history`, `mailbox_sync` (per mailbox and folder: UIDVALIDITY,
+  last UID, last success, failing since, the back-off's next attempt), and `jobs.dedupe_key`.
+  The migration also gives saved AI settings a model for each new task, from their extract model.
+- Deleting a CV never hits a foreign key: its links (`profile_cvs`), overrides
+  (`role_cv_choices`) and stored match answers go with it (CASCADE); drafts and role evaluations
+  stay and forget it (`cv_id` SET NULL), so a draft already in the mailbox stays there (F2.5) and
+  the next evaluation chooses a CV again. Evaluations and stored match answers belong to their
+  role (`roles`), drafts, overrides, sender checks and decision rows to their message.
+- A draft row holds only the reply text and where its copy is in the mailbox (folder, UID,
+  UIDVALIDITY, the draft's Message-ID, a content hash); the quote of the original is added when
+  the MIME message is built, so no mail body is stored. A partial unique index allows one live
+  draft (any status but `discarded`) per role.
+- Stored match answers: `match_ai_answers` keeps each match.v1 answer under the hash of exactly
+  what the model saw (the role's title and skills, the profile's target roles and skills, the
+  chosen CV's skills). A rule, pay or policy change leaves the hash alone, so re-scoring after
+  it is pure and makes no model call; the impact preview never calls the model either.
 - Secrets (mail passwords, OAuth tokens, AI keys) are encrypted with AES-256-GCM using
   `JOBFILLY_SECRET_KEY` before they are stored. They are never returned by the API or logged.
   Every place that hands a workspace's AI key to the AI port (the AI settings routes, the scan job,
@@ -90,6 +115,83 @@ Rules:
   with `FOR UPDATE SKIP LOCKED` and hold a lease they renew while working. A job whose lease runs
   out (its replica died) is picked up by another replica and resumes from its last checkpoint.
   Handlers are idempotent.
+- Dedupe keys (`jobs.dedupe_key`, keys from `jobDedupeKey` in `packages/schema`): jobs with the
+  same key are one piece of work. At most one waits — a partial unique index while `queued`, so
+  enqueueing while one waits is a no-op. At most one runs — the claim skips a queued job while
+  another with its key runs under a live lease, and takes a per-key advisory lock for its own
+  transaction so two workers can't both start one. A job enqueued while its key runs still
+  queues, so a change made during a run always gets the next run. An expired lease is taken over
+  as any other; a job handed back while another of its key waits ends as done (the waiting one
+  does the work). Keys: `sync:<mailboxId>` (one sync per mailbox, F1.2), `reevaluate:<ws>`,
+  `cv:<cvId>`, `draft:<ws>:<messageId>:<position>`.
+- Job types and their owners: `scan.run`; `pipeline.reevaluate`; `mail.sync`, `cv.read` and
+  `draft.create`, each registered in its slice's module (`sync/jobs.ts`, `cvs/jobs.ts`,
+  `drafts/jobs.ts`) and spread into `jobs/registry.ts`.
+
+### The analysis pipeline
+
+- Continuous sync (`mail.sync`, every `JOBFILLY_SYNC_INTERVAL_SECONDS`, after the first scan has
+  stopped) reads INBOX by UID per folder (`MailClient.fetchSince`), re-indexes a folder whose
+  UIDVALIDITY changed by Message-ID, and records its state and back-off in `mailbox_sync`.
+- Each new job message, and every message whose evaluation or sender check is missing or stale,
+  goes through `evaluateMessage` (`apps/server/src/pipeline/evaluate.ts`): the sender stage, then
+  per role the cv-choice and match stages, then the reply stage. The stage contract is pinned in
+  `pipeline/stages.ts` (`MessageInput`, `StageContext`, `CvChoiceResult`, the reply stage's
+  input); each stage's body lives in its own file and slice (`sender.ts` and `cv-choice.ts`:
+  cvs-senders, `match.ts`: rules-match, `reply.ts`: replies).
+- The sender stage runs only when the sender check is missing (new mail, the backlog) or stale (a
+  sender mark changed). It is the only stage that reads the mail body (`ctx.body()`, fetched once,
+  never stored). A re-evaluation after a profile, rule, decision or CV change passes the stored
+  check on, so re-scoring never touches the mailbox and works while it is down. A failed sender
+  stage leaves the check missing for a later sweep; the reply waits for it.
+- Without a confirmed profile only the sender stage runs; the roles stay unevaluated. Intake
+  confirm asks for a re-evaluation of everything, which matches the first scan's backlog (F1.6).
+  A stage that fails leaves its role missing or stale; it is never marked evaluated.
+- `pipeline.reevaluate` (dedupe `reevaluate:<ws>`) snapshots what is missing or stale, evaluates
+  each message at most once per run (a failing AI or mailbox can't make it loop), re-claims the
+  drafts to retry, and enqueues the next run only if something changed while it ran.
+- The sweep (`pipeline/sweep.ts`) enqueues one deduped `pipeline.reevaluate` for every workspace
+  with a confirmed profile and work (`listWorkspacesWithWork`): once at startup, so a deployment
+  confirmed before MVP 2 is evaluated without anyone doing anything, and on every scheduler tick
+  whatever the syncs did, so failed evaluations and drafts are retried within one interval.
+- The reply policy is one pure function, `replyEligibility` (`packages/core/src/policy`): reply_to
+  (default recruiter outreach), the reply window (`reply_window_days`, default 14), the threshold
+  (`reply_threshold`, default 70), a sender check present and not high risk, no hide, no_draft or
+  ask_first rule, no open need, and a role that never had a draft and wasn't dismissed. Draft a
+  reply (on_demand) is always eligible. The replies slice and the assistant's impact preview both
+  use it.
+- Decision needs are carried on match verdicts (`MatchVerdict.need`) and rule effects; the reply
+  stage reads them and never works facts out again. Similar needs share a group key
+  (`groupKeyFor`, e.g. `min_pay:CHF:year`).
+
+### The draft lifecycle
+
+- `packages/db` `draft-claims.ts` owns who writes a role's draft. `claimDraft` inserts the role's
+  one live row in status `saving`; only the claim holder writes to the mailbox. Draft a reply may
+  take a `failed` row back instead. A claim whose draft.v1 answer raised questions is released
+  (deleted) in the transaction that records the needs, so the role still counts as never drafted.
+- `draft.create` catches `MailUnavailableError` (the mailbox can't be reached or refused the
+  append) and marks the draft `failed` with kind `mailbox`, which the sweep re-claims
+  (`reclaimDraft`) and retries, up to 5 attempts; a `saving` row older than 5 minutes (its job
+  died) is retried the same way. Kind `content` (a placeholder twice, F6.2) is never retried
+  automatically. No row is left in `saving`, and no role is blocked for good.
+
+### The profile change service
+
+- Every change to a profile's entries and rules is a list of `Change`s (`packages/schema`)
+  applied by `applyAndReevaluate` (`apps/server/src/profile/changes.ts`): the profile form
+  (source you), a decision answer (decision), an applied assistant proposal (assistant), Undo.
+  `packages/db`'s `applyProfileChanges` writes the profile, its rules and a `profile_history` row
+  (who, when, source, request, before and after) in one transaction; the Change semantics come
+  from `packages/core` (`applyChanges`), passed in, so `packages/db` imports only the schema.
+- Change semantics: `add` on a list key (every core key) appends items and never replaces the
+  list (an equal item is a no-op); on another key, or a missing one, it sets the entry. `update`
+  replaces the value; `remove` with a value removes those items, with null the entry. A decision
+  answer is always `add` of one item, so answering "CHF per year" keeps the EUR minimum. "Already
+  answered" is decided by group key (`answeredFor`), never by profile key.
+- `requestReevaluation(scope)` is the one way evaluations go stale: `{all}`, `{roles}`,
+  `{messageIds}`, or a sender scope (`{senderAddress}`, `{senderDomain}`), which alone also makes
+  the sender checks stale. It enqueues `pipeline.reevaluate` and tells open inboxes.
 - Live updates reach the browser over Server-Sent Events
   (`GET /api/workspaces/:workspaceId/events`). Replicas publish events through Postgres
   `LISTEN/NOTIFY`, so a browser connected to any replica sees work done on any other.
@@ -129,7 +231,16 @@ Rules:
   once and then reported, never patched up. Output schemas use only shapes every provider can
   express: no open records (extra facts are a list of `{key, value}`, read back into a record).
 - Mail content and CV text are passed as untrusted data, so instructions inside them can't steer
-  the app.
+  the app: every content line starts with "| ", and structure and key lines are at column 0.
+- MVP 2's tasks each have their module in `packages/ai/src/tasks`, keyed by a pinned key line the
+  fake AI reads: cv.v1 `CV-SHA256: <hex>`, match.v1 `Message-ID:` and `Role: <position>`,
+  draft.v1 `Message-ID:` and `Attempt: <1|2>`, assistant.v1 `Turn: <n>` with the user's words as
+  the last block. The header, key lines and framing are fixed; each task's instruction text
+  belongs to the slice that uses it, which regenerates its wire samples when it changes.
+- Domain lookups for the sender check go through `deps.domains` (a `DomainPort`: `rdap(domain)`
+  through `JOBFILLY_RDAP_URL`, `mx(domain)` through the system resolver), cached per workspace in
+  `domain_lookups`; tests use a fake. A failed lookup makes the check incomplete, never "looks
+  fine".
 - The assistant can only propose changes. Applying one is a separate request made by the user.
 
 ## Configuration (environment)
@@ -160,7 +271,8 @@ Every MVP keeps these true; the Helm chart after MVP 3 relies on them.
   them once (one `db.migrated` line). `node dist/index.js migrate` runs them alone, for a migration
   job. Migrations stay backward compatible with the previous release — add first, remove in a
   later release — because old and new replicas run side by side during a rolling update.
-- On `SIGTERM`, in this order: readiness turns 503 at once; the replica keeps serving for a
+- On `SIGTERM`, in this order: the scheduler stops starting syncs and sweeps; readiness turns 503
+  at once; the replica keeps serving for a
   5-second drain so load balancers stop routing to it; it stops accepting connections and closes
   open live-update streams (browsers reconnect to another replica); in-flight requests finish
   within 20 seconds; running jobs hand back their leases, and background work still running (an
@@ -185,7 +297,11 @@ Every MVP keeps these true; the Helm chart after MVP 3 relies on them.
   boundaries). Hermetic: no real mailbox, model or network. Server tests build their dependencies
   with `apps/server/src/testing` (`createTestDeps` with fake mail and AI ports, and seeding through
   the workspace-scoped `@jobfilly/db` functions). The PGlite projects run without per-file
-  isolation, reusing each worker's databases, so they don't use `vi.mock`.
+  isolation, reusing each worker's databases, so they don't use `vi.mock`. The doubles every
+  slice tests with live there too: a fake mailbox (`createFakeMailbox`: INBOX with UIDs and
+  UIDVALIDITY, `deliver`, a Drafts folder recording each draft, `pause`/`resume`, `failNext`,
+  `setUidValidity`, call counts), a fake AI (`createFakeAi`, keyed like the test stack's fake
+  AI), a fake `DomainPort`, `seedCv`, and recording pipeline stages.
 - `pnpm e2e` starts the test stack (`docker/compose.e2e.yaml`) and runs the Playwright specs.
   The root scripts run `node e2e/stack.ts run` (`pnpm e2e`), `node e2e/stack.ts stack up|down`
   and `node e2e/stack.ts specs [--mvp <n>]`.
