@@ -10,17 +10,15 @@ import { openAiKey } from "../secrets";
 // The cv.read job (F2.1, F2.2): reads one uploaded CV with cv.v1, keyed by its content hash
 // (dedupe key cv:<cvId>). The same file already read in the workspace is not read again. Every
 // skill the model names is checked against the CV text, and one that isn't there is dropped and
-// logged as cv.skill_dropped (F2.2). The language, role families, seniority and format hints
-// become the CV's suggested tags. A finished read can change every role's CV choice, so the
-// profile's roles are re-evaluated. A read that fails leaves the CV marked failed.
-// Registered here, spread into jobs/registry.ts.
+// logged as cv.skill_dropped (F2.2). The language, role families and seniority become the CV's
+// suggested tags; the skills and format hints are edited as lists of their own. A finished read
+// can change every role's CV choice, so the profile's roles are re-evaluated. A read that fails
+// leaves the CV marked failed. Registered here, spread into jobs/registry.ts.
 
-type CvReadOutcome = "done" | "failed" | "gone";
-
-async function readCv(deps: AppDeps, ws: string, cvId: string): Promise<CvReadOutcome> {
+async function readCv(deps: AppDeps, ws: string, cvId: string): Promise<void> {
   const log = deps.log.child({ workspaceId: ws, cvId });
   const cv = await getCv(deps.db, ws, cvId);
-  if (!cv) return "gone";
+  if (!cv) return;
   const text = cv.text ?? "";
 
   let read: CvReadOutput | null = await findCvReadByHash(deps.db, ws, cv.contentHash);
@@ -29,7 +27,7 @@ async function readCv(deps: AppDeps, ws: string, cvId: string): Promise<CvReadOu
     if (!settings) {
       await markCvReadFailed(deps.db, ws, cvId, deps.clock.now());
       await deps.live.publish(ws, { type: "cvs.updated", data: {} });
-      return "failed";
+      return;
     }
     const client = aiClientFor(deps, ws, {
       provider: settings.provider,
@@ -45,7 +43,7 @@ async function readCv(deps: AppDeps, ws: string, cvId: string): Promise<CvReadOu
     if (!result.ok) {
       await markCvReadFailed(deps.db, ws, cvId, deps.clock.now());
       await deps.live.publish(ws, { type: "cvs.updated", data: {} });
-      return "failed";
+      return;
     }
     read = result.data;
   }
@@ -61,7 +59,6 @@ async function readCv(deps: AppDeps, ws: string, cvId: string): Promise<CvReadOu
   });
   await deps.live.publish(ws, { type: "cvs.updated", data: {} });
   await requestReevaluation(deps, ws, { all: true }, "cv.read");
-  return "done";
 }
 
 export const cvJobs: JobRegistry = {
