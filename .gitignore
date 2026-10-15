@@ -10,12 +10,7 @@ e2e/reports/
 e2e/.stack/
 *.tsbuildinfo
 
-# Local data and secrets
-data/
-*.db
-*.db-journal
-*.db-wal
-*.db-shm
+# Secrets
 .env
 .env.*
 
