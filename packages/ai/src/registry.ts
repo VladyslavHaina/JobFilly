@@ -22,10 +22,12 @@ export interface TaskModel {
 export type ModelFor = (task: AiTask) => TaskModel;
 
 /**
- * OpenAI's strict structured-output mode needs every key required and no open records; the
- * extract.v1 and prefs.v1 schemas have optional keys and an `extra` record (TBD-45). For those
- * tasks OpenAI gets the same JSON Schema without strict mode; the answer is still validated
- * against the schema here, as every answer is.
+ * OpenAI's strict structured-output mode needs every key required; the prefs.v1 schema has
+ * optional keys (TBD-45). extract.v1 was sent the same way while its `extra` was an open record;
+ * `extra` now goes out as a list of closed {key, value} objects, and extract.v1 stays non-strict
+ * until a run against OpenAI shows strict mode takes its patterns. For those tasks OpenAI gets
+ * the same JSON Schema without strict mode; the answer is still validated against the schema
+ * here, as every answer is.
  */
 const NOT_STRICT: ReadonlySet<AiTask> = new Set(["extract", "prefs"]);
 

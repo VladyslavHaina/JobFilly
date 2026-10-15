@@ -224,16 +224,21 @@ describe("single tasks", () => {
     applyUrl: null,
     extra: {},
   };
+  /** The same facts as the model writes them: `extra` as a list of {key, value}. */
+  const answered = { ...facts, extra: [{ key: "start", value: "November" }] };
 
   it("retries an invalid extraction once and reports it without the model's output", async () => {
     const { client, prompts, events } = clientWith([
       JSON.stringify({ messageId: "<item-1@mail.example>", roles: [{ title: 42 }] }),
-      JSON.stringify({ messageId: "<item-1@mail.example>", roles: [facts] }),
+      JSON.stringify({ messageId: "<item-1@mail.example>", roles: [answered] }),
     ]);
     const result = await client.extract(item(1));
     expect(result).toEqual({
       ok: true,
-      data: { messageId: "<item-1@mail.example>", roles: [facts] },
+      data: {
+        messageId: "<item-1@mail.example>",
+        roles: [{ ...facts, extra: { start: "November" } }],
+      },
       usage: [
         { task: "extract.v1", inputTokens: 101, outputTokens: 11 },
         { task: "extract.v1", inputTokens: 102, outputTokens: 12 },
@@ -246,7 +251,7 @@ describe("single tasks", () => {
   });
 
   it("doesn't take facts about another message", async () => {
-    const answer = JSON.stringify({ messageId: "<other@mail.example>", roles: [facts] });
+    const answer = JSON.stringify({ messageId: "<other@mail.example>", roles: [answered] });
     const { client } = clientWith([answer, answer]);
     const result = await client.extract(item(1));
     expect(result).toMatchObject({ ok: false, error: { kind: "invalid_output" } });

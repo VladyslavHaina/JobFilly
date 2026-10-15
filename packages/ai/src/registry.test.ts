@@ -42,6 +42,25 @@ function recordingFetch(answer: () => Response) {
 
 const unauthorized = () => Response.json({ error: { message: "bad key" } }, { status: 401 });
 
+const mail = {
+  messageId: "<a@x.example>",
+  folder: "inbox" as const,
+  from: { address: "a@x.example", name: null },
+  date: "2026-09-28T08:15:00.000Z",
+  subject: "s",
+  text: "t",
+};
+
+/** Every request body a client sends; each is answered 401. */
+function bodyRecorder() {
+  const bodies: Record<string, unknown>[] = [];
+  const fetchFn = async (_url: string | URL | Request, init?: RequestInit) => {
+    bodies.push(JSON.parse(String(init?.body)));
+    return unauthorized();
+  };
+  return { bodies, fetch: fetchFn as typeof fetch };
+}
+
 const savedEnv = { ...process.env };
 afterEach(() => {
   process.env = { ...savedEnv };
@@ -104,26 +123,17 @@ describe("the provider registry", () => {
     }
   });
 
-  it("asks OpenAI for strict output except where the schema has optional keys or a record", async () => {
-    const bodies: { text?: { format?: { strict?: boolean; name?: string } } }[] = [];
-    const fetch = (async (_url: string | URL | Request, init?: RequestInit) => {
-      bodies.push(JSON.parse(String(init?.body)));
-      return unauthorized();
-    }) as typeof globalThis.fetch;
+  it("asks OpenAI for strict output except on extract.v1 and prefs.v1", async () => {
+    const { bodies, fetch } = bodyRecorder();
     const client = createAiClient(settingsFor("openai"), { fetch });
-    const mail = {
-      messageId: "<a@x.example>",
-      folder: "inbox" as const,
-      from: { address: "a@x.example", name: null },
-      date: "2026-09-28T08:15:00.000Z",
-      subject: "s",
-      text: "t",
-    };
     await client.classify([mail]);
     await client.extract(mail);
     await client.prefs([mail]);
     await client.intake({ items: [], answers: [] });
-    expect(bodies.map((b) => [b.text?.format?.name, b.text?.format?.strict])).toEqual([
+    const formats = bodies.map(
+      (b) => (b as { text?: { format?: { strict?: boolean; name?: string } } }).text?.format,
+    );
+    expect(formats.map((f) => [f?.name, f?.strict])).toEqual([
       ["classify_v1", true],
       ["extract_v1", false],
       ["prefs_v1", false],
@@ -147,6 +157,41 @@ describe("the provider registry", () => {
       }
     }
   });
+});
+
+describe("the extra facts of extract.v1 and prefs.v1", () => {
+  // Anthropic's structured output closes every object of the schema it is sent, so an open
+  // `extra` record could only come back as {}, with no error. `extra` goes out as a list of
+  // closed {key, value} objects instead, which every provider can express. Checked on the body
+  // each SDK really sends for the provider's default models.
+  const entries = {
+    type: "array",
+    items: {
+      type: "object",
+      properties: { key: { type: "string" }, value: { type: "string" } },
+      required: ["key", "value"],
+      additionalProperties: false,
+    },
+  };
+  // biome-ignore lint/suspicious/noExplicitAny: walking into a provider's request body
+  const sentSchema: Record<"anthropic" | "google", (body: any) => any> = {
+    anthropic: (body) => body.output_config.format.schema,
+    google: (body) => body.generationConfig.responseJsonSchema,
+  };
+
+  it.each(["anthropic", "google"] as const)(
+    "can be expressed in the schema sent to %s",
+    async (provider) => {
+      const { bodies, fetch } = bodyRecorder();
+      const settings = settingsFor(provider, { models: aiProvider(provider).defaultModels });
+      const client = createAiClient(settings, { fetch });
+      await client.extract(mail);
+      await client.prefs([mail]);
+      const [extract, prefs] = bodies.map(sentSchema[provider]);
+      expect(extract.properties.roles.items.properties.extra).toEqual(entries);
+      expect(prefs.properties.items.items.properties.preferences.properties.extra).toEqual(entries);
+    },
+  );
 });
 
 describe("failures in plain words", () => {
