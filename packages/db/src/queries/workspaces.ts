@@ -38,6 +38,10 @@ export async function addMember(
   return "ok";
 }
 
+/**
+ * The workspaces the user belongs to, with their role. Scoped by user, not workspace, on purpose
+ * (the signed-in user's own view; ARCHITECTURE › Workspaces, access and sessions).
+ */
 export async function listWorkspacesForUser(
   db: Database,
   userId: string,

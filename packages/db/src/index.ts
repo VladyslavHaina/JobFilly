@@ -1,10 +1,12 @@
 // PostgreSQL storage through Drizzle. Workspace data is read and written only through the
-// functions in ./queries, and they take a workspace id, with two deliberate exceptions
+// functions in ./queries, and they take a workspace id, with three deliberate exceptions
 // (ARCHITECTURE › Workspaces, access and sessions): the invitee answering an invite by its id
 // (getInviteForResponse, acceptInvite, declineInvite), after the server has checked the invite's
-// email or token, and the queue worker's lease operations on a job it claimed by id (claimJob,
+// email or token; the queue worker's lease operations on a job it claimed by id (claimJob,
 // renewLease, saveJobCheckpoint, completeJob, handBackJob), which are guarded by the lease
-// owner. There is no raw-SQL export.
+// owner; and the signed-in user's own view across workspaces (listWorkspacesForUser by user id,
+// listPendingInvitations by the email the server matched to them). registerAccount and
+// createWorkspace make a workspace, so they have no id to take yet. There is no raw-SQL export.
 
 export { type Database, type DatabaseConnection, openDatabase } from "./client";
 export type { Notifier, Unlisten } from "./notify";

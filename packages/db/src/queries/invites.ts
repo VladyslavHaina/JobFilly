@@ -95,7 +95,11 @@ export async function revokeInvite(
   return rows.length > 0;
 }
 
-/** Invitations waiting for this email address: not answered, revoked or expired. */
+/**
+ * Invitations waiting for this email address: not answered, revoked or expired. Scoped by email,
+ * not workspace, on purpose (the invitee isn't a member yet): the server passes the signed-in
+ * user's email, or an invite's email after checking its token.
+ */
 export async function listPendingInvitations(
   db: Database,
   email: string,
