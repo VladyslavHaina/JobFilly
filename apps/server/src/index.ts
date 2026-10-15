@@ -62,6 +62,7 @@ for (const signal of ["SIGTERM", "SIGINT"] as const) {
       server,
       live: deps.live,
       queue: deps.queue,
+      background: deps.background,
       closeDatabase: () => connection.close(),
     }).then(
       () => process.exit(0),

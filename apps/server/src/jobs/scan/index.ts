@@ -22,7 +22,7 @@ import {
 import { DAY } from "../../clock";
 import type { AppDeps } from "../../deps";
 import type { Logger } from "../../log";
-import { open } from "../../secrets";
+import { open, openAiKey } from "../../secrets";
 import type { JobContext, JobHandler } from "../queue";
 import { RunFailed, runScan } from "./run";
 
@@ -41,13 +41,6 @@ const START: Omit<ScanCheckpoint, "likely" | "handledWithoutAi" | "repliesRead">
   batches: 0,
   tracker: { lastAnswers: null, unchangedBatches: 0 },
 };
-
-/** Opens a sealed secret; an empty one (a key cleared on purpose) is no key. */
-function openSecret(deps: AppDeps, sealed: string | null): string | null {
-  if (sealed === null) return null;
-  const value = open(deps.config.secretKey, sealed);
-  return value === "" ? null : value;
-}
 
 /** The first scan's stage one: the window's envelopes sorted by headers and stored (F4.1, F4.2). */
 async function sortWindow(
@@ -150,8 +143,8 @@ export function createScanRunHandler(
     let secrets: { apiKey: string | null; password: string };
     try {
       secrets = {
-        apiKey: openSecret(deps, settings.keyCiphertext),
-        password: openSecret(deps, mailbox.secretCiphertext) ?? "",
+        apiKey: openAiKey(deps.config.secretKey, settings.keyCiphertext),
+        password: open(deps.config.secretKey, mailbox.secretCiphertext),
       };
     } catch {
       return fail(deps, scan, log, "internal", "secret_error");

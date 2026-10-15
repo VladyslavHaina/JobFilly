@@ -6,6 +6,7 @@ import {
   formatPay,
   formatPlace,
   formatTimeZones,
+  parseAmount,
   safeLink,
 } from "./format";
 
@@ -81,5 +82,58 @@ describe("other facts", () => {
     expect(safeLink("https://jobs.example/apply?id=1")).toBe("https://jobs.example/apply?id=1");
     expect(safeLink("javascript:alert(1)")).toBeNull();
     expect(safeLink("not a url")).toBeNull();
+  });
+});
+
+describe("parseAmount", () => {
+  const read = (text: string, locale?: string) => parseAmount(text, locale);
+  const amount = (n: number) => ({ ok: true, amount: n });
+
+  it("reads the UI's own English amounts", () => {
+    expect(read("70000")).toEqual(amount(70000));
+    expect(read("70,000")).toEqual(amount(70000));
+    expect(read("1,234.56")).toEqual(amount(1234.56));
+    expect(read(" 450.5 ")).toEqual(amount(450.5));
+    expect(read("70 000")).toEqual(amount(70000));
+  });
+
+  describe("in a dot-decimal locale (en)", () => {
+    it("refuses what another locale writes, instead of reading the wrong number", () => {
+      for (const text of ["450,50", "70.000", "1.234,56"]) {
+        expect(read(text, "en"), text).toEqual({
+          ok: false,
+          message: "Retype the amount, written like 1,234.50",
+        });
+      }
+    });
+
+    it("refuses three digits after the decimal sign and groups in the wrong place", () => {
+      for (const text of ["1234.567", "1,23,456", "12,3456", "450.", ",500"]) {
+        expect(read(text, "en").ok, text).toBe(false);
+      }
+    });
+  });
+
+  describe("in a comma-decimal locale (de)", () => {
+    it("reads its own amounts", () => {
+      expect(read("450,50", "de")).toEqual(amount(450.5));
+      expect(read("70.000", "de")).toEqual(amount(70000));
+      expect(read("1.234,56", "de")).toEqual(amount(1234.56));
+    });
+
+    it("refuses what it can't read for certain", () => {
+      for (const text of ["1,234.56", "450.50", "70,000"]) {
+        expect(read(text, "de"), text).toEqual({
+          ok: false,
+          message: "Retype the amount, written like 1.234,50",
+        });
+      }
+    });
+  });
+
+  it("asks for a number when there is none", () => {
+    for (const text of ["", "  ", "seventy", "-5", "€70,000"]) {
+      expect(read(text), text).toEqual({ ok: false, message: "Enter the amount as a number" });
+    }
   });
 });

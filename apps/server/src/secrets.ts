@@ -47,3 +47,12 @@ export function open(key: Uint8Array, sealed: string): string {
     throw new Error("the secret can't be opened with this key");
   }
 }
+
+/**
+ * Opens a workspace's stored AI key for the AI port. A key that was never stored, or that was
+ * cleared on purpose (sealed as ""), is null: the provider is called without one.
+ */
+export function openAiKey(key: Uint8Array, sealed: string | null | undefined): string | null {
+  if (!sealed) return null;
+  return open(key, sealed) || null;
+}

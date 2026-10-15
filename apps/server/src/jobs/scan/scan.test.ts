@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { orderNewestFirst } from "@jobfilly/core";
 import {
   claimJob,
@@ -167,7 +168,7 @@ async function setup(
   d.intake = { aggregate: aggregateFromReplies };
   const events: LiveEvent[] = [];
   d.live.subscribe(
-    workspaceId,
+    { workspaceId, userId: admin.id, sessionId: randomUUID() },
     (e) => events.push(e),
     () => {},
   );
@@ -491,6 +492,41 @@ describe("Couldn't analyze and the budget (F3.4, TBD-17)", { timeout: SLOW }, ()
       expect.objectContaining({ cause: "no_ai_settings", stopCause: "ai" }),
     ]);
     expect(s.mail.connections).toEqual([]);
+  });
+
+  it("opens the stored key for the provider, and reads a cleared key as no key (TBD-121)", async () => {
+    /** Runs a first scan on a fresh workspace whose key is `apiKey`; the keys the client got. */
+    const keysFor = async (apiKey?: string) => {
+      const box = mailbox(2);
+      const s = await setup(box.envelopes, recruiterAnswers(box.notJob));
+      if (apiKey !== undefined) {
+        await seedAiSettings(s.deps, s.workspaceId, {
+          provider: "openai-compatible",
+          baseUrl: "http://fake-ai.test/v1",
+          models: { classify: "m", extract: "m", prefs: "m", intake: "m" },
+          apiKey,
+        });
+      }
+      const keys: (string | null)[] = [];
+      const port = s.deps.ai;
+      s.deps.ai = {
+        client: (config) => {
+          keys.push(config.apiKey);
+          return port.client(config);
+        },
+      };
+      const scanId = await s.start();
+      await s.runAll();
+      expect(await getScan(s.deps.db, s.workspaceId, scanId)).toMatchObject({
+        stopReason: "done",
+      });
+      expect(logs(s.deps, "job.failed")).toEqual([]);
+      await s.deps.close();
+      deps = undefined;
+      return keys;
+    };
+    expect(await keysFor()).toEqual(["E2E-SECRET-ai-key"]);
+    expect(await keysFor("")).toEqual([null]);
   });
 });
 

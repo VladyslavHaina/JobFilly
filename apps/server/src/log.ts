@@ -33,6 +33,7 @@ export type LogEvent =
   | "job.handed_back"
   | "live.error"
   | "intake.confirmed"
+  | "intake.extras_failed"
   | "server.ready"
   | "server.shutting_down"
   | "server.stopped";

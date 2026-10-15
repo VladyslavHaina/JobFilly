@@ -4,6 +4,7 @@ import {
   CurrencyCodeSchema,
   IsoDateTimeSchema,
   PayPeriodSchema,
+  TextSchema,
   TimeZoneRangeSchema,
 } from "./common";
 import { ExtraAnswerSchema, JobFactsSchema } from "./facts";
@@ -54,26 +55,26 @@ export function isExtraKey(key: string): key is `extra.${string}` {
 }
 
 // One value schema per core key. Every value is a list, so an empty answer is [].
-const WordsSchema = z.array(z.string());
+const WordsSchema = z.array(TextSchema);
 export const ProfilePlaceSchema = z.object({
   country: CountryCodeSchema,
-  city: z.string().nullable(),
+  city: TextSchema.nullable(),
   mode: z.enum(["onsite", "hybrid"]),
 });
 export const RemotePreferenceSchema = z.object({
   /** The remote scope as worded ("EU", "Europe time zones"). */
-  scope: z.string(),
+  scope: TextSchema,
   timeZones: TimeZoneRangeSchema.nullable(),
 });
 export const MinPaySchema = z.object({
   amount: z.number().nonnegative(),
   currency: CurrencyCodeSchema,
   period: PayPeriodSchema,
-  asWritten: z.string(),
+  asWritten: TextSchema,
 });
 export const WorkPermitSchema = z.object({
   country: CountryCodeSchema.nullable(),
-  text: z.string(),
+  text: TextSchema,
 });
 
 export const PROFILE_VALUE_SCHEMAS = {
@@ -162,7 +163,7 @@ export type ProfileList = z.infer<typeof ProfileListSchema>;
 
 /** PATCH /profiles/:profileId: rename, and/or replace some entries' values (source: you). */
 export const ProfilePatchSchema = z.object({
-  name: z.string().trim().min(1).max(100).optional(),
+  name: TextSchema.trim().min(1).max(100).optional(),
   entries: z
     .array(
       z.object({ key: ProfileKeySchema, value: ProfileValueSchema }).superRefine(checkValueForKey),
@@ -186,7 +187,7 @@ export const PreferencesSchema = z.object({
   work_permits: PROFILE_VALUE_SCHEMAS.work_permits.optional(),
   reply_to: PROFILE_VALUE_SCHEMAS.reply_to.optional(),
   deal_breakers: PROFILE_VALUE_SCHEMAS.deal_breakers.optional(),
-  extra: z.record(z.string(), z.string()).optional(),
+  extra: z.record(TextSchema, TextSchema).optional(),
 });
 export type Preferences = z.infer<typeof PreferencesSchema>;
 
@@ -244,9 +245,9 @@ export type IntakeEdit = z.infer<typeof IntakeEditSchema>;
 /** An extra question the model proposed (task intake.v1); evidence lists Message-IDs. */
 export const ExtraQuestionSchema = z.object({
   slug: ExtraSlugSchema,
-  label: z.string(),
-  options: z.array(z.string()),
-  evidence: z.array(z.string()),
+  label: TextSchema,
+  options: z.array(TextSchema),
+  evidence: z.array(TextSchema),
 });
 export type ExtraQuestion = z.infer<typeof ExtraQuestionSchema>;
 
@@ -273,6 +274,6 @@ export type IntakeAnswerInput = z.infer<typeof IntakeAnswerInputSchema>;
 
 /** POST /intake/confirm. */
 export const ConfirmIntakeInputSchema = z.object({
-  name: z.string().trim().min(1).max(100).optional(),
+  name: TextSchema.trim().min(1).max(100).optional(),
 });
 export type ConfirmIntakeInput = z.infer<typeof ConfirmIntakeInputSchema>;

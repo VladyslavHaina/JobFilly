@@ -48,6 +48,9 @@ const PERIOD_WORDS: Record<PayPeriod, string> = {
   year: "per year",
 };
 
+/** "per day" for "day". */
+export const formatPeriod = (period: PayPeriod) => PERIOD_WORDS[period];
+
 const NUMBER_PARTS = new Set(["integer", "group", "decimal", "fraction", "minusSign", "plusSign"]);
 
 /** The number portion of a formatted value, without currency or spacing. */
@@ -99,9 +102,57 @@ export function formatPay(pay: Pay): string | null {
   } else {
     amount = `up to ${format.format(max as number)}`;
   }
-  return [amount, withCode ? currency : null, period ? PERIOD_WORDS[period] : null]
+  return [amount, withCode ? currency : null, period ? formatPeriod(period) : null]
     .filter(Boolean)
     .join(" ");
+}
+
+export type ParsedAmount = { ok: true; amount: number } | { ok: false; message: string };
+
+/**
+ * Reads an amount the user typed, with the separators of `locale` (the one amounts are shown in):
+ * "70,000" and "1,234.56" in English, "70.000" and "1.234,56" in German. Spaces group digits in
+ * any locale. Whatever the locale can't read for certain is refused, never guessed: a separator
+ * that isn't its own or sits in the wrong place ("450,50" in English), and exactly three digits
+ * after the decimal sign ("70.000" in English), which another locale writes as thousands.
+ */
+export function parseAmount(text: string, locale: string = UI_LOCALE): ParsedAmount {
+  const parts = new Intl.NumberFormat(locale).formatToParts(1234567.8);
+  const group = parts.find((p) => p.type === "group")?.value ?? null;
+  const decimal = parts.find((p) => p.type === "decimal")?.value ?? ".";
+  const example = new Intl.NumberFormat(locale, { minimumFractionDigits: 2 }).format(1234.5);
+  const retype: ParsedAmount = {
+    ok: false,
+    message: `Retype the amount, written like ${example}`,
+  };
+  const typed = text.trim();
+  // Only digits and separators: its own, or another locale's (refused below, with a hint).
+  const others = typed.replaceAll(decimal, "").replaceAll(group ?? decimal, "");
+  if (!/\d/.test(typed) || /[^\d\s.,'’]/.test(others)) {
+    return { ok: false, message: "Enter the amount as a number" };
+  }
+  // The digit groups before the decimal sign, and the digits after it (null without one).
+  const groups = [""];
+  let fraction: string | null = null;
+  for (const ch of typed) {
+    if (/\d/.test(ch)) {
+      if (fraction === null) groups[groups.length - 1] += ch;
+      else fraction += ch;
+    } else if (ch === decimal && fraction === null) {
+      fraction = "";
+    } else if ((ch === group || /\s/.test(ch)) && fraction === null) {
+      groups.push("");
+    } else {
+      return retype;
+    }
+  }
+  const [first = "", ...rest] = groups;
+  const grouped =
+    rest.length === 0 || (/^\d{1,3}$/.test(first) && rest.every((g) => g.length === 3));
+  if (!grouped || (first === "" && rest.length > 0)) return retype;
+  if (fraction !== null && (fraction.length === 0 || fraction.length === 3)) return retype;
+  const amount = Number(`${groups.join("") || "0"}${fraction ? `.${fraction}` : ""}`);
+  return Number.isFinite(amount) ? { ok: true, amount } : retype;
 }
 
 /** "UTC+01:00 to UTC+03:00", or one offset when both ends are the same. */

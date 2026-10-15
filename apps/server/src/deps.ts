@@ -36,6 +36,75 @@ export interface Health {
   readonly shuttingDown: boolean;
 }
 
+/**
+ * Work a request starts and doesn't wait for: the one intake.v1 call made outside the job queue
+ * (routes/intake.ts). Shutdown sees it here: at the job hand-back step it aborts what still runs
+ * and waits for each task to clean up while the database is still open.
+ */
+export interface BackgroundWork {
+  /**
+   * Starts `task` now with a signal that aborts on stop(). The returned promise settles once the
+   * task has finished and never rejects: a task's error goes to `onError`.
+   */
+  run(
+    task: (signal: AbortSignal) => Promise<void>,
+    onError: (error: unknown) => void,
+  ): Promise<void>;
+  /** Resolves once every task running now has finished (tests). */
+  settled(): Promise<void>;
+  /**
+   * Aborts every running task and waits for them, at most `stopGraceMs`. A task started after
+   * this gets a signal that is already aborted.
+   */
+  stop(): Promise<void>;
+  /** How many tasks are running on this replica. */
+  readonly running: number;
+}
+
+export function createBackgroundWork(options: { stopGraceMs?: number } = {}): BackgroundWork {
+  const tasks = new Set<{ controller: AbortController; done: Promise<void> }>();
+  let stopped = false;
+  const settled = async () => {
+    await Promise.all([...tasks].map((t) => t.done));
+  };
+  return {
+    run(task, onError) {
+      const entry = { controller: new AbortController(), done: Promise.resolve() };
+      if (stopped) entry.controller.abort(new Error("shutting down"));
+      // Registered before the task starts, so it is forgotten even if it ends synchronously.
+      tasks.add(entry);
+      entry.done = (async () => {
+        try {
+          await task(entry.controller.signal);
+        } catch (error) {
+          try {
+            onError(error);
+          } catch {
+            // Reporting the error must not make the task's promise reject.
+          }
+        } finally {
+          tasks.delete(entry);
+        }
+      })();
+      return entry.done;
+    },
+    settled,
+    async stop() {
+      stopped = true;
+      for (const t of tasks) t.controller.abort(new Error("shutting down"));
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const grace = new Promise<void>((r) => {
+        timer = setTimeout(r, options.stopGraceMs ?? 5000);
+      });
+      await Promise.race([settled(), grace]);
+      clearTimeout(timer);
+    },
+    get running() {
+      return tasks.size;
+    },
+  };
+}
+
 export interface AppDeps {
   db: Database;
   config: Config;
@@ -43,6 +112,7 @@ export interface AppDeps {
   log: Logger;
   live: LiveHub;
   queue: JobQueue;
+  background: BackgroundWork;
   mail: MailPort;
   ai: AiPort;
   intake: { aggregate: typeof aggregateIntake };
@@ -99,6 +169,8 @@ export interface DepsInput {
   ai?: AiPort;
   registry?: JobRegistry;
   queue?: Omit<JobQueueOptions, "owner">;
+  /** How long shutdown waits for aborted background work (default 5 s, as for jobs). */
+  backgroundStopGraceMs?: number;
 }
 
 /** Wires the dependencies; production passes only config, connection and log. */
@@ -111,6 +183,7 @@ export function createDeps(input: DepsInput): AppDeps {
     live: createLiveHub(input.connection.notifier, input.log),
     // Set below: the queue's handlers get these same deps.
     queue: undefined as unknown as JobQueue,
+    background: createBackgroundWork({ stopGraceMs: input.backgroundStopGraceMs }),
     mail: input.mail ?? mailPort,
     ai: input.ai ?? aiPort(input.log),
     intake: { aggregate: aggregateIntake },

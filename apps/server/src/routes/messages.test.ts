@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { getStoredMessages, markAnalysisFailed, saveAnalysis, saveEnvelopes } from "@jobfilly/db";
 import type { MailClient } from "@jobfilly/mail";
 import {
@@ -403,7 +404,7 @@ describe("PUT /messages/:messageId/category (F5.4)", () => {
     await seedMix();
     const events: LiveEvent[] = [];
     const unsubscribe = deps.live.subscribe(
-      ws.workspaceId,
+      { workspaceId: ws.workspaceId, userId: maria.id, sessionId: randomUUID() },
       (e) => events.push(e),
       () => {},
     );
