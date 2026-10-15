@@ -3,8 +3,8 @@ import type { AddressInfo } from "node:net";
 import { type DomainsFile, findDomain, readDomains } from "./domains.ts";
 
 // The fake RDAP service of the test stack (MVP 2, F5): node e2e/rdap/main.ts
-//   PORT          listen port (8080; 0 takes any free port)
-//   RDAP_DOMAINS  the domains file (e2e/rdap/domains.json)
+//   PORT  listen port (8080; 0 takes any free port)
+// It answers from e2e/rdap/domains.json.
 // The app reads a sender domain's age through JOBFILLY_RDAP_URL=http://rdap:8080, the way it
 // asks rdap.org: GET /domain/<name> answers an RFC 9083 domain object whose registration event
 // is the domain's age before now; a domain the fixtures don't list is 404, as a registry says.
@@ -82,8 +82,7 @@ if (import.meta.main) {
     log({ level: "fatal", event: "rdap.config", reason: "PORT must be a whole number" });
     process.exit(1);
   }
-  const file = process.env.RDAP_DOMAINS || undefined;
-  const server = createRdapServer({ domains: readDomains(file), log });
+  const server = createRdapServer({ domains: readDomains(), log });
   server.listen(port, "0.0.0.0", () =>
     log({ level: "info", event: "rdap.ready", port: (server.address() as AddressInfo).port }),
   );

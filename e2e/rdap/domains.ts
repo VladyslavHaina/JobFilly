@@ -12,8 +12,8 @@ export interface DomainsFile {
 
 const DOMAINS_FILE = new URL("./domains.json", import.meta.url);
 
-export function readDomains(path: string | URL = DOMAINS_FILE): DomainsFile {
-  return JSON.parse(readFileSync(path, "utf8")) as DomainsFile;
+export function readDomains(): DomainsFile {
+  return JSON.parse(readFileSync(DOMAINS_FILE, "utf8")) as DomainsFile;
 }
 
 /**
