@@ -1,4 +1,3 @@
-import type { PGlite } from "@electric-sql/pglite";
 import pg from "pg";
 
 /** Stops listening; resolves once the channel is no longer delivered to this callback. */
@@ -15,7 +14,7 @@ export interface Notifier {
 }
 
 /** Channel names are plain identifiers, so they can be quoted safely in LISTEN. */
-function checkChannel(channel: string): string {
+export function checkChannel(channel: string): string {
   if (!/^[a-z_][a-z0-9_]{0,62}$/.test(channel)) {
     throw new Error(`invalid channel name "${channel}"`);
   }
@@ -140,28 +139,6 @@ export function pgNotifier(
       const c = client;
       client = null;
       if (c) await c.end().catch(() => {});
-    },
-  };
-}
-
-/** LISTEN/NOTIFY on an in-memory PGlite database (tests). */
-export function pgliteNotifier(db: PGlite): Notifier {
-  const unlistens = new Set<() => Promise<void>>();
-  return {
-    async listen(channel, onPayload) {
-      const stop = await db.listen(checkChannel(channel), onPayload);
-      const unlisten = async () => {
-        if (!unlistens.delete(unlisten)) return;
-        await stop();
-      };
-      unlistens.add(unlisten);
-      return unlisten;
-    },
-    async notify(channel, payload) {
-      await db.query("select pg_notify($1, $2)", [checkChannel(channel), payload]);
-    },
-    async close() {
-      await Promise.all([...unlistens].map((u) => u()));
     },
   };
 }

@@ -5,7 +5,7 @@ import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import { type DatabaseConnection, queryRows } from "./client";
 import { migrateLocked, pendingMigrations } from "./migrate";
-import { pgliteNotifier } from "./notify";
+import { checkChannel, type Notifier } from "./notify";
 
 // Tests run against PGlite (Postgres compiled to WebAssembly) in memory: no Docker, no network.
 // Starting PGlite takes about a second, so each test process migrates once, copies the result
@@ -35,6 +35,28 @@ async function emptyTables(pglite: PGlite): Promise<void> {
   if (tables.length === 0) return;
   const list = tables.map((t) => `"${t.tablename}"`).join(", ");
   await pglite.exec(`truncate table ${list} cascade`);
+}
+
+/** LISTEN/NOTIFY on an in-memory PGlite database (tests only). */
+function pgliteNotifier(db: PGlite): Notifier {
+  const unlistens = new Set<() => Promise<void>>();
+  return {
+    async listen(channel, onPayload) {
+      const stop = await db.listen(checkChannel(channel), onPayload);
+      const unlisten = async () => {
+        if (!unlistens.delete(unlisten)) return;
+        await stop();
+      };
+      unlistens.add(unlisten);
+      return unlisten;
+    },
+    async notify(channel, payload) {
+      await db.query("select pg_notify($1, $2)", [checkChannel(channel), payload]);
+    },
+    async close() {
+      await Promise.all([...unlistens].map((u) => u()));
+    },
+  };
 }
 
 export interface TestDatabaseOptions {
