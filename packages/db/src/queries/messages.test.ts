@@ -454,6 +454,32 @@ describe("reindexMessages (F1.3)", () => {
       { messageId: a.messageId, position: 0 },
       { origin: "auto", now },
     );
+    // A decision the role waits on: decision_messages cascades on a delete of the messages row,
+    // so a re-index that dropped and re-inserted the message would lose it.
+    const [decision] = await queryRows<{ id: string }>(
+      conn.db,
+      sql`insert into decisions (workspace_id, group_key, question, choices, status, created_at)
+          values (${ws}, 'contract', 'Which contract?', '[]'::jsonb, 'open', ${now})
+          returning id`,
+    );
+    await conn.db.execute(
+      sql`insert into decision_messages
+            (decision_id, workspace_id, message_id, position, state, source, created_at, updated_at)
+          values (${decision?.id}, ${ws}, ${a.messageId}, 0, 'waiting', 'match', ${now}, ${now})`,
+    );
+    const decisionRows = () =>
+      queryRows<{
+        id: string;
+        status: string;
+        message_id: string;
+        position: number;
+        state: string;
+      }>(
+        conn.db,
+        sql`select d.id, d.status, m.message_id, m.position, m.state
+            from decisions d join decision_messages m on m.decision_id = d.id
+            where d.workspace_id = ${ws}`,
+      );
     const ids = () =>
       queryRows<{ id: string }>(
         conn.db,
@@ -486,6 +512,15 @@ describe("reindexMessages (F1.3)", () => {
       { position: 0, stale: false, match: { score: 80 } },
     ]);
     expect(await getDraftClaim(conn.db, ws, draft?.id ?? "")).toMatchObject({ status: "saving" });
+    expect(await decisionRows()).toEqual([
+      {
+        id: decision?.id,
+        status: "open",
+        message_id: a.messageId,
+        position: 0,
+        state: "waiting",
+      },
+    ]);
     // The rows themselves are kept, with their ids; nothing is inserted for the new message.
     expect(await ids()).toEqual(before);
   });
