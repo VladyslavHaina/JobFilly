@@ -16,6 +16,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../app";
 import {
   createTestDeps,
+  fakeMailClient,
   type SeededUser,
   type SeededWorkspace,
   seedMailbox,
@@ -61,7 +62,7 @@ function fakeMail(): FakeMailbox & { port: TestDeps["mail"] } {
     closed: 0,
     fail: false,
   };
-  const client: MailClient = {
+  const client: MailClient = fakeMailClient({
     test: () => Promise.reject(new Error("not used")),
     fetchEnvelopes: () => Promise.reject(new Error("not used")),
     async fetchBody(ref) {
@@ -74,7 +75,7 @@ function fakeMail(): FakeMailbox & { port: TestDeps["mail"] } {
     async close() {
       box.closed += 1;
     },
-  };
+  });
   return Object.assign(box, {
     port: {
       connect(conn: MailConnection, options: { allowInsecure: boolean }) {

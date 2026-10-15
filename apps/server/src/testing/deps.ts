@@ -1,6 +1,7 @@
 import type { AiClient } from "@jobfilly/ai";
 import type { DatabaseConnection } from "@jobfilly/db";
 import { openTestDatabase } from "@jobfilly/db/testing";
+import type { MailClient } from "@jobfilly/mail";
 import type { Config } from "../config";
 import { type AiPort, type AppDeps, createDeps, type MailPort } from "../deps";
 import type { JobRegistry } from "../jobs/queue";
@@ -60,6 +61,23 @@ const refuse = (what: string) => () => {
 };
 
 const unused = (what: string) => () => Promise.reject(new Error(`this test's fake has no ${what}`));
+
+/** A MailClient doing only what `methods` give; anything else rejects (tests only). */
+export function fakeMailClient(methods: Partial<MailClient>): MailClient {
+  return {
+    test: unused("test"),
+    fetchEnvelopes: unused("fetchEnvelopes"),
+    fetchBody: unused("fetchBody"),
+    fetchSince: unused("fetchSince"),
+    fetchOriginal: unused("fetchOriginal"),
+    ensureDraftsFolder: unused("ensureDraftsFolder"),
+    saveDraft: unused("saveDraft"),
+    replaceDraft: unused("replaceDraft"),
+    deleteDraft: unused("deleteDraft"),
+    close: () => Promise.resolve(),
+    ...methods,
+  };
+}
 
 /** An AiClient doing only what `methods` give; anything else rejects (tests only). */
 export function fakeAiClient(methods: Partial<AiClient>): AiClient {

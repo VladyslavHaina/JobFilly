@@ -14,6 +14,7 @@ import type { MailPort } from "../deps";
 import { open } from "../secrets";
 import {
   createTestDeps,
+  fakeMailClient,
   type SeededUser,
   seedUser,
   seedWorkspace,
@@ -53,14 +54,14 @@ function fakeMail(): FakeMail {
     port: {
       connect(conn, options) {
         fake.connects.push({ conn, allowInsecure: options.allowInsecure });
-        const client: MailClient = {
+        const client: MailClient = fakeMailClient({
           test: async () => fake.result,
           fetchEnvelopes: async () => [],
           fetchBody: async () => null,
           close: async () => {
             fake.closed += 1;
           },
-        };
+        });
         return client;
       },
     },

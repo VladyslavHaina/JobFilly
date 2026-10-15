@@ -1,9 +1,13 @@
 import type {
+  DraftMailInput,
+  DraftRef,
   Envelope,
+  FetchSinceResult,
   MailConnection,
   MailFolder,
   MailTestResult,
   MessageRef,
+  OriginalMessage,
 } from "@jobfilly/schema";
 import { FAILURE_MESSAGES, failureReason, MailError } from "./errors";
 import { bodyText, envelopeFromSource } from "./parse";
@@ -18,6 +22,18 @@ export interface MailClientOptions {
   allowInsecure: boolean;
 }
 
+/**
+ * The mail server couldn't be reached, or refused to take a draft (an append or a store failed).
+ * draft.create maps it to a draft failed with kind `mailbox`, which the sweep retries; the sync
+ * job to a failed sync, retried with back-off. The message is plain words, never the server's.
+ */
+export class MailUnavailableError extends Error {
+  constructor(message = "Couldn't reach the mail server") {
+    super(message);
+    this.name = "MailUnavailableError";
+  }
+}
+
 export interface MailClient {
   /** Connects and lists the folders, finding Sent; never reports the password. */
   test(): Promise<MailTestResult>;
@@ -25,8 +41,39 @@ export interface MailClient {
   fetchEnvelopes(query: { folder: MailFolder; since: Date }): Promise<Envelope[]>;
   /** The sanitised plain text, or null when the folder's UIDVALIDITY no longer matches. */
   fetchBody(ref: MessageRef): Promise<{ text: string } | null>;
+  /**
+   * Continuous sync (F1): the envelopes of one folder after `afterUid` under `uidValidity` (null
+   * before the first sync). When the folder's UIDVALIDITY changed, every message comes back with
+   * `changed` set (FetchSinceResult). Reads only; never changes a flag.
+   */
+  fetchSince(query: {
+    folder: MailFolder;
+    uidValidity: number | null;
+    afterUid: number;
+  }): Promise<FetchSinceResult>;
+  /**
+   * The original a draft replies to (threading headers and the text to quote), for drafts on the
+   * backlog and after a decision; null when the message is gone. Never stored.
+   */
+  fetchOriginal(ref: MessageRef): Promise<OriginalMessage | null>;
+  /** The Drafts folder's path, created when the mailbox has none. */
+  ensureDraftsFolder(): Promise<{ path: string }>;
+  /**
+   * Saves a reply to the Drafts folder with the \Draft flag (F6.3): threaded to the original
+   * (In-Reply-To, References), quoting it, with the attachment if any. Throws
+   * MailUnavailableError when the server can't be reached or refuses the append.
+   */
+  saveDraft(input: DraftMailInput): Promise<DraftRef>;
+  /** Replaces a saved draft so exactly one copy remains (F6.4): the new one's ref. */
+  replaceDraft(ref: DraftRef, input: DraftMailInput): Promise<DraftRef>;
+  /** Deletes a saved draft (discard, F6.4); a draft already gone is not an error. */
+  deleteDraft(ref: DraftRef): Promise<void>;
   close(): Promise<void>;
 }
+
+/** The MVP 2 operations, until the mailbox slice writes them over the IMAP session. */
+const notYet = (operation: string) => () =>
+  Promise.reject(new Error(`MailClient.${operation} is written by the mailbox slice`));
 
 /** Only the start of each message is read for its envelope: the headers and the snippet. */
 const ENVELOPE_SOURCE_BYTES = 64 * 1024;
@@ -132,6 +179,13 @@ export function mailClientWith(
         }
         return null;
       }),
+
+    fetchSince: notYet("fetchSince"),
+    fetchOriginal: notYet("fetchOriginal"),
+    ensureDraftsFolder: notYet("ensureDraftsFolder"),
+    saveDraft: notYet("saveDraft"),
+    replaceDraft: notYet("replaceDraft"),
+    deleteDraft: notYet("deleteDraft"),
 
     async close() {
       const pending = connecting;

@@ -19,7 +19,7 @@ import {
   type Usage,
 } from "@jobfilly/schema";
 import type { AiPort, MailPort } from "../../deps";
-import { fakeAiClient } from "../../testing";
+import { fakeAiClient, fakeMailClient } from "../../testing";
 
 // Test doubles for the scan worker's ports, behaving as packages/mail and packages/ai promise:
 // envelopes newest first within the window, bodies on demand; one Usage per model call, invalid
@@ -49,7 +49,7 @@ export function fakeMail(envelopes: readonly Envelope[]): FakeMail {
     port: {
       connect(conn) {
         fake.connections.push(conn);
-        const client: MailClient = {
+        const client: MailClient = fakeMailClient({
           async test() {
             return { ok: true, folders: ["INBOX", "Sent"], sentPath: "Sent" };
           },
@@ -71,7 +71,7 @@ export function fakeMail(envelopes: readonly Envelope[]): FakeMail {
           async close() {
             fake.closed += 1;
           },
-        };
+        });
         return client;
       },
     },
