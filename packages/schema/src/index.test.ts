@@ -334,6 +334,27 @@ describe("AI", () => {
     expect(aiReadBy("openai-compatible", null).host).toBe("");
   });
 
+  it("refuses a base URL that carries a user name or password", () => {
+    const input = {
+      provider: "openai-compatible",
+      models: { classify: "m", extract: "m", prefs: "m", intake: "m" },
+    };
+    for (const baseUrl of [
+      "https://user:E2E-SECRET-x@proxy.example/v1",
+      "https://E2E-SECRET-x@proxy.example/v1",
+      "https://:E2E-SECRET-x@proxy.example/v1",
+      "https:\\\\user:E2E-SECRET-x@proxy.example/v1",
+    ]) {
+      const parsed = AiSettingsInputSchema.safeParse({ ...input, baseUrl });
+      expect(parsed.success).toBe(false);
+      expect(parsed.error?.issues[0]?.message).toMatch(/API key field/);
+    }
+    expect(
+      AiSettingsInputSchema.safeParse({ ...input, baseUrl: "http://fake-ai:8080/v1" }).success,
+    ).toBe(true);
+    expect(AiSettingsInputSchema.safeParse({ ...input, baseUrl: null }).success).toBe(true);
+  });
+
   it("defaults the budget to 300 calls and never needs the key to save", () => {
     const parsed = AiSettingsInputSchema.parse({
       provider: "openai-compatible",

@@ -129,6 +129,13 @@ export function aiProvider(id: AiProviderId): AiProviderInfo {
 }
 
 /**
+ * The authority of scheme://[user[:password]@]host[:port]/..., or undefined when the URL doesn't
+ * have that shape. A URL parser reads a backslash as "/" in http(s) URLs, so one ends the
+ * authority too.
+ */
+const authorityOf = (url: string) => /^[a-z][a-z\d+.-]*:\/\/([^/\\?#]*)/i.exec(url.trim())?.[1];
+
+/**
  * The data of the one privacy line "Your mail is read by <provider> (<host>)" (F3.2): the base
  * URL's host when one is set, else the provider's own. `host` is "" when it can't be known yet.
  */
@@ -138,18 +145,33 @@ export function aiReadBy(
 ): { provider: string; host: string } {
   const info = aiProvider(provider);
   if (!baseUrl) return { provider: info.label, host: info.defaultHost ?? "" };
-  // scheme://[user[:password]@]host[:port]/...; the user part is never shown.
-  const authority = /^[a-z][a-z\d+.-]*:\/\/([^/?#]*)/i.exec(baseUrl.trim())?.[1] ?? "";
+  // The user part is never shown. A saved base URL never has one (AiSettingsInputSchema refuses
+  // it), but the form shows this line while the user is still typing.
+  const authority = authorityOf(baseUrl) ?? "";
   return {
     provider: info.label,
     host: authority.slice(authority.lastIndexOf("@") + 1).toLowerCase(),
   };
 }
 
+/**
+ * A base URL as the user enters it. It is stored in clear and shown back to every member, so it
+ * may not carry a user name or password (https://user:secret@host/v1): a secret goes in the API
+ * key field, which is sealed and never returned.
+ */
+const AiBaseUrlSchema = z.url().refine(
+  // A URL whose authority can't be found is refused too, rather than trusted to have no user part.
+  (value) => authorityOf(value)?.includes("@") === false,
+  {
+    message:
+      "Leave the user name and password out of the base URL; put the secret in the API key field",
+  },
+);
+
 /** Saving or testing settings. `apiKey` is write-only; leaving it out keeps the stored key. */
 export const AiSettingsInputSchema = z.object({
   provider: AiProviderIdSchema,
-  baseUrl: z.url().nullable(),
+  baseUrl: AiBaseUrlSchema.nullable(),
   models: AiModelsSchema,
   apiKey: z.string().min(1).optional(),
   budgetPerRun: BudgetPerRunSchema.default(DEFAULT_BUDGET_PER_RUN),
