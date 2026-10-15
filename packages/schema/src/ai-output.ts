@@ -96,6 +96,31 @@ export const AssistantOutputSchema = z.object({
 });
 export type AssistantOutput = z.infer<typeof AssistantOutputSchema>;
 
+/**
+ * A change in an assistant.v1 answer that targets neither a rule nor a profile entry (a mailbox,
+ * a member, the AI settings…), which the model can't propose (F8.7). It passes the answer check
+ * only so that the server can refuse the proposal in words and keep the reply; a rule or entry
+ * change that is malformed is not one of these and fails the check like any wrong answer.
+ */
+const OutsideChangeSchema = z
+  .looseObject({ target: z.unknown().optional() })
+  .refine((change) => change.target !== "rule" && change.target !== "entry");
+
+/**
+ * What packages/ai checks an assistant.v1 answer against. The provider is asked for
+ * AssistantOutputSchema; this is the same, except that a proposal may hold changes outside rules
+ * and entries. The server refuses such a proposal with the reply kept (F8.7) and never stores it.
+ */
+export const AssistantAnswerSchema = AssistantOutputSchema.extend({
+  proposal: z
+    .object({
+      summary: TextSchema,
+      changes: z.array(z.union([ChangeSchema, OutsideChangeSchema])),
+    })
+    .nullable(),
+});
+export type AssistantAnswer = z.infer<typeof AssistantAnswerSchema>;
+
 /** The output schema of each task id. */
 export const TASK_OUTPUT_SCHEMAS = {
   "classify.v1": ClassifyOutputSchema,

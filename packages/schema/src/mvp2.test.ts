@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  AssistantAnswerSchema,
   AssistantOutputSchema,
   ChangeSchema,
   CORE_PROFILE_KEYS,
@@ -165,6 +166,27 @@ describe("rules, changes and the assistant (F3, F8)", () => {
       },
     };
     expect(AssistantOutputSchema.safeParse(proposal).success).toBe(true);
+    expect(AssistantAnswerSchema.safeParse(proposal).data).toEqual(proposal);
+  });
+
+  it("lets a change outside rules and entries through assistant.v1's answer check (F8.7)", () => {
+    const answer = (changes: unknown[]) => ({
+      reply: "Here is a proposal.",
+      clarify: null,
+      proposal: { summary: "Change the mailbox", changes },
+    });
+    const mailbox = answer([{ op: "update", target: "mailbox", key: "host", value: ["imap"] }]);
+    expect(AssistantOutputSchema.safeParse(mailbox).success).toBe(false);
+    expect(AssistantAnswerSchema.safeParse(mailbox).success).toBe(true);
+    expect(AssistantAnswerSchema.safeParse(answer([{ op: "send", to: "x" }])).success).toBe(true);
+    // A malformed rule or entry change is a wrong answer, not one outside rules and entries.
+    for (const wrong of [
+      [{ op: "add", target: "rule", rule: { description: "x" } }],
+      [{ op: "update", target: "entry", key: "places" }],
+    ]) {
+      expect(AssistantAnswerSchema.safeParse(answer(wrong)).success).toBe(false);
+    }
+    expect(AssistantAnswerSchema.safeParse({ reply: "Hi", clarify: null }).success).toBe(false);
   });
 
   it("words a proposal card and a history item line by line, before and after (F8.2, F8.4)", () => {
