@@ -1,7 +1,14 @@
 import { ReadinessSchema } from "@jobfilly/schema";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "./app";
-import { createTestDeps, type TestDeps } from "./testing";
+import {
+  createTestDeps,
+  type SeededUser,
+  seedUser,
+  seedWorkspace,
+  signedIn,
+  type TestDeps,
+} from "./testing";
 
 let deps: TestDeps;
 beforeEach(async () => {
@@ -66,5 +73,64 @@ describe("every API request", () => {
     expect(line).toMatchObject({ level: "error", error: { name: "Error" } });
     expect(JSON.stringify(line)).not.toContain("inbox.example");
     expect(JSON.stringify(line)).not.toContain("stack");
+  });
+});
+
+describe("the workspace route modules", () => {
+  // Every slice-owned module is mounted once, behind workspaceMember, with its own role checks.
+  const messageId = encodeURIComponent("<a+b/c%d@mail.example>");
+  const routes: [method: string, path: string, role: "viewer" | "editor" | "admin"][] = [
+    ["GET", "mailboxes", "viewer"],
+    ["GET", "mailboxes/presets", "viewer"],
+    ["POST", "mailboxes/test", "admin"],
+    ["POST", "mailboxes", "admin"],
+    ["DELETE", "mailboxes/8f0e1c62-0000-4000-8000-000000000000", "admin"],
+    ["GET", "ai", "viewer"],
+    ["PUT", "ai", "admin"],
+    ["POST", "ai/test", "admin"],
+    ["GET", "scans/current", "viewer"],
+    ["POST", "scans", "admin"],
+    ["POST", "scans/8f0e1c62-0000-4000-8000-000000000000/cancel", "admin"],
+    ["POST", "scans/analyze-rest", "admin"],
+    ["GET", "messages", "viewer"],
+    ["GET", `messages/${messageId}`, "viewer"],
+    ["GET", `messages/${messageId}/body`, "viewer"],
+    ["PUT", `messages/${messageId}/category`, "editor"],
+    ["GET", "intake", "viewer"],
+    ["PUT", "intake/answers/min_pay", "editor"],
+    ["POST", "intake/confirm", "editor"],
+    ["GET", "profiles", "viewer"],
+    ["PATCH", "profiles/8f0e1c62-0000-4000-8000-000000000000", "editor"],
+  ];
+  const below = { viewer: null, editor: "viewer", admin: "editor" } as const;
+
+  it("reaches each handler with the needed role, 403 below it, 404 for outsiders", async () => {
+    const app = createApp(deps);
+    const owner = await seedUser(deps);
+    const viewer = await seedUser(deps);
+    const editor = await seedUser(deps);
+    const outsider = await seedUser(deps);
+    const ws = await seedWorkspace(deps, {
+      owner,
+      members: [
+        { user: viewer, role: "viewer" },
+        { user: editor, role: "editor" },
+      ],
+    });
+    const as: Record<string, SeededUser> = { viewer, editor, admin: owner, outsider };
+    const clients = Object.fromEntries(
+      await Promise.all(
+        Object.entries(as).map(async ([k, u]) => [k, await signedIn(app, deps, u)] as const),
+      ),
+    );
+    for (const [method, path, role] of routes) {
+      const url = `/api/workspaces/${ws.workspaceId}/${path}`;
+      const send = (who: string) =>
+        clients[who]?.request(method, url, method === "GET" ? undefined : {});
+      expect((await send(role))?.status, `${method} ${path} as ${role}`).toBe(501);
+      const lower = below[role];
+      if (lower) expect((await send(lower))?.status, `${method} ${path} as ${lower}`).toBe(403);
+      expect((await send("outsider"))?.status, `${method} ${path} as outsider`).toBe(404);
+    }
   });
 });

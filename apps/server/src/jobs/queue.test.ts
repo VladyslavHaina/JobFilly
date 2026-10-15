@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import { z } from "zod";
 import { createTestDeps, seedUser, type TestDeps } from "../testing";
 import { defineJob, type JobContext, type JobRegistry, LeaseLostError } from "./queue";
+import { jobRegistry } from "./registry";
+import { scanRunHandler } from "./scan/index";
 
 let deps: TestDeps | undefined;
 afterEach(async () => {
@@ -192,5 +194,13 @@ describe("the job queue worker", () => {
     release();
     await done;
     expect((await getJob(deps.db, id))?.status).toBe("done");
+  });
+});
+
+describe("the registry", () => {
+  it("runs 'scan.run' jobs with scanRunHandler and checks their payload", () => {
+    const def = jobRegistry["scan.run"];
+    expect(def?.handler).toBe(scanRunHandler);
+    expect(def?.payload.safeParse({ scanId: "x", workspaceId: "y" }).success).toBe(false);
   });
 });
