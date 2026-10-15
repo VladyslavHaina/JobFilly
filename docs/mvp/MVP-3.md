@@ -101,8 +101,9 @@ writing `profile_history`.
   mailbox to "Reconnect needed", and nothing is lost. A callback with a wrong `state` is refused.
 - **F3.3** The OAuth flow is tested against the fake authorisation server. IMAP login with the token
   is tested against the test mail server if it supports XOAUTH2, otherwise in an integration test
-  against a fake IMAP server. Sign-off adds one run with a real Gmail test account (Sign in with
-  Google), done by the owner at the browser after the unattended build.
+  against a fake IMAP server. Sign-off adds one run with a real Gmail test account connected with
+  an app password over IMAP and SMTP, done with the owner after the unattended build. OAuth needs
+  no real-account run.
 
 ## F4. Sending with confirmation
 

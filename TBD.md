@@ -31,9 +31,8 @@ These make sign-off possible; without them the build goes on and records an open
 - **Real-AI quality runs (every MVP):** set `JOBFILLY_E2E_AI_PROVIDER` (`anthropic`, `openai`,
   `google` or `openai-compatible`) and `JOBFILLY_E2E_AI_KEY`, optionally `JOBFILLY_E2E_AI_BASE_URL`
   and `JOBFILLY_E2E_AI_MODEL`, in the environment the session runs in.
-- **MVP 3, F3.3:** a Gmail test account and a Google OAuth client (`JOBFILLY_GOOGLE_CLIENT_ID`,
-  `JOBFILLY_GOOGLE_CLIENT_SECRET`) for the one run with real Google sign-in, done with the owner
-  after the unattended build.
+- **MVP 3, F3.3:** a Gmail test account with an app password for the one run with a real mailbox,
+  done with the owner after the unattended build.
 - **Helm chart, H5:** the name of your local cluster's kube context in
   `JOBFILLY_E2E_KUBE_CONTEXT`. The build never uses the current context or any other one.
 
