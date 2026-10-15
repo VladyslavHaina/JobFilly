@@ -35,7 +35,8 @@ CREATE TABLE "assistant_threads" (
 	"workspace_id" uuid NOT NULL,
 	"user_id" uuid NOT NULL,
 	"created_at" timestamp with time zone NOT NULL,
-	"updated_at" timestamp with time zone NOT NULL
+	"updated_at" timestamp with time zone NOT NULL,
+	CONSTRAINT "assistant_threads_workspace_id_key" UNIQUE("workspace_id","id")
 );
 --> statement-breakpoint
 CREATE TABLE "cvs" (
@@ -54,6 +55,7 @@ CREATE TABLE "cvs" (
 	"created_by" uuid,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "cvs_workspace_id_key" UNIQUE("workspace_id","id"),
 	CONSTRAINT "cvs_size_check" CHECK (octet_length(content) <= 5242880),
 	CONSTRAINT "cvs_media_type_check" CHECK (media_type in ('pdf', 'docx')),
 	CONSTRAINT "cvs_read_status_check" CHECK (read_status in ('pending', 'done', 'failed'))
@@ -124,7 +126,7 @@ CREATE TABLE "drafts" (
 	"created_at" timestamp with time zone NOT NULL,
 	"updated_at" timestamp with time zone NOT NULL,
 	CONSTRAINT "drafts_status_check" CHECK (status in ('saving', 'in_mailbox', 'edited', 'discarded', 'failed')),
-	CONSTRAINT "drafts_failure_kind_check" CHECK (failure_kind is null or failure_kind in ('mailbox', 'content')),
+	CONSTRAINT "drafts_failure_kind_check" CHECK (failure_kind is null or failure_kind in ('mailbox', 'ai', 'content')),
 	CONSTRAINT "drafts_origin_check" CHECK (origin in ('auto', 'on_demand', 'decision', 'retry'))
 );
 --> statement-breakpoint
@@ -255,12 +257,15 @@ CREATE TABLE "sender_marks" (
 );
 --> statement-breakpoint
 ALTER TABLE "jobs" ADD COLUMN "dedupe_key" text;--> statement-breakpoint
+ALTER TABLE "messages" ADD COLUMN "language" text;--> statement-breakpoint
+-- Hand-placed: the composite foreign keys below reference profiles (workspace_id, id).
+ALTER TABLE "profiles" ADD CONSTRAINT "profiles_workspace_id_key" UNIQUE("workspace_id","id");--> statement-breakpoint
 ALTER TABLE "assistant_messages" ADD CONSTRAINT "assistant_messages_workspace_id_workspaces_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspaces"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "assistant_messages" ADD CONSTRAINT "assistant_messages_thread_id_assistant_threads_id_fk" FOREIGN KEY ("thread_id") REFERENCES "public"."assistant_threads"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "assistant_messages" ADD CONSTRAINT "assistant_messages_thread_fk" FOREIGN KEY ("workspace_id","thread_id") REFERENCES "public"."assistant_threads"("workspace_id","id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "assistant_proposals" ADD CONSTRAINT "assistant_proposals_workspace_id_workspaces_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspaces"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "assistant_proposals" ADD CONSTRAINT "assistant_proposals_thread_id_assistant_threads_id_fk" FOREIGN KEY ("thread_id") REFERENCES "public"."assistant_threads"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "assistant_proposals" ADD CONSTRAINT "assistant_proposals_profile_id_profiles_id_fk" FOREIGN KEY ("profile_id") REFERENCES "public"."profiles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "assistant_proposals" ADD CONSTRAINT "assistant_proposals_decided_by_users_id_fk" FOREIGN KEY ("decided_by") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "assistant_proposals" ADD CONSTRAINT "assistant_proposals_thread_fk" FOREIGN KEY ("workspace_id","thread_id") REFERENCES "public"."assistant_threads"("workspace_id","id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "assistant_proposals" ADD CONSTRAINT "assistant_proposals_profile_fk" FOREIGN KEY ("workspace_id","profile_id") REFERENCES "public"."profiles"("workspace_id","id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "assistant_threads" ADD CONSTRAINT "assistant_threads_workspace_id_workspaces_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspaces"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "assistant_threads" ADD CONSTRAINT "assistant_threads_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "cvs" ADD CONSTRAINT "cvs_workspace_id_workspaces_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspaces"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -272,31 +277,31 @@ ALTER TABLE "decisions" ADD CONSTRAINT "decisions_workspace_id_workspaces_id_fk"
 ALTER TABLE "decisions" ADD CONSTRAINT "decisions_answered_by_users_id_fk" FOREIGN KEY ("answered_by") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "domain_lookups" ADD CONSTRAINT "domain_lookups_workspace_id_workspaces_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspaces"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "drafts" ADD CONSTRAINT "drafts_workspace_id_workspaces_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspaces"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "drafts" ADD CONSTRAINT "drafts_cv_id_cvs_id_fk" FOREIGN KEY ("cv_id") REFERENCES "public"."cvs"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "drafts" ADD CONSTRAINT "drafts_created_by_users_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "drafts" ADD CONSTRAINT "drafts_message_fk" FOREIGN KEY ("workspace_id","message_id") REFERENCES "public"."messages"("workspace_id","message_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "drafts" ADD CONSTRAINT "drafts_cv_fk" FOREIGN KEY ("workspace_id","cv_id") REFERENCES "public"."cvs"("workspace_id","id") ON DELETE SET NULL ("cv_id") ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "mailbox_sync" ADD CONSTRAINT "mailbox_sync_workspace_id_workspaces_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspaces"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "mailbox_sync" ADD CONSTRAINT "mailbox_sync_mailbox_id_mailboxes_id_fk" FOREIGN KEY ("mailbox_id") REFERENCES "public"."mailboxes"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "match_ai_answers" ADD CONSTRAINT "match_ai_answers_workspace_id_workspaces_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspaces"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "match_ai_answers" ADD CONSTRAINT "match_ai_answers_cv_id_cvs_id_fk" FOREIGN KEY ("cv_id") REFERENCES "public"."cvs"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "match_ai_answers" ADD CONSTRAINT "match_ai_answers_role_fk" FOREIGN KEY ("workspace_id","message_id","position") REFERENCES "public"."roles"("workspace_id","message_id","position") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "match_ai_answers" ADD CONSTRAINT "match_ai_answers_cv_fk" FOREIGN KEY ("workspace_id","cv_id") REFERENCES "public"."cvs"("workspace_id","id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "profile_cvs" ADD CONSTRAINT "profile_cvs_workspace_id_workspaces_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspaces"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "profile_cvs" ADD CONSTRAINT "profile_cvs_profile_id_profiles_id_fk" FOREIGN KEY ("profile_id") REFERENCES "public"."profiles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "profile_cvs" ADD CONSTRAINT "profile_cvs_cv_id_cvs_id_fk" FOREIGN KEY ("cv_id") REFERENCES "public"."cvs"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "profile_cvs" ADD CONSTRAINT "profile_cvs_profile_fk" FOREIGN KEY ("workspace_id","profile_id") REFERENCES "public"."profiles"("workspace_id","id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "profile_cvs" ADD CONSTRAINT "profile_cvs_cv_fk" FOREIGN KEY ("workspace_id","cv_id") REFERENCES "public"."cvs"("workspace_id","id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "profile_history" ADD CONSTRAINT "profile_history_workspace_id_workspaces_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspaces"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "profile_history" ADD CONSTRAINT "profile_history_profile_id_profiles_id_fk" FOREIGN KEY ("profile_id") REFERENCES "public"."profiles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "profile_history" ADD CONSTRAINT "profile_history_by_users_id_fk" FOREIGN KEY ("by") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "profile_history" ADD CONSTRAINT "profile_history_undone_by_users_id_fk" FOREIGN KEY ("undone_by") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "profile_history" ADD CONSTRAINT "profile_history_profile_fk" FOREIGN KEY ("workspace_id","profile_id") REFERENCES "public"."profiles"("workspace_id","id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "role_cv_choices" ADD CONSTRAINT "role_cv_choices_workspace_id_workspaces_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspaces"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "role_cv_choices" ADD CONSTRAINT "role_cv_choices_cv_id_cvs_id_fk" FOREIGN KEY ("cv_id") REFERENCES "public"."cvs"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "role_cv_choices" ADD CONSTRAINT "role_cv_choices_chosen_by_users_id_fk" FOREIGN KEY ("chosen_by") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "role_cv_choices" ADD CONSTRAINT "role_cv_choices_message_fk" FOREIGN KEY ("workspace_id","message_id") REFERENCES "public"."messages"("workspace_id","message_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "role_cv_choices" ADD CONSTRAINT "role_cv_choices_cv_fk" FOREIGN KEY ("workspace_id","cv_id") REFERENCES "public"."cvs"("workspace_id","id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "role_evaluations" ADD CONSTRAINT "role_evaluations_workspace_id_workspaces_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspaces"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "role_evaluations" ADD CONSTRAINT "role_evaluations_cv_id_cvs_id_fk" FOREIGN KEY ("cv_id") REFERENCES "public"."cvs"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "role_evaluations" ADD CONSTRAINT "role_evaluations_role_fk" FOREIGN KEY ("workspace_id","message_id","position") REFERENCES "public"."roles"("workspace_id","message_id","position") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "role_evaluations" ADD CONSTRAINT "role_evaluations_cv_fk" FOREIGN KEY ("workspace_id","cv_id") REFERENCES "public"."cvs"("workspace_id","id") ON DELETE SET NULL ("cv_id") ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "rules" ADD CONSTRAINT "rules_workspace_id_workspaces_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspaces"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "rules" ADD CONSTRAINT "rules_profile_id_profiles_id_fk" FOREIGN KEY ("profile_id") REFERENCES "public"."profiles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "rules" ADD CONSTRAINT "rules_created_by_users_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "rules" ADD CONSTRAINT "rules_profile_fk" FOREIGN KEY ("workspace_id","profile_id") REFERENCES "public"."profiles"("workspace_id","id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "sender_checks" ADD CONSTRAINT "sender_checks_workspace_id_workspaces_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspaces"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "sender_checks" ADD CONSTRAINT "sender_checks_message_fk" FOREIGN KEY ("workspace_id","message_id") REFERENCES "public"."messages"("workspace_id","message_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "sender_marks" ADD CONSTRAINT "sender_marks_workspace_id_workspaces_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspaces"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -318,6 +323,8 @@ CREATE INDEX "role_evaluations_cv_idx" ON "role_evaluations" USING btree ("cv_id
 CREATE INDEX "rules_workspace_profile_idx" ON "rules" USING btree ("workspace_id","profile_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "jobs_dedupe_queued_idx" ON "jobs" USING btree ("dedupe_key") WHERE status = 'queued' and dedupe_key is not null;--> statement-breakpoint
 CREATE INDEX "jobs_dedupe_running_idx" ON "jobs" USING btree ("dedupe_key") WHERE status = 'running' and dedupe_key is not null;--> statement-breakpoint
+-- Hand-written: drafts_cv_fk and role_evaluations_cv_fk clear only cv_id (ON DELETE SET NULL
+-- ("cv_id")), so deleting a CV keeps the row and its workspace_id.
 -- Hand-written: the new tasks' models (cv, match, draft, assistant) start as the workspace's
 -- extract model (TBD-168), so MVP 1 workspaces keep working without opening Settings; a model
 -- already set is kept.

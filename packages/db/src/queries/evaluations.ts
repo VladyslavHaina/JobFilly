@@ -254,7 +254,11 @@ export interface MessageInputRow {
   references: string[];
   /** Every role's facts, in position order. */
   facts: JobFacts[];
-  /** The message's language; null while nothing has detected it. */
+  /**
+   * The body's language (ISO 639-1), as the sender stage last detected it and the pipeline stored
+   * it (saveMessageLanguage); null before a sender check has read the body, or when the stage
+   * couldn't tell.
+   */
   language: string | null;
 }
 
@@ -296,8 +300,32 @@ export async function loadMessageInputs(
     inReplyTo: m.inReplyTo,
     references: m.references,
     facts: byMessage.get(m.messageId) ?? [],
-    language: null,
+    language: m.language,
   }));
+}
+
+/**
+ * Stores the language the sender stage detected in the message's body (ISO 639-1, or null). True
+ * when it changed, so the caller can re-do what was chosen without it (the CV choice).
+ */
+export async function saveMessageLanguage(
+  db: Database,
+  workspaceId: string,
+  messageId: string,
+  language: string | null,
+): Promise<boolean> {
+  const rows = await db
+    .update(messages)
+    .set({ language })
+    .where(
+      and(
+        eq(messages.workspaceId, workspaceId),
+        eq(messages.messageId, messageId),
+        sql`${messages.language} is distinct from ${language}`,
+      ),
+    )
+    .returning({ id: messages.id });
+  return rows.length > 0;
 }
 
 type EvaluationRow = typeof roleEvaluations.$inferSelect;

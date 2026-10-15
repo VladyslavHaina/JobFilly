@@ -13,15 +13,19 @@ import type { RoleRef } from "./evaluations";
 //   releaseDraftClaim deletes a `saving` row whose draft.v1 answer raised questions, in the
 //                     transaction that records the needs, so the role still counts as never
 //                     drafted and gets its draft once the decision is answered
-//   markDraftFailed   `failed` with a kind: `mailbox` is retried, `content` never automatically
-//   listDraftsToRetry failed with kind mailbox and fewer than 5 attempts, and `saving` rows
-//                     claimed more than 5 minutes ago (their job died)
+//   markDraftFailed   `failed` with a kind: `mailbox` (the mail server) and `ai` (the draft.v1
+//                     call gave no draft) are retried, `content` never automatically
+//   listDraftsToRetry failed with kind mailbox or ai and fewer than 5 attempts, and `saving`
+//                     rows claimed more than 5 minutes ago (their job died)
 //   reclaimDraft      takes one of those back to `saving`, attempts + 1, single-flight
 //   draftHistory      whether a role ever had a draft (any status) or was dismissed, which holds
 //                     automatic drafts back for good (replyEligibility in packages/core)
 
 /** A draft is tried at most this many times by the sweep. */
 export const DRAFT_MAX_ATTEMPTS = 5;
+/** The failure kinds the sweep retries; `content` waits for Draft a reply. */
+const RETRIED_KINDS: readonly DraftFailureKind[] = ["mailbox", "ai"];
+
 /** A `saving` claim older than this belongs to a job that died. */
 export const DRAFT_SAVING_TIMEOUT_MS = 5 * 60_000;
 
@@ -180,16 +184,17 @@ function retryable(workspaceId: string, now: Date) {
     eq(drafts.workspaceId, workspaceId),
     lt(drafts.attempts, DRAFT_MAX_ATTEMPTS),
     or(
-      and(eq(drafts.status, "failed"), eq(drafts.failureKind, "mailbox")),
+      and(eq(drafts.status, "failed"), inArray(drafts.failureKind, [...RETRIED_KINDS])),
       and(eq(drafts.status, "saving"), lt(drafts.claimedAt, cutoff)),
     ),
   );
 }
 
 /**
- * The drafts the sweep tries again: failed with kind mailbox, and `saving` rows claimed more than
- * 5 minutes ago, each with fewer than 5 attempts. A content failure is never retried
- * automatically.
+ * The drafts the sweep tries again: failed with kind mailbox or ai, and `saving` rows claimed
+ * more than 5 minutes ago, each with fewer than 5 attempts. A content failure is never retried
+ * automatically. A draft that used up its attempts stays failed with its reason on the Drafts
+ * page (F6.7), and Draft a reply takes it back.
  */
 export async function listDraftsToRetry(
   db: Database,

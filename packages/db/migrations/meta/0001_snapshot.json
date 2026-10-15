@@ -1,5 +1,5 @@
 {
-  "id": "a4a13ed3-ac00-4490-80de-10f2c71e0d93",
+  "id": "72cfd676-42da-4785-af45-9f64e78f9b92",
   "prevId": "2ef6f3e4-4524-4c0f-9cc7-6faf49104ec5",
   "version": "7",
   "dialect": "postgresql",
@@ -278,14 +278,16 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "assistant_messages_thread_id_assistant_threads_id_fk": {
-          "name": "assistant_messages_thread_id_assistant_threads_id_fk",
+        "assistant_messages_thread_fk": {
+          "name": "assistant_messages_thread_fk",
           "tableFrom": "assistant_messages",
           "tableTo": "assistant_threads",
           "columnsFrom": [
+            "workspace_id",
             "thread_id"
           ],
           "columnsTo": [
+            "workspace_id",
             "id"
           ],
           "onDelete": "cascade",
@@ -431,32 +433,6 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "assistant_proposals_thread_id_assistant_threads_id_fk": {
-          "name": "assistant_proposals_thread_id_assistant_threads_id_fk",
-          "tableFrom": "assistant_proposals",
-          "tableTo": "assistant_threads",
-          "columnsFrom": [
-            "thread_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "assistant_proposals_profile_id_profiles_id_fk": {
-          "name": "assistant_proposals_profile_id_profiles_id_fk",
-          "tableFrom": "assistant_proposals",
-          "tableTo": "profiles",
-          "columnsFrom": [
-            "profile_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
         "assistant_proposals_decided_by_users_id_fk": {
           "name": "assistant_proposals_decided_by_users_id_fk",
           "tableFrom": "assistant_proposals",
@@ -468,6 +444,36 @@
             "id"
           ],
           "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "assistant_proposals_thread_fk": {
+          "name": "assistant_proposals_thread_fk",
+          "tableFrom": "assistant_proposals",
+          "tableTo": "assistant_threads",
+          "columnsFrom": [
+            "workspace_id",
+            "thread_id"
+          ],
+          "columnsTo": [
+            "workspace_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "assistant_proposals_profile_fk": {
+          "name": "assistant_proposals_profile_fk",
+          "tableFrom": "assistant_proposals",
+          "tableTo": "profiles",
+          "columnsFrom": [
+            "workspace_id",
+            "profile_id"
+          ],
+          "columnsTo": [
+            "workspace_id",
+            "id"
+          ],
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
@@ -570,7 +576,16 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "assistant_threads_workspace_id_key": {
+          "name": "assistant_threads_workspace_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "workspace_id",
+            "id"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -721,7 +736,16 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "cvs_workspace_id_key": {
+          "name": "cvs_workspace_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "workspace_id",
+            "id"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {
         "cvs_size_check": {
@@ -1326,19 +1350,6 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "drafts_cv_id_cvs_id_fk": {
-          "name": "drafts_cv_id_cvs_id_fk",
-          "tableFrom": "drafts",
-          "tableTo": "cvs",
-          "columnsFrom": [
-            "cv_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
         "drafts_created_by_users_id_fk": {
           "name": "drafts_created_by_users_id_fk",
           "tableFrom": "drafts",
@@ -1366,6 +1377,21 @@
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"
+        },
+        "drafts_cv_fk": {
+          "name": "drafts_cv_fk",
+          "tableFrom": "drafts",
+          "tableTo": "cvs",
+          "columnsFrom": [
+            "workspace_id",
+            "cv_id"
+          ],
+          "columnsTo": [
+            "workspace_id",
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -1378,7 +1404,7 @@
         },
         "drafts_failure_kind_check": {
           "name": "drafts_failure_kind_check",
-          "value": "failure_kind is null or failure_kind in ('mailbox', 'content')"
+          "value": "failure_kind is null or failure_kind in ('mailbox', 'ai', 'content')"
         },
         "drafts_origin_check": {
           "name": "drafts_origin_check",
@@ -2195,19 +2221,6 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "match_ai_answers_cv_id_cvs_id_fk": {
-          "name": "match_ai_answers_cv_id_cvs_id_fk",
-          "tableFrom": "match_ai_answers",
-          "tableTo": "cvs",
-          "columnsFrom": [
-            "cv_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
         "match_ai_answers_role_fk": {
           "name": "match_ai_answers_role_fk",
           "tableFrom": "match_ai_answers",
@@ -2221,6 +2234,21 @@
             "workspace_id",
             "message_id",
             "position"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "match_ai_answers_cv_fk": {
+          "name": "match_ai_answers_cv_fk",
+          "tableFrom": "match_ai_answers",
+          "tableTo": "cvs",
+          "columnsFrom": [
+            "workspace_id",
+            "cv_id"
+          ],
+          "columnsTo": [
+            "workspace_id",
+            "id"
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"
@@ -2512,6 +2540,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "language": {
+          "name": "language",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "search_text": {
           "name": "search_text",
           "type": "text",
@@ -2728,27 +2762,31 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "profile_cvs_profile_id_profiles_id_fk": {
-          "name": "profile_cvs_profile_id_profiles_id_fk",
+        "profile_cvs_profile_fk": {
+          "name": "profile_cvs_profile_fk",
           "tableFrom": "profile_cvs",
           "tableTo": "profiles",
           "columnsFrom": [
+            "workspace_id",
             "profile_id"
           ],
           "columnsTo": [
+            "workspace_id",
             "id"
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "profile_cvs_cv_id_cvs_id_fk": {
-          "name": "profile_cvs_cv_id_cvs_id_fk",
+        "profile_cvs_cv_fk": {
+          "name": "profile_cvs_cv_fk",
           "tableFrom": "profile_cvs",
           "tableTo": "cvs",
           "columnsFrom": [
+            "workspace_id",
             "cv_id"
           ],
           "columnsTo": [
+            "workspace_id",
             "id"
           ],
           "onDelete": "cascade",
@@ -2890,19 +2928,6 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "profile_history_profile_id_profiles_id_fk": {
-          "name": "profile_history_profile_id_profiles_id_fk",
-          "tableFrom": "profile_history",
-          "tableTo": "profiles",
-          "columnsFrom": [
-            "profile_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
         "profile_history_by_users_id_fk": {
           "name": "profile_history_by_users_id_fk",
           "tableFrom": "profile_history",
@@ -2927,6 +2952,21 @@
             "id"
           ],
           "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "profile_history_profile_fk": {
+          "name": "profile_history_profile_fk",
+          "tableFrom": "profile_history",
+          "tableTo": "profiles",
+          "columnsFrom": [
+            "workspace_id",
+            "profile_id"
+          ],
+          "columnsTo": [
+            "workspace_id",
+            "id"
+          ],
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
@@ -3043,7 +3083,16 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "profiles_workspace_id_key": {
+          "name": "profiles_workspace_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "workspace_id",
+            "id"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -3120,19 +3169,6 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "role_cv_choices_cv_id_cvs_id_fk": {
-          "name": "role_cv_choices_cv_id_cvs_id_fk",
-          "tableFrom": "role_cv_choices",
-          "tableTo": "cvs",
-          "columnsFrom": [
-            "cv_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
         "role_cv_choices_chosen_by_users_id_fk": {
           "name": "role_cv_choices_chosen_by_users_id_fk",
           "tableFrom": "role_cv_choices",
@@ -3157,6 +3193,21 @@
           "columnsTo": [
             "workspace_id",
             "message_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "role_cv_choices_cv_fk": {
+          "name": "role_cv_choices_cv_fk",
+          "tableFrom": "role_cv_choices",
+          "tableTo": "cvs",
+          "columnsFrom": [
+            "workspace_id",
+            "cv_id"
+          ],
+          "columnsTo": [
+            "workspace_id",
+            "id"
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"
@@ -3314,19 +3365,6 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "role_evaluations_cv_id_cvs_id_fk": {
-          "name": "role_evaluations_cv_id_cvs_id_fk",
-          "tableFrom": "role_evaluations",
-          "tableTo": "cvs",
-          "columnsFrom": [
-            "cv_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
         "role_evaluations_role_fk": {
           "name": "role_evaluations_role_fk",
           "tableFrom": "role_evaluations",
@@ -3342,6 +3380,21 @@
             "position"
           ],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "role_evaluations_cv_fk": {
+          "name": "role_evaluations_cv_fk",
+          "tableFrom": "role_evaluations",
+          "tableTo": "cvs",
+          "columnsFrom": [
+            "workspace_id",
+            "cv_id"
+          ],
+          "columnsTo": [
+            "workspace_id",
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
@@ -3559,19 +3612,6 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "rules_profile_id_profiles_id_fk": {
-          "name": "rules_profile_id_profiles_id_fk",
-          "tableFrom": "rules",
-          "tableTo": "profiles",
-          "columnsFrom": [
-            "profile_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
         "rules_created_by_users_id_fk": {
           "name": "rules_created_by_users_id_fk",
           "tableFrom": "rules",
@@ -3583,6 +3623,21 @@
             "id"
           ],
           "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "rules_profile_fk": {
+          "name": "rules_profile_fk",
+          "tableFrom": "rules",
+          "tableTo": "profiles",
+          "columnsFrom": [
+            "workspace_id",
+            "profile_id"
+          ],
+          "columnsTo": [
+            "workspace_id",
+            "id"
+          ],
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },

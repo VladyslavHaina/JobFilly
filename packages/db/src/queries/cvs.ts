@@ -90,7 +90,10 @@ export async function insertCv(
   return toCv(row);
 }
 
-/** Links a CV to a profile (once; linking again is harmless). */
+/**
+ * Links a CV to a profile (once; linking again is harmless). The composite foreign keys refuse a
+ * profile or a CV of another workspace.
+ */
 export async function linkProfileCv(
   db: Database,
   workspaceId: string,

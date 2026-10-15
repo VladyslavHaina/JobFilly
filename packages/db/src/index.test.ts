@@ -21,7 +21,14 @@ import {
   saveEvaluation,
 } from "./index";
 import { createConfirmedProfile } from "./queries/profiles";
-import { drafts, matchAiAnswers, roleCvChoices } from "./tables";
+import {
+  assistantMessages,
+  assistantThreads,
+  drafts,
+  matchAiAnswers,
+  roleCvChoices,
+  rules,
+} from "./tables";
 import { openTestDatabase } from "./testing";
 
 let conn: DatabaseConnection | undefined;
@@ -130,15 +137,91 @@ function mvp1Folder(): string {
   return dir;
 }
 
-async function seedWorkspace(db: DatabaseConnection["db"]) {
+async function seedWorkspace(db: DatabaseConnection["db"], email = "maria@inbox.example") {
   const r = await registerAccount(db, {
     name: "Maria",
-    email: "maria@inbox.example",
+    email,
     passwordHash: "h",
     workspaceName: "w",
   });
   if (!r.ok) throw new Error("expected ok");
   return { ws: r.workspaceId, userId: r.user.id };
+}
+
+/** One analysed job message with one role. */
+async function seedJobMessage(db: DatabaseConnection["db"], ws: string, messageId: string) {
+  const at = new Date("2026-10-01T10:00:00Z");
+  await saveEnvelopes(db, ws, [
+    {
+      envelope: {
+        messageId,
+        folder: "inbox",
+        folderPath: "INBOX",
+        uidValidity: 1,
+        uid: 1,
+        date: at.toISOString(),
+        from: { address: "r@agency.example", name: null },
+        to: [],
+        cc: [],
+        replyTo: [],
+        inReplyTo: null,
+        references: [],
+        subject: "s",
+        listId: null,
+        listUnsubscribe: null,
+        precedence: null,
+        autoSubmitted: null,
+        snippet: "",
+      },
+      verdict: "likely_job",
+      reason: null,
+    },
+  ]);
+  await saveAnalysis(db, ws, {
+    messageId,
+    scanId: null,
+    category: "recruiter_outreach",
+    roles: [
+      {
+        title: "Backend",
+        company: null,
+        agency: null,
+        places: [],
+        workMode: null,
+        remoteScope: null,
+        timeZones: null,
+        pay: null,
+        contract: null,
+        seniority: null,
+        workPermit: null,
+        skills: [],
+        languages: [],
+        applyUrl: null,
+        extra: {},
+      },
+    ],
+  });
+}
+
+async function seedProfileAndCv(db: DatabaseConnection["db"], ws: string, userId: string) {
+  const at = new Date("2026-10-01T10:00:00Z");
+  const created = await createConfirmedProfile(db, ws, {
+    name: "p",
+    entries: [],
+    createdBy: userId,
+    at,
+  });
+  if (!created.ok) throw new Error("expected a profile");
+  const cv = await insertCv(db, ws, {
+    name: "Backend (EN)",
+    fileName: "cv.pdf",
+    mediaType: "pdf",
+    bytes: new Uint8Array([1, 2, 3]),
+    contentHash: "b".repeat(64),
+    createdBy: userId,
+    at,
+  });
+  return { profileId: created.profile.id, cvId: cv.id };
 }
 
 describe("the MVP 2 migration", () => {
@@ -195,79 +278,15 @@ describe("the MVP 2 migration", () => {
     const { ws, userId } = await seedWorkspace(db);
     const at = new Date("2026-10-01T10:00:00Z");
     const messageId = "<cv-delete@agency.example>";
-    await saveEnvelopes(db, ws, [
-      {
-        envelope: {
-          messageId,
-          folder: "inbox",
-          folderPath: "INBOX",
-          uidValidity: 1,
-          uid: 1,
-          date: at.toISOString(),
-          from: { address: "r@agency.example", name: null },
-          to: [],
-          cc: [],
-          replyTo: [],
-          inReplyTo: null,
-          references: [],
-          subject: "s",
-          listId: null,
-          listUnsubscribe: null,
-          precedence: null,
-          autoSubmitted: null,
-          snippet: "",
-        },
-        verdict: "likely_job",
-        reason: null,
-      },
-    ]);
-    await saveAnalysis(db, ws, {
-      messageId,
-      scanId: null,
-      category: "recruiter_outreach",
-      roles: [
-        {
-          title: "Backend",
-          company: null,
-          agency: null,
-          places: [],
-          workMode: null,
-          remoteScope: null,
-          timeZones: null,
-          pay: null,
-          contract: null,
-          seniority: null,
-          workPermit: null,
-          skills: [],
-          languages: [],
-          applyUrl: null,
-          extra: {},
-        },
-      ],
-    });
-    const created = await createConfirmedProfile(db, ws, {
-      name: "p",
-      entries: [],
-      createdBy: userId,
-      at,
-    });
-    if (!created.ok) throw new Error("expected a profile");
-    const cv = await insertCv(db, ws, {
-      name: "Data engineering (EN)",
-      fileName: "data.pdf",
-      mediaType: "pdf",
-      bytes: new Uint8Array([1, 2, 3]),
-      contentHash: "b".repeat(64),
-      createdBy: userId,
-      at,
-    });
+    await seedJobMessage(db, ws, messageId);
+    const { profileId, cvId } = await seedProfileAndCv(db, ws, userId);
     const role = { messageId, position: 0 };
-    await linkProfileCv(db, ws, created.profile.id, cv.id);
-    await db.insert(roleCvChoices).values({ workspaceId: ws, ...role, cvId: cv.id, chosenAt: at });
+    await linkProfileCv(db, ws, profileId, cvId);
+    await db.insert(roleCvChoices).values({ workspaceId: ws, ...role, cvId, chosenAt: at });
     await db.insert(matchAiAnswers).values({
       workspaceId: ws,
       ...role,
-      cvId: cv.id,
+      cvId,
       inputHash: "c".repeat(64),
       answer: { titleFit: { verdict: "fits", reason: "r" }, skillCloseness: [] },
     });
@@ -280,25 +299,107 @@ describe("the MVP 2 migration", () => {
         match: null,
         hidden: null,
         ruleEffects: [],
-        cvChoice: { cvId: cv.id, reason: "Data role", source: "auto" },
+        cvChoice: { cvId, reason: "Data role", source: "auto" },
       },
       at,
     );
     const draft = await claimDraft(db, ws, role, { origin: "on_demand", now: at });
     await db
       .update(drafts)
-      .set({ status: "in_mailbox", cvId: cv.id })
+      .set({ status: "in_mailbox", cvId })
       .where(eq(drafts.id, draft?.id ?? ""));
 
-    await db.execute(sql`delete from cvs where id = ${cv.id}`);
+    await db.execute(sql`delete from cvs where id = ${cvId}`);
 
-    expect(await listProfileCvs(db, ws, created.profile.id)).toEqual([]);
+    expect(await listProfileCvs(db, ws, profileId)).toEqual([]);
     expect(await db.select().from(roleCvChoices)).toEqual([]);
     expect(await db.select().from(matchAiAnswers)).toEqual([]);
     const [kept] = await db.select().from(drafts);
     expect(kept).toMatchObject({ id: draft?.id, status: "in_mailbox", cvId: null });
     const [evaluation] = await getEvaluations(db, ws, [messageId]);
     expect(evaluation?.cvChoice).toEqual({ cvId: null, reason: "Data role", source: "auto" });
+  });
+});
+
+describe("references across workspaces", () => {
+  it("refuses a link, an override, an evaluation, a draft, a rule or an assistant message that points into another workspace", async () => {
+    conn = await openTestDatabase();
+    const db = conn.db;
+    const a = await seedWorkspace(db, "maria@inbox.example");
+    const b = await seedWorkspace(db, "tom@inbox.example");
+    const ownA = await seedProfileAndCv(db, a.ws, a.userId);
+    const ofB = await seedProfileAndCv(db, b.ws, b.userId);
+    const messageId = "<cross@agency.example>";
+    await seedJobMessage(db, a.ws, messageId);
+    const at = new Date("2026-10-01T10:00:00Z");
+
+    await expect(linkProfileCv(db, a.ws, ofB.profileId, ofB.cvId)).rejects.toThrow();
+    await expect(linkProfileCv(db, a.ws, ownA.profileId, ofB.cvId)).rejects.toThrow();
+    await expect(linkProfileCv(db, a.ws, ofB.profileId, ownA.cvId)).rejects.toThrow();
+    await expect(
+      db
+        .insert(roleCvChoices)
+        .values({ workspaceId: a.ws, messageId, position: 0, cvId: ofB.cvId, chosenAt: at }),
+    ).rejects.toThrow();
+    const evaluation = (cvId: string) =>
+      saveEvaluation(
+        db,
+        a.ws,
+        messageId,
+        {
+          position: 0,
+          match: null,
+          hidden: null,
+          ruleEffects: [],
+          cvChoice: { cvId, reason: "r", source: "auto" },
+        },
+        at,
+      );
+    await expect(evaluation(ofB.cvId)).rejects.toThrow();
+    const draft = await claimDraft(
+      db,
+      a.ws,
+      { messageId, position: 0 },
+      { origin: "auto", now: at },
+    );
+    await expect(
+      db
+        .update(drafts)
+        .set({ cvId: ofB.cvId })
+        .where(eq(drafts.id, draft?.id ?? "")),
+    ).rejects.toThrow();
+    const rule = (profileId: string) =>
+      db.insert(rules).values({
+        workspaceId: a.ws,
+        profileId,
+        description: "d",
+        conditions: [],
+        action: "hide",
+        source: "you",
+        createdAt: at,
+        updatedAt: at,
+      });
+    await expect(rule(ofB.profileId)).rejects.toThrow();
+    const [threadOfB] = await db
+      .insert(assistantThreads)
+      .values({ workspaceId: b.ws, userId: b.userId, createdAt: at, updatedAt: at })
+      .returning({ id: assistantThreads.id });
+    await expect(
+      db.insert(assistantMessages).values({
+        workspaceId: a.ws,
+        threadId: threadOfB?.id ?? "",
+        role: "user",
+        turn: 1,
+        text: "t",
+        createdAt: at,
+      }),
+    ).rejects.toThrow();
+
+    // The same references inside the workspace are fine.
+    await linkProfileCv(db, a.ws, ownA.profileId, ownA.cvId);
+    await evaluation(ownA.cvId);
+    await rule(ownA.profileId);
+    expect(await listProfileCvs(db, a.ws, ownA.profileId)).toHaveLength(1);
   });
 });
 

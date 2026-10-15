@@ -6,12 +6,14 @@ import { registerAccount } from "./accounts";
 import { claimDraft, markDraftFailed } from "./draft-claims";
 import {
   getEvaluations,
+  getSenderChecks,
   listRoleStates,
   listToEvaluate,
   listWorkspacesWithWork,
   loadMessageInputs,
   markStale,
   saveEvaluation,
+  saveMessageLanguage,
   saveSenderCheck,
 } from "./evaluations";
 import { saveAnalysis, saveEnvelopes } from "./messages";
@@ -248,6 +250,56 @@ describe("the stages' message input", () => {
     });
     expect(input?.receivedAt).toEqual(new Date(Date.UTC(2026, 8, 1)));
     expect(await loadMessageInputs(conn.db, other, [id(1)])).toEqual([]);
+  });
+
+  it("reads the language the sender stage stored, and says whether it changed", async () => {
+    await seedMessage(1);
+    expect(await saveMessageLanguage(conn.db, ws, id(1), "de")).toBe(true);
+    expect(await saveMessageLanguage(conn.db, ws, id(1), "de")).toBe(false);
+    // Another workspace can't set it.
+    expect(await saveMessageLanguage(conn.db, other, id(1), "en")).toBe(false);
+    expect((await loadMessageInputs(conn.db, ws, [id(1)]))[0]?.language).toBe("de");
+    // Seeing the message again keeps it.
+    await saveEnvelopes(conn.db, ws, [
+      { envelope: envelope(1), verdict: "likely_job", reason: null },
+    ]);
+    expect((await loadMessageInputs(conn.db, ws, [id(1)]))[0]?.language).toBe("de");
+    expect(await saveMessageLanguage(conn.db, ws, id(1), null)).toBe(true);
+  });
+});
+
+describe("a sender check made while the message was gone", () => {
+  const gone = {
+    verdict: "caution" as const,
+    complete: false,
+    reasons: [{ signal: "message_gone", reason: "The message is no longer in the mailbox" }],
+    mark: null,
+  };
+
+  it("is current until a scan or sync sees the message again, then stale", async () => {
+    await seedMessage(1);
+    await seedMessage(2);
+    await saveSenderCheck(conn.db, ws, id(1), gone, t0);
+    await saveSenderCheck(conn.db, ws, id(2), check, t0);
+    for (const n of [1, 2]) await saveEvaluation(conn.db, ws, id(n), evaluation(0), t0);
+    expect(await listToEvaluate(conn.db, ws)).toEqual([]);
+
+    // The folder was rebuilt (a new UIDVALIDITY): the sync saves both under their new UIDs.
+    const rebuilt = (n: number) => ({ ...envelope(n), uidValidity: 8, uid: 100 + n });
+    await saveEnvelopes(conn.db, ws, [
+      { envelope: rebuilt(1), verdict: "likely_job", reason: null },
+      { envelope: rebuilt(2), verdict: "likely_job", reason: null },
+    ]);
+    expect(await listToEvaluate(conn.db, ws)).toMatchObject([
+      { messageId: id(1), sender: { state: "stale" }, roles: [] },
+    ]);
+    // The other workspace's checks are its own.
+    await seedMessage(1, { w: other });
+    await saveSenderCheck(conn.db, other, id(1), gone, t0);
+    await saveEnvelopes(conn.db, ws, [
+      { envelope: rebuilt(1), verdict: "likely_job", reason: null },
+    ]);
+    expect((await getSenderChecks(conn.db, other, [id(1)]))[0]?.stale).toBe(false);
   });
 });
 

@@ -70,6 +70,11 @@ import {
 // ever read or write it with a workspace id. Slices add no tables: a column a slice needs is
 // added here, in a new migration, by the foundation. MVP 1's tables come first, then MVP 2's
 // (migration 0001_mvp2).
+//
+// A reference from one workspace-owned row to another includes workspace_id: a composite foreign
+// key to the target's (workspace_id, id) or (workspace_id, message_id), so the database itself
+// refuses a row that points into another workspace. A set-null one clears only the id column
+// (ON DELETE SET NULL (cv_id), hand-written in the migration), which keeps workspace_id.
 
 const at = (name: string) => timestamp(name, { withTimezone: true, mode: "date" });
 const createdAt = () => at("created_at").notNull().defaultNow();
@@ -285,6 +290,11 @@ export const messages = pgTable(
     }),
     /** What one of the user's own replies states (prefs.v1). */
     preferences: jsonb("preferences").$type<Preferences>(),
+    /**
+     * The body's language (ISO 639-1) as the sender stage detected it; null until a sender check
+     * read the body. The pipeline stores it, so CV choice and re-scoring never need the mailbox.
+     */
+    language: text("language"),
     searchText: text("search_text").generatedAlwaysAs(
       sql`lower(coalesce(from_name, '') || ' ' || from_address || ' ' || subject)`,
     ),
@@ -390,7 +400,10 @@ export const profiles = pgTable(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [index("profiles_workspace_idx").on(t.workspaceId)],
+  (t) => [
+    index("profiles_workspace_idx").on(t.workspaceId),
+    unique("profiles_workspace_id_key").on(t.workspaceId, t.id),
+  ],
 );
 
 /** The job queue: scans today, mail sync and drafting later. */
@@ -475,6 +488,7 @@ export const cvs = pgTable(
   },
   (t) => [
     index("cvs_workspace_idx").on(t.workspaceId),
+    unique("cvs_workspace_id_key").on(t.workspaceId, t.id),
     check("cvs_size_check", sql`octet_length(content) <= ${sql.raw(String(MAX_CV_BYTES_SQL))}`),
     check("cvs_media_type_check", oneOf("media_type", ["pdf", "docx"])),
     check("cvs_read_status_check", oneOf("read_status", ["pending", "done", "failed"])),
@@ -486,15 +500,24 @@ export const profileCvs = pgTable(
   "profile_cvs",
   {
     workspaceId: workspaceId(),
-    profileId: uuid("profile_id")
-      .notNull()
-      .references(() => profiles.id, { onDelete: "cascade" }),
-    cvId: uuid("cv_id")
-      .notNull()
-      .references(() => cvs.id, { onDelete: "cascade" }),
+    profileId: uuid("profile_id").notNull(),
+    cvId: uuid("cv_id").notNull(),
     createdAt: createdAt(),
   },
-  (t) => [primaryKey({ columns: [t.profileId, t.cvId] }), index("profile_cvs_cv_idx").on(t.cvId)],
+  (t) => [
+    primaryKey({ columns: [t.profileId, t.cvId] }),
+    foreignKey({
+      name: "profile_cvs_profile_fk",
+      columns: [t.workspaceId, t.profileId],
+      foreignColumns: [profiles.workspaceId, profiles.id],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "profile_cvs_cv_fk",
+      columns: [t.workspaceId, t.cvId],
+      foreignColumns: [cvs.workspaceId, cvs.id],
+    }).onDelete("cascade"),
+    index("profile_cvs_cv_idx").on(t.cvId),
+  ],
 );
 
 /** An editor's CV choice for one role (F2.3); no row means the automatic choice. */
@@ -504,9 +527,7 @@ export const roleCvChoices = pgTable(
     workspaceId: workspaceId(),
     messageId: text("message_id").notNull(),
     position: integer("position").notNull(),
-    cvId: uuid("cv_id")
-      .notNull()
-      .references(() => cvs.id, { onDelete: "cascade" }),
+    cvId: uuid("cv_id").notNull(),
     chosenBy: uuid("chosen_by").references(() => users.id, { onDelete: "set null" }),
     chosenAt: at("chosen_at").notNull(),
   },
@@ -516,6 +537,11 @@ export const roleCvChoices = pgTable(
       name: "role_cv_choices_message_fk",
       columns: [t.workspaceId, t.messageId],
       foreignColumns: [messages.workspaceId, messages.messageId],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "role_cv_choices_cv_fk",
+      columns: [t.workspaceId, t.cvId],
+      foreignColumns: [cvs.workspaceId, cvs.id],
     }).onDelete("cascade"),
     index("role_cv_choices_cv_idx").on(t.cvId),
   ],
@@ -530,9 +556,7 @@ export const rules = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     workspaceId: workspaceId(),
-    profileId: uuid("profile_id")
-      .notNull()
-      .references(() => profiles.id, { onDelete: "cascade" }),
+    profileId: uuid("profile_id").notNull(),
     description: text("description").notNull(),
     conditions: jsonb("conditions").$type<Condition[]>().notNull(),
     action: text("action").$type<RuleAction>().notNull(),
@@ -544,6 +568,11 @@ export const rules = pgTable(
   },
   (t) => [
     index("rules_workspace_profile_idx").on(t.workspaceId, t.profileId),
+    foreignKey({
+      name: "rules_profile_fk",
+      columns: [t.workspaceId, t.profileId],
+      foreignColumns: [profiles.workspaceId, profiles.id],
+    }).onDelete("cascade"),
     check("rules_action_check", oneOf("action", RULE_ACTIONS_SQL)),
     check("rules_source_check", oneOf("source", RULE_SOURCES_SQL)),
   ],
@@ -566,7 +595,7 @@ export const roleEvaluations = pgTable(
     hiddenRuleId: uuid("hidden_rule_id"),
     hiddenReason: text("hidden_reason"),
     ruleEffects: jsonb("rule_effects").$type<RuleEffect[]>().notNull().default([]),
-    cvId: uuid("cv_id").references(() => cvs.id, { onDelete: "set null" }),
+    cvId: uuid("cv_id"),
     cvReason: text("cv_reason").notNull(),
     cvSource: text("cv_source").$type<"auto" | "you">().notNull().default("auto"),
     stale: boolean("stale").notNull().default(false),
@@ -581,6 +610,12 @@ export const roleEvaluations = pgTable(
       columns: [t.workspaceId, t.messageId, t.position],
       foreignColumns: [roles.workspaceId, roles.messageId, roles.position],
     }).onDelete("cascade"),
+    // ON DELETE SET NULL (cv_id) in the migration: deleting the CV keeps the evaluation.
+    foreignKey({
+      name: "role_evaluations_cv_fk",
+      columns: [t.workspaceId, t.cvId],
+      foreignColumns: [cvs.workspaceId, cvs.id],
+    }).onDelete("set null"),
     index("role_evaluations_cv_idx").on(t.cvId),
     check("role_evaluations_cv_source_check", oneOf("cv_source", ["auto", "you"])),
   ],
@@ -597,7 +632,7 @@ export const matchAiAnswers = pgTable(
     workspaceId: workspaceId(),
     messageId: text("message_id").notNull(),
     position: integer("position").notNull(),
-    cvId: uuid("cv_id").references(() => cvs.id, { onDelete: "cascade" }),
+    cvId: uuid("cv_id"),
     inputHash: text("input_hash").notNull(),
     answer: jsonb("answer").$type<MatchAiOutput>().notNull(),
     createdAt: createdAt(),
@@ -610,6 +645,11 @@ export const matchAiAnswers = pgTable(
       name: "match_ai_answers_role_fk",
       columns: [t.workspaceId, t.messageId, t.position],
       foreignColumns: [roles.workspaceId, roles.messageId, roles.position],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "match_ai_answers_cv_fk",
+      columns: [t.workspaceId, t.cvId],
+      foreignColumns: [cvs.workspaceId, cvs.id],
     }).onDelete("cascade"),
     index("match_ai_answers_cv_idx").on(t.cvId),
   ],
@@ -708,7 +748,7 @@ export const drafts = pgTable(
     /** The reply text only, never the quoted original. */
     body: text("body"),
     language: text("language"),
-    cvId: uuid("cv_id").references(() => cvs.id, { onDelete: "set null" }),
+    cvId: uuid("cv_id"),
     /** Where the mailbox copy is. */
     mailboxFolder: text("mailbox_folder"),
     uid: bigint("uid", { mode: "number" }),
@@ -730,11 +770,17 @@ export const drafts = pgTable(
       columns: [t.workspaceId, t.messageId],
       foreignColumns: [messages.workspaceId, messages.messageId],
     }).onDelete("cascade"),
+    // ON DELETE SET NULL (cv_id) in the migration: the mailbox draft stays when its CV goes (F2.5).
+    foreignKey({
+      name: "drafts_cv_fk",
+      columns: [t.workspaceId, t.cvId],
+      foreignColumns: [cvs.workspaceId, cvs.id],
+    }).onDelete("set null"),
     index("drafts_cv_idx").on(t.cvId),
     check("drafts_status_check", oneOf("status", DRAFT_STATUSES_SQL)),
     check(
       "drafts_failure_kind_check",
-      sql`failure_kind is null or ${oneOf("failure_kind", ["mailbox", "content"])}`,
+      sql`failure_kind is null or ${oneOf("failure_kind", ["mailbox", "ai", "content"])}`,
     ),
     check("drafts_origin_check", oneOf("origin", ["auto", "on_demand", "decision", "retry"])),
   ],
@@ -803,7 +849,10 @@ export const assistantThreads = pgTable(
     createdAt: at("created_at").notNull(),
     updatedAt: at("updated_at").notNull(),
   },
-  (t) => [index("assistant_threads_workspace_user_idx").on(t.workspaceId, t.userId)],
+  (t) => [
+    index("assistant_threads_workspace_user_idx").on(t.workspaceId, t.userId),
+    unique("assistant_threads_workspace_id_key").on(t.workspaceId, t.id),
+  ],
 );
 
 /** The messages of a thread: stored for the history, never logged (F8.10). */
@@ -812,9 +861,7 @@ export const assistantMessages = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     workspaceId: workspaceId(),
-    threadId: uuid("thread_id")
-      .notNull()
-      .references(() => assistantThreads.id, { onDelete: "cascade" }),
+    threadId: uuid("thread_id").notNull(),
     role: text("role").$type<"user" | "assistant">().notNull(),
     /** 1 for the first user message of the thread; the assistant's reply shares its turn. */
     turn: integer("turn").notNull(),
@@ -825,6 +872,11 @@ export const assistantMessages = pgTable(
   },
   (t) => [
     index("assistant_messages_thread_idx").on(t.threadId, t.createdAt),
+    foreignKey({
+      name: "assistant_messages_thread_fk",
+      columns: [t.workspaceId, t.threadId],
+      foreignColumns: [assistantThreads.workspaceId, assistantThreads.id],
+    }).onDelete("cascade"),
     check("assistant_messages_role_check", oneOf("role", ["user", "assistant"])),
   ],
 );
@@ -835,12 +887,8 @@ export const assistantProposals = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     workspaceId: workspaceId(),
-    threadId: uuid("thread_id")
-      .notNull()
-      .references(() => assistantThreads.id, { onDelete: "cascade" }),
-    profileId: uuid("profile_id")
-      .notNull()
-      .references(() => profiles.id, { onDelete: "cascade" }),
+    threadId: uuid("thread_id").notNull(),
+    profileId: uuid("profile_id").notNull(),
     /** The user's words that led to it, kept for the profile history (F8.4). */
     request: text("request").notNull(),
     summary: text("summary").notNull(),
@@ -856,6 +904,16 @@ export const assistantProposals = pgTable(
   },
   (t) => [
     index("assistant_proposals_thread_idx").on(t.threadId),
+    foreignKey({
+      name: "assistant_proposals_thread_fk",
+      columns: [t.workspaceId, t.threadId],
+      foreignColumns: [assistantThreads.workspaceId, assistantThreads.id],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "assistant_proposals_profile_fk",
+      columns: [t.workspaceId, t.profileId],
+      foreignColumns: [profiles.workspaceId, profiles.id],
+    }).onDelete("cascade"),
     check("assistant_proposals_status_check", oneOf("status", ["open", "applied", "discarded"])),
   ],
 );
@@ -866,9 +924,7 @@ export const profileHistory = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     workspaceId: workspaceId(),
-    profileId: uuid("profile_id")
-      .notNull()
-      .references(() => profiles.id, { onDelete: "cascade" }),
+    profileId: uuid("profile_id").notNull(),
     at: at("at").notNull(),
     by: uuid("by").references(() => users.id, { onDelete: "set null" }),
     source: text("source").$type<ProfileSource>().notNull(),
@@ -881,6 +937,11 @@ export const profileHistory = pgTable(
   },
   (t) => [
     index("profile_history_profile_at_idx").on(t.workspaceId, t.profileId, t.at.desc()),
+    foreignKey({
+      name: "profile_history_profile_fk",
+      columns: [t.workspaceId, t.profileId],
+      foreignColumns: [profiles.workspaceId, profiles.id],
+    }).onDelete("cascade"),
     check(
       "profile_history_source_check",
       oneOf("source", ["scan", "you", "decision", "assistant"]),

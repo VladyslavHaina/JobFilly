@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { DatabaseConnection } from "../client";
 import { openTestDatabase } from "../testing";
@@ -191,6 +192,43 @@ describe("dedupe keys (TBD-178)", () => {
       claim("app-d", after(10_000)),
     ]);
     expect(claimed.filter((c) => c !== null)).toHaveLength(1);
+  });
+
+  it("claims nothing of a key whose advisory lock another worker's claim holds", async () => {
+    // Two Postgres sessions claiming at the same moment read the same snapshot: one takes the
+    // expired job (row-locking it), the other skips that row and finds the queued one, whose key
+    // still looks free, as the takeover isn't committed yet. Only the per-key advisory lock,
+    // taken by the first claim's transaction, stops the second. PGlite has one session, so the
+    // other session's lock is played by a stand-in for pg_try_advisory_xact_lock, found before
+    // pg_catalog's, that refuses the keys listed in a table.
+    await job("k");
+    await claim("app-a", t0, 10_000);
+    await job("k", after(1));
+    const free = await job("free", after(2));
+    await conn.db.execute(sql`create temp table held_dedupe_locks (key integer)`);
+    await conn.db.execute(
+      sql.raw(`create function public.pg_try_advisory_xact_lock(space integer, key integer)
+        returns boolean language sql
+        as 'select not exists (select 1 from held_dedupe_locks h where h.key = $2)'`),
+    );
+    await conn.db.execute(sql`set search_path = public, pg_catalog`);
+    try {
+      await conn.db.execute(sql`insert into held_dedupe_locks values (hashtext('k'))`);
+      // Neither job of key k, the expired one or the queued one: only the job of another key.
+      expect(await claim("app-b", after(10_000))).toMatchObject({
+        id: free.id,
+        leaseExpired: false,
+      });
+      expect(await claim("app-c", after(10_001))).toBeNull();
+
+      // The first claim's transaction ended: the key is free again.
+      await conn.db.execute(sql`delete from held_dedupe_locks`);
+      expect(await claim("app-c", after(10_002))).toMatchObject({ leaseExpired: true });
+    } finally {
+      await conn.db.execute(sql`reset search_path`);
+      await conn.db.execute(sql`drop function public.pg_try_advisory_xact_lock(integer, integer)`);
+      await conn.db.execute(sql`drop table held_dedupe_locks`);
+    }
   });
 
   it("hands a job back as done when another of its key already waits", async () => {

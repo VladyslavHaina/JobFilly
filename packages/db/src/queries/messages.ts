@@ -1,16 +1,17 @@
-import type {
-  Category,
-  Envelope,
-  IntakeInput,
-  JobFacts,
-  Preferences,
-  StageOneResult,
-  StageOneVerdict,
-  StoredMessage,
+import {
+  type Category,
+  type Envelope,
+  type IntakeInput,
+  type JobFacts,
+  MESSAGE_GONE_SIGNAL,
+  type Preferences,
+  type StageOneResult,
+  type StageOneVerdict,
+  type StoredMessage,
 } from "@jobfilly/schema";
 import { and, asc, count, desc, eq, inArray, isNotNull, ne, sql } from "drizzle-orm";
 import type { Database } from "../client";
-import { messages, roles } from "../tables";
+import { messages, roles, senderChecks } from "../tables";
 
 // Message metadata, snippets and extracted facts (never bodies). A message is named by its RFC
 // Message-ID, unique per workspace, so saving the same envelopes again (a resumed scan) is
@@ -107,7 +108,10 @@ const CHUNK = 200;
 /**
  * Saves envelopes with their stage-one verdicts. A new row starts in the state its verdict gives
  * it; an existing row (same Message-ID) gets its headers and verdict refreshed and keeps its
- * category, analysis and roles.
+ * category, analysis and roles. The scan and the sync (a UIDVALIDITY re-index too, F1.3) save
+ * what they see through here, so a sender check made while the message couldn't be found in the
+ * mailbox (the message_gone signal) goes stale: the message is there again, under the reference
+ * just saved, and its sender is checked again with its text.
  */
 export async function saveEnvelopes(
   db: Database,
@@ -154,6 +158,20 @@ export async function saveEnvelopes(
           updatedAt: sql`now()`,
         },
       });
+    await db
+      .update(senderChecks)
+      .set({ stale: true, staleSince: sql`now()` })
+      .where(
+        and(
+          eq(senderChecks.workspaceId, workspaceId),
+          inArray(
+            senderChecks.messageId,
+            chunk.map((item) => item.envelope.messageId),
+          ),
+          eq(senderChecks.stale, false),
+          sql`${senderChecks.reasons} @> ${JSON.stringify([{ signal: MESSAGE_GONE_SIGNAL }])}::jsonb`,
+        ),
+      );
   }
 }
 

@@ -188,6 +188,30 @@ describe("failures and retries", () => {
     expect(await reclaimDraft(conn.db, ws, a?.id ?? "", later(99))).toBe(false);
   });
 
+  it("retries a draft.v1 failure (kind ai) under the same 5-attempt cap as mailbox failures", async () => {
+    const a = await claimDraft(conn.db, ws, role, { origin: "auto", now: t0 });
+    const reason = "The AI provider can't be reached";
+    await markDraftFailed(conn.db, ws, a?.id ?? "", { kind: "ai", reason, now: t0 });
+    expect(await listDraftsToRetry(conn.db, ws, later(1))).toEqual([
+      { id: a?.id, ...role, attempts: 1, status: "failed" },
+    ]);
+    // Mailbox and AI failures share the one cap.
+    for (let attempt = 2; attempt <= DRAFT_MAX_ATTEMPTS; attempt++) {
+      expect(await reclaimDraft(conn.db, ws, a?.id ?? "", later(attempt))).toBe(true);
+      const kind = attempt % 2 === 0 ? "mailbox" : "ai";
+      await markDraftFailed(conn.db, ws, a?.id ?? "", { kind, reason, now: later(attempt) });
+    }
+    expect(await listDraftsToRetry(conn.db, ws, later(99))).toEqual([]);
+    const [row] = await conn.db.select().from(drafts);
+    expect(row).toMatchObject({ status: "failed", failureKind: "ai", failureReason: reason });
+    // The role had a draft, so no automatic one comes; Draft a reply takes the row back.
+    expect((await draftHistory(conn.db, ws, [role])).get(roleKey(role))?.hadDraft).toBe(true);
+    expect(await claimDraft(conn.db, ws, role, { origin: "auto", now: later(100) })).toBeNull();
+    expect(
+      (await claimDraft(conn.db, ws, role, { origin: "on_demand", now: later(100) }))?.id,
+    ).toBe(a?.id);
+  });
+
   it("retries a saving claim whose job died, after 5 minutes", async () => {
     const a = await claimDraft(conn.db, ws, role, { origin: "auto", now: t0 });
     expect(await listDraftsToRetry(conn.db, ws, later(DRAFT_SAVING_TIMEOUT_MS - 1))).toEqual([]);
