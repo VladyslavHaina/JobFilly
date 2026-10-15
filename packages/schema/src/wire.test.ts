@@ -16,7 +16,10 @@ import {
 
 // The wire contract between packages/ai and the fake AI is committed data in e2e/fixtures/wire
 // (one input, request, response and output per task id). Here it is checked against the schemas
-// it is built from, so a schema change that breaks the samples fails at once.
+// it is built from, so a schema change that breaks the samples fails at once. The request samples
+// are the body the AI SDK's openai-compatible provider sends (packages/ai/src/wire.test.ts pins
+// them to the installed SDK): no `stream` field, `strict: true`, and the output schema converted
+// to JSON Schema draft-07 with every object closed.
 
 const WIRE = fileURLToPath(new URL("../../../e2e/fixtures/wire/", import.meta.url));
 const read = (taskId: TaskId, kind: "input" | "request" | "response" | "output"): unknown =>
@@ -38,17 +41,20 @@ const OUTPUTS: Record<TaskId, z.ZodType> = {
   "ai.test.v1": taskResultSchema(TASK_OUTPUT_SCHEMAS["ai.test.v1"]),
 };
 
-const RequestSchema = z.object({
+const RequestSchema = z.strictObject({
   model: z.literal("fixture-model"),
   messages: z.tuple([
     z.object({ role: z.literal("system"), content: z.string() }),
     z.object({ role: z.literal("user"), content: z.string() }),
   ]),
-  response_format: z.object({
+  response_format: z.strictObject({
     type: z.literal("json_schema"),
-    json_schema: z.object({ name: z.string(), schema: z.record(z.string(), z.unknown()) }),
+    json_schema: z.strictObject({
+      schema: z.record(z.string(), z.unknown()),
+      strict: z.literal(true),
+      name: z.string(),
+    }),
   }),
-  stream: z.literal(false),
 });
 
 const ResponseSchema = z.object({
@@ -72,11 +78,11 @@ describe.each(TASK_IDS)("the %s wire sample", (taskId) => {
     expect(INPUTS[taskId].safeParse(read(taskId, "input")).success).toBe(true);
   });
 
-  it("asks for the task's output schema by name, in json_schema mode", () => {
+  it("asks for the task's draft-07 output schema by name, in strict json_schema mode", () => {
     const request = RequestSchema.parse(read(taskId, "request"));
     expect(request.response_format.json_schema.name).toBe(taskId.replaceAll(".", "_"));
     expect(request.response_format.json_schema.schema).toEqual(
-      z.toJSONSchema(TASK_OUTPUT_SCHEMAS[taskId]),
+      z.toJSONSchema(TASK_OUTPUT_SCHEMAS[taskId], { target: "draft-7" }),
     );
     expect(request.messages[0].content.split("\n")[0]).toBe(`task: ${taskId}`);
     expect(request.messages[1].content.split("\n")[0]).toBe(`task: ${taskId}`);

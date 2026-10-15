@@ -6,7 +6,10 @@ import { describe, expect, it } from "vitest";
 //                           prefs.v1, one AiMailItem for extract.v1, IntakeExtraInput for
 //                           intake.v1, null for ai.test.v1
 //   <taskId>.request.json   the exact OpenAI chat-completions body packages/ai sends through the
-//                           openai-compatible provider for that input (model "fixture-model")
+//                           AI SDK's openai-compatible provider for that input (model
+//                           "fixture-model"): captured from the SDK, so no `stream` field,
+//                           `json_schema.strict: true` and a draft-07 schema; packages/ai's
+//                           wire.test.ts fails if the installed SDK sends anything else
 //   <taskId>.response.json  the fake AI's answer: JSON text in choices[0].message.content
 //   <taskId>.output.json    what packages/ai returns from it
 // Nothing imports these files: packages/ai's tests and the fake AI's tests read them. This test
