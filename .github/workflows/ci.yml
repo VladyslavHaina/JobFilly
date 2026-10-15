@@ -17,9 +17,6 @@ jobs:
     name: lint, typecheck, test, build
     runs-on: ubuntu-24.04
     timeout-minutes: 15
-    env:
-      # The desktop shell is built here but never launched.
-      ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -29,6 +26,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
+      - run: pnpm unused
       - run: pnpm build
 
   docker:

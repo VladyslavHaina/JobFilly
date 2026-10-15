@@ -2,11 +2,10 @@
   "name": "@jobfilly/server",
   "version": "0.0.0",
   "private": true,
-  "description": "HTTP API, authentication and background jobs. Runs in Docker, in the desktop app, and in development.",
+  "description": "HTTP API, sessions and background jobs. Serves the web UI in Docker and Kubernetes.",
   "type": "module",
   "exports": {
-    ".": "./src/app.ts",
-    "./node": "./src/node.ts"
+    ".": "./src/app.ts"
   },
   "files": [
     "dist"

@@ -19,7 +19,6 @@ export interface RunningServer {
 }
 
 // Starts the API (and, when webDist is set, the UI) on a Node HTTP server.
-// Used by the server's own entry point and by the desktop app.
 export function startServer(options: ServerOptions): Promise<RunningServer> {
   const root = new Hono();
   root.route("/", createApp({ version: options.version }));

@@ -2,6 +2,11 @@ node_modules/
 dist/
 out/
 coverage/
+test-results/
+playwright-report/
+blob-report/
+.playwright-mcp/
+e2e/reports/
 *.tsbuildinfo
 
 # Local data and secrets

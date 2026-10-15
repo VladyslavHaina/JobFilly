@@ -1,0 +1,44 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
+  // Workflow scripts are run by Claude Code, not imported by the app.
+  "ignore": [".claude/**"],
+  // Dependencies installed ahead of the MVP that first uses them. Remove an entry
+  // in the change that starts importing it. At every MVP sign-off this list may
+  // only hold dependencies a later MVP needs.
+  "workspaces": {
+    "apps/server": {
+      "ignoreDependencies": [
+        "@hono/zod-validator",
+        "@jobfilly/ai",
+        "@jobfilly/core",
+        "@jobfilly/db",
+        "@jobfilly/mail",
+        "zod"
+      ]
+    },
+    "apps/web": { "ignoreDependencies": ["react-router"] },
+    "packages/ai": {
+      "ignoreDependencies": [
+        "@ai-sdk/anthropic",
+        "@ai-sdk/google",
+        "@ai-sdk/openai",
+        "@ai-sdk/openai-compatible",
+        "@jobfilly/schema",
+        "ai",
+        "zod"
+      ]
+    },
+    "packages/core": { "ignoreDependencies": ["@jobfilly/schema"] },
+    "packages/db": { "ignoreDependencies": ["@jobfilly/schema", "drizzle-kit"] },
+    "packages/mail": {
+      "ignoreDependencies": [
+        "@jobfilly/schema",
+        "imapflow",
+        "mailparser",
+        "nodemailer",
+        "@types/mailparser",
+        "@types/nodemailer"
+      ]
+    }
+  }
+}

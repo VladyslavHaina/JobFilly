@@ -7,5 +7,4 @@ minimumReleaseAge: 10080
 
 # Dependency install scripts run only for packages listed here.
 allowBuilds:
-  electron: true
   esbuild: true

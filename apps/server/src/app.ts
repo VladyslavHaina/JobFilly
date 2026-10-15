@@ -5,8 +5,7 @@ export interface AppOptions {
   version: string;
 }
 
-// The HTTP API. Platform-neutral on purpose: the desktop app, the Docker
-// container and the tests all mount this same app.
+// The HTTP API. The Node server and the tests mount this same app.
 export function createApp(options: AppOptions) {
   return new Hono().get("/api/health", (c) =>
     c.json({ status: "ok", version: options.version } satisfies Health),

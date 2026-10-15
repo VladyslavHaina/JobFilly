@@ -2,7 +2,7 @@
   "name": "@jobfilly/web",
   "version": "0.0.0",
   "private": true,
-  "description": "React UI, shared by the desktop app and the Docker web app.",
+  "description": "React UI, served by the server.",
   "type": "module",
   "scripts": {
     "dev": "vite",

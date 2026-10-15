@@ -2,7 +2,6 @@
 
 # Build: install the workspace, then build the web UI and the server bundle.
 FROM node:24-slim AS build
-ENV ELECTRON_SKIP_BINARY_DOWNLOAD=1
 RUN npm install -g pnpm@12.10.1
 WORKDIR /repo
 COPY . .
