@@ -12,6 +12,7 @@ import {
   type EnvelopeEntry,
   type ExpectedAnswer,
   type ExpectedFile,
+  type ExpectedMessage,
   type ExtractAnswer,
   FIXTURE_REFERENCE_TIME,
   FOLDER_PATHS,
@@ -319,6 +320,71 @@ const data = Object.fromEntries(PERSONAS.map((p) => [p, load(p)])) as Record<
 >;
 const count = <T>(items: T[], f: (x: T) => boolean) => items.filter(f).length;
 
+// The fields of EnvelopeEntry, ExpectedMessage and JobFacts in format.ts.
+const ENVELOPE_KEYS: readonly (keyof EnvelopeEntry)[] = [
+  "file",
+  "messageId",
+  "folder",
+  "folderPath",
+  "minutesAgo",
+  "from",
+  "to",
+  "cc",
+  "replyTo",
+  "inReplyTo",
+  "references",
+  "subject",
+  "listId",
+  "listUnsubscribe",
+  "precedence",
+  "autoSubmitted",
+  "snippet",
+];
+const EXPECTED_MESSAGE_KEYS: readonly (keyof ExpectedMessage)[] = [
+  "folder",
+  "stageOne",
+  "category",
+  "facts",
+  "ownReply",
+  "invalid",
+];
+const JOB_FACTS_KEYS: readonly (keyof JobFacts)[] = [
+  "title",
+  "company",
+  "agency",
+  "places",
+  "workMode",
+  "remoteScope",
+  "timeZones",
+  "pay",
+  "contract",
+  "seniority",
+  "workPermit",
+  "skills",
+  "languages",
+  "applyUrl",
+  "extra",
+];
+
+const regions = new Intl.DisplayNames(["en"], { type: "region" });
+const currencies = new Set(Intl.supportedValuesOf("currency"));
+
+/** Every value under a `country` or `currency` key anywhere in `value`. */
+function isoCodes(
+  value: unknown,
+  out = { countries: new Set<string>(), currencies: new Set<string>() },
+) {
+  if (Array.isArray(value)) for (const v of value) isoCodes(v, out);
+  else if (value && typeof value === "object") {
+    for (const [k, v] of Object.entries(value)) {
+      if (k === "country" && typeof v === "string") out.countries.add(v);
+      else if (k === "currency" && typeof v === "string") out.currencies.add(v);
+      else isoCodes(v, out);
+    }
+  }
+  return out;
+}
+
 describe.each(PERSONAS)("%s's fixtures", (persona) => {
   const d = data[persona];
 
@@ -549,6 +615,39 @@ describe.each(PERSONAS)("%s's fixtures", (persona) => {
         expect(shape[key](v), `${key}: ${JSON.stringify(v)}`).toBe(true);
       expect(a.values.length === 0).toBe(a.evidence.length === 0);
     }
+  });
+
+  // The app's schemas take no field they don't define, so every file holds exactly the fields
+  // format.ts names, and countries and currencies are codes the runtime knows.
+  it("write envelopes, ground truth and roles with exactly the fields format.ts names", () => {
+    const keys = (value: object) => Object.keys(value).sort();
+    for (const e of d.envelopes) expect(keys(e), e.file).toEqual([...ENVELOPE_KEYS].sort());
+    expect(keys(d.expected)).toEqual(["address", "messages", "persona", "profile"]);
+    expect(keys(d.expected.profile)).toEqual(["answers", "extraQuestions"]);
+    const roles = [
+      ...Object.values(d.expected.messages).flatMap((m) => m.facts ?? []),
+      ...Object.values(d.extract).flatMap((a) => (isInvalid(a) ? [] : a.roles)),
+    ];
+    for (const [id, m] of Object.entries(d.expected.messages)) {
+      expect(keys(m), id).toEqual([...EXPECTED_MESSAGE_KEYS].sort());
+    }
+    for (const r of roles) {
+      expect(keys(r), r.title ?? "").toEqual([...JOB_FACTS_KEYS].sort());
+      for (const p of r.places) expect(keys(p)).toEqual(["city", "country"]);
+      if (r.pay) expect(keys(r.pay)).toEqual(["asWritten", "currency", "max", "min", "period"]);
+      if (r.agency) expect(keys(r.agency)).toEqual(["client", "name"]);
+    }
+  });
+
+  it("use real ISO 3166 countries and ISO 4217 currencies", () => {
+    const found = isoCodes([d.expected, d.extract, d.prefs]);
+    expect(found.currencies.size).toBeGreaterThan(0);
+    for (const c of found.countries) {
+      // DisplayNames echoes a code it doesn't know; EU, EZ and UN are no countries.
+      expect(regions.of(c), c).not.toBe(c);
+      expect(["EU", "EZ", "UN"]).not.toContain(c);
+    }
+    for (const c of found.currencies) expect(currencies.has(c), c).toBe(true);
   });
 
   it("point every evidence id at a reply or a job message", () => {
