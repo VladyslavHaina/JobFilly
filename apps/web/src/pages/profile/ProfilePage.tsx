@@ -12,11 +12,14 @@ import { ApiError, api } from "../../api";
 import { Alert, Button, Card, Loading, PageHeader, TextField } from "../../components";
 import { useWorkspace } from "../../hooks";
 import { paths } from "../../paths";
+import { ProfileHistory } from "../assistant";
+import { ProfileCvPrompt } from "../cvs";
 import { formatFullDate } from "../inbox/format";
 import { AnswerEditor } from "../intake/answers";
 import { Evidence } from "../intake/Evidence";
 import { profilesApi, profilesKey, useFormOpen, useProfiles } from "../intake/queries";
 import { ScanFirst } from "../intake/ScanFirst";
+import { RulesList } from "../rules";
 
 // The confirmed profile (F6.5): every entry with where it came from — the scan, or you — and a
 // name that can be changed. Editors change answers with the same clicks as the intake form;
@@ -207,7 +210,14 @@ export function ProfilePage({ workspaceId }: { workspaceId: string }) {
           <Alert tone="info">You can see the profile; only editors and admins can change it.</Alert>
         </div>
       )}
+      <div className="mb-4">
+        <ProfileCvPrompt workspaceId={workspaceId} profileId={profile.id} />
+      </div>
       <Entries profile={profile} />
+      <div className="mt-6 flex flex-col gap-6">
+        <RulesList workspaceId={workspaceId} profileId={profile.id} />
+        <ProfileHistory workspaceId={workspaceId} profileId={profile.id} />
+      </div>
     </section>
   );
 }

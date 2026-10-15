@@ -21,6 +21,9 @@ export const paths = {
     `${w(workspaceId)}/inbox/${encodeURIComponent(messageId)}`,
   scan: (workspaceId: string) => `${w(workspaceId)}/scan`,
   intake: (workspaceId: string) => `${w(workspaceId)}/intake`,
+  cvs: (workspaceId: string) => `${w(workspaceId)}/cvs`,
+  drafts: (workspaceId: string) => `${w(workspaceId)}/drafts`,
+  decisions: (workspaceId: string) => `${w(workspaceId)}/decisions`,
   profile: (workspaceId: string) => `${w(workspaceId)}/profile`,
   members: (workspaceId: string) => `${w(workspaceId)}/members`,
   settings: (workspaceId: string, tab: SettingsTab = "mailbox") =>

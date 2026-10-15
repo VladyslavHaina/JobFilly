@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { NavLink, Outlet, useNavigate, useParams } from "react-router";
 import { Button, Card, Loading } from "../components";
 import {
@@ -8,17 +9,26 @@ import {
   useWorkspaces,
   WorkspaceProvider,
 } from "../hooks";
+import { AssistantLauncher } from "../pages/assistant";
+import { DecisionCount } from "../pages/decisions";
 import { PendingInvitations } from "../pages/invites";
 import { paths } from "../paths";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 
 function Nav() {
   const { workspaceId, can } = useWorkspace();
-  const links = [
+  const links: { to: string; label: string; extra?: ReactNode }[] = [
     { to: paths.inbox(workspaceId), label: "Inbox" },
+    { to: paths.drafts(workspaceId), label: "Drafts" },
+    {
+      to: paths.decisions(workspaceId),
+      label: "Decisions",
+      extra: <DecisionCount workspaceId={workspaceId} />,
+    },
     { to: paths.scan(workspaceId), label: "Scan" },
     { to: paths.intake(workspaceId), label: "Intake" },
     { to: paths.profile(workspaceId), label: "Profile" },
+    { to: paths.cvs(workspaceId), label: "CVs" },
     ...(can.admin
       ? [
           { to: paths.members(workspaceId), label: "Members" },
@@ -33,7 +43,7 @@ function Nav() {
           key={l.label}
           to={l.to}
           className={({ isActive }) =>
-            `rounded-md px-2.5 py-1.5 text-sm font-medium ${
+            `inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium ${
               isActive
                 ? "bg-indigo-50 text-indigo-700"
                 : "text-stone-600 hover:bg-stone-100 hover:text-stone-900"
@@ -41,6 +51,7 @@ function Nav() {
           }
         >
           {l.label}
+          {l.extra}
         </NavLink>
       ))}
     </nav>
@@ -118,6 +129,8 @@ export function AppShell() {
           <PendingInvitations />
           <Outlet />
         </main>
+        {/* The assistant opens from every page (F8.1). */}
+        <AssistantLauncher workspaceId={workspace.id} />
       </div>
     </WorkspaceProvider>
   );

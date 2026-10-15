@@ -13,6 +13,10 @@ import { ApiError, api } from "../../api";
 import { Alert, Card, Loading, SelectField } from "../../components";
 import { queryKeys, useWorkspace } from "../../hooks";
 import { apiPaths, paths } from "../../paths";
+import { CvChoice } from "../cvs";
+import { DraftPanel } from "../drafts";
+import { MatchPanel } from "../match";
+import { SenderPanel } from "../senders";
 import { CategoryChip, CouldNotAnalyze } from "./badges";
 import {
   CATEGORY_LABELS,
@@ -207,7 +211,8 @@ function Status({ message }: { message: MessageDetail }) {
   return null;
 }
 
-function Facts({ message }: { message: MessageDetail }) {
+/** Each role's facts, with its CV choice, match and draft (the slices' slots). */
+function Facts({ workspaceId, message }: { workspaceId: string; message: MessageDetail }) {
   if (message.ownReply || message.category === "not_job") return null;
   if (message.roles.length === 0) {
     if (message.analysisStatus !== "done") return null;
@@ -219,13 +224,24 @@ function Facts({ message }: { message: MessageDetail }) {
         {message.roles.length === 1 ? "Job facts" : `${message.roles.length} roles`}
       </h3>
       {message.roles.map((role, i) => (
-        <RoleFacts
-          // Roles have no id of their own; their order is fixed by the extraction.
-          // biome-ignore lint/suspicious/noArrayIndexKey: see above
-          key={i}
-          role={role}
-          heading={`Role ${i + 1}`}
-        />
+        // Roles have no id of their own; their order is fixed by the extraction.
+        // biome-ignore lint/suspicious/noArrayIndexKey: see above
+        <div key={i} className="flex flex-col gap-2">
+          <RoleFacts role={role} heading={`Role ${i + 1}`} />
+          <MatchPanel
+            workspaceId={workspaceId}
+            messageId={message.id}
+            position={i}
+            evaluation={role.evaluation}
+          />
+          <CvChoice
+            workspaceId={workspaceId}
+            messageId={message.id}
+            position={i}
+            choice={role.cvChoice}
+          />
+          <DraftPanel workspaceId={workspaceId} messageId={message.id} position={i} />
+        </div>
       ))}
     </div>
   );
@@ -300,8 +316,16 @@ export function MessageDetailView(props: { workspaceId: string; messageId: strin
         {close}
       </header>
       <Status message={message} />
+      {!message.ownReply && (
+        <SenderPanel
+          workspaceId={workspaceId}
+          messageId={message.id}
+          from={message.from}
+          check={message.senderCheck}
+        />
+      )}
       {!message.ownReply && <CategoryCorrection message={message} />}
-      <Facts message={message} />
+      <Facts workspaceId={workspaceId} message={message} />
       <section aria-label="Message" className="border-t border-stone-200 pt-4">
         <Body workspaceId={workspaceId} messageId={messageId} />
       </section>

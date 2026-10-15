@@ -11,7 +11,10 @@ import { ApiError, api } from "../../api";
 import { Alert, Button, Loading, PageHeader, TextField } from "../../components";
 import { queryKeys, useWorkspace } from "../../hooks";
 import { apiPaths, paths } from "../../paths";
+import { FitScore, HiddenFilter, HiddenReason } from "../match";
 import { likelyJobEmails, useCurrentScan } from "../scan/queries";
+import { SenderBadge } from "../senders";
+import { MailboxStatus } from "../sync";
 import { CategoryChip, CouldNotAnalyze } from "./badges";
 import { CATEGORY_LABELS, formatListDate } from "./format";
 import { MessageDetailView } from "./MessageDetail";
@@ -37,6 +40,8 @@ interface Filters {
   category: Category | null;
   q: string;
   showNonJob: boolean;
+  /** The Hidden filter (F3.4): only messages hidden by a rule. */
+  hidden: boolean;
   page: number;
 }
 
@@ -45,6 +50,7 @@ function listUrl(workspaceId: string, f: Filters): string {
   if (f.category) params.set("category", f.category);
   if (f.q) params.set("q", f.q);
   if (f.showNonJob) params.set("showNonJob", "true");
+  if (f.hidden) params.set("hidden", "true");
   if (f.page > 1) params.set("page", String(f.page));
   const query = params.toString();
   return `${apiPaths.workspace(workspaceId)}/messages${query ? `?${query}` : ""}`;
@@ -142,6 +148,9 @@ function MessageRow(props: { workspaceId: string; message: MessageListItem; open
         <span className="mt-1.5 flex flex-wrap gap-1.5">
           {m.category && <CategoryChip category={m.category} />}
           {m.analysisStatus === "failed" && <CouldNotAnalyze />}
+          <FitScore fit={m.fit} />
+          <SenderBadge sender={m.sender} />
+          <HiddenReason hidden={m.hidden} />
         </span>
       </Link>
     </li>
@@ -159,13 +168,14 @@ export function InboxPage({
   const [category, setCategory] = useState<Category | null>(null);
   const [search, setSearch] = useState("");
   const [showNonJob, setShowNonJob] = useState(false);
+  const [hidden, setHidden] = useState(false);
   const q = useDebounced(search.trim(), SEARCH_DELAY_MS);
   // The page belongs to one choice of filters: a new filter or search starts at the first page.
-  const filterKey = JSON.stringify([category, q, showNonJob]);
+  const filterKey = JSON.stringify([category, q, showNonJob, hidden]);
   const [paging, setPaging] = useState({ filterKey, page: 1 });
   const page = paging.filterKey === filterKey ? paging.page : 1;
   const setPage = (n: number) => setPaging({ filterKey, page: n });
-  const filters: Filters = { category, q, showNonJob, page };
+  const filters: Filters = { category, q, showNonJob, hidden, page };
 
   const list = useQuery({
     queryKey: [...queryKeys.area(workspaceId, "messages"), "list", filters],
@@ -205,7 +215,11 @@ export function InboxPage({
 
   return (
     <div>
-      <PageHeader title="Job inbox" description="Your job mail, newest first." />
+      <PageHeader
+        title="Job inbox"
+        description="Your job mail, newest first."
+        actions={<MailboxStatus workspaceId={workspaceId} />}
+      />
       <div
         className={
           messageId ? "grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]" : "max-w-3xl"
@@ -214,6 +228,7 @@ export function InboxPage({
         <div className={messageId ? "hidden min-w-0 lg:block" : "min-w-0"}>
           <div className="flex flex-col gap-3">
             <CategoryFilter value={category} onChange={setCategory} />
+            <HiddenFilter value={hidden} onChange={setHidden} />
             <TextField
               label="Search sender or subject"
               type="search"
@@ -253,7 +268,7 @@ export function InboxPage({
             )}
             {data && data.items.length === 0 && (
               <p className="rounded-lg border border-dashed border-stone-300 px-4 py-8 text-center text-sm text-stone-500">
-                {filtered ? "No messages match." : "No job emails yet."}
+                {filtered || hidden ? "No messages match." : "No job emails yet."}
               </p>
             )}
             {data && data.items.length > 0 && (

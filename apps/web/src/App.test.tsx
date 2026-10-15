@@ -34,6 +34,30 @@ vi.mock("./pages/ai", () => ({
 vi.mock("./pages/scan", () => ({
   ScanPage: (p: { workspaceId: string }) => <p>{`scan page ${p.workspaceId}`}</p>,
 }));
+// MVP 2's slots, as probes too.
+vi.mock("./pages/sync", () => ({
+  MailboxStatus: () => null,
+  UsagePerDay: (p: { workspaceId: string }) => <p>{`usage ${p.workspaceId}`}</p>,
+}));
+vi.mock("./pages/cvs", () => ({
+  CvsPage: (p: { workspaceId: string }) => <p>{`cvs page ${p.workspaceId}`}</p>,
+  CvChoice: () => null,
+  ProfileCvPrompt: () => null,
+}));
+vi.mock("./pages/drafts", () => ({
+  DraftsPage: (p: { workspaceId: string }) => <p>{`drafts page ${p.workspaceId}`}</p>,
+  DraftPanel: () => null,
+}));
+vi.mock("./pages/decisions", () => ({
+  DecisionsPage: (p: { workspaceId: string }) => <p>{`decisions page ${p.workspaceId}`}</p>,
+  DecisionCount: (p: { workspaceId: string }) => (
+    <span data-testid="decision-count" data-workspace={p.workspaceId} />
+  ),
+}));
+vi.mock("./pages/assistant", () => ({
+  AssistantLauncher: (p: { workspaceId: string }) => <p>{`assistant ${p.workspaceId}`}</p>,
+  ProfileHistory: () => null,
+}));
 
 const ws = testWorkspace();
 const other = testWorkspace({
@@ -73,6 +97,9 @@ describe("paths", () => {
     expect(paths.profile("w1")).toBe("/w/w1/profile");
     expect(paths.members("w1")).toBe("/w/w1/members");
     expect(paths.settings("w1", "ai")).toBe("/w/w1/settings/ai");
+    expect(paths.cvs("w1")).toBe("/w/w1/cvs");
+    expect(paths.drafts("w1")).toBe("/w/w1/drafts");
+    expect(paths.decisions("w1")).toBe("/w/w1/decisions");
   });
 });
 
@@ -193,6 +220,29 @@ describe("onboarding", () => {
   });
 });
 
+describe("MVP 2's pages and slots", () => {
+  it("routes CVs, Drafts and Decisions, and puts the count and the assistant on every page", async () => {
+    signedIn();
+    const { router } = renderApp(paths.inbox(ws.id));
+    expect(await screen.findByText(`assistant ${ws.id}`)).toBeTruthy();
+    const nav = screen.getByRole("navigation", { name: "Main" });
+    const count = within(nav).getByTestId("decision-count");
+    expect(count.dataset.workspace).toBe(ws.id);
+    expect(count.closest("a")?.textContent).toBe("Decisions");
+    for (const [path, text] of [
+      [paths.cvs(ws.id), `cvs page ${ws.id}`],
+      [paths.drafts(ws.id), `drafts page ${ws.id}`],
+      [paths.decisions(ws.id), `decisions page ${ws.id}`],
+    ] as const) {
+      await router.navigate(path);
+      expect(await screen.findByText(text)).toBeTruthy();
+      expect(screen.getByText(`assistant ${ws.id}`)).toBeTruthy();
+    }
+    await userEvent.setup().click(within(nav).getByRole("link", { name: "CVs" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe(paths.cvs(ws.id)));
+  });
+});
+
 describe("the app shell (F1.7, F1.8)", () => {
   it("always shows the current workspace and switches to another", async () => {
     signedIn();
@@ -218,7 +268,17 @@ describe("the app shell (F1.7, F1.8)", () => {
       within(nav)
         .getAllByRole("link")
         .map((a) => a.textContent),
-    ).toEqual(["Inbox", "Scan", "Intake", "Profile", "Members", "Settings"]);
+    ).toEqual([
+      "Inbox",
+      "Drafts",
+      "Decisions",
+      "Scan",
+      "Intake",
+      "Profile",
+      "CVs",
+      "Members",
+      "Settings",
+    ]);
     await router.navigate(paths.inbox(other.id));
     await waitFor(() =>
       expect(
@@ -267,6 +327,8 @@ describe("settings", () => {
       }),
     );
     expect(await screen.findByRole("button", { name: "ai form (settings)" })).toBeTruthy();
+    // Settings › AI shows the model calls and tokens per day (F1.5).
+    expect(screen.getByText(`usage ${ws.id}`)).toBeTruthy();
   });
 });
 

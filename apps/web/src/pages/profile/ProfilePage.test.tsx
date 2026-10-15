@@ -170,6 +170,31 @@ describe("the profile page (F6.5)", () => {
     });
   });
 
+  it("sets a policy number, and shows entries set by a decision or the assistant", async () => {
+    const policy = entry({
+      key: "reply_threshold",
+      label: "Fit score that gets an automatic reply",
+      value: [70],
+      source: "assistant",
+    });
+    const decided = entry({ key: "deal_breakers", label: "Deal-breakers", source: "decision" });
+    const { ws, requests } = profileApi({
+      profiles: [{ ...PROFILE, entries: [policy, decided] }],
+    });
+    const user = userEvent.setup();
+    renderApp(paths.profile(ws.id));
+    const threshold = within(await section("Fit score that gets an automatic reply"));
+    expect(threshold.getByText("From the assistant")).toBeTruthy();
+    expect(within(await section("Deal-breakers")).getByText("From a decision")).toBeTruthy();
+    const field = threshold.getByLabelText("Fit score that gets an automatic reply");
+    await user.clear(field);
+    await user.type(field, "80");
+    await user.click(threshold.getByRole("button", { name: "Save" }));
+    expect(requests.find((r) => r.method === "PATCH")?.body).toEqual({
+      entries: [{ key: "reply_threshold", value: [80] }],
+    });
+  });
+
   it("points to the intake form when nothing is confirmed yet", async () => {
     const { ws } = profileApi({ profiles: [] });
     renderApp(paths.profile(ws.id));

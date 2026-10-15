@@ -4,6 +4,7 @@ import {
   CurrencyCodeSchema,
   type ExtraQuestion,
   isExtraKey,
+  isPolicyKey,
   JOB_CATEGORIES,
   type PayPeriod,
   PayPeriodSchema,
@@ -446,11 +447,40 @@ function ExtraEditor({
 }
 
 /** The editor that fits the answer's key. */
+/** A policy key's one number (reply_threshold, reply_window_days), set with Save. */
+function NumberEditor({ label, value, disabled, onChange }: EditorProps) {
+  const current = (value as number[])[0];
+  const [text, setText] = useState(current === undefined ? "" : String(current));
+  const n = Number(text);
+  const valid = text.trim() !== "" && Number.isInteger(n) && n >= 0 && n <= 1000;
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    if (valid && n !== current) onChange([n]);
+  };
+  return (
+    <form onSubmit={submit} className="flex flex-wrap items-end gap-2">
+      <TextField
+        label={label}
+        type="number"
+        min={0}
+        max={1000}
+        value={text}
+        disabled={disabled}
+        onChange={(e) => setText(e.target.value)}
+      />
+      <Button type="submit" variant="secondary" disabled={disabled || !valid || n === current}>
+        Save
+      </Button>
+    </form>
+  );
+}
+
 export function AnswerEditor(
   props: EditorProps & { entryKey: ProfileKey; question?: ExtraQuestion },
 ) {
   const { entryKey, question, ...editor } = props;
   if (isExtraKey(entryKey)) return <ExtraEditor {...editor} question={question} />;
+  if (isPolicyKey(entryKey)) return <NumberEditor {...editor} />;
   switch (entryKey) {
     case "places":
       return <PlacesEditor {...editor} />;

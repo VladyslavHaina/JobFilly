@@ -4,6 +4,7 @@ import { useWorkspace } from "../../hooks";
 import { paths, type SettingsTab } from "../../paths";
 import { AiForm } from "../ai";
 import { MailboxForm } from "../mailbox";
+import { UsagePerDay } from "../sync";
 
 const TABS: { id: SettingsTab; label: string }[] = [
   { id: "mailbox", label: "Mailbox" },
@@ -38,7 +39,10 @@ export function SettingsPage() {
       {current === "mailbox" ? (
         <MailboxForm workspaceId={workspaceId} mode="settings" />
       ) : (
-        <AiForm workspaceId={workspaceId} mode="settings" />
+        <div className="flex flex-col gap-6">
+          <AiForm workspaceId={workspaceId} mode="settings" />
+          <UsagePerDay workspaceId={workspaceId} />
+        </div>
       )}
     </div>
   );

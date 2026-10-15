@@ -4,6 +4,9 @@ import { useWorkspace } from "./hooks";
 import { AppShell, Home, NotFound, RequireSession, WorkspaceIndex } from "./layout";
 import { OnboardingPage } from "./onboarding";
 import { RegisterPage, SignInPage } from "./pages/auth";
+import { CvsPage } from "./pages/cvs";
+import { DecisionsPage } from "./pages/decisions";
+import { DraftsPage } from "./pages/drafts";
 import { InboxPage } from "./pages/inbox";
 import { IntakePage } from "./pages/intake";
 import { InvitationsPage, InviteLinkPage } from "./pages/invites";
@@ -52,6 +55,9 @@ export const routes: RouteObject[] = [
           { path: "scan", element: <WorkspacePage page={ScanPage} /> },
           { path: "intake", element: <WorkspacePage page={IntakePage} /> },
           { path: "profile", element: <WorkspacePage page={ProfilePage} /> },
+          { path: "cvs", element: <WorkspacePage page={CvsPage} /> },
+          { path: "drafts", element: <WorkspacePage page={DraftsPage} /> },
+          { path: "decisions", element: <WorkspacePage page={DecisionsPage} /> },
           { path: "members", element: <MembersPage /> },
           { path: "settings/:tab", element: <SettingsPage /> },
           { path: "*", element: <NotFound /> },

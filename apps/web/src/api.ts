@@ -22,12 +22,14 @@ export interface RequestOptions {
   signal?: AbortSignal;
 }
 
-async function send(path: string, options: RequestOptions): Promise<Response> {
+async function send(path: string, options: RequestOptions, form?: FormData): Promise<Response> {
+  const json = form === undefined && options.body !== undefined;
   const res = await fetch(path, {
-    method: options.method ?? "GET",
+    method: options.method ?? (form ? "POST" : "GET"),
     credentials: "same-origin",
-    headers: options.body === undefined ? {} : { "Content-Type": "application/json" },
-    body: options.body === undefined ? undefined : JSON.stringify(options.body),
+    // A FormData body sets its own multipart Content-Type, with the boundary.
+    headers: json ? { "Content-Type": "application/json" } : {},
+    body: form ?? (json ? JSON.stringify(options.body) : undefined),
     signal: options.signal,
   });
   if (!res.ok) {
@@ -60,4 +62,42 @@ export async function api<T>(
 /** Calls the API for an answer without a body (204). */
 export async function apiVoid(path: string, options: RequestOptions = {}): Promise<void> {
   await send(path, options);
+}
+
+/**
+ * Uploads a form as multipart/form-data (a CV file, F2.1) and parses the JSON answer with
+ * `schema`. The browser sets the Content-Type with its boundary; no JSON type is sent.
+ */
+export async function apiUpload<T>(
+  path: string,
+  form: FormData,
+  schema: ZodType<T>,
+  options: Omit<RequestOptions, "body"> = {},
+): Promise<T> {
+  const res = await send(path, { method: "POST", ...options }, form);
+  return schema.parse(await res.json());
+}
+
+/** The file name a download's Content-Disposition gives, if any (RFC 6266, filename* first). */
+function fileNameOf(disposition: string | null): string | null {
+  if (!disposition) return null;
+  const star = /filename\*\s*=\s*(?:UTF-8|utf-8)''([^;]+)/.exec(disposition);
+  if (star?.[1]) {
+    try {
+      return decodeURIComponent(star[1].trim());
+    } catch {
+      // Not valid percent-encoding: fall back to the plain parameter.
+    }
+  }
+  const plain = /filename\s*=\s*"?([^";]+)"?/.exec(disposition);
+  return plain?.[1]?.trim() ?? null;
+}
+
+/** Downloads a file (a CV, F2): its bytes and the name the server gives it. */
+export async function apiDownload(
+  path: string,
+  options: Pick<RequestOptions, "signal"> = {},
+): Promise<{ blob: Blob; fileName: string | null }> {
+  const res = await send(path, options);
+  return { blob: await res.blob(), fileName: fileNameOf(res.headers.get("Content-Disposition")) };
 }
