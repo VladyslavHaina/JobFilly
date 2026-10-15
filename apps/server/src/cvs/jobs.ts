@@ -15,9 +15,9 @@ import { openAiKey } from "../secrets";
 // profile's roles are re-evaluated. A read that fails leaves the CV marked failed.
 // Registered here, spread into jobs/registry.ts.
 
-export type CvReadOutcome = "done" | "failed" | "gone";
+type CvReadOutcome = "done" | "failed" | "gone";
 
-export async function readCv(deps: AppDeps, ws: string, cvId: string): Promise<CvReadOutcome> {
+async function readCv(deps: AppDeps, ws: string, cvId: string): Promise<CvReadOutcome> {
   const log = deps.log.child({ workspaceId: ws, cvId });
   const cv = await getCv(deps.db, ws, cvId);
   if (!cv) return "gone";
