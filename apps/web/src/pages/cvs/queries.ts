@@ -2,11 +2,9 @@ import { CvListSchema } from "@jobfilly/schema";
 import { useQuery } from "@tanstack/react-query";
 import { ApiError, api } from "../../api";
 import { queryKeys } from "../../hooks";
+import { apiPaths } from "../../paths";
 
 // The CVs of a workspace, under the "cvs" area so a cvs.updated event refetches them.
-
-export const cvsPath = (workspaceId: string) =>
-  `/api/workspaces/${encodeURIComponent(workspaceId)}/cvs`;
 
 export const cvsKey = (workspaceId: string) =>
   [...queryKeys.area(workspaceId, "cvs"), "list"] as const;
@@ -14,7 +12,7 @@ export const cvsKey = (workspaceId: string) =>
 export function useCvs(workspaceId: string) {
   return useQuery({
     queryKey: cvsKey(workspaceId),
-    queryFn: async () => (await api(cvsPath(workspaceId), CvListSchema)).items,
+    queryFn: async () => (await api(apiPaths.cvs(workspaceId), CvListSchema)).items,
   });
 }
 

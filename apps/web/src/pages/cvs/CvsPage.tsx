@@ -20,8 +20,9 @@ import {
   TagInput,
 } from "../../components";
 import { useWorkspace } from "../../hooks";
+import { apiPaths } from "../../paths";
 import { formatFullDate } from "../inbox/format";
-import { cvsKey, cvsPath, errorText, useCvs } from "./queries";
+import { cvsKey, errorText, useCvs } from "./queries";
 
 // The CVs page (F2.1, F2.5): editors upload PDF or DOCX files (several at once), each is read by
 // the AI, which suggests its language, role families and seniority as tags, and lists the skills
@@ -57,7 +58,7 @@ function useCvEdit(cv: Cv) {
   const client = useQueryClient();
   return useMutation({
     mutationFn: (change: CvUpdate) =>
-      api(`${cvsPath(workspaceId)}/${cv.id}`, CvSchema, { method: "PATCH", body: change }),
+      api(apiPaths.cv(workspaceId, cv.id), CvSchema, { method: "PATCH", body: change }),
     onSuccess: (updated) =>
       client.setQueryData<Cv[]>(cvsKey(workspaceId), (list) =>
         list?.map((c) => (c.id === updated.id ? updated : c)),
@@ -74,7 +75,7 @@ function CvCard({ cv }: { cv: Cv }) {
   const skills = useCvEdit(cv);
   const hints = useCvEdit(cv);
   const remove = useMutation({
-    mutationFn: () => apiVoid(`${cvsPath(workspaceId)}/${cv.id}`, { method: "DELETE" }),
+    mutationFn: () => apiVoid(apiPaths.cv(workspaceId, cv.id), { method: "DELETE" }),
     onSuccess: async () => {
       setConfirming(false);
       await refresh();
@@ -82,7 +83,7 @@ function CvCard({ cv }: { cv: Cv }) {
   });
   const download = useMutation({
     mutationFn: async () => {
-      const { blob, fileName } = await apiDownload(`${cvsPath(workspaceId)}/${cv.id}/file`);
+      const { blob, fileName } = await apiDownload(`${apiPaths.cv(workspaceId, cv.id)}/file`);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -194,7 +195,7 @@ function Upload() {
         const form = new FormData();
         form.set(CV_UPLOAD_FILE_FIELD, file);
         try {
-          await apiUpload(cvsPath(workspaceId), form, CvSchema);
+          await apiUpload(apiPaths.cvs(workspaceId), form, CvSchema);
         } catch (error) {
           failed.push(`${file.name}: ${errorText(error)}`);
         }

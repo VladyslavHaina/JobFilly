@@ -10,6 +10,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ApiError, api } from "../../api";
 import { Alert, Badge, Button } from "../../components";
 import { queryKeys, useWorkspace } from "../../hooks";
+import { apiPaths } from "../../paths";
 
 // The sender check in the UI (F5): a badge on each inbox row (looks fine, caution, high risk),
 // and in the message detail the reasons, worded as estimates, a warning for a high-risk sender
@@ -40,14 +41,10 @@ function MarkButtons({ from, mark }: { from: Address; mark: SenderMark | null })
   const client = useQueryClient();
   const set = useMutation({
     mutationFn: (next: SenderMark | null) =>
-      api(
-        `/api/workspaces/${encodeURIComponent(workspaceId)}/senders/marks`,
-        SenderMarkInputSchema,
-        {
-          method: "PUT",
-          body: { scope: "address", value: from.address, mark: next },
-        },
-      ),
+      api(apiPaths.senderMarks(workspaceId), SenderMarkInputSchema, {
+        method: "PUT",
+        body: { scope: "address", value: from.address, mark: next },
+      }),
     // The sender's mail is checked again; the inbox shows it when that is done.
     onSuccess: () =>
       client.invalidateQueries({ queryKey: queryKeys.area(workspaceId, "messages") }),
