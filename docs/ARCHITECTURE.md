@@ -34,12 +34,19 @@ Rules:
 - `e2e/` is a workspace package with its own dependencies, but it imports no app or package code,
   and nothing imports it. The wire contract between `packages/ai` and the fake AI is committed
   data in `e2e/fixtures/wire/` (per task id: the input, the exact OpenAI-compatible request, the
-  fake AI's response and what `packages/ai` returns); both sides' tests read it from disk.
+  fake AI's response and what `packages/ai` returns); both sides' tests read it from disk. The
+  request is the body the AI SDK's openai-compatible provider sends (`strict` JSON Schema
+  draft-07, no `stream` field); a `packages/ai` test captures it from the installed SDK and fails
+  when an upgrade changes it.
 
 ## Workspaces, access and sessions
 
 - Every workspace-owned row carries `workspace_id`. Data access goes through `packages/db`
-  functions that require a workspace id; there is no unscoped query for workspace data.
+  functions that require a workspace id, and `packages/db` exports no raw SQL. Two deliberate
+  exceptions take an id instead: the invitee answering an invite (read, accept, decline by
+  invite id, only after the server has checked the invite's email or token), and the queue
+  worker's lease operations (claim, renew, checkpoint, complete, hand back), which serve every
+  workspace and are guarded by the lease owner.
 - The server resolves the session, then checks membership and role on every workspace route.
   Not a member: `404`. A member without the needed role: `403`. Each route module under
   `/api/workspaces/:workspaceId/<name>` is mounted once behind the membership check
@@ -130,7 +137,8 @@ Every MVP keeps these true; the Helm chart after MVP 3 relies on them.
 
 - JSON lines on stdout with `time`, `level`, `instance` (the replica's hostname), `event`
   (dot-separated, e.g. `scan.stopped`), `requestId` for HTTP requests, and `workspaceId` / `userId`
-  as ids. Every HTTP request logs `http.request` with method, route pattern, status and duration.
+  as ids. Every HTTP request logs `http.request` with method, route pattern, status and duration;
+  the UI's files and deep links all log the route `/*`, never their path.
 - Never logged: passwords, keys, tokens, cookies, message bodies, subjects, email addresses, CV
   text, assistant messages.
 
