@@ -1,9 +1,10 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    // Node types are for the tests (they read the wire samples); the schemas themselves use only
-    // zod, since the web app imports them too.
-    "types": ["node"]
+    // No Node types: the web app imports these schemas, so they may use only zod. The tests,
+    // which read the wire samples from disk, are typechecked with Node types by tsconfig.test.json.
+    "types": []
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts"]
 }
