@@ -23,6 +23,7 @@ import type { MailPort } from "../deps";
 //                             next client, as a connection that never came up)
 //   setUidValidity(folder, n) the folder is rebuilt: new UIDVALIDITY, UIDs renumbered, the
 //                             Message-IDs kept (F1.3)
+//   expunge(messageId)        the message is deleted from its folder (the user deleted it)
 //   calls                     how often each operation ran, so a test can show no body was
 //                             fetched
 //
@@ -94,6 +95,8 @@ export interface FakeMailbox {
   ): void;
   setUidValidity(folder: MailFolder | "drafts", uidValidity: number): void;
   uidValidity(folder: MailFolder | "drafts"): number;
+  /** Deletes the message from INBOX or Sent, as a user deleting it would. */
+  expunge(messageId: string): void;
 }
 
 const PATHS: Record<MailFolder | "drafts", string> = {
@@ -290,6 +293,11 @@ export function createFakeMailbox(
       });
     },
     uidValidity: (folder) => folders[folder].uidValidity,
+    expunge(messageId) {
+      for (const folder of ["inbox", "sent"] as const) {
+        stored[folder] = stored[folder].filter((m) => m.envelope.messageId !== messageId);
+      }
+    },
   };
   return fake;
 }

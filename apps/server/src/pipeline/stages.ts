@@ -22,7 +22,11 @@ import type { Logger } from "../log";
 //
 // Tests inject their own stages, so the backbone is proven without the slices.
 
-/** @public One job message as the stages read it (packages/db's loadMessageInputs). */
+/**
+ * @public One job message as the stages read it (packages/db's loadMessageInputs). Its
+ * `language` is the body's language as the sender stage last detected it (stored on the
+ * message), so the cv-choice stage reads it without the mailbox; null before then.
+ */
 export type MessageInput = MessageInputRow;
 
 /** @public One role of the message: its position and facts. */
@@ -32,10 +36,28 @@ export interface RoleInput {
 }
 
 /**
+ * body() found no message under the stored reference (fetchBody returned null): it was deleted
+ * or moved, or its folder was rebuilt and the next sync re-indexes it. The sender stage may catch
+ * it and return an incomplete check with what it can still tell (the domain, the mark). If it
+ * lets it through, the pipeline stores an incomplete check with only the message_gone reason, so
+ * the message isn't tried again on every sweep. Either way the stored check is incomplete, never
+ * better than caution, and names message_gone; a scan or sync that sees the message again makes
+ * it stale (packages/db saveEnvelopes).
+ */
+export class MessageGoneError extends Error {
+  constructor() {
+    super("the message is no longer in the mailbox");
+    this.name = "MessageGoneError";
+  }
+}
+
+/**
  * What every stage gets besides its input. `body()` fetches the message's plain text from the
- * mailbox on first call (once per evaluation, never stored); `original()` fetches what a draft
- * replies to (fetchOriginal). Only the sender stage, and the reply stage when it drafts, should
- * call them: re-scoring after a change never touches the mailbox.
+ * mailbox on first call (once per evaluation, never stored); it throws MessageGoneError when the
+ * message isn't there. `original()` fetches what a draft replies to (fetchOriginal). Only the
+ * sender stage, and the reply stage when it drafts, should call them: re-scoring after a change
+ * never touches the mailbox. A re-evaluation run shares one mailbox connection between its
+ * messages.
  */
 export interface StageContext {
   deps: AppDeps;
@@ -66,10 +88,20 @@ export interface CvChoiceResult {
   source: "auto" | "you";
 }
 
+/**
+ * What the sender stage returns: the check, and the body's language (ISO 639-1) as it detected
+ * it for its phrase lists, or null when it couldn't tell. The pipeline stores both; when the
+ * language changed, the message's roles are evaluated again, as their CV choice may depend on it.
+ */
+export interface SenderStageResult {
+  check: SenderCheck;
+  language: string | null;
+}
+
 export type SenderStage = (
   input: { message: MessageInput },
   ctx: StageContext,
-) => Promise<SenderCheck>;
+) => Promise<SenderStageResult>;
 
 export type CvChoiceStage = (
   input: { message: MessageInput; role: RoleInput },

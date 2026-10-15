@@ -102,6 +102,18 @@ describe("pipeline.reevaluate", () => {
     expect(await listToEvaluate(deps.db, ws)).toEqual([]);
   });
 
+  it("logs in to the mailbox once per run, not once per message", async () => {
+    await confirm();
+    await backlog(25);
+    await reevaluateWorkspace(deps, ws, { stages });
+    expect(mailbox.calls.fetchBody).toBe(25);
+    expect(mailbox.calls.connect).toBe(1);
+    // A run that needs no body never opens it.
+    await markStale(deps.db, ws, { all: true }, NOW);
+    await reevaluateWorkspace(deps, ws, { stages });
+    expect(mailbox.calls.connect).toBe(1);
+  });
+
   it("processes each item once per run, so a failing stage can't make it loop", async () => {
     await confirm();
     await backlog(2);

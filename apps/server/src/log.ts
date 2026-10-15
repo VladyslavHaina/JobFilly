@@ -62,9 +62,11 @@ export type LogEvent =
   | "assistant.proposal_applied"
   | "assistant.proposal_discarded"
   | "profile.change_undone"
-  // Operational: a pipeline stage or the sweep failed for one item (it is retried later).
+  // Operational: a pipeline stage or the sweep failed for one item (it is retried later), or a
+  // message's body was gone from the mailbox (its sender check is stored incomplete).
   | "pipeline.stage_failed"
-  | "pipeline.sweep_failed";
+  | "pipeline.sweep_failed"
+  | "pipeline.message_gone";
 
 export type LogFields = Record<string, unknown>;
 

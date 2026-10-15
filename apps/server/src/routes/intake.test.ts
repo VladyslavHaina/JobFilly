@@ -712,10 +712,8 @@ describe("POST /intake/confirm (F6.5)", () => {
   it("has the first scan's backlog matched once confirmed (F1.6)", async () => {
     const stages = recordingStages();
     stages.sender = async () => ({
-      verdict: "looks_fine",
-      complete: true,
-      reasons: [],
-      mark: null,
+      check: { verdict: "looks_fine", complete: true, reasons: [], mark: null },
+      language: null,
     });
     // Before Confirm the pipeline can only check the senders: there is no profile to match.
     await reevaluateWorkspace(deps, ws.workspaceId, { stages });

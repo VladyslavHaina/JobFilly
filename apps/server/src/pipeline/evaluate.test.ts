@@ -4,6 +4,7 @@ import {
   getEvaluations,
   getSenderChecks,
   listToEvaluate,
+  loadMessageInputs,
   markStale,
 } from "@jobfilly/db";
 import type { LiveEvent } from "@jobfilly/schema";
@@ -22,6 +23,7 @@ import {
   type TestDeps,
 } from "../testing";
 import { evaluateMessage } from "./evaluate";
+import { MessageGoneError } from "./stages";
 
 // The analysis pipeline for one message (F1.1, F1.6, TBD-192) with recording stages: the order of
 // the stages, when the sender stage runs (only for a missing or stale check), what happens
@@ -174,6 +176,97 @@ describe("evaluateMessage", () => {
     expect(await listToEvaluate(deps.db, ws)).toMatchObject([
       { messageId: "<a@x.example>", sender: { state: "missing" }, roles: [] },
     ]);
+  });
+
+  it("stores an incomplete check for a message gone from the mailbox, so it isn't fetched again", async () => {
+    await confirm();
+    await seedJobMail(deps, ws, mailbox, { messageId: "<a@x.example>", receivedAt: daysAgo(1) });
+    mailbox.expunge("<a@x.example>");
+    const outcome = await evaluate("<a@x.example>", "backlog");
+    expect(outcome).toMatchObject({ senderChecked: true, evaluated: [0], failed: [] });
+    expect(await getSenderChecks(deps.db, ws, ["<a@x.example>"])).toEqual([
+      {
+        messageId: "<a@x.example>",
+        verdict: "caution",
+        complete: false,
+        reasons: [
+          {
+            signal: "message_gone",
+            reason: "The message is no longer in the mailbox, so its text couldn't be checked",
+          },
+        ],
+        mark: null,
+        stale: false,
+      },
+    ]);
+    // The reply stage sees the incomplete check, never "looks fine".
+    expect(stages.replies[0]?.sender).toMatchObject({ verdict: "caution", complete: false });
+    expect(await listToEvaluate(deps.db, ws)).toEqual([]);
+    expect(deps.logs.filter((l) => l.event === "pipeline.message_gone")).toMatchObject([
+      { level: "warn", workspaceId: ws },
+    ]);
+  });
+
+  it("keeps a check the sender stage made for a gone message incomplete and names why", async () => {
+    await confirm();
+    await seedJobMail(deps, ws, mailbox, { messageId: "<a@x.example>", receivedAt: daysAgo(1) });
+    mailbox.expunge("<a@x.example>");
+    stages.sender = async (_input, ctx) => {
+      try {
+        await ctx.body();
+      } catch (error) {
+        if (!(error instanceof MessageGoneError)) throw error;
+      }
+      // What it could still tell from the domain, wrongly claimed complete.
+      return {
+        check: { verdict: "looks_fine", complete: true, reasons: [], mark: "trusted" },
+        language: "de",
+      };
+    };
+    await evaluate("<a@x.example>", "backlog");
+    expect((await getSenderChecks(deps.db, ws, ["<a@x.example>"]))[0]).toMatchObject({
+      verdict: "caution",
+      complete: false,
+      reasons: [{ signal: "message_gone" }],
+      mark: "trusted",
+    });
+    // Nothing was read, so no language is stored.
+    expect((await loadMessageInputs(deps.db, ws, ["<a@x.example>"]))[0]?.language).toBeNull();
+  });
+
+  it("stores the language the sender stage tells, which the cv-choice stage then reads", async () => {
+    await confirm();
+    await seedJobMail(deps, ws, mailbox, { messageId: "<a@x.example>", receivedAt: daysAgo(1) });
+    stages.language = () => "de";
+    await evaluate("<a@x.example>");
+    expect((await loadMessageInputs(deps.db, ws, ["<a@x.example>"]))[0]?.language).toBe("de");
+    expect(stages.cvLanguages).toEqual(["<a@x.example>#0 de"]);
+    // Re-scoring reads it without the mailbox.
+    await markStale(deps.db, ws, { all: true }, NOW);
+    mailbox.pause();
+    await evaluate("<a@x.example>", "reevaluate");
+    expect(stages.cvLanguages).toEqual(["<a@x.example>#0 de", "<a@x.example>#0 de"]);
+  });
+
+  it("re-chooses the CV when the sender check, done after the match, tells a new language", async () => {
+    await confirm();
+    await seedJobMail(deps, ws, mailbox, { messageId: "<a@x.example>", receivedAt: daysAgo(1) });
+    // The mailbox was down: the role was matched without a language.
+    mailbox.pause();
+    await evaluate("<a@x.example>");
+    expect(stages.cvLanguages).toEqual(["<a@x.example>#0 null"]);
+    mailbox.resume();
+    stages.language = () => "de";
+    stages.calls.length = 0;
+    await evaluate("<a@x.example>", "reevaluate");
+    expect(stages.calls).toEqual([
+      "sender <a@x.example>",
+      "cvChoice <a@x.example>#0",
+      "match <a@x.example>#0",
+      "reply <a@x.example>",
+    ]);
+    expect(stages.cvLanguages.at(-1)).toBe("<a@x.example>#0 de");
+    expect(await listToEvaluate(deps.db, ws)).toEqual([]);
   });
 
   it("never marks a role evaluated when its match stage fails", async () => {

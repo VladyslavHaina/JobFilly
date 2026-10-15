@@ -1,7 +1,7 @@
 import { saveAnalysis, saveEnvelopes } from "@jobfilly/db";
 import type { Category, Envelope, JobFacts, RoleEvaluation, SenderCheck } from "@jobfilly/schema";
 import type { AppDeps } from "../deps";
-import type { CvChoiceResult, Stages } from "../pipeline/stages";
+import type { CvChoiceResult, SenderStageResult, Stages } from "../pipeline/stages";
 import type { FakeMailbox } from "./mailbox";
 
 // Helpers for pipeline tests (tests only): job mail that exists both in the fake mailbox and in
@@ -72,13 +72,17 @@ export interface RecordingStages extends Stages {
   replies: Parameters<Stages["reply"]>[0][];
   /** The score each role gets (default 75); a function of message and position. */
   score: (messageId: string, position: number) => number;
+  /** The language the sender stage tells for a message (default null). */
+  language: (messageId: string) => string | null;
+  /** The language each cv-choice call saw on its message input, as "<id>#<pos> <language>". */
+  cvLanguages: string[];
   /** Make a stage fail for a message (or every message with "*"). */
   failing: Partial<Record<"sender" | "cvChoice" | "match" | "reply", string>>;
 }
 
 /**
  * Stages that record their calls. The sender stage reads the body (ctx.body()), as the real one
- * does; the match stage scores 75 unless told otherwise.
+ * does, and lets MessageGoneError through; the match stage scores 75 unless told otherwise.
  */
 export function recordingStages(): RecordingStages {
   const fails = (stage: keyof RecordingStages["failing"], id: string) => {
@@ -90,14 +94,18 @@ export function recordingStages(): RecordingStages {
     replies: [],
     failing: {},
     score: () => 75,
-    async sender({ message }, ctx): Promise<SenderCheck> {
+    language: () => null,
+    cvLanguages: [],
+    async sender({ message }, ctx): Promise<SenderStageResult> {
       stages.calls.push(`sender ${message.messageId}`);
       if (fails("sender", message.messageId)) throw new Error("sender stage failed");
       await ctx.body();
-      return { verdict: "looks_fine", complete: true, reasons: [], mark: null };
+      const check: SenderCheck = { verdict: "looks_fine", complete: true, reasons: [], mark: null };
+      return { check, language: stages.language(message.messageId) };
     },
     async cvChoice({ message, role }): Promise<CvChoiceResult> {
       stages.calls.push(`cvChoice ${message.messageId}#${role.position}`);
+      stages.cvLanguages.push(`${message.messageId}#${role.position} ${message.language}`);
       if (fails("cvChoice", message.messageId)) throw new Error("cv-choice stage failed");
       return {
         cvId: null,

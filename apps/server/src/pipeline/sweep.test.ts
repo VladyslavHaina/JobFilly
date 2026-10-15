@@ -3,8 +3,10 @@ import {
   createConfirmedProfile,
   getDraftClaim,
   getJob,
+  getSenderChecks,
   listToEvaluate,
   markDraftFailed,
+  saveEnvelopes,
 } from "@jobfilly/db";
 import {
   DRAFT_CREATE_JOB,
@@ -131,6 +133,49 @@ describe("the sweep", () => {
     expect(await listToEvaluate(deps.db, ws)).toEqual([]);
   });
 
+  it("checks a message gone from the mailbox once, then leaves it alone until it is seen again", async () => {
+    await confirm();
+    const envelope = await seedJobMail(deps, ws, mailbox, {
+      messageId: "<gone@x.example>",
+      receivedAt: NOW,
+    });
+    await seedJobMail(deps, ws, mailbox, { messageId: "<kept@x.example>", receivedAt: NOW });
+    // The user deleted it before MVP 2 first ran.
+    mailbox.expunge("<gone@x.example>");
+
+    expect(await sweep(deps)).toBe(1);
+    await deps.queue.runOnce();
+    const [check] = await getSenderChecks(deps.db, ws, ["<gone@x.example>"]);
+    expect(check).toMatchObject({
+      verdict: "caution",
+      complete: false,
+      reasons: [{ signal: "message_gone" }],
+      stale: false,
+    });
+    expect(await listToEvaluate(deps.db, ws)).toEqual([]);
+    expect(deps.logs.filter((l) => l.event === "pipeline.message_gone")).toHaveLength(1);
+    expect(deps.logs.filter((l) => l.event === "pipeline.stage_failed")).toEqual([]);
+
+    // The next intervals have nothing to do: no run, no login, no fetch.
+    const before = { ...mailbox.calls };
+    const scheduler = createScheduler(deps);
+    await scheduler.tick();
+    await scheduler.tick();
+    expect(await deps.queue.runOnce()).toBe(false);
+    expect(mailbox.calls).toEqual(before);
+
+    // A sync sees it again (it was moved back): its sender is checked with its text.
+    const back = mailbox.deliver({ messageId: "<gone@x.example>", date: envelope.date });
+    await saveEnvelopes(deps.db, ws, [{ envelope: back, verdict: "likely_job", reason: null }]);
+    expect(await sweep(deps)).toBe(1);
+    await deps.queue.runOnce();
+    expect((await getSenderChecks(deps.db, ws, ["<gone@x.example>"]))[0]).toMatchObject({
+      verdict: "looks_fine",
+      complete: true,
+      stale: false,
+    });
+  });
+
   it("re-claims a draft that failed with kind mailbox, and never one that failed on content", async () => {
     await confirm();
     await seedJobMail(deps, ws, mailbox, {
@@ -186,6 +231,37 @@ describe("the sweep", () => {
       payload: { workspaceId: ws, messageId: "<a@x.example>", position: 0, origin: "retry" },
     });
     expect(await waitingDraftJob(1)).toBeNull();
+  });
+
+  it("re-claims a draft whose draft.v1 call failed (kind ai) and enqueues its retry", async () => {
+    await confirm();
+    await seedJobMail(deps, ws, mailbox, { messageId: "<a@x.example>", receivedAt: NOW });
+    await sweep(deps);
+    await deps.queue.runOnce();
+    const claim = await claimDraft(
+      deps.db,
+      ws,
+      { messageId: "<a@x.example>", position: 0 },
+      { origin: "auto", now: NOW },
+    );
+    await markDraftFailed(deps.db, ws, claim?.id ?? "", {
+      kind: "ai",
+      reason: "Couldn't reach the AI provider",
+      now: NOW,
+    });
+
+    expect(await sweep(deps)).toBe(1);
+    await deps.queue.runOnce();
+    expect(await getDraftClaim(deps.db, ws, claim?.id ?? "")).toMatchObject({
+      status: "saving",
+      failureKind: null,
+      attempts: 2,
+    });
+    expect(await waitingDraftJob(0)).toMatchObject({
+      type: DRAFT_CREATE_JOB,
+      status: "queued",
+      payload: { workspaceId: ws, messageId: "<a@x.example>", position: 0, origin: "retry" },
+    });
   });
 });
 

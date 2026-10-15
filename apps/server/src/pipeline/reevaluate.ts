@@ -13,7 +13,7 @@ import {
 } from "@jobfilly/schema";
 import type { AppDeps } from "../deps";
 import { enqueue, type JobHandler } from "../jobs/queue";
-import { evaluateMessage } from "./evaluate";
+import { evaluateMessage, mailboxSession } from "./evaluate";
 import type { Stages } from "./stages";
 
 // The pipeline.reevaluate job (dedupe key reevaluate:<workspaceId>): it evaluates every job
@@ -22,9 +22,11 @@ import type { Stages } from "./stages";
 //
 // - It snapshots listToEvaluate when it starts and works through it in batches, each message at
 //   most once per run, so a failing AI or mailbox can't make it loop: what fails waits for the
-//   next sweep.
-// - Then it re-claims the drafts to retry (failed with kind mailbox, or a saving claim whose job
-//   died) and enqueues draft.create with origin retry for each.
+//   next sweep. The run's messages share one mailbox connection, opened when the first sender
+//   check needs a body; a message gone from the mailbox gets an incomplete check and leaves the
+//   work list (evaluate.ts).
+// - Then it re-claims the drafts to retry (failed with kind mailbox or ai, or a saving claim whose
+//   job died) and enqueues draft.create with origin retry for each.
 // - If anything is missing or stale because of a change made during the run (new mail, or an
 //   item marked stale after it started), it enqueues the next run; this one is still running, so
 //   the next one queues.
@@ -63,18 +65,24 @@ export async function reevaluateWorkspace(
   const work = await listToEvaluate(deps.db, workspaceId);
   const snapshot = new Set(work.flatMap(roleKeys));
   let processed = 0;
-  for (let i = 0; i < work.length; i += BATCH) {
-    for (const item of work.slice(i, i + BATCH)) {
-      options.signal?.throwIfAborted();
-      const never =
-        item.sender?.state === "missing" && item.roles.every((r) => r.state === "missing");
-      await evaluateMessage(deps, workspaceId, item.messageId, {
-        origin: never ? "backlog" : "reevaluate",
-        stages: options.stages,
-      });
-      processed += 1;
+  const mailbox = mailboxSession(deps, workspaceId);
+  try {
+    for (let i = 0; i < work.length; i += BATCH) {
+      for (const item of work.slice(i, i + BATCH)) {
+        options.signal?.throwIfAborted();
+        const never =
+          item.sender?.state === "missing" && item.roles.every((r) => r.state === "missing");
+        await evaluateMessage(deps, workspaceId, item.messageId, {
+          origin: never ? "backlog" : "reevaluate",
+          stages: options.stages,
+          mailbox,
+        });
+        processed += 1;
+      }
+      await options.renewLease?.();
     }
-    await options.renewLease?.();
+  } finally {
+    await mailbox.close();
   }
 
   const retries: DraftToRetry[] = await listDraftsToRetry(deps.db, workspaceId, deps.clock.now());
