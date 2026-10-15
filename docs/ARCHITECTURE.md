@@ -108,12 +108,16 @@ Rules:
 - Stored match answers: `match_ai_answers` keeps each match.v1 answer under the hash of exactly
   what the model saw (the role's title and skills, the profile's target roles and skills, the
   chosen CV's skills). A rule, pay or policy change leaves the hash alone, so re-scoring after
-  it is pure and makes no model call; the impact preview never calls the model either.
+  it is pure and makes no model call; the impact preview never calls the model either. The
+  profile's own skills are the words of its `extra.skills` entry (`PROFILE_SKILLS_KEY` in
+  `packages/schema`), an extra question with the slug "skills"; the core questions name no
+  skills, so a profile without that entry adds none and its skills come from the CVs alone.
 - Secrets (mail passwords, OAuth tokens, AI keys) are encrypted with AES-256-GCM using
   `JOBFILLY_SECRET_KEY` before they are stored. They are never returned by the API or logged.
   Every place that hands a workspace's AI key to the AI port (the AI settings routes, the scan job,
-  the intake.v1 call) opens it with `openAiKey` in `apps/server/src/secrets.ts`, so a key that was
-  never stored and one cleared on purpose (stored sealed as "") both read as no key.
+  the intake.v1 call, the match stage's match.v1 call in `apps/server/src/pipeline/match.ts`)
+  opens it with `openAiKey` in `apps/server/src/secrets.ts`, so a key that was never stored and
+  one cleared on purpose (stored sealed as "") both read as no key.
 
 ## Background work and live updates
 
@@ -236,7 +240,10 @@ Rules:
   list (an equal item is a no-op); on another key, or a missing one, it sets the entry. `update`
   replaces the value; `remove` with a value removes those items, with null the entry. A decision
   answer is always `add` of one item, so answering "CHF per year" keeps the EUR minimum. "Already
-  answered" is decided by group key (`answeredFor`), never by profile key.
+  answered" is decided by group key (`answeredFor`), never by profile key. A rule is never stored
+  without plain words: one added with a blank description, or updated with new conditions or
+  action under its old description, is stored with the words built from its conditions
+  (`describeRule`), so the Rules list and every outcome naming the rule show what it does (F3.1).
 - `requestReevaluation(scope)` is the one way evaluations go stale: `{all}`, `{roles}`,
   `{messageIds}`, or a sender scope (`{senderAddress}`, `{senderDomain}`), which alone also makes
   the sender checks stale. It enqueues `pipeline.reevaluate` and tells open inboxes.
