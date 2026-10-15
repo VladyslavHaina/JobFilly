@@ -9,9 +9,7 @@
     ".": {},
     "apps/server": {},
     "apps/web": {},
-    "packages/ai": {
-      "ignoreDependencies": ["@ai-sdk/anthropic", "@ai-sdk/google", "@ai-sdk/openai"]
-    },
+    "packages/ai": {},
     "packages/core": {},
     "packages/db": {},
     "packages/mail": {
