@@ -205,6 +205,12 @@ const recruiterAnswers = (
 });
 
 const logs = (d: TestDeps, event: string) => d.logs.filter((l) => l.event === event);
+/** The stop message the run sent live (one stop per run). */
+const stopText = (events: LiveEvent[]) => {
+  const stopped = events.filter((e) => e.type === "scan.stopped");
+  expect(stopped).toHaveLength(1);
+  return stopped[0]?.type === "scan.stopped" ? stopped[0].data.stopMessage : null;
+};
 /** Waits for live events: NOTIFY reaches the subscribers asynchronously. */
 const settle = () => new Promise((r) => setTimeout(r, 50));
 
@@ -460,10 +466,16 @@ describe("Couldn't analyze and the budget (F3.4, TBD-17)", { timeout: SLOW }, ()
     expect(s.ai.calls).toHaveLength(1);
     expect(await getScan(s.deps.db, s.workspaceId, scanId)).toMatchObject({
       stopReason: "failed",
+      stopCause: "ai",
+      calls: 1,
     });
     expect(logs(s.deps, "scan.stopped")).toEqual([
       expect.objectContaining({ level: "warn", reason: "failed", cause: "ai_unreachable" }),
     ]);
+    await settle();
+    expect(stopText(s.events)).toBe(
+      "Stopped: the AI provider couldn't be used after 0 of 5 likely job emails. Check Settings › AI, then try again.",
+    );
     expect(await countNotAnalyzed(s.deps.db, s.workspaceId)).toBe(5);
   });
 
@@ -473,8 +485,105 @@ describe("Couldn't analyze and the budget (F3.4, TBD-17)", { timeout: SLOW }, ()
     await s.runAll();
     expect(await getScan(s.deps.db, s.workspaceId, scanId)).toMatchObject({
       stopReason: "failed",
+      stopCause: "ai",
     });
+    expect(logs(s.deps, "scan.stopped")).toEqual([
+      expect.objectContaining({ cause: "no_ai_settings", stopCause: "ai" }),
+    ]);
     expect(s.mail.connections).toEqual([]);
+  });
+});
+
+describe("what a failed run ran into (TBD-112)", { timeout: SLOW }, () => {
+  it("names the mailbox when a body can't be read mid-run", async () => {
+    const box = mailbox(5);
+    const s = await setup(box.envelopes, recruiterAnswers(box.notJob));
+    s.ai.beforeAnswer = (task) => {
+      if (task === "prefs.v1") s.mail.failing.bodies = true;
+    };
+    const scanId = await s.start();
+    await s.runAll();
+    await settle();
+    expect(await getScan(s.deps.db, s.workspaceId, scanId)).toMatchObject({
+      stopReason: "failed",
+      stopCause: "mailbox",
+    });
+    expect(logs(s.deps, "scan.stopped")).toEqual([
+      expect.objectContaining({ level: "warn", cause: "mail_error", stopCause: "mailbox" }),
+    ]);
+    expect(stopText(s.events)).toBe(
+      "Stopped: couldn't read your mailbox after 0 of 5 likely job emails. Check Settings › Mailbox, then try again.",
+    );
+  });
+
+  it("names the mailbox when stage one can't read the envelopes", async () => {
+    const s = await setup(mailbox(3).envelopes, {});
+    s.mail.failing.envelopes = true;
+    const scanId = await s.start();
+    await s.runAll();
+    await settle();
+    expect(await getScan(s.deps.db, s.workspaceId, scanId)).toMatchObject({
+      stopReason: "failed",
+      stopCause: "mailbox",
+    });
+    expect(logs(s.deps, "scan.stopped")).toEqual([
+      expect.objectContaining({ cause: "stage_one_error", stopCause: "mailbox" }),
+    ]);
+    expect(stopText(s.events)).toMatch(
+      /^Stopped: couldn't read your mailbox .* Settings › Mailbox/,
+    );
+    expect(s.ai.calls).toEqual([]);
+  });
+
+  it("says the fault is JobFilly's after an internal error, counting the calls the run made (S4)", async () => {
+    const box = mailbox(5);
+    const s = await setup(box.envelopes, recruiterAnswers(box.notJob));
+    // The replies' preferences call answers, then aggregating the proposal breaks.
+    s.deps.intake = {
+      aggregate: () => {
+        throw new Error("aggregation broke");
+      },
+    };
+    const scanId = await s.start();
+    await s.runAll();
+    await settle();
+    expect(s.ai.calls.map((c) => c.task)).toEqual(["prefs.v1"]);
+    const scan = await getScan(s.deps.db, s.workspaceId, scanId);
+    expect(scan).toMatchObject({
+      status: "stopped",
+      stopReason: "failed",
+      stopCause: "internal",
+      calls: 1,
+      inputTokens: 100,
+      outputTokens: 10,
+    });
+    expect(scan?.calls).toBe((await usageTotal(s.deps.db, s.workspaceId, scanId)).calls);
+    expect(logs(s.deps, "job.failed")).toHaveLength(1);
+    expect(logs(s.deps, "scan.stopped")).toEqual([
+      expect.objectContaining({ level: "warn", reason: "failed", cause: "error", calls: 1 }),
+    ]);
+    const stopped = s.events.filter((e) => e.type === "scan.stopped");
+    expect(stopped).toEqual([
+      expect.objectContaining({ data: expect.objectContaining({ calls: 1, tokens: 110 }) }),
+    ]);
+    const text = stopText(s.events);
+    expect(text).toBe(
+      "Stopped: something went wrong on JobFilly's side after 0 of 5 likely job emails. Your settings don't need changing; trying again later may help.",
+    );
+  });
+
+  it("treats a throw from the AI client as JobFilly's fault, not the provider's", async () => {
+    // The fake model has no prefs answer: the client throws instead of returning a failure.
+    const s = await setup(mailbox(3).envelopes, {});
+    const scanId = await s.start();
+    await s.runAll();
+    expect(await getScan(s.deps.db, s.workspaceId, scanId)).toMatchObject({
+      stopReason: "failed",
+      stopCause: "internal",
+    });
+    expect(logs(s.deps, "scan.stopped")).toEqual([
+      expect.objectContaining({ cause: "ai_client_error", stopCause: "internal" }),
+    ]);
   });
 });
 

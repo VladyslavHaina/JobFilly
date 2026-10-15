@@ -27,6 +27,7 @@ import {
   type ScanCheckpoint,
   type ScanCounts,
   type ScanProgress,
+  type StopCause,
   type StopReason,
   type StoredMessage,
   type Usage,
@@ -53,10 +54,16 @@ const FATAL: readonly AiError["kind"][] = ["auth", "unreachable", "provider_erro
 /** The scan was cancelled, or this replica is shutting down or lost the job: stop quietly. */
 class Interrupted extends Error {}
 
-/** The run can't go on (the mailbox or the provider failed); it stops as failed. */
-class RunFailed extends Error {
-  constructor(readonly reason: string) {
-    super(`scan run failed: ${reason}`);
+/**
+ * The run can't go on; it stops as failed. `stopCause` is what the user is told it ran into
+ * (the mailbox, the AI provider, or JobFilly itself); `code` is the log's finer cause.
+ */
+export class RunFailed extends Error {
+  constructor(
+    readonly stopCause: StopCause,
+    readonly code: string,
+  ) {
+    super(`scan run failed: ${code}`);
     this.name = "RunFailed";
   }
 }
@@ -156,7 +163,9 @@ export async function runScan(input: RunInput): Promise<void> {
     try {
       result = await make();
     } catch {
-      throw new RunFailed("ai_error");
+      // packages/ai answers every provider failure as a value (auth, unreachable, ...); a throw
+      // is a fault in JobFilly itself, which no AI setting would fix.
+      throw new RunFailed("internal", "ai_client_error");
     }
     await spend(result);
     return result;
@@ -174,7 +183,7 @@ export async function runScan(input: RunInput): Promise<void> {
           uid: e.uid,
         });
       } catch {
-        throw new RunFailed("mail_error");
+        throw new RunFailed("mailbox", "mail_error");
       }
       // A message gone from its folder (UIDVALIDITY changed) is read from its stored snippet.
       const text = (body?.text ?? e.snippet).slice(0, MAX_TEXT_LENGTH);
@@ -221,7 +230,7 @@ export async function runScan(input: RunInput): Promise<void> {
     await publish({ type: "messages.updated", data: {} });
   }
 
-  async function stop(reason: StopReason, cause?: string) {
+  async function stop(reason: StopReason, failure?: RunFailed) {
     // No progress may go out after the stop.
     clearInterval(ticker);
     await reporting;
@@ -233,10 +242,17 @@ export async function runScan(input: RunInput): Promise<void> {
       inputTokens,
       outputTokens,
     });
-    if (!stored || !(await stopScan(db, workspaceId, scanId, reason, deps.clock.now()))) return;
-    if (reason === "failed") log.warn("scan.stopped", { scanId, reason, cause });
-    else log.info("scan.stopped", { scanId, reason, analyzed: counts.analyzed, calls });
-    const message = stopMessage(reason, counts.analyzed, counts.likely);
+    const stopCause = failure?.stopCause ?? null;
+    if (
+      !stored ||
+      !(await stopScan(db, workspaceId, scanId, reason, deps.clock.now(), stopCause))
+    ) {
+      return;
+    }
+    if (failure) {
+      log.warn("scan.stopped", { scanId, reason, cause: failure.code, stopCause, calls });
+    } else log.info("scan.stopped", { scanId, reason, analyzed: counts.analyzed, calls });
+    const message = stopMessage(reason, counts.analyzed, counts.likely, stopCause);
     await publish({
       type: "scan.stopped",
       data: { ...progress(), status: "stopped", stopReason: reason, stopMessage: message },
@@ -266,7 +282,7 @@ export async function runScan(input: RunInput): Promise<void> {
           await markAnalysisFailed(db, workspaceId, { messageId: item.messageId, scanId });
           changed += 1;
         } else if (FATAL.includes(item.error.kind)) {
-          throw new RunFailed(`ai_${item.error.kind}`);
+          throw new RunFailed("ai", `ai_${item.error.kind}`);
         }
       }
       await propose();
@@ -299,7 +315,7 @@ export async function runScan(input: RunInput): Promise<void> {
         else if (r.error.kind === "invalid_output") {
           await markAnalysisFailed(db, workspaceId, { messageId: r.messageId, scanId });
           counts.analyzed += 1;
-        } else if (FATAL.includes(r.error.kind)) throw new RunFailed(`ai_${r.error.kind}`);
+        } else if (FATAL.includes(r.error.kind)) throw new RunFailed("ai", `ai_${r.error.kind}`);
       }
     }
     for (const row of batch) {
@@ -327,7 +343,7 @@ export async function runScan(input: RunInput): Promise<void> {
         await markAnalysisFailed(db, workspaceId, { messageId, scanId });
         counts.analyzed += 1;
       } else if (FATAL.includes(result.error.kind)) {
-        throw new RunFailed(`ai_${result.error.kind}`);
+        throw new RunFailed("ai", `ai_${result.error.kind}`);
       }
     }
   }
@@ -367,12 +383,13 @@ export async function runScan(input: RunInput): Promise<void> {
       }
     }
     if (!reason && !stopRequested()) reason = await readCandidates();
+    // No progress with calls left: the provider answered nothing usable for a whole batch.
     if (reason && !stopRequested())
-      await stop(reason, reason === "failed" ? "no_progress" : undefined);
+      await stop(reason, reason === "failed" ? new RunFailed("ai", "no_progress") : undefined);
   } catch (error) {
     if (error instanceof Interrupted) return;
     if (!(error instanceof RunFailed) || ctx.signal.aborted) throw error;
-    await stop("failed", error.reason);
+    await stop("failed", error);
   } finally {
     clearInterval(ticker);
     await reporting;

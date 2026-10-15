@@ -1,5 +1,5 @@
-import { claimJob, recordAiUsage, SCAN_RUN_JOB } from "@jobfilly/db";
-import { CurrentScanSchema, type Envelope, type LiveEvent } from "@jobfilly/schema";
+import { claimJob, recordAiUsage, SCAN_RUN_JOB, stopScan } from "@jobfilly/db";
+import { CurrentScanSchema, type Envelope, type LiveEvent, type StopCause } from "@jobfilly/schema";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../app";
 import { aggregateFromReplies, fakeAi, fakeMail } from "../jobs/scan/fakes";
@@ -85,7 +85,12 @@ async function current(client: TestClient = viewer) {
 
 describe("GET /scans/current", () => {
   it("answers every member, with nothing before the first scan", async () => {
-    expect(await current()).toEqual({ progress: null, stopMessage: null, totalTokens: 0 });
+    expect(await current()).toEqual({
+      progress: null,
+      stopMessage: null,
+      stoppedAt: null,
+      totalTokens: 0,
+    });
     expect((await outsider.get(url("/current"))).status).toBe(404);
   });
 
@@ -123,8 +128,33 @@ describe("GET /scans/current", () => {
         calls: 150,
       }),
       stopMessage: "Stopped: confident after 140 of 260 likely job emails",
+      stoppedAt: NOW.toISOString(),
       totalTokens: 1246,
     });
+  });
+
+  it("words a failed run by what it ran into, and says when it stopped (TBD-112)", async () => {
+    const expected: Record<StopCause, string> = {
+      mailbox:
+        "Stopped: couldn't read your mailbox after 3 of 12 likely job emails. Check Settings › Mailbox, then try again.",
+      ai: "Stopped: the AI provider couldn't be used after 3 of 12 likely job emails. Check Settings › AI, then try again.",
+      internal:
+        "Stopped: something went wrong on JobFilly's side after 3 of 12 likely job emails. Your settings don't need changing; trying again later may help.",
+    };
+    for (const cause of ["mailbox", "ai", "internal"] as const) {
+      deps.clock.advance(60_000);
+      const scan = await seedScan(deps, ws.workspaceId, {
+        kind: "first",
+        status: "running",
+        counts: { likely: 12, analyzed: 3, notAnalyzed: 9 },
+      });
+      const at = deps.clock.now();
+      await stopScan(deps.db, ws.workspaceId, scan.id, "failed", at, cause);
+      const body = await current();
+      expect(body.progress).toMatchObject({ scanId: scan.id, stopReason: "failed" });
+      expect(body.stopMessage).toBe(expected[cause]);
+      expect(body.stoppedAt).toBe(at.toISOString());
+    }
   });
 });
 
