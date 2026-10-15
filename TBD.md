@@ -465,3 +465,197 @@ These make sign-off possible; without them the build goes on and records an open
 - **If you decide otherwise:** —
 - **Refs:** —
 - **Status:** open
+
+## TBD-36 · MailTestResult reports the Sent folder
+- **Kind:** decision
+- **Where:** MVP 1 · Foundation
+- **Context:** createMailbox needs sentFolderPath, but MailTestResult {ok:true, folders} had no way to carry the Sent folder found by special use (TBD-35 item 8).
+- **Options:**
+  1. Keep {ok:true, folders} and let the connect slice guess Sent from folder names
+  2. Add sentPath: string | null to the ok variant
+- **Chosen:** MailTestResult ok = {ok: true, folders: string[], sentPath: string | null}. The connect slice can store the folder the server marks \Sent without changing a foundation schema; it is a superset of the pinned shape.
+- **If you decide otherwise:** Remove sentPath from packages/schema/src/mailbox.ts; packages/mail would find Sent another way when fetching envelopes.
+- **Refs:** F2.1, F4.1; packages/schema/src/mailbox.ts; TBD-35 item 8
+- **Status:** open
+
+## TBD-37 · State of a message row from stage one to analysis
+- **Kind:** decision
+- **Where:** MVP 1 · Foundation
+- **Context:** saveEnvelopes 'doesn't touch analysis columns', but the scan (writer) and job-inbox (reader) slices need a pinned state for new rows (TBD-35 item 3).
+- **Options:**
+  1. Leave category null for every new row
+  2. Set the initial state by stage-one verdict on insert only
+- **Chosen:** On insert: not_job -> category not_job/scan/done; job_alert -> category job_alert/scan/pending; likely_job and own_reply -> null/pending. Re-saving the same Message-ID refreshes headers and verdict and never touches category, analysis or roles. The table sits in packages/db/src/queries/messages.ts with listing, non-job and 'not analyzed' rules. The inbox can count non-job mail and show alerts from the headers alone; a resumed scan stays idempotent.
+- **If you decide otherwise:** Change initialAnalysis() in messages.ts and its test; job-inbox's list query follows.
+- **Refs:** F4.2, F5.1, F4.10; packages/db/src/queries/messages.ts
+- **Status:** open
+
+## TBD-38 · Who may accept an invite
+- **Kind:** decision
+- **Where:** MVP 1 · Foundation
+- **Context:** F1.6 has invites by email and a link to copy; the link needs a meaning.
+- **Options:**
+  1. Only the signed-in user whose email matches
+  2. Email match, or anyone signed in who holds the link's token
+- **Chosen:** Accept, decline or view an invite when the signed-in email matches it, or the request carries the link's token (stored as SHA-256). Otherwise the answer is 404. It makes the copied link useful when the invitee uses another address. The admin hands the link out on purpose, and the token is 256 bits.
+- **If you decide otherwise:** Drop tokenMatches from routes/invites.ts; the link would only bring the invitee to the page.
+- **Refs:** F1.6; apps/server/src/routes/invites.ts, routes/workspaces.ts
+- **Status:** open
+
+## TBD-39 · A session endpoint that never answers 401
+- **Kind:** decision
+- **Where:** MVP 1 · Foundation
+- **Context:** Every signed-out page load produced a failed 401 request in the browser console, which the validation protocol counts as a finding.
+- **Options:**
+  1. Keep /api/auth/me and accept a console error
+  2. Add GET /api/auth/session returning 200 {user: null} and keep /me at 401
+- **Chosen:** GET /api/auth/session (SessionStateSchema); the UI uses it, and /api/auth/me stays 401 for probes. The console stays clean, and the S10 probe (old cookie gets 401) still holds on /me and on workspace routes.
+- **If you decide otherwise:** The UI would call /me again and the walkthrough would allow that error.
+- **Refs:** F1.4, S10; apps/server/src/routes/auth.ts, apps/web/src/hooks/useSession.ts
+- **Status:** open
+
+## TBD-40 · PGlite test projects run without per-file isolation
+- **Kind:** decision
+- **Where:** MVP 1 · Foundation
+- **Context:** Starting PGlite costs about 7 s of CPU per test file; with isolated files the db tests timed out under parallel load.
+- **Options:**
+  1. Raise the timeouts and keep isolation
+  2. Run packages/db and apps/server with isolate:false, reuse each worker's PGlite instances (emptied between tests), maxWorkers 4
+- **Chosen:** isolate:false for @jobfilly/db and @jobfilly/server (30 s hook timeout), maxWorkers 4; openTestDatabase pools instances per process and truncates on close. The whole suite runs in about 15 s instead of timing out. Slices are told (vitest.config.ts and ARCHITECTURE) to inject fakes rather than use vi.mock in those projects.
+- **If you decide otherwise:** Set isolate back to true in vitest.config.ts and accept much slower db and server tests.
+- **Refs:** F7.7; vitest.config.ts, packages/db/src/testing.ts
+- **Status:** open
+
+## TBD-41 · Typed Hono client replaced by fetch with schema validation
+- **Kind:** decision
+- **Where:** MVP 1 · Foundation
+- **Context:** The web used hc<AppType>, which only types routes mounted in one chain. Route modules that slices replace would break the type chain and couple web to server.
+- **Options:**
+  1. Keep hc and chain every route
+  2. A small api(path, schema) fetch helper that parses answers with @jobfilly/schema
+- **Chosen:** apps/web/src/api.ts with api() and apiVoid() plus ApiError. The web dropped its hono and @jobfilly/server dependencies. It is decoupled from route module internals and validates answers where they enter, per the schemas-first rule.
+- **If you decide otherwise:** Re-add hono and the server dev dependency and chain every route in app.ts.
+- **Refs:** apps/web/src/api.ts, apps/web/package.json
+- **Status:** open
+
+## TBD-42 · Values of extra intake answers and the task in usage rows
+- **Kind:** decision
+- **Where:** MVP 1 · Foundation
+- **Context:** The spec fixes the core keys' value shapes but not extra.<slug> ones, and Usage {task} could be a task (classify) or a task id.
+- **Options:**
+  1. extra value as string; Usage.task as the four tasks
+  2. extra value as string[] (empty = []); Usage.task as the TaskId
+- **Chosen:** Extra answers are string[] (the chosen option or the words), so every empty answer is []. Usage.task is a TaskId including ai.test.v1. The rule 'empty value is []' from IntakeExtraInput holds for every key, and the Test call's usage can be recorded too.
+- **If you decide otherwise:** Change ExtraValueSchema and UsageSchema in packages/schema plus the wire samples.
+- **Refs:** F6, F3.6; packages/schema/src/profile.ts, ai.ts
+- **Status:** open
+
+## TBD-43 · Password hash cost and where migrations ship
+- **Kind:** decision
+- **Where:** MVP 1 · Foundation
+- **Context:** F1.5 needs scrypt; the server bundle has to find its migrations both in Docker and in a local `node dist/index.js`.
+- **Options:**
+  1. N=2^17, r=8, p=1 (128 MiB per hash)
+  2. N=2^15, r=8, p=3 (OWASP equivalent, 32 MiB)
+  3. Ship migrations in a separate Docker COPY, or in dist/migrations
+- **Chosen:** scrypt N=2^15, r=8, p=3, with the parameters stored per hash. Test seeding uses cheap parameters that verify through the same code. The build copies the migrations to dist/migrations, which pnpm deploy ships in the image. Memory per sign-in stays bounded in small containers. One folder layout works in Docker and locally.
+- **If you decide otherwise:** Change PASSWORD_PARAMS in auth/password.ts (old hashes still verify), or the tsup onSuccess copy and MIGRATIONS_FOLDER lookup.
+- **Refs:** F1.5, F7.5; apps/server/src/auth/password.ts, apps/server/tsup.config.ts, packages/db/src/migrate.ts
+- **Status:** open
+
+## TBD-44 · The owner can't be demoted, and the e2e scripts' subcommands
+- **Kind:** decision
+- **Where:** MVP 1 · Foundation
+- **Context:** The spec says the owner can't be removed and fixes the root scripts as 'node e2e/stack.ts ...' without the subcommand names.
+- **Options:**
+  1. Allow changing the owner's role
+  2. Refuse it (409) like removal
+- **Chosen:** Changing or removing the owner's role answers 409 'The owner is always an admin'. The root scripts are e2e = 'node e2e/stack.ts run', e2e:stack = 'node e2e/stack.ts stack' (+ up|down), e2e:specs = 'node e2e/stack.ts specs' (+ --mvp n), pinned in ARCHITECTURE for the test-stack slice. ARCHITECTURE says the owner is an admin who can't be removed. Fixed subcommands let the test-stack slice write stack.ts without editing package.json.
+- **If you decide otherwise:** Allow setMemberRole on the owner in packages/db workspaces.ts; rename the script arguments in package.json and stack.ts together.
+- **Refs:** F1.8, F7.8; packages/db/src/queries/workspaces.ts, package.json, docs/ARCHITECTURE.md
+- **Status:** open
+
+## TBD-45 · Wire request samples use the SDK default strict: true; prefs.v1's optional keys conflict with OpenAI strict mode
+- **Kind:** decision
+- **Where:** MVP 1 · Foundation
+- **Context:** The finding asked for the samples to match the request the AI SDK sends, or for a documented strictJsonSchema choice. The openai-compatible provider sends json_schema.strict = true by default. The prefs.v1 output schema (PreferencesSchema) leaves every key optional, so its properties are not all in `required`. OpenAI's strict structured-output mode rejects such a schema, while the fake AI and many other compatible servers accept it.
+- **Options:**
+  1. Keep the SDK default strict: true in the samples and leave the prefs.v1 schema question to the connect slice
+  2. Pin strictJsonSchema: false through providerOptions and put strict: false in the samples
+  3. Make every PreferencesSchema key required and nullable now
+- **Chosen:** I kept the SDK default, strict: true, in every sample, and pinned it with packages/ai/src/wire.test.ts. The samples should be what the SDK really sends, with no extra options for the connect slice to copy. Changing PreferencesSchema is a cross-slice schema change that this fix task should not make.
+- **If you decide otherwise:** If prefs.v1 is meant to work against OpenAI proper, the connect slice either makes the PreferencesSchema keys required and nullable, or passes strictJsonSchema: false. In both cases it regenerates prefs.v1.request.json (or all samples) with the wire test's capture.
+- **Refs:** e2e/fixtures/wire/*.request.json; packages/ai/src/wire.test.ts; packages/schema/src/wire.test.ts; packages/schema/src/profile.ts (PreferencesSchema); docs/ARCHITECTURE.md (wire contract)
+- **Status:** open
+
+## TBD-46 · Boundary change: two deliberate unscoped @jobfilly/db operations
+- **Kind:** decision
+- **Where:** MVP 1 · Foundation
+- **Context:** The hard rule says workspace data goes only through packages/db functions that take a workspace id. Two groups of functions cannot take one by design. The invitee answering an invite is not a member yet. The queue worker serves every workspace and acts on the job it holds.
+- **Options:**
+  1. Give these functions a workspace id too
+  2. Keep them id-only and name them as deliberate exceptions
+- **Chosen:** I kept getInviteForResponse, acceptInvite and declineInvite (called after the server checks the invite's email or token) and claimJob, renewLease, saveJobCheckpoint, completeJob and handBackJob (guarded by the lease owner) without a workspace id. I named them as exceptions in ARCHITECTURE › Workspaces, access and sessions, in packages/db/src/index.ts and in the module comments. getJob is now workspace-scoped, and there is no raw-SQL export. There is no workspace id the caller could rightly supply before the invitee joins or before a worker claims a job. Passing the row's own workspace id back in would add nothing.
+- **If you decide otherwise:** Invite answering would need a separate token-to-workspace lookup step, and the worker functions would take the claimed job's workspaceId, which changes their signatures and callers in the scan slice.
+- **Refs:** packages/db/src/index.ts; packages/db/src/queries/invites.ts; packages/db/src/queries/jobs.ts; docs/ARCHITECTURE.md
+- **Status:** open
+
+## TBD-47 · A malformed path id gets 404 not_found, not 400
+- **Kind:** decision
+- **Where:** MVP 1 · Foundation
+- **Context:** validJson and validQuery answer 400 with a message. The finding asked for a 404, not a 500, when a :userId or :inviteId is malformed.
+- **Options:**
+  1. 400 invalid, like the body and query validators
+  2. 404 not_found, the same answer as an id that does not exist
+- **Chosen:** validParam answers 404 { error: "not_found" }. IdSchema is z.guid() (any 8-4-4-4-12 hex), which matches the regex the server used before for workspace and invite ids. An id that cannot parse names nothing. Answering the same way as for a missing row reveals nothing extra, and it matches workspaceMember's behaviour.
+- **If you decide otherwise:** Change validParam's failure answer to the validator's 400 and update the two new route tests.
+- **Refs:** apps/server/src/access/validate.ts; packages/schema/src/common.ts; apps/server/src/routes/workspaces.test.ts; apps/server/src/routes/invites.test.ts
+- **Status:** open
+
+## TBD-48 · TBD.md duplicates marked 'superseded by', including TBD-9 by TBD-22
+- **Kind:** decision
+- **Where:** MVP 1 · Foundation
+- **Context:** The rules say TBD entries are never deleted and the owner sets their status. The finding asked that each open decision appear once, with one answer. TBD-9 ('test stack built by the e2e-fixtures slice') is contradicted by TBD-22 (a test-stack slice of its own), but the finding did not list that pair.
+- **Options:**
+  1. Merge the entries and delete the earlier ones
+  2. Mark the earlier ones 'superseded by TBD-<n>' and keep them
+- **Chosen:** I marked 16 earlier entries 'superseded by' their latest version, TBD-9 by TBD-22 among them. I also added the status to the entry format and the intro. This keeps the never-delete rule while giving the owner one open answer per decision.
+- **If you decide otherwise:** The owner can set TBD-9 back to open if it is meant as a separate decision from TBD-22.
+- **Refs:** TBD.md
+- **Status:** open
+
+## TBD-49 · A third unscoped db exception: the signed-in user's own view across workspaces
+- **Kind:** decision
+- **Where:** MVP 1 · Foundation
+- **Context:** listWorkspacesForUser(db, userId) and listPendingInvitations(db, email, now) read workspace-owned rows (memberships, invites, workspace names) without a workspace id, and the documented list of exceptions left them out. registerAccount and createWorkspace also take no workspace id, because they create the workspace.
+- **Options:**
+  1. Document a third exception (by user id or matched email) and note that creating a workspace has no id yet
+  2. Restructure the queries so that only the two existing exceptions remain
+- **Chosen:** Documented it in docs/ARCHITECTURE.md (Workspaces, access and sessions) and in the packages/db/src/index.ts comment, and added comments to both query functions. Listing your own workspaces and your own pending invitations is cross-workspace by nature: before choosing a workspace, or before being a member, there is no workspace id to scope by. Restructuring would only move the same cross-workspace read somewhere else. The server already limits these reads to the session user's id, or to an email it has matched to them through the session or a checked invite token.
+- **If you decide otherwise:** These reads would need a new design, for example a per-user index table or a server-side loop over memberships, and the routes in apps/server/src/routes/workspaces.ts and invites.ts would change.
+- **Refs:** docs/ARCHITECTURE.md (Workspaces section); packages/db/src/index.ts; packages/db/src/queries/workspaces.ts; packages/db/src/queries/invites.ts; apps/server/src/routes/invites.ts:43,60; apps/server/src/routes/workspaces.ts:49; commits b1755f7, 75cade7
+- **Status:** open
+
+## TBD-50 · Stage one's outcome keeps its three lists, but every entry is a full StageOneResult
+- **Kind:** decision
+- **Where:** MVP 1 · Foundation
+- **Context:** core's StageOneOutcome had handled entries of {messageId, verdict, reason}, while candidates and ownReplies were bare Envelopes. db's saveEnvelopes takes {envelope, verdict, reason}, so the two contracts didn't match.
+- **Options:**
+  1. stageOne returns one flat StageOneResult[]
+  2. Keep handled/candidates/ownReplies (the shape the scan slice's plan refers to), with each entry a StageOneResult whose verdict is restricted to its list
+- **Chosen:** Kept the three lists, built on StageOneResultSchema: handled allows not_job or job_alert, candidates allows likely_job, ownReplies allows own_reply. [...handled, ...candidates, ...ownReplies] is exactly saveEnvelopes' input. This keeps the names the plan and TBD-35 use for the scan slice, and makes the outcome exactly what db stores, including the envelope of handled messages, which the old shape dropped.
+- **If you decide otherwise:** Switching to a flat list would change StageOneOutcomeSchema and the scan slice's callers. db would not change.
+- **Refs:** packages/schema/src/scan.ts; packages/core/src/scan/index.ts; packages/db/src/queries/messages.ts; commits b63c130, 64b1d91, 09c8d3f
+- **Status:** open
+
+## TBD-51 · The suggested compose password is hex, not base64
+- **Kind:** decision
+- **Where:** MVP 1 · Foundation
+- **Context:** The finding suggested $(openssl rand -base64 24) for POSTGRES_PASSWORD. The same value is put into DATABASE_URL (postgres://jobfilly:<password>@...), and base64 can contain '/' and '+', which break or change the meaning of the URL.
+- **Options:**
+  1. openssl rand -base64 24 as suggested
+  2. openssl rand -hex 24
+- **Chosen:** openssl rand -hex 24 in the compose error message, the header comment and the README. A hex password always fits the connection URL unescaped, so the suggested command can't produce a broken install.
+- **If you decide otherwise:** The suggested command would need URL-encoding, or DATABASE_URL would have to be built differently.
+- **Refs:** docker/compose.yaml; README.md; commit 8fc830e
+- **Status:** open
