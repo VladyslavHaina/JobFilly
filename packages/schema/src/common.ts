@@ -27,6 +27,19 @@ export const UtcOffsetSchema = z
 export const TimeZoneRangeSchema = z.object({ from: UtcOffsetSchema, to: UtcOffsetSchema });
 export type TimeZoneRange = z.infer<typeof TimeZoneRangeSchema>;
 
+/**
+ * A UTC offset the short way people write it: "UTC+03:00" reads "UTC+3", "UTC-01:00" "UTC−1" (a
+ * real minus sign), "UTC+05:30" "UTC+5:30". Anything that isn't an offset is given back as it is.
+ */
+export function formatOffset(offset: string): string {
+  const m = /^UTC([+-])(\d{2}):(\d{2})$/.exec(offset);
+  if (!m) return offset;
+  const hours = String(Number(m[2]));
+  const minutes = m[3] === "00" ? "" : `:${m[3]}`;
+  const sign = m[1] === "-" && `${hours}${minutes}` !== "0" ? "−" : "+";
+  return `UTC${sign}${hours}${minutes}`;
+}
+
 /** The pay period of a salary or a rate. */
 export const PayPeriodSchema = z.enum(["hour", "day", "week", "month", "year"]);
 export type PayPeriod = z.infer<typeof PayPeriodSchema>;

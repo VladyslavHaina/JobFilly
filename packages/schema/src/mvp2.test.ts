@@ -11,6 +11,7 @@ import {
   DraftCreatePayloadSchema,
   DraftOutputSchema,
   DraftSchema,
+  formatOffset,
   groupKeyFor,
   isListProfileKey,
   jobDedupeKey,
@@ -98,6 +99,18 @@ describe("profile keys of MVP 2", () => {
     expect(profileItemSchema("reply_to").safeParse("interview").success).toBe(true);
     expect(profileItemSchema("reply_threshold").safeParse(80).success).toBe(true);
     expect(profileItemSchema("extra.relocate").safeParse("No").success).toBe(true);
+  });
+});
+
+describe("UTC offsets in plain words", () => {
+  it("writes them the short way, with a real minus sign", () => {
+    expect(formatOffset("UTC+05:00")).toBe("UTC+5");
+    expect(formatOffset("UTC+05:30")).toBe("UTC+5:30");
+    expect(formatOffset("UTC-01:30")).toBe("UTC−1:30");
+    expect(formatOffset("UTC-10:00")).toBe("UTC−10");
+    expect(formatOffset("UTC+00:00")).toBe("UTC+0");
+    expect(formatOffset("UTC-00:00")).toBe("UTC+0");
+    expect(formatOffset("Asia")).toBe("Asia");
   });
 });
 
