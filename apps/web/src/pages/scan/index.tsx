@@ -1,4 +1,4 @@
-import type { ScanProgress } from "@jobfilly/schema";
+import { SCAN_WINDOW_DAYS, type ScanProgress } from "@jobfilly/schema";
 import { Link } from "react-router";
 import { ApiError } from "../../api";
 import { Alert, Button, Card, Loading, PageHeader } from "../../components";
@@ -76,7 +76,7 @@ function Status({ progress, stopMessage }: { progress: ScanProgress; stopMessage
       <Loading
         label={
           progress.kind === "first"
-            ? "Scanning the last 90 days of your Inbox and Sent mail…"
+            ? `Scanning the last ${SCAN_WINDOW_DAYS} days of your Inbox and Sent mail…`
             : "Analyzing the rest of your likely job emails…"
         }
       />
@@ -114,7 +114,7 @@ export function ScanPage({ workspaceId }: { workspaceId: string }) {
     <section>
       <PageHeader
         title="Scan"
-        description="The first scan reads the last 90 days of your Inbox and Sent mail, sorts out what is plainly not job mail without AI, and lets the AI read the rest, newest first, until it is confident."
+        description={`The first scan reads the last ${SCAN_WINDOW_DAYS} days of your Inbox and Sent mail, sorts out what is plainly not job mail without AI, and lets the AI read the rest, newest first, until it is confident.`}
       />
       <Card className="flex flex-col gap-5">
         {progress ? (

@@ -145,6 +145,30 @@ describe("ScanPage", () => {
     expect(await screen.findByText("Connect a mailbox before starting a scan")).toBeTruthy();
   });
 
+  it("names the scan window from SCAN_WINDOW_DAYS, the constant the scan worker reads (F4.1)", async () => {
+    // A window other than the real one proves the page follows the constant instead of repeating
+    // its value. The page and its test helpers are loaded fresh so they see the replaced schema.
+    vi.resetModules();
+    vi.doMock("@jobfilly/schema", async (importOriginal) => ({
+      ...(await importOriginal<typeof import("@jobfilly/schema")>()),
+      SCAN_WINDOW_DAYS: 37,
+    }));
+    try {
+      const testing = await import("../../components/testing");
+      const { ScanPage: Page } = await import("./index");
+      testing.fakeApi({ [CURRENT]: current(progress()) });
+      testing.renderInWorkspace(<Page workspaceId={W} />, { role: "viewer" });
+      expect(
+        await screen.findByText("Scanning the last 37 days of your Inbox and Sent mail…"),
+      ).toBeTruthy();
+      expect(screen.getByText(/The first scan reads the last 37 days of your Inbox/)).toBeTruthy();
+      expect(screen.queryByText(/90 days/)).toBeNull();
+    } finally {
+      vi.doUnmock("@jobfilly/schema");
+      vi.resetModules();
+    }
+  });
+
   it("tells members who can't start a scan who can", async () => {
     fakeApi({ [CURRENT]: current(null) });
     renderInWorkspace(<ScanPage workspaceId={W} />, { role: "editor" });
