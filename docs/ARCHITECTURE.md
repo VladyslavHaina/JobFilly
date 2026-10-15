@@ -337,6 +337,10 @@ Every MVP keeps these true; the Helm chart after MVP 3 relies on them.
   and `minutesAgo`, the only fields the seed reads besides the `.eml` files. The fake AI starts
   with `node e2e/fake-ai/main.ts`, listens on `PORT` (8080) and reads `FIXTURES_DIR`
   (`e2e/fixtures`), `FAKE_AI_DELAY_MS` and `FAKE_AI_SLOW_TEST_MS` (0). The seed starts with
-  `e2e/seed/main.ts` and the fixture generator with `e2e/fixtures/build/main.ts`. Personas:
+  `e2e/seed/main.ts` and the fixture generator with `e2e/fixtures/build/main.ts`. From MVP 2 the
+  fake RDAP service starts with `node e2e/rdap/main.ts` (`PORT` 8080, data in
+  `e2e/rdap/domains.json`) and CoreDNS reads `e2e/dns/Corefile` and `e2e/dns/zones`; the
+  generator writes both from the fixtures' sender domains. The seed's `inspect smtp` and
+  `reset-uidvalidity` use the test mail server's REST API (`GREENMAIL_API_URL`). Personas:
   `maria` (maria.santos@inbox.example) and `tom` (tom.okafor@inbox.example). How
   each MVP is validated is described in [docs/mvp/README.md](mvp/README.md).
