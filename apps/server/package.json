@@ -1,0 +1,35 @@
+{
+  "name": "@jobfilly/server",
+  "version": "0.0.0",
+  "private": true,
+  "description": "HTTP API, authentication and background jobs. Runs in Docker, in the desktop app, and in development.",
+  "type": "module",
+  "exports": {
+    ".": "./src/app.ts",
+    "./node": "./src/node.ts"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsup",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@hono/node-server": "^2.1.3",
+    "@hono/zod-validator": "^0.9.1",
+    "@jobfilly/ai": "workspace:*",
+    "@jobfilly/core": "workspace:*",
+    "@jobfilly/db": "workspace:*",
+    "@jobfilly/mail": "workspace:*",
+    "@jobfilly/schema": "workspace:*",
+    "hono": "^4.13.13",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.1",
+    "tsx": "^4.23.15"
+  }
+}

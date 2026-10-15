@@ -1,0 +1,23 @@
+{
+  "name": "@jobfilly/mail",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Mail access: IMAP sync, message parsing, drafts over SMTP.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@jobfilly/schema": "workspace:*",
+    "imapflow": "^2.2.10",
+    "mailparser": "^3.9.36",
+    "nodemailer": "^10.0.16"
+  },
+  "devDependencies": {
+    "@types/mailparser": "^3.9.0",
+    "@types/nodemailer": "^8.0.2"
+  }
+}

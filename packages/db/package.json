@@ -1,0 +1,21 @@
+{
+  "name": "@jobfilly/db",
+  "version": "0.0.0",
+  "private": true,
+  "description": "SQLite (libSQL) storage through Drizzle: schema, migrations, queries.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@jobfilly/schema": "workspace:*",
+    "@libsql/client": "^0.18.0",
+    "drizzle-orm": "^0.45.3"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.31.11"
+  }
+}

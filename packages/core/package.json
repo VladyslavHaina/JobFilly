@@ -1,0 +1,16 @@
+{
+  "name": "@jobfilly/core",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Domain logic with no I/O: intake, profiles, decision inbox, rules, scoring.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@jobfilly/schema": "workspace:*"
+  }
+}
