@@ -1,4 +1,4 @@
-import type { DraftRef, Envelope } from "@jobfilly/schema";
+import type { DraftOrigin, DraftRef, Envelope } from "@jobfilly/schema";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { DatabaseConnection } from "../client";
 import { drafts } from "../tables";
@@ -78,7 +78,7 @@ beforeEach(async () => {
 });
 afterEach(() => conn.close());
 
-const claim = async (r: { messageId: string; position: number }, origin = "auto" as const) => {
+const claim = async (r: { messageId: string; position: number }, origin: DraftOrigin = "auto") => {
   const c = await claimDraft(conn.db, ws, r, { origin, now: t0 });
   if (!c) throw new Error("expected a claim");
   return c.id;

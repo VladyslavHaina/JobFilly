@@ -30,15 +30,16 @@ export interface NeedGroupInput {
 /**
  * Records needs: each group joins its open decision, or opens one, and its roles wait on it
  * (a role already listed keeps its state, so a dismissal stays). Returns the decisions it opened,
- * for decision.created.
+ * for decision.created, and how many roles started waiting.
  */
 export async function recordNeeds(
   db: Database,
   workspaceId: string,
   groups: readonly NeedGroupInput[],
   now: Date,
-): Promise<{ created: { id: string; groupKey: string }[] }> {
+): Promise<{ created: { id: string; groupKey: string }[]; added: number }> {
   const created: { id: string; groupKey: string }[] = [];
+  let added = 0;
   for (const group of groups) {
     const [opened] = await db
       .insert(decisions)
@@ -73,7 +74,7 @@ export async function recordNeeds(
       id = open?.id;
     }
     if (!id || group.waiting.length === 0) continue;
-    await db
+    const inserted = await db
       .insert(decisionMessages)
       .values(
         group.waiting.map((w) => ({
@@ -87,9 +88,11 @@ export async function recordNeeds(
           updatedAt: now,
         })),
       )
-      .onConflictDoNothing();
+      .onConflictDoNothing()
+      .returning({ decisionId: decisionMessages.decisionId });
+    added += inserted.length;
   }
-  return { created };
+  return { created, added };
 }
 
 /**
@@ -271,7 +274,7 @@ export async function listDecisions(db: Database, workspaceId: string): Promise<
     .select()
     .from(decisions)
     .where(and(eq(decisions.workspaceId, workspaceId), eq(decisions.status, "open"), someoneWaits))
-    .orderBy(asc(decisions.createdAt), asc(decisions.id));
+    .orderBy(asc(decisions.createdAt), asc(decisions.groupKey));
   const waiting = await waitingOn(
     db,
     workspaceId,
