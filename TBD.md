@@ -3690,3 +3690,141 @@ These make sign-off possible; without them the build goes on and records an open
 - **If you decide otherwise:** A scam offer whose only warning sign is a passport request (old domain, company domain, no fee) still looks fine when the model calls it an offer. Company signals (free-mail, mismatch) still fire only for recruiter_outreach, so they don't help an "offer". Closing that gap means also running company signals for offers, or using the thread-origin rule.
 - **Refs:** packages/core/src/sender/check.ts (withoutOfferIdRequest), packages/core/src/sender/check.test.ts
 - **Status:** open
+
+## TBD-294 · Build the assistant slice on top of the unmerged rules-match branch
+- **Kind:** decision
+- **Where:** MVP 2 · Build (assistant)
+- **Context:** The slice depends on rules-match: the test plan requires the impact preview to run the real rules engine and scoring. But mvp-2 still has only the foundation's empty packages/core rules and match stubs. mvp-2-rules-match (19 commits, verified in build level 1 per the TBD records) was never merged into mvp-2, and the workflow told this slice to branch from mvp-2.
+- **Options:**
+  1. Merge mvp-2-rules-match into mvp-2-assistant with --no-ff and build on its exports
+  2. Inject the engine and scorer into the preview as parameters and test with a stand-in engine
+  3. Wait for integration
+- **Chosen:** Merged mvp-2-rules-match into mvp-2-assistant (commit 2575ca8) and used its matchRole and describeRule exports. A preview built against a stand-in engine would prove nothing (TBD-159/187). The merge is clean, and the integrator's later merge of both branches shares the same commits, so it can't conflict. The unattended build can't wait.
+- **If you decide otherwise:** If rules-match fails final verification or is rebased, this branch carries its commits. The integrator would have to merge rules-match first, or revert 2575ca8 and replace the preview's matchRole calls.
+- **Refs:** mvp-2-rules-match; packages/core/src/assistant/preview.ts; TBD-159, TBD-187
+- **Status:** open
+
+## TBD-295 · Proposal cards and history items carry their plain words over the API
+- **Kind:** decision
+- **Where:** MVP 2 · Build (assistant)
+- **Context:** F8.2 and F8.4 need before and after in plain words. apps/web may import only packages/schema, not packages/core, and ProposalSchema and ProfileHistoryEntrySchema had only raw snapshots.
+- **Options:**
+  1. Add lines (ChangeLine[]) to Proposal and a ProfileHistoryItem with byName and lines, computed by the server from the snapshots
+  2. Word the snapshots again in the web
+  3. Store the words in new columns
+- **Chosen:** The schema gains ChangeLineSchema, Proposal.lines and ProfileHistoryItemSchema; the server words them with packages/core's changeLines when it reads them. No database change. One wording, shared with the rules engine's describeRule. The web stays thin, and the words are never stale because they are computed from the stored snapshots.
+- **If you decide otherwise:** The web would need its own copy of the value and rule wording, which could drift from the engine's.
+- **Refs:** packages/schema/src/assistant.ts; packages/core/src/assistant/words.ts; apps/server/src/assistant/service.ts toProposal; apps/server/src/assistant/history.ts
+- **Status:** open
+
+## TBD-296 · Assistant threads and proposals are private to their member
+- **Kind:** decision
+- **Where:** MVP 2 · Build (assistant)
+- **Context:** assistant_threads has a user_id. The spec doesn't say whether one member can see, apply or discard another member's proposal.
+- **Options:**
+  1. Each member reads and acts only on their own thread and proposals (another's is 404)
+  2. Any editor can apply any proposal in the workspace
+- **Chosen:** Every thread and proposal read is scoped to the member. Another member's proposal answers 404 to apply, edit and discard, so an editor can't apply a proposal a viewer made. A conversation is personal, and nothing in the UI shows another member's thread, so acting on one would be acting blind. Viewers still chat (F8.8) and editors make their own requests.
+- **If you decide otherwise:** Add a workspace-wide proposals list and drop the userId check in ownProposal.
+- **Refs:** apps/server/src/assistant/service.ts ownProposal; packages/db/src/queries/assistant.ts getThread
+- **Status:** open
+
+## TBD-297 · Undo is itself a change by hand, recorded in the history
+- **Kind:** decision
+- **Where:** MVP 2 · Build (assistant)
+- **Context:** applyProfileChanges writes a history row for every change. Undo restores an entry's before through the profile change service.
+- **Options:**
+  1. Undo applies restoreChanges with source 'you', request null, so the restore is a new history row and the undone entry gets undoneAt
+  2. Restore without a history row (would need changes to packages/db)
+- **Chosen:** The first option. A rule restored by undoing its removal comes back with a new id and source 'you'. It keeps one write path for every change (ARCHITECTURE) and a complete history of who changed what; the original entry shows 'Undone'.
+- **If you decide otherwise:** applyProfileChanges would need a flag to skip the history row, and restoreChanges would need to keep a re-added rule's id and source.
+- **Refs:** apps/server/src/assistant/history.ts; packages/core/src/profile/changes.ts restoreChanges
+- **Status:** open
+
+## TBD-298 · The preview never calls the model, even when the change alters what match.v1 would see
+- **Kind:** decision
+- **Where:** MVP 2 · Build (assistant)
+- **Context:** A change to target_roles or extra.skills changes the match.v1 input hash, so no stored answer exists for the 'after' side.
+- **Options:**
+  1. Use the role's stored answer (the one for its current input, else its latest) for both before and after
+  2. Call match.v1 during the preview
+  3. Leave such roles out of the preview
+- **Chosen:** The stored answer is used on both sides. The title-fit and skill-closeness parts stay as they were, and the re-evaluation after Apply asks the model. ARCHITECTURE and the test plan require that the preview never calls the model. Using the same answer on both sides keeps differences down to the change itself.
+- **If you decide otherwise:** Previews of target-role or skill changes would cost a model call per role and wait on the provider.
+- **Refs:** packages/core/src/assistant/preview.ts; apps/server/src/assistant/preview.ts storedAnswer
+- **Status:** open
+
+## TBD-299 · Which drafts count as 'already in your mailbox'
+- **Kind:** decision
+- **Where:** MVP 2 · Build (assistant)
+- **Context:** F8.5's count of drafts that stay in the mailbox. Draft rows can be saving, in_mailbox, edited, failed or discarded.
+- **Options:**
+  1. Live drafts in status in_mailbox or edited, among the roles the change affects
+  2. Also count saving
+  3. Count every live draft of the workspace
+- **Chosen:** in_mailbox or edited, and only for roles whose outcome the change affects (hidden or shown, score, rule effects or eligibility). S8 expects '1 draft' for the one Asia-Pacific role with a draft. A saving draft isn't in the mailbox yet and may fail.
+- **If you decide otherwise:** Change IN_MAILBOX or the affected test in previewImpact.
+- **Refs:** packages/core/src/assistant/preview.ts IN_MAILBOX
+- **Status:** open
+
+## TBD-300 · Wording of refused proposals and edited summaries
+- **Kind:** decision
+- **Where:** MVP 2 · Build (assistant)
+- **Context:** When the model's proposal is outside rules and entries or doesn't apply, or the user edits a card, the server adds its own words.
+- **Options:**
+  1. Keep the model's reply (in the user's language) and add one English sentence saying why nothing was proposed; after an edit the summary becomes the app's plain-word summary of the changes
+  2. Replace the reply entirely
+  3. Ask the model again
+- **Chosen:** The first option. When the model gives a clarifying question and a proposal together, the question is kept and the proposal dropped (F8.6: no guess). The user keeps the model's reply, which is in their own language. The app's added sentence is consistent and truthful, and needs no second model call.
+- **If you decide otherwise:** Localising the added sentences would need a second model call or translation strings.
+- **Refs:** apps/server/src/assistant/service.ts sendMessage, editProposal; packages/core/src/assistant/words.ts changeSummary
+- **Status:** open
+
+## TBD-301 · Where an out-of-scope assistant proposal is refused
+- **Kind:** decision
+- **Where:** MVP 2 · Build (assistant)
+- **Context:** packages/ai checked assistant.v1 answers with the strict AssistantOutputSchema. A proposal that changed a mailbox therefore became invalid_output and a 502, so the user never heard that the assistant can't do it, which F8.7 requires. The server's outsideOnly fallback could never run.
+- **Options:**
+  1. (a) packages/ai checks against a looser schema from packages/schema; the server refuses the proposal and keeps the reply
+  2. (b) Delete the server fallback and accept the 502
+- **Chosen:** (a), with a precise loose schema. Only a change whose target is neither rule nor entry is let through. A malformed rule or entry change still fails the check, gets one retry, then returns 502. The provider is still asked for the strict schema. F8.7 says that when asked, the assistant says it can't. A 502 'couldn't answer' does not do that. Keeping the strict schema as what the provider is asked for keeps the model guidance and the wire golden files unchanged. Keeping malformed in-scope changes as invalid answers keeps the retry, which might produce a valid proposal, instead of refusing them with misleading words.
+- **If you decide otherwise:** With (b), a model that tries to change a mailbox would give the user a generic 502 and nothing would be stored. With a fully loose proposal (z.unknown()), malformed rule changes would no longer be retried and would be refused as 'outside rules and entries'.
+- **Refs:** packages/schema/src/ai-output.ts (AssistantAnswerSchema), packages/ai/src/client.ts (assistant task, single's `sent` param), apps/server/src/assistant/service.ts (sendMessage)
+- **Status:** open
+
+## TBD-302 · Fixing the assistant data-access boundary in the docs rather than in the queries
+- **Kind:** decision
+- **Where:** MVP 2 · Build (assistant)
+- **Context:** ARCHITECTURE and the db module comment said every assistant read takes the user id, but getProposal, listThreadProposals, listThreadMessages and nextTurn take only (workspaceId, id).
+- **Options:**
+  1. Add a userId parameter to the four queries and filter by assistant_threads.user_id
+  2. Correct the docs: only the thread lookups take the user id, and the server checks ownership (thread lookup / ownProposal)
+- **Chosen:** Correct the docs and the module comment. The server already enforces ownership on every path (getThread with the user id, ownProposal). The verifier offered either fix, and correcting the docs makes them match the boundary without changing four query signatures and their tests in a fix round.
+- **If you decide otherwise:** Adding userId to the queries would give defence in depth at the db layer, at the cost of changing the query signatures, the db tests and service.ts call sites.
+- **Refs:** docs/ARCHITECTURE.md (The assistant), packages/db/src/queries/assistant.ts header
+- **Status:** open
+
+## TBD-303 · How the server test marks a draft as in the mailbox without a db helper
+- **Kind:** decision
+- **Where:** MVP 2 · Build (assistant)
+- **Context:** This branch has no packages/db function that moves a draft to in_mailbox; the replies slice adds markDraftSaved in packages/db/src/queries/drafts.ts, which is empty here. The drafts table and drizzle's sql tag are not exported to apps/server.
+- **Options:**
+  1. Add a markDraftSaved-like helper to packages/db on this branch
+  2. Run one raw UPDATE through deps.db.execute(string) in the test
+  3. Change PreviewRole input in the test only
+- **Chosen:** One raw UPDATE in a markInMailbox test helper, limited to the workspace id and to rows in status saving. The finding allows a direct update through deps.db. Adding a db function here would clash with the replies slice's markDraftSaved when the slices are merged. The test still goes through the real listRoleStates and the server preview.
+- **If you decide otherwise:** After merging with the replies slice, the integrator can swap markInMailbox for markDraftSaved.
+- **Refs:** apps/server/src/routes/assistant.test.ts (markInMailbox, seedInbox)
+- **Status:** open
+
+## TBD-304 · Keep the assistant.v1 instruction text byte-identical instead of regenerating the wire fixtures
+- **Kind:** decision
+- **Where:** MVP 2 · Build (assistant)
+- **Context:** The finding asked to build the vocabulary from the schema and regenerate e2e/fixtures/wire/assistant.v1.*.json.
+- **Options:**
+  1. Reword the instruction and regenerate the fixtures
+  2. Build the vocabulary so it produces exactly the current words
+- **Chosen:** Generate the same words: neighbouring ops with the same value text are grouped, which matches the current RULE_OPS order. The model sees the same prompt, so the stored fixtures and fake AI answers stay valid. A new fact, op or action now changes the prompt automatically, and wire-client.test.ts will flag that the fixtures need regenerating.
+- **If you decide otherwise:** Rewording would mean regenerating the request fixtures, and the e2e answers might need checking too.
+- **Refs:** packages/ai/src/tasks/assistant.ts
+- **Status:** open
