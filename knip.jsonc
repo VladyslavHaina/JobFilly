@@ -4,9 +4,14 @@
   "ignore": [".claude/**"],
   // ignoreDependencies: dependencies installed ahead of the code that first uses them. Remove an
   // entry in the change that starts importing it. At every MVP sign-off this list may only hold
-  // dependencies a later MVP needs. During MVP 2's build the slices never edit this file: the
-  // integrator removes unpdf, mammoth (cvs-senders) and nodemailer (mailbox) when it merges the
-  // slice that first imports each.
+  // dependencies a later MVP needs. During MVP 2's build the slices edit this file only to add
+  // their own e2e entry points (below); the integrator removes unpdf, mammoth (cvs-senders) and
+  // nodemailer (mailbox) when it merges the slice that first imports each.
+  // `@public` JSDoc tags work the same way for exports: they mark contract exports added ahead of
+  // the slices that import them (apps/server/src/pipeline/stages.ts, e2e/fixtures/format.ts,
+  // apps/web/src/hooks/index.ts). The integrator removes each tag when it merges the slice that
+  // first imports that export, and deletes any export still unused; no `@public` tag may remain
+  // at sign-off.
   "workspaces": {
     ".": {},
     "apps/server": {
@@ -21,9 +26,8 @@
     },
     // The test stack's entry points are started by stack.ts, compose and the e2e image, not
     // imported: the stack runner, the fake AI, the seed loader, the fixture generator, the
-    // Playwright config and specs, and from MVP 2 the fake RDAP service and the DNS fixture's
-    // script (e2e-fixtures must use exactly these names; the integrator drops dns/main.ts if no
-    // such script is added).
+    // Playwright config and specs. A change that adds another entry point (MVP 2's fake RDAP
+    // service, say) adds it here in the same change, so this list names only files that exist.
     "e2e": {
       "entry": [
         "stack.ts",
@@ -31,9 +35,7 @@
         "seed/main.ts",
         "fixtures/build/main.ts",
         "playwright.config.ts",
-        "specs/**/*.spec.ts",
-        "rdap/main.ts",
-        "dns/main.ts"
+        "specs/**/*.spec.ts"
       ],
       "project": ["**/*.ts"]
     }
