@@ -3,6 +3,7 @@ import {
   type Cv,
   CvSchema,
   type CvTag,
+  type CvUpdate,
   MAX_CV_BYTES,
 } from "@jobfilly/schema";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -23,9 +24,11 @@ import { formatFullDate } from "../inbox/format";
 import { cvsKey, cvsPath, errorText, useCvs } from "./queries";
 
 // The CVs page (F2.1, F2.5): editors upload PDF or DOCX files (several at once), each is read by
-// the AI, which suggests its language, role families, seniority and format as tags; the skills it
-// found are listed as the CV writes them (any the text doesn't contain were dropped). Tags are
-// editable and users add their own ("preferred"). Download for everyone; delete for editors.
+// the AI, which suggests its language, role families and seniority as tags, and lists the skills
+// (as the CV writes them; any the text doesn't contain were dropped) and its format hints. All
+// three are editable tags: users remove any and add their own ("preferred"); a skill is added
+// only if the CV's text contains it (F2.2), which the server checks. Download for everyone;
+// delete for editors.
 
 const ACCEPT =
   ".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -48,22 +51,28 @@ function nextTags(current: readonly CvTag[], labels: string[]): CvTag[] {
   );
 }
 
-function CvCard({ cv }: { cv: Cv }) {
-  const { workspaceId, can } = useWorkspace();
+/** PATCH /cvs/:cvId, the answer replacing the CV in the list. */
+function useCvEdit(cv: Cv) {
+  const { workspaceId } = useWorkspace();
   const client = useQueryClient();
-  const [confirming, setConfirming] = useState(false);
-  const refresh = () => client.invalidateQueries({ queryKey: cvsKey(workspaceId) });
-  const tags = useMutation({
-    mutationFn: (labels: string[]) =>
-      api(`${cvsPath(workspaceId)}/${cv.id}`, CvSchema, {
-        method: "PATCH",
-        body: { tags: nextTags(cv.tags, labels) },
-      }),
+  return useMutation({
+    mutationFn: (change: CvUpdate) =>
+      api(`${cvsPath(workspaceId)}/${cv.id}`, CvSchema, { method: "PATCH", body: change }),
     onSuccess: (updated) =>
       client.setQueryData<Cv[]>(cvsKey(workspaceId), (list) =>
         list?.map((c) => (c.id === updated.id ? updated : c)),
       ),
   });
+}
+
+function CvCard({ cv }: { cv: Cv }) {
+  const { workspaceId, can } = useWorkspace();
+  const client = useQueryClient();
+  const [confirming, setConfirming] = useState(false);
+  const refresh = () => client.invalidateQueries({ queryKey: cvsKey(workspaceId) });
+  const tags = useCvEdit(cv);
+  const skills = useCvEdit(cv);
+  const hints = useCvEdit(cv);
   const remove = useMutation({
     mutationFn: () => apiVoid(`${cvsPath(workspaceId)}/${cv.id}`, { method: "DELETE" }),
     onSuccess: async () => {
@@ -82,8 +91,13 @@ function CvCard({ cv }: { cv: Cv }) {
       URL.revokeObjectURL(url);
     },
   });
-  const labels = (tags.isPending && tags.variables) || cv.tags.map((t) => t.label);
-  const error = tags.error ?? remove.error ?? download.error;
+  // While a change is saved, the fields show it, so a refetch in between doesn't undo it.
+  const labels =
+    (tags.isPending && tags.variables.tags?.map((t) => t.label)) || cv.tags.map((t) => t.label);
+  const skillLabels = (skills.isPending && skills.variables.skills) || cv.skills;
+  const hintLabels = (hints.isPending && hints.variables.formatHints) || cv.formatHints;
+  const read = cv.readStatus === "done";
+  const error = tags.error ?? skills.error ?? hints.error ?? remove.error ?? download.error;
   return (
     <Card className="flex flex-col gap-3">
       <header className="flex flex-wrap items-start justify-between gap-3">
@@ -116,22 +130,30 @@ function CvCard({ cv }: { cv: Cv }) {
         tags={labels}
         disabled={!can.edit || tags.isPending}
         placeholder={can.edit ? "Add a tag, e.g. preferred" : undefined}
-        onChange={(next) => tags.mutate(next)}
+        onChange={(next) => tags.mutate({ tags: nextTags(cv.tags, next) })}
       />
-      {cv.skills.length > 0 && (
-        <div className="flex flex-col gap-1">
-          <p className="text-sm font-medium text-stone-800">Skills found in the CV</p>
-          <ul aria-label={`Skills in ${cv.name}`} className="flex flex-wrap gap-1.5">
-            {cv.skills.map((skill) => (
-              <li
-                key={skill}
-                className="rounded-full bg-stone-100 px-2 py-0.5 text-xs text-stone-700"
-              >
-                {skill}
-              </li>
-            ))}
-          </ul>
-        </div>
+      {read && (
+        <>
+          <div className="flex flex-col gap-1">
+            <TagInput
+              label={`Skills in ${cv.name}`}
+              tags={skillLabels}
+              disabled={!can.edit || skills.isPending}
+              placeholder={can.edit ? "Add a skill the CV lists" : undefined}
+              onChange={(next) => skills.mutate({ skills: next })}
+            />
+            <p className="text-xs text-stone-500">
+              Only skills written in the CV are listed; one you add must be in it too.
+            </p>
+          </div>
+          <TagInput
+            label={`Format of ${cv.name}`}
+            tags={hintLabels}
+            disabled={!can.edit || hints.isPending}
+            placeholder={can.edit ? "Add a format hint, e.g. one page" : undefined}
+            onChange={(next) => hints.mutate({ formatHints: next })}
+          />
+        </>
       )}
       {error && <Alert>{errorText(error)}</Alert>}
       <Dialog

@@ -35,7 +35,7 @@ function cv(overrides: Partial<Cv> = {}): Cv {
     countryHints: [],
     formatHints: [],
     tags: [
-      { label: "English", source: "ai" },
+      { label: "en", source: "ai" },
       { label: "Backend engineering", source: "ai" },
     ],
     readStatus: "done",
@@ -48,7 +48,7 @@ const backendDe = cv({
   id: "8f0e1c62-0000-4000-8000-0000000000c2",
   name: "Backend (DE)",
   language: "de",
-  tags: [{ label: "German", source: "ai" }],
+  tags: [{ label: "de", source: "ai" }],
 });
 
 /** The fake API, and every multipart form the page uploads. */
@@ -102,7 +102,7 @@ describe("the CVs page (F2.1)", () => {
       within(tags)
         .getAllByRole("listitem")
         .map((li) => li.textContent?.replace("×", "")),
-    ).toEqual(["English", "Backend engineering"]);
+    ).toEqual(["en", "Backend engineering"]);
     expect(screen.getByRole("list", { name: "Skills in Backend (EN)" }).textContent).toContain(
       "Go",
     );
@@ -116,11 +116,57 @@ describe("the CVs page (F2.1)", () => {
     expect(patch?.path).toBe(`${url}/${backendEn.id}`);
     expect(patch?.body).toEqual({
       tags: [
-        { label: "English", source: "ai" },
+        { label: "en", source: "ai" },
         { label: "Backend engineering", source: "ai" },
         { label: "preferred", source: "you" },
       ],
     });
+  });
+
+  it("edits the skills as tags: removes one, adds one, and says why one can't be added", async () => {
+    const { seen } = api({
+      [`GET ${url}`]: { items: [cv({ formatHints: ["one page"] })] },
+      [`PATCH ${url}/:id`]: (req: FakeRequest) => {
+        const body = req.body as { skills?: string[] };
+        if (body.skills?.includes("Rust")) {
+          return Response.json(
+            { error: "skill_not_in_cv", message: `"Rust" isn't in the CV's text` },
+            { status: 422 },
+          );
+        }
+        return { ...backendEn, formatHints: ["one page"], ...body };
+      },
+    });
+    renderInWorkspace(<CvsPage workspaceId={ws.id} />, { role: "editor" });
+    const skills = await screen.findByRole("list", { name: "Skills in Backend (EN)" });
+    const labels = () =>
+      within(screen.getByRole("list", { name: "Skills in Backend (EN)" }))
+        .getAllByRole("listitem")
+        .map((li) => li.textContent?.replace("×", ""));
+    expect(labels()).toEqual(["Go", "PostgreSQL"]);
+    await userEvent.click(within(skills).getByRole("button", { name: "Remove PostgreSQL" }));
+    await waitFor(() => expect(labels()).toEqual(["Go"]));
+    const patches = () => seen.filter((r) => r.method === "PATCH").map((r) => r.body);
+    expect(patches()).toEqual([{ skills: ["Go"] }]);
+
+    const field = screen.getByRole("textbox", { name: "Skills in Backend (EN)" });
+    await waitFor(() => expect((field as HTMLInputElement).disabled).toBe(false));
+    await userEvent.type(field, "Kafka{Enter}");
+    await waitFor(() => expect(labels()).toEqual(["Go", "Kafka"]));
+    await waitFor(() => expect((field as HTMLInputElement).disabled).toBe(false));
+    await userEvent.type(field, "Rust{Enter}");
+    expect(await screen.findByText(`"Rust" isn't in the CV's text`)).toBeTruthy();
+    expect(labels()).toEqual(["Go", "Kafka"]);
+    expect(patches()).toEqual([
+      { skills: ["Go"] },
+      { skills: ["Go", "Kafka"] },
+      { skills: ["Go", "Kafka", "Rust"] },
+    ]);
+
+    // The format hints are editable tags too.
+    const format = screen.getByRole("list", { name: "Format of Backend (EN)" });
+    await userEvent.click(within(format).getByRole("button", { name: "Remove one page" }));
+    await waitFor(() => expect(patches().at(-1)).toEqual({ formatHints: [] }));
   });
 
   it("shows a CV still being read, and one that couldn't be read", async () => {
@@ -135,6 +181,8 @@ describe("the CVs page (F2.1)", () => {
     renderInWorkspace(<CvsPage workspaceId={ws.id} />, { role: "editor" });
     expect(await screen.findByText("Reading…")).toBeTruthy();
     expect(screen.getByText("Couldn't read")).toBeTruthy();
+    // Nothing was read, so there are no skills or format hints to edit.
+    expect(screen.queryByRole("textbox", { name: /^Skills in/ })).toBeNull();
   });
 
   it("lets a viewer see the CVs but not upload, tag or delete", async () => {
@@ -143,9 +191,10 @@ describe("the CVs page (F2.1)", () => {
     expect(await screen.findByRole("heading", { name: "Backend (EN)" })).toBeTruthy();
     expect(screen.queryByLabelText("Upload CVs")).toBeNull();
     expect(screen.queryByRole("button", { name: "Delete" })).toBeNull();
-    expect(
-      (screen.getByRole("textbox", { name: "Tags for Backend (EN)" }) as HTMLInputElement).disabled,
-    ).toBe(true);
+    for (const name of ["Tags for", "Skills in", "Format of"]) {
+      const field = screen.getByRole("textbox", { name: `${name} Backend (EN)` });
+      expect((field as HTMLInputElement).disabled).toBe(true);
+    }
     expect(screen.getByRole("button", { name: "Download" })).toBeTruthy();
   });
 
@@ -221,7 +270,7 @@ describe("the profile's CV prompt", () => {
       within(list)
         .getAllByRole("listitem")
         .map((li) => li.textContent),
-    ).toEqual(["Backend (EN)English · Backend engineering", "Backend (DE)German"]);
+    ).toEqual(["Backend (EN)en · Backend engineering", "Backend (DE)de"]);
     expect(screen.getByRole("link", { name: "Manage CVs" })).toBeTruthy();
   });
 
