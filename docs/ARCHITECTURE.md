@@ -208,10 +208,13 @@ Rules:
 - Decision needs are carried on match verdicts (`MatchVerdict.need`) and rule effects; the reply
   stage reads them and never works facts out again. Similar needs share a group key
   (`groupKeyFor`, e.g. `min_pay:CHF:year`).
-- Draft a reply's questions wait on their decisions whatever the policy says, and a "Don't ask
-  for this message" on them is reopened by the next Draft a reply. Once they are answered, the
-  reply stage claims the role's draft with origin `on_demand` even when the policy holds it, as
-  only Draft a reply raises questions on such a role.
+- A draft's questions are recorded with what raised them (`decision_messages.source`): `draft`
+  for an automatic draft's, `draft_on_demand` for Draft a reply's. Once the policy holds a role
+  (its score dropped, a rule, a risky sender), it stops waiting on the match's, the rules' and
+  an automatic draft's needs alike; only Draft a reply's questions wait whatever the policy says,
+  and a "Don't ask for this message" on them is reopened by the next Draft a reply. Once those
+  are answered, the reply stage claims the role's draft with origin `on_demand` even when the
+  policy holds it; an answer to an automatic draft's question on a held role makes no draft.
 
 ### The draft lifecycle
 
@@ -229,11 +232,18 @@ Rules:
   is there, a failure (recording it, a live event) leaves the row in `saving` for that same
   retry, and a draft that used up its attempts stays `failed` with its reason on the Drafts page,
   where Draft a reply takes it back.
-- The append is idempotent. The server chooses the copy's Message-ID before the append and keeps
-  it with the text (`saveDraftText`; `DraftMailInput.draftMessageId`, which packages/mail's
-  `saveDraft` gives the copy when set). A retry first deletes any copy with that Message-ID
-  (`deleteDraft` with UIDVALIDITY 0, which no folder has, finds it by Message-ID), so an attempt
-  that died after the append never leaves a second copy.
+- The append is meant to be idempotent. The server chooses the copy's Message-ID before the
+  append, with packages/mail's `newDraftMessageId` (the one generator), and keeps it with the
+  text (`saveDraftText`), passing it as `DraftMailInput.draftMessageId`. A retry first deletes
+  any copy with that Message-ID (`deleteDraft` with UIDVALIDITY 0, which no folder has, finds it
+  by Message-ID), so an attempt that died after the append leaves no second copy. This rests on
+  the `MailClient.saveDraft` contract that the copy gets `draftMessageId` when it is set; the
+  mailbox slice's IMAP client doesn't keep it yet (see TBD.md), so until it does only the test
+  double gives this guarantee.
+- A run that lost its claim to another run of it deletes its own copy only by a ref that knows
+  the copy's UID: both copies carry the kept Message-ID, so a ref with UIDVALIDITY 0 (a server
+  without UIDPLUS) is left alone. When a superfluous copy can't be deleted (that case, or a
+  failed delete after a losing edit) `draft.copy_left` (warn, the draft id and a reason code, no content) says so.
 - Edits and discards compare and set on the copy's Message-ID (`saveDraftEdit`,
   `markDraftDiscarded`): each copy has its own, so a change made from a copy the row no longer
   names writes nothing. A losing edit deletes the copy it appended and answers 409; a losing
