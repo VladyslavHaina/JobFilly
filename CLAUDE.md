@@ -1,8 +1,9 @@
 # JobFilly — agent guide
 
 This is the single guide for every coding agent (`AGENTS.md` points here). Before changing
-anything, read [docs/NORTH_STAR.md](docs/NORTH_STAR.md) (what we're building) and
-[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (how the pieces fit).
+anything, read [docs/NORTH_STAR.md](docs/NORTH_STAR.md) (what we're building),
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (how the pieces fit) and
+[docs/mvp/README.md](docs/mvp/README.md) (how the MVPs are built and validated).
 
 ## Commands
 
@@ -10,9 +11,9 @@ anything, read [docs/NORTH_STAR.md](docs/NORTH_STAR.md) (what we're building) an
 pnpm install                         # from the repo root, always
 pnpm dev                             # server :8787 + UI :5173
 pnpm check                           # biome lint + typecheck + vitest — run before every commit
-pnpm build                           # all bundles
-pnpm --filter @jobfilly/desktop dev  # Electron
-JOBFILLY_DESKTOP_SMOKE=1 pnpm --filter @jobfilly/desktop start   # after pnpm build: desktop check, no window
+pnpm unused                          # knip: unused files, exports and dependencies
+pnpm build                           # web UI and server bundles
+pnpm e2e                             # test stack + Playwright specs (from MVP 1 on)
 docker compose -f docker/compose.yaml up --build
 ```
 
@@ -22,32 +23,49 @@ Node 24+ (CI uses `.nvmrc`), pnpm 12. Format with `pnpm format` (Biome).
 
 - **Drafts only.** Nothing is sent without a button press for that message; no bulk send, no
   auto-apply.
-- **Unknown means ask.** When the profile can't answer something a message needs, create a
-  decision for the user and hold the reply. Never guess.
+- **Unknown means ask.** When the profile can't answer something a reply needs, create a decision
+  and hold the reply. Never guess.
+- **Nothing changes without the user's say.** The assistant and the model propose; applying is the
+  user's separate action.
 - **Nothing market- or user-specific in code.** Contract types, pay formats, work permits,
   locations and names come from the user's profile, never from enums, defaults or prompts.
+  International standards (ISO country and currency codes, UTC offsets) are fine.
+- **Workspace-scoped everything.** Workspace data is read and written only through `packages/db`
+  functions that take a workspace id; the server checks membership and role on every workspace
+  route (not a member → 404, wrong role → 403).
 - **Schemas first.** Data crossing a package boundary, going over HTTP, or coming back from a
   model is defined in `packages/schema` and validated where it enters.
 - **All AI calls go through `packages/ai`.** Providers are equals; never hard-wire a vendor.
 - **Match % is explainable** and is not an "ATS score". Never invent skills.
-- **Secrets** go to the OS keychain (desktop) or an encrypted store keyed from the environment
-  (Docker). Never in the database, a config file, logs or the repo.
-- **Tests are hermetic:** no real mailbox, model or network. Fake at the package boundary.
+- **Secrets** are encrypted at rest with `JOBFILLY_SECRET_KEY`; never returned by the API, never
+  logged, never in the repo.
+- **Kubernetes-ready:** no state on local disk, config only from the environment, JSON logs on
+  stdout, graceful shutdown (see ARCHITECTURE).
+- **Tests are hermetic:** no real mailbox, model or network. Fake at the package boundary; the
+  database in tests is PGlite.
 - **Dependencies:** add them to the package that uses them, from the repo root. The 7-day
-  `minimumReleaseAge` in `pnpm-workspace.yaml` stays; install scripts need an `allowBuilds`
-  entry.
-- **Docs:** only `README.md`, this file, `AGENTS.md`, `docs/NORTH_STAR.md` and
-  `docs/ARCHITECTURE.md`. Update ARCHITECTURE when you change a boundary. Don't add other docs;
-  explain details in code comments and tests.
+  `minimumReleaseAge` in `pnpm-workspace.yaml` stays; install scripts need an `allowBuilds` entry.
+- **Docs:** only `README.md`, this file, `AGENTS.md`, `TBD.md`, `docs/NORTH_STAR.md`,
+  `docs/ARCHITECTURE.md` and `docs/mvp/*.md`. Update ARCHITECTURE when you change a boundary. Don't
+  add other docs; explain details in code comments and tests.
 - **Commits:** Conventional Commits, `type(scope): subject`; the scope is the package or app name.
+
+## Building the MVPs
+
+The build runs unattended through the saved workflows in `.claude/workflows/`, following
+"How the build runs" in [docs/mvp/README.md](docs/mvp/README.md). It never stops to ask: important
+decisions and anything left unfinished go to [TBD.md](TBD.md) for the owner. Spec text is never
+edited by the build, a failing test is never deleted or skipped to get green, and every agent runs at
+high effort.
 
 ## Working in parallel
 
 Each workstream owns one package or app from the table in ARCHITECTURE. Use other packages only
-through their exports. If you need a shared schema change, make it in `packages/schema` as its
-own small commit first, so the other workstreams can build on it.
+through their exports. If you need a shared schema change, make it in `packages/schema` as its own
+small commit first, so the other workstreams can build on it.
 
 ## Working with the owner
 
-Ask decisions as selectable options (AskUserQuestion), not as open questions to answer in
-writing.
+In an interactive session, ask decisions as selectable options (AskUserQuestion), not as open
+questions to answer in writing. In an unattended run, never ask: record the decision in TBD.md and
+carry on.

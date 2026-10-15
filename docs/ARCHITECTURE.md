@@ -1,69 +1,122 @@
 # Architecture
 
-One TypeScript codebase. The same server runs in three ways:
+One TypeScript codebase: a server that serves both the API and the web UI, backed by PostgreSQL.
 
-- **Development:** `pnpm dev` runs the server and the Vite dev server; Vite forwards `/api` to the
-  server.
-- **Desktop:** Electron starts the server inside the app on a free loopback port and opens a
-  window on it.
-- **Docker:** the server serves both the API and the built UI from one container.
+- **Development:** `pnpm dev` runs the server and the Vite dev server; Vite forwards `/api` to
+  the server.
+- **Docker / Kubernetes:** one image runs the server, which serves the API and the built UI.
+  Replicas are interchangeable; all state lives in Postgres.
 
-The UI only ever talks to the server over HTTP, from the same origin, so it behaves the same in
-all three.
+The UI only ever talks to the server over HTTP from the same origin.
 
 ## Packages
 
 | Path | Owns | May import |
 | --- | --- | --- |
-| `packages/schema` | Zod schemas: every API payload, every AI structured output, the profile format | — |
-| `packages/core` | Intake decisions, profiles, decision inbox, rules, scoring. Pure logic, no I/O | schema |
-| `packages/db` | SQLite (libSQL) through Drizzle: tables, migrations, queries | schema |
-| `packages/mail` | IMAP sync (imapflow), parsing (mailparser), building drafts (nodemailer) | schema |
-| `packages/ai` | Provider registry (AI SDK), per-task model choice, prompts, structured extraction | schema |
-| `apps/server` | HTTP API (Hono), authentication, background jobs, live updates | all packages |
+| `packages/schema` | Zod schemas: every API payload, every AI structured output, job facts, profiles, rules | — |
+| `packages/core` | Scan decisions, intake aggregation, profiles, rules engine, matching, decisions, CV choice. Pure logic, no I/O | schema |
+| `packages/db` | PostgreSQL through Drizzle: tables, migrations, workspace-scoped queries, the job queue | schema |
+| `packages/mail` | IMAP (imapflow), parsing (mailparser), building drafts and sending (nodemailer) | schema |
+| `packages/ai` | Provider registry (AI SDK), per-task models, prompts, structured output, usage | schema |
+| `apps/server` | HTTP API (Hono), sessions, workspace access, workers, live updates, config, logs | all packages |
 | `apps/web` | React UI (Vite, Tailwind, TanStack Query, React Router) | schema; server types only |
-| `apps/desktop` | Electron shell: runs the server, the window, tray, OS keychain | server |
+| `e2e/` | Test stack fixtures, fake AI, mail seeding, Playwright specs | — |
 
 Rules:
 
-- Packages never import apps, and `packages/core` never does I/O: it takes data and returns
-  decisions, so it can be tested without mail, a database or a model.
+- Packages never import apps. `packages/core` never does I/O: it takes data and returns decisions,
+  so every rule is testable without mail, a database or a model.
 - Anything that crosses a package boundary, goes over HTTP, or comes back from a model has a
-  schema in `packages/schema`, and is validated at that boundary.
-- Workspace packages ship as TypeScript source. The server and desktop builds bundle all
-  JavaScript; native modules stay external and must be listed in that app's own dependencies.
+  schema in `packages/schema` and is validated where it enters.
+- Workspace packages ship as TypeScript source. The server build bundles all JavaScript; native
+  modules stay external and must be listed in the server's own dependencies.
+
+## Workspaces, access and sessions
+
+- Every workspace-owned row carries `workspace_id`. Data access goes through `packages/db`
+  functions that require a workspace id; there is no unscoped query for workspace data.
+- The server resolves the session, then checks membership and role on every workspace route.
+  Not a member: `404`. A member without the needed role: `403`.
+- Roles: `viewer` reads; `editor` also changes profiles, rules, decisions and drafts; `admin` also
+  manages members, mailboxes and AI settings. The owner is an admin who can't be removed.
+- Sessions: the cookie `jf_session` (HttpOnly, SameSite=Lax, Secure behind HTTPS) holds a random
+  id of at least 128 bits; Postgres stores only its SHA-256 hash, with idle and absolute expiry.
+  Any replica validates any session, so no sticky sessions are needed.
+- State-changing requests must come from the server's own origin (`Origin` check against
+  `PUBLIC_URL`).
 
 ## Data
 
-- One SQLite file in the data directory: the OS app-data folder on desktop, the `/data` volume in
-  Docker.
-- The mailbox is the source of truth for mail. The database holds an index of message metadata
-  plus local state — profiles, decisions, rules, drafts in progress, the tracker — which must
-  survive any re-sync. Full message bodies are fetched when needed, not stored.
+- PostgreSQL in every running mode. Tests run against PGlite (Postgres compiled to WebAssembly) in
+  memory, so they need no Docker. (The scaffold's `packages/db` still uses libSQL; MVP 1 replaces
+  it.)
+- The mailbox is the source of truth for mail. Postgres keeps message metadata, a short snippet,
+  extracted job facts, and the local state: profiles, rules, CVs, decisions, drafts, corrections.
+  Full message bodies are fetched from the mailbox when needed and not stored.
+- CV files are stored in Postgres (size-limited), so replicas need no shared disk.
+- Secrets (mail passwords, OAuth tokens, AI keys) are encrypted with AES-256-GCM using
+  `JOBFILLY_SECRET_KEY` before they are stored. They are never returned by the API or logged.
+
+## Background work and live updates
+
+- Jobs (scans, mail sync, analysis, drafting) live in a Postgres queue table. Workers claim jobs
+  with `FOR UPDATE SKIP LOCKED` and hold a lease they renew while working. A job whose lease runs
+  out (its replica died) is picked up by another replica and resumes from its last checkpoint.
+  Handlers are idempotent.
+- Live updates reach the browser over Server-Sent Events. Replicas publish events through Postgres
+  `LISTEN/NOTIFY`, so a browser connected to any replica sees work done on any other.
 
 ## AI
 
-- Every model call goes through `packages/ai`. The user picks a provider; each task (sorting,
-  extraction, matching, drafting, embeddings) can use its own model, and embeddings can come
-  from a different provider than text.
-- Structured output is validated against its schema. Output that doesn't validate is rejected,
-  never patched up.
-- Mail content sent to a model is marked as untrusted input, so instructions inside an email
-  cannot steer the app.
+- Every model call goes through `packages/ai`. Each workspace picks a provider; each task
+  (sorting, extraction, CV reading, matching, drafting, assistant) can use its own model.
+- Prompts carry a stable task id (for example `classify.v1`) and refer to messages by their
+  `Message-ID`. Structured output is validated against its schema; an invalid answer is retried
+  once and then reported, never patched up.
+- Mail content and CV text are passed as untrusted data, so instructions inside them can't steer
+  the app.
+- The assistant can only propose changes. Applying one is a separate request made by the user.
 
-## Security
+## Configuration (environment)
 
-- Secrets (mail passwords, OAuth tokens, API keys) never sit in the database or a config file in
-  plain text. Desktop uses the OS keychain (Electron `safeStorage`); Docker uses a key from an
-  environment variable or a Docker secret.
-- The API will require authentication in every mode: the desktop app hands its window a
-  per-launch token, and Docker uses a login session. Until that lands, Docker binds to loopback
-  only.
-- Email HTML is rendered in a sandboxed iframe with a strict content-security policy: no scripts,
-  and no remote content unless the user allows it.
-- There is no bulk send. Sending is one request per message, made after the user pressed send.
+| Variable | Meaning |
+| --- | --- |
+| `DATABASE_URL` | PostgreSQL connection string (required) |
+| `JOBFILLY_SECRET_KEY` | 32-byte key, base64, for encrypting secrets (required) |
+| `PUBLIC_URL` | The URL users open, e.g. `https://jobfilly.home.lan` (required) |
+| `HOST`, `PORT` | Listen address, default `127.0.0.1:8787` |
+| `WEB_DIST` | Built web UI to serve (set in the image) |
+| `LOG_LEVEL` | `info` by default |
+| `JOBFILLY_SYNC_INTERVAL_SECONDS` | Mail polling interval, default `120` |
+| `JOBFILLY_RDAP_URL` | RDAP service for domain age, default `https://rdap.org` |
+| `JOBFILLY_ALLOW_INSECURE_MAIL` | Allow plain-text IMAP/SMTP; only the test stack sets it |
+
+The server validates all of them at start and exits with one clear message if one is missing or
+invalid. Later MVPs add OAuth client settings to this table.
+
+## Kubernetes readiness
+
+Every MVP keeps these true; the Helm chart after MVP 3 relies on them.
+
+- Stateless replicas; nothing on local disk except temporary files.
+- `GET /api/health/live` (process up) and `GET /api/health/ready` (database reachable and
+  migrations applied).
+- Migrations run under a Postgres advisory lock, so replicas starting together apply them once.
+  `node dist/index.js migrate` runs them alone, for a migration job.
+- On `SIGTERM`: readiness turns 503, in-flight requests finish within 20 seconds, running jobs
+  hand back their leases, the process exits 0.
+- Runs as a non-root user with a read-only root filesystem and listens on `$PORT`.
+
+## Logs
+
+- JSON lines on stdout with `time`, `level`, `instance`, `event` (dot-separated, e.g.
+  `scan.stopped`), `requestId` for HTTP requests, and `workspaceId` / `userId` as ids.
+- Never logged: passwords, keys, tokens, cookies, message bodies, subjects, email addresses, CV
+  text, assistant messages.
 
 ## Testing
 
-Vitest everywhere. `pnpm check` runs lint, typecheck and tests. Tests are hermetic: no real
-mailbox, no real model, no network; use fakes at the package boundary.
+- `pnpm check` runs lint, typecheck and unit/integration tests (Vitest, PGlite, fakes at package
+  boundaries). Hermetic: no real mailbox, model or network.
+- `pnpm e2e` starts the test stack (`docker/compose.e2e.yaml`) and runs the Playwright specs. How
+  each MVP is validated is described in [docs/mvp/README.md](mvp/README.md).
