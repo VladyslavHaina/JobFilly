@@ -15,6 +15,11 @@ import type { AppDeps } from "../deps";
 // saves a checkpoint after each step; if its replica dies, another one claims the job once the
 // lease has expired and the handler resumes from that checkpoint, so handlers must be idempotent.
 // On shutdown running handlers are aborted and their jobs handed back.
+//
+// The queue's own bookkeeping (completing or handing back a job) never throws: run() is fired
+// without being awaited, so a rejection there would be unhandled and kill the replica. A database
+// error is logged instead and the job keeps its lease until it expires, when another replica (or
+// this one) claims it again and the handler resumes from its last checkpoint.
 
 export interface JobContext<P> {
   job: ClaimedJob;
@@ -162,14 +167,14 @@ export function createJobQueue(
         if (entry.reason === "shutdown") {
           await handBack(job, log);
         } else if (entry.reason !== "lease_lost") {
-          await completeJob(deps.db, job.id, { owner, status: "done", now: deps.clock.now() });
+          await complete(job, "done", log);
         }
       } catch (error) {
         if (entry.reason === "shutdown") {
           await handBack(job, log);
         } else if (entry.reason !== "lease_lost" && !(error instanceof LeaseLostError)) {
           log.error("job.failed", { error });
-          await completeJob(deps.db, job.id, { owner, status: "failed", now: deps.clock.now() });
+          await complete(job, "failed", log);
         }
       } finally {
         clearInterval(renewal);
@@ -180,9 +185,23 @@ export function createJobQueue(
     await entry.done;
   }
 
+  // Bookkeeping writes: a database error is logged, never thrown (see the top of this file).
+
+  async function complete(job: ClaimedJob, status: "done" | "failed", log: AppDeps["log"]) {
+    try {
+      await completeJob(deps.db, job.id, { owner, status, now: deps.clock.now() });
+    } catch (error) {
+      log.warn("db.connection_error", { error });
+    }
+  }
+
   async function handBack(job: ClaimedJob, log: AppDeps["log"]) {
-    if (await handBackJob(deps.db, job.id, { owner, now: deps.clock.now() })) {
-      log.info("job.handed_back");
+    try {
+      if (await handBackJob(deps.db, job.id, { owner, now: deps.clock.now() })) {
+        log.info("job.handed_back");
+      }
+    } catch (error) {
+      log.warn("db.connection_error", { error });
     }
   }
 
@@ -202,7 +221,8 @@ export function createJobQueue(
       while (!stopped && running.size < concurrency) {
         const job = await claimOne();
         if (!job) break;
-        void run(job);
+        // run() does not reject; the catch is a backstop so nothing can crash the process.
+        void run(job).catch((error) => deps.log.warn("db.connection_error", { error }));
       }
     } catch (error) {
       deps.log.warn("db.connection_error", { error });
