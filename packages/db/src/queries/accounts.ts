@@ -52,11 +52,3 @@ export async function findUserByEmail(db: Database, email: string): Promise<Stor
     .where(eq(users.email, email.toLowerCase()));
   return row ?? null;
 }
-
-export async function getUser(db: Database, userId: string): Promise<User | null> {
-  const [row] = await db
-    .select({ id: users.id, name: users.name, email: users.email })
-    .from(users)
-    .where(eq(users.id, userId));
-  return row ?? null;
-}

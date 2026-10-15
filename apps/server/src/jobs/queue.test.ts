@@ -37,7 +37,7 @@ describe("the job queue worker", () => {
     });
     expect(await deps.queue.runOnce()).toBe(true);
     expect(seen).toEqual([{ n: 7 }]);
-    expect((await getJob(deps.db, id))?.status).toBe("done");
+    expect((await getJob(deps.db, workspaceId, id))?.status).toBe("done");
     expect(await deps.queue.runOnce()).toBe(false);
   });
 
@@ -58,8 +58,8 @@ describe("the job queue worker", () => {
     });
     await deps.queue.runOnce();
     await deps.queue.runOnce();
-    expect((await getJob(deps.db, bad.id))?.status).toBe("failed");
-    expect((await getJob(deps.db, throws.id))?.status).toBe("failed");
+    expect((await getJob(deps.db, workspaceId, bad.id))?.status).toBe("failed");
+    expect((await getJob(deps.db, workspaceId, throws.id))?.status).toBe("failed");
     expect(deps.logs.filter((l) => l.event === "job.failed")).toHaveLength(2);
     expect(deps.logs.find((l) => l.event === "job.failed")).toMatchObject({
       level: "error",
@@ -101,7 +101,7 @@ describe("the job queue worker", () => {
       previousInstance: "app-a",
       jobId: id,
     });
-    expect((await getJob(deps.db, id))?.status).toBe("done");
+    expect((await getJob(deps.db, workspaceId, id))?.status).toBe("done");
   });
 
   it("stops a handler whose lease was taken over, without completing the job", async () => {
@@ -125,7 +125,7 @@ describe("the job queue worker", () => {
       now: deps.clock.now(),
     });
     await deps.queue.runOnce();
-    const job = await getJob(deps.db, id);
+    const job = await getJob(deps.db, workspaceId, id);
     expect(job).toMatchObject({ status: "running", leaseOwner: "app-b", checkpoint: { step: 1 } });
     expect(deps.logs.some((l) => l.event === "job.failed")).toBe(false);
   });
@@ -150,7 +150,7 @@ describe("the job queue worker", () => {
     await running;
     expect(deps.queue.running).toBe(1);
     await deps.queue.stop();
-    expect(await getJob(deps.db, id)).toMatchObject({
+    expect(await getJob(deps.db, workspaceId, id)).toMatchObject({
       status: "queued",
       leaseOwner: null,
       previousOwner: "test-instance",
@@ -176,12 +176,12 @@ describe("the job queue worker", () => {
     });
     const done = deps.queue.runOnce();
     await expect
-      .poll(async () => (await getJob(deps.db, id))?.leaseExpiresAt?.getTime())
+      .poll(async () => (await getJob(deps.db, workspaceId, id))?.leaseExpiresAt?.getTime())
       .toBe(t0 + 300);
     deps.clock.advance(250);
     // The timer renews every third of the lease: from now, 300 ms more.
     await expect
-      .poll(async () => (await getJob(deps.db, id))?.leaseExpiresAt?.getTime())
+      .poll(async () => (await getJob(deps.db, workspaceId, id))?.leaseExpiresAt?.getTime())
       .toBe(t0 + 550);
     deps.clock.advance(100);
     const other = await claimJob(deps.db, {
@@ -193,7 +193,7 @@ describe("the job queue worker", () => {
     expect(other).toBeNull();
     release();
     await done;
-    expect((await getJob(deps.db, id))?.status).toBe("done");
+    expect((await getJob(deps.db, workspaceId, id))?.status).toBe("done");
   });
 });
 

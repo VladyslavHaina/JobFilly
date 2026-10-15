@@ -84,7 +84,7 @@ function initialAnalysis(verdict: StageOneVerdict) {
   return { category: null, categorySource: null, analysisStatus: "pending" } as const;
 }
 
-export function toEnvelope(row: MessageRow): Envelope {
+function toEnvelope(row: MessageRow): Envelope {
   return {
     messageId: row.messageId,
     folder: row.folder,

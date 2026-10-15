@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { afterEach, describe, expect, it } from "vitest";
-import { type DatabaseConnection, openDatabase, queryRows } from "./index";
+import { queryRows } from "./client";
+import { type DatabaseConnection, openDatabase } from "./index";
 import { openTestDatabase } from "./testing";
 
 let conn: DatabaseConnection | undefined;

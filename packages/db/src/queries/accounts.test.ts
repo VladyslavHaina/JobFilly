@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { DatabaseConnection } from "../client";
 import { openTestDatabase } from "../testing";
-import { findUserByEmail, getUser, registerAccount } from "./accounts";
+import { findUserByEmail, registerAccount } from "./accounts";
 import { listMembers, listWorkspacesForUser } from "./workspaces";
 
 let conn: DatabaseConnection;
@@ -48,14 +48,13 @@ describe("registerAccount", () => {
 });
 
 describe("finding users", () => {
-  it("finds a user by email in any case, with the hash, and by id without it", async () => {
+  it("finds a user by email in any case, with the hash", async () => {
     const result = await registerAccount(conn.db, maria);
     if (!result.ok) throw new Error("expected ok");
     expect(await findUserByEmail(conn.db, "Maria.Santos@Inbox.Example")).toEqual({
       ...result.user,
       passwordHash: "scrypt$hash",
     });
-    expect(await getUser(conn.db, result.user.id)).toEqual(result.user);
     expect(await findUserByEmail(conn.db, "nobody@inbox.example")).toBeNull();
   });
 });

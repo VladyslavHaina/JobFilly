@@ -73,7 +73,7 @@ describe("the job queue", () => {
       now: t0,
     });
     await claim("app-a", t0, 10 * 60_000);
-    expect((await getJob(conn.db, id))?.leaseExpiresAt).toEqual(after(MAX_LEASE_MS));
+    expect((await getJob(conn.db, workspaceId, id))?.leaseExpiresAt).toEqual(after(MAX_LEASE_MS));
   });
 
   it("takes over an expired lease, records the previous owner and keeps the checkpoint", async () => {
@@ -103,7 +103,7 @@ describe("the job queue", () => {
       await saveJobCheckpoint(conn.db, id, { owner: "app-a", checkpoint: { batch: 9 }, now: t0 }),
     ).toBe(false);
     expect(await completeJob(conn.db, id, { owner: "app-a", status: "done", now: t0 })).toBe(false);
-    expect((await getJob(conn.db, id))?.checkpoint).toEqual({ batch: 3 });
+    expect((await getJob(conn.db, workspaceId, id))?.checkpoint).toEqual({ batch: 3 });
   });
 
   it("renewing keeps the lease alive", async () => {
@@ -117,7 +117,7 @@ describe("the job queue", () => {
       await renewLease(conn.db, id, { owner: "app-a", now: after(9_000), leaseMs: 10_000 }),
     ).toBe(true);
     expect(await claim("app-b", after(15_000))).toBeNull();
-    expect((await getJob(conn.db, id))?.leaseExpiresAt).toEqual(after(19_000));
+    expect((await getJob(conn.db, workspaceId, id))?.leaseExpiresAt).toEqual(after(19_000));
   });
 
   it("a handed-back job is claimed again at once, naming who handed it back", async () => {
@@ -144,6 +144,6 @@ describe("the job queue", () => {
     await claim("app-a", t0);
     expect(await completeJob(conn.db, id, { owner: "app-a", status: "done", now: t0 })).toBe(true);
     expect(await claim("app-b", after(60_000))).toBeNull();
-    expect((await getJob(conn.db, id))?.status).toBe("done");
+    expect((await getJob(conn.db, workspaceId, id))?.status).toBe("done");
   });
 });

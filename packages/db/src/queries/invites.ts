@@ -15,7 +15,7 @@ import { getMembership } from "./workspaces";
 
 type InviteRow = typeof invites.$inferSelect;
 
-export function inviteStatus(row: InviteRow, now: Date): InviteStatus {
+function inviteStatus(row: InviteRow, now: Date): InviteStatus {
   if (row.acceptedAt) return "accepted";
   if (row.declinedAt) return "declined";
   if (row.revokedAt) return "revoked";
@@ -127,7 +127,10 @@ export interface InviteForResponse {
   status: InviteStatus;
 }
 
-/** One invite by id, for the invitee answering it. */
+/**
+ * One invite by id, for the invitee answering it. Not scoped by workspace on purpose (the invitee
+ * isn't a member yet): the server answers only after checking the invite's email or token.
+ */
 export async function getInviteForResponse(
   db: Database,
   inviteId: string,

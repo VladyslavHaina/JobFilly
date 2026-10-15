@@ -6,6 +6,8 @@ import { type JobStatus, jobs } from "../tables";
 // and hold a lease of at most 30 seconds that they renew while working. A running job whose lease
 // ran out (its replica died) is claimed again by another worker, which records the previous
 // owner and resumes from the last checkpoint. Every write by a worker is guarded by its lease.
+// The worker's operations (claim, renew, checkpoint, complete, hand back) take no workspace id on
+// purpose: a worker serves every workspace, and the job it holds carries its workspace id.
 
 /** The longest lease a worker may hold; it renews well before the end. */
 export const MAX_LEASE_MS = 30_000;
@@ -185,7 +187,12 @@ export async function handBackJob(
   return rows.length > 0;
 }
 
-export async function getJob(db: Database, jobId: string): Promise<StoredJob | null> {
+/** One job of the workspace, or null. */
+export async function getJob(
+  db: Database,
+  workspaceId: string,
+  jobId: string,
+): Promise<StoredJob | null> {
   const [row] = await db
     .select({
       id: jobs.id,
@@ -200,6 +207,6 @@ export async function getJob(db: Database, jobId: string): Promise<StoredJob | n
       checkpoint: jobs.checkpoint,
     })
     .from(jobs)
-    .where(eq(jobs.id, jobId));
+    .where(and(eq(jobs.workspaceId, workspaceId), eq(jobs.id, jobId)));
   return row ?? null;
 }

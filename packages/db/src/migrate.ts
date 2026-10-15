@@ -9,7 +9,7 @@ import { type Database, queryRows } from "./client";
  * The migrations folder: packages/db/migrations next to this file's src/ folder, or, in the
  * server bundle, the copy the build puts next to dist/index.js (dist/migrations).
  */
-export const MIGRATIONS_FOLDER =
+const MIGRATIONS_FOLDER =
   [
     fileURLToPath(new URL("../migrations", import.meta.url)),
     fileURLToPath(new URL("./migrations", import.meta.url)),
