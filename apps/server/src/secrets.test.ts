@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { open, seal } from "./secrets";
+import { open, openAiKey, seal } from "./secrets";
 
 const key = new Uint8Array(randomBytes(32));
 
@@ -42,5 +42,21 @@ describe("the secret box", () => {
 
   it("needs a 32-byte key", () => {
     expect(() => seal(new Uint8Array(16), "x")).toThrow(/32 bytes/);
+  });
+});
+
+describe("opening a workspace's AI key", () => {
+  it("opens a stored key", () => {
+    expect(openAiKey(key, seal(key, "E2E-SECRET-ai-key"))).toBe("E2E-SECRET-ai-key");
+  });
+
+  it("gives null for a key cleared on purpose (sealed empty) and for none at all", () => {
+    expect(openAiKey(key, seal(key, ""))).toBeNull();
+    expect(openAiKey(key, null)).toBeNull();
+    expect(openAiKey(key, undefined)).toBeNull();
+  });
+
+  it("still refuses a key sealed under another secret key", () => {
+    expect(() => openAiKey(new Uint8Array(randomBytes(32)), seal(key, "x"))).toThrow();
   });
 });
