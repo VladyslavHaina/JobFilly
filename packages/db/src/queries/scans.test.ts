@@ -1,4 +1,4 @@
-import { EMPTY_SCAN_COUNTS } from "@jobfilly/schema";
+import { EMPTY_SCAN_COUNTS, type StopCause, type StopReason } from "@jobfilly/schema";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { DatabaseConnection } from "../client";
 import { openTestDatabase } from "../testing";
@@ -61,6 +61,7 @@ describe("scans", () => {
       kind: "first",
       status: "queued",
       stopReason: null,
+      stopCause: null,
       counts: EMPTY_SCAN_COUNTS,
       calls: 0,
       startedBy: userId,
@@ -123,6 +124,26 @@ describe("scans", () => {
       stopReason: "cancelled",
       calls: 2,
       stoppedAt: stoppedAt.toISOString(),
+    });
+  });
+
+  it("keeps what a failed run ran into, and no cause for any other stop", async () => {
+    const stopWith = async (reason: StopReason, cause?: StopCause) => {
+      const created = await createScan(conn.db, workspaceId, { kind: "first", startedBy: userId });
+      if (!created.ok) throw new Error("expected ok");
+      expect(await stopScan(conn.db, workspaceId, created.scan.id, reason, t0, cause)).toBe(true);
+      return getScan(conn.db, workspaceId, created.scan.id);
+    };
+    expect(await stopWith("failed", "mailbox")).toMatchObject({
+      stopReason: "failed",
+      stopCause: "mailbox",
+    });
+    expect(await stopWith("failed", "ai")).toMatchObject({ stopCause: "ai" });
+    expect(await stopWith("failed", "internal")).toMatchObject({ stopCause: "internal" });
+    expect(await stopWith("failed")).toMatchObject({ stopReason: "failed", stopCause: null });
+    expect(await stopWith("cancelled", "ai")).toMatchObject({
+      stopReason: "cancelled",
+      stopCause: null,
     });
   });
 
