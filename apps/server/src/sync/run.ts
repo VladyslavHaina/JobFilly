@@ -41,8 +41,9 @@ import { open, openAiKey } from "../secrets";
 //   the likely job mail with the model (pipeline/analyze.ts), and runs each job message through
 //   the rest of the pipeline (evaluate.ts: sender check, CV choice and match, reply), so it shows
 //   up in the job inbox within one interval, live for everyone (F1.1);
-// - moves its cursor past what it read, but never past a message the model couldn't sort yet
-//   (no call left in the run's budget, the provider failing): the next sync tries that one again;
+// - moves its cursor past what it read, but not past new mail the model couldn't sort yet (no
+//   call left in the run's budget, the provider failing): the next sync tries that one again, for
+//   mail dated up to an hour before the last sync that worked;
 // - on failure records it with an exponential back-off and the status "failing since", logs
 //   sync.failed and tells open pages (F1.4); the next sync that works clears it.
 //
@@ -56,6 +57,9 @@ export const SYNC_FOLDER = "INBOX";
 
 /** The longest back-off: a mailbox that keeps failing is tried at least this often. */
 const MAX_BACKOFF_MS = 15 * MINUTE;
+
+/** How far before the last sync that worked mail may be dated and still hold the cursor. */
+const HOLD_MS = 60 * MINUTE;
 
 /**
  * How long a sync waits after `failures` failures in a row: one interval after the first, then
@@ -305,13 +309,17 @@ export async function syncMailbox(
       });
     }
 
+    // Mail that arrived since about the last sync that worked holds the cursor; older mail that
+    // still waits is let go, so one message the provider keeps failing on can't make every sync
+    // retry it for ever: it stays "not analyzed", for "Analyze them".
+    const holdFrom = (state?.lastSyncedAt ?? deps.clock.now()).getTime() - HOLD_MS;
     const waiting = (
       await getStoredMessages(
         db,
         workspaceId,
         toAnalyze.map((m) => m.envelope.messageId),
       )
-    ).filter(waitsForModel);
+    ).filter((m) => waitsForModel(m) && Date.parse(m.envelope.date) >= holdFrom);
     const lastUid = nextLastUid(result.messages, waiting, result.changed ? 0 : cursor.lastUid);
     await recordSyncSuccess(db, workspaceId, mailboxId, {
       folderPath: SYNC_FOLDER,

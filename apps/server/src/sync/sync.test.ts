@@ -285,6 +285,27 @@ describe("new mail (F1.1)", () => {
     expect(logged("sync.completed").map((l) => l.new)).toEqual([2, 0]);
   });
 
+  it("lets go of older mail the provider keeps failing on, leaving it not analyzed", async () => {
+    // Dated two hours ago, with no sync before: too old to hold the cursor.
+    deliver("<stuck@agency.example>", 120);
+    deliver("<fresh@agency.example>", 1);
+    knownToAi("<fresh@agency.example>");
+    ai.failNext("classify", "provider_error");
+    await interval();
+    expect(await getSyncState(deps.db, ws, mailboxId, SYNC_FOLDER)).toMatchObject({ lastUid: 1 });
+    const calls = ai.log.length;
+    deps.clock.advance(INTERVAL);
+    await interval();
+    // Only the fresh one is read and sorted again; the stuck one waits for "Analyze them".
+    expect(ai.log.slice(calls).map((l) => l.key)).toEqual([
+      "<fresh@agency.example>",
+      "<fresh@agency.example>",
+    ]);
+    const stored = await getStoredMessages(deps.db, ws, ["<stuck@agency.example>"]);
+    expect(stored[0]?.analysisStatus).toBe("pending");
+    expect(await getSyncState(deps.db, ws, mailboxId, SYNC_FOLDER)).toMatchObject({ lastUid: 2 });
+  });
+
   it("never reads mail older than the first scan's window as new", async () => {
     mailbox.deliver({
       messageId: "<ancient@agency.example>",

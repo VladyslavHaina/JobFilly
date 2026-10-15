@@ -171,9 +171,9 @@ Rules:
   (`apps/server/src/sync`). Its first cursor is where the first scan's stored INBOX mail ends, and
   mail older than that scan's window is never read as new. New likely job mail is sorted and
   extracted by `pipeline/analyze.ts`, the scan's own classify-then-extract step, within the
-  workspace's budget per run; the cursor stays before mail the model couldn't sort yet. A failed
-  sync backs off from one interval, doubling to at most 15 minutes, and the mailbox shows as
-  failing since its first failure until a sync works again.
+  workspace's budget per run; the cursor stays before recent mail the model couldn't sort yet.
+  A failed sync backs off from one interval, doubling to at most 15 minutes, and the mailbox
+  shows as failing since its first failure until a sync works again.
 - Each new job message, and every message whose evaluation or sender check is missing or stale,
   goes through `evaluateMessage` (`apps/server/src/pipeline/evaluate.ts`): the sender stage, then
   per role the cv-choice and match stages, then the reply stage. The stage contract is pinned in
