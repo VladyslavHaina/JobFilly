@@ -16,6 +16,7 @@ import { open } from "../secrets";
 import {
   createTestDeps,
   type SeededUser,
+  seedAiSettings,
   seedUser,
   seedWorkspace,
   signedIn,
@@ -247,6 +248,23 @@ describe("the key (F3.3)", () => {
     expect((await settingsOf(res)).settings?.hasKey).toBe(false);
     await admin.post(`${url}/test`, { ...keyless, baseUrl: "http://elsewhere.example/v1" });
     expect(ai.clients.at(-1)?.apiKey).toBeNull();
+  });
+
+  it("reads a cleared key as no key, also after a keyless save to the same endpoint (TBD-129)", async () => {
+    await seedAiSettings(deps, owner.workspaceId, {
+      provider: "openai-compatible",
+      baseUrl: form.baseUrl,
+      models,
+      apiKey: "",
+    });
+    const stored = await getAiSettings(deps.db, owner.workspaceId);
+    expect(open(TEST_SECRET_KEY, stored?.keyCiphertext ?? "-")).toBe("");
+    expect((await settingsOf(await admin.get(url))).settings?.hasKey).toBe(false);
+    const { apiKey: _k, ...keyless } = form;
+    await admin.post(`${url}/test`, keyless);
+    expect(ai.clients.at(-1)?.apiKey).toBeNull();
+    const res = await admin.put(url, keyless);
+    expect((await settingsOf(res)).settings?.hasKey).toBe(false);
   });
 });
 

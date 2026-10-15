@@ -12,7 +12,7 @@ import {
 import { type Context, Hono } from "hono";
 import { requireRole, validJson, type WorkspaceEnv } from "../access";
 import type { AppDeps } from "../deps";
-import { open, seal } from "../secrets";
+import { openAiKey, seal } from "../secrets";
 
 // The workspace's AI provider settings (F3): the provider catalogue, read, save, test. The key is
 // sealed before it is stored and never returned or logged (F3.3); the answer carries only whether
@@ -52,9 +52,8 @@ export function aiRoutes(deps: AppDeps) {
   const key = deps.config.secretKey;
   /** The stored key in clear, or null when there is none (or it was sealed under another key). */
   const openKey = (stored: StoredAiSettings | null): string | null => {
-    if (!stored?.keyCiphertext) return null;
     try {
-      return open(key, stored.keyCiphertext) || null;
+      return openAiKey(key, stored?.keyCiphertext);
     } catch {
       return null;
     }
