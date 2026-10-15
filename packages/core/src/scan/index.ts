@@ -1,9 +1,11 @@
 import type {
   Envelope,
-  IntakeProposal,
   JobPlatformsFile,
   ScanKind,
+  StageOneContext,
+  StageOneOutcome,
   StopReason,
+  TrackerState,
 } from "@jobfilly/schema";
 
 // The first scan's decisions without I/O: stage-one sorting from headers, candidate order,
@@ -15,21 +17,10 @@ export function loadJobPlatforms(): JobPlatformsFile {
   return { version: 1, entries: [] };
 }
 
-export interface StageOneContext {
-  /** The mailbox's own addresses, to recognise the user's replies and who they replied to. */
-  ownAddresses: string[];
-  platforms: JobPlatformsFile;
-}
-
-export interface StageOneOutcome {
-  /** Sorted without a model call. */
-  handled: { messageId: string; verdict: "not_job" | "job_alert"; reason: string }[];
-  /** Likely job messages for the model. */
-  candidates: Envelope[];
-  /** The user's own replies, read for preferences. */
-  ownReplies: Envelope[];
-}
-
+/**
+ * Sorts envelopes from their headers alone (F4.2). Every envelope comes back once, with its
+ * verdict and reason, in the shape packages/db's saveEnvelopes stores (StageOneOutcomeSchema).
+ */
 export function stageOne(_envelopes: Envelope[], _ctx: StageOneContext): StageOneOutcome {
   throw new Error("stageOne is not built yet (scan slice)");
 }
@@ -42,14 +33,6 @@ export function orderNewestFirst(_envelopes: readonly Envelope[]): Envelope[] {
 /** Splits items into batches of `size` (20 by default, F4), keeping their order. */
 export function toBatches<T>(_items: readonly T[], _size = 20): T[][] {
   throw new Error("toBatches is not built yet (scan slice)");
-}
-
-export interface TrackerState {
-  proposal: IntakeProposal;
-  /** Likely messages still unread in the window. */
-  remaining: number;
-  callsUsed: number;
-  budget: number;
 }
 
 export interface ConfidenceTracker {
