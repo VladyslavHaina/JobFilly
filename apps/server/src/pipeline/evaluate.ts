@@ -8,6 +8,7 @@ import {
   listRules,
   loadMessageInputs,
   markStale,
+  roleKey,
   saveEvaluation,
   saveMessageLanguage,
   saveSenderCheck,
@@ -72,8 +73,8 @@ export interface EvaluateOutcome {
   failed: number[];
 }
 
-/** @public The workspace's confirmed profile (one per workspace in MVP 2), or null. */
-export async function confirmedProfile(deps: AppDeps, ws: string): Promise<Profile | null> {
+/** The workspace's confirmed profile (one per workspace in MVP 2), or null. */
+async function confirmedProfile(deps: AppDeps, ws: string): Promise<Profile | null> {
   return (await listProfiles(deps.db, ws)).find((p) => p.confirmedAt !== null) ?? null;
 }
 
@@ -262,7 +263,10 @@ export async function evaluateMessage(
             draftHistory: new Map(
               message.facts.map((_, position) => [
                 position,
-                history.get(`${messageId}#${position}`) ?? { hadDraft: false, dismissed: false },
+                history.get(roleKey({ messageId, position })) ?? {
+                  hadDraft: false,
+                  dismissed: false,
+                },
               ]),
             ),
             withinReplyWindow: withinReplyWindow(message.receivedAt, now, profile),

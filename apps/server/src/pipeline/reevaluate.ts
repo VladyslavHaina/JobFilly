@@ -3,6 +3,7 @@ import {
   listDraftsToRetry,
   listToEvaluate,
   reclaimDraft,
+  roleKey,
   type ToEvaluate,
 } from "@jobfilly/db";
 import {
@@ -41,7 +42,7 @@ export interface ReevaluateOutcome {
 
 const roleKeys = (item: ToEvaluate) => [
   ...(item.sender ? [`${item.messageId}#sender`] : []),
-  ...item.roles.map((r) => `${item.messageId}#${r.position}`),
+  ...item.roles.map((r) => roleKey({ messageId: item.messageId, position: r.position })),
 ];
 
 /** Whether the listing holds work the run's snapshot didn't, or work marked stale since `since`. */
