@@ -163,6 +163,29 @@ describe("revoking streams (F1.4, F1.9)", () => {
     expect(deps.live.streams).toBe(0);
   });
 
+  it("never closes a listener that belongs to no member, only a member's stream", async () => {
+    deps = await createTestDeps();
+    const got: string[] = [];
+    const closed: string[] = [];
+    deps.live.subscribe(
+      W1,
+      () => got.push("server"),
+      () => closed.push("server"),
+    );
+    deps.live.subscribe(
+      owner(W1, U1, S1),
+      () => got.push("member"),
+      () => closed.push("member"),
+    );
+    await deps.live.revoke({ type: "member.removed", workspaceId: W1, userId: U1 });
+    await deps.live.revoke({ type: "session.ended", sessionId: S1 });
+    expect(closed).toEqual(["member"]);
+    await deps.live.publish(W1, event);
+    await expect.poll(() => got).toEqual(["server"]);
+    deps.live.closeAll();
+    expect(closed).toEqual(["member", "server"]);
+  });
+
   it("refuses an access change that doesn't match its schema", async () => {
     deps = await createTestDeps();
     await expect(deps.live.revoke({ type: "session.ended", sessionId: "token" })).rejects.toThrow();
