@@ -329,11 +329,39 @@ describe("NotAnalyzedBanner (F4.10)", () => {
     );
   });
 
-  it("shows the count without the button to members who aren't admins", async () => {
+  it("shows the count without the button to members who aren't admins, and who can run it", async () => {
     fakeApi({ [CURRENT]: confident });
     renderInWorkspace(<NotAnalyzedBanner workspaceId={W} />, { role: "viewer" });
     expect(await screen.findByText("305 more likely job emails not analyzed")).toBeTruthy();
+    expect(screen.getByText("An admin of this workspace can analyze them.")).toBeTruthy();
     expect(screen.queryByRole("button")).toBeNull();
+  });
+
+  it("tells a viewer who can try a failed run again, and an admin only the button (S6)", async () => {
+    const failedText =
+      "Stopped: something went wrong on JobFilly's side after 40 of 345 likely job emails. Your settings don't need changing; trying again later may help.";
+    fakeApi({
+      [CURRENT]: current(
+        progress({
+          kind: "analyze_rest",
+          status: "stopped",
+          stopReason: "failed",
+          analyzed: 40,
+          notAnalyzed: 305,
+        }),
+        failedText,
+      ),
+    });
+    renderInWorkspace(<NotAnalyzedBanner workspaceId={W} />, { role: "viewer" });
+    expect(await screen.findByText(failedText, { exact: false })).toBeTruthy();
+    expect(screen.getByText("An admin of this workspace can analyze them.")).toBeTruthy();
+    expect(screen.queryByRole("button")).toBeNull();
+    cleanup();
+
+    renderInWorkspace(<NotAnalyzedBanner workspaceId={W} />, { role: "admin" });
+    expect(await screen.findByText(failedText, { exact: false })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Analyze them" })).toBeTruthy();
+    expect(screen.queryByText("An admin of this workspace can analyze them.")).toBeNull();
   });
 
   it("says how a budget stop ended, with the count that is still left (S8)", async () => {

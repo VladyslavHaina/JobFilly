@@ -1,11 +1,12 @@
-import type {
-  CurrentScan,
-  JobFacts,
-  MessageBody,
-  MessageDetail,
-  MessageList,
-  MessageListItem,
-  ScanProgress,
+import {
+  type CurrentScan,
+  CurrentScanSchema,
+  type JobFacts,
+  type MessageBody,
+  type MessageDetail,
+  type MessageList,
+  type MessageListItem,
+  type ScanProgress,
 } from "@jobfilly/schema";
 import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -18,6 +19,7 @@ import {
   TEST_USER,
   testWorkspace,
 } from "../../components/testing";
+import { queryKeys } from "../../hooks";
 import { paths } from "../../paths";
 
 // The job inbox inside the app's own routes, against a fake API (F5.1, F5.2, F5.4, F5.5).
@@ -148,8 +150,8 @@ const BODIES: Record<string, MessageBody> = {
 const JOB_ITEMS = [RECRUITER, ALERT, FAILED, INTERVIEW];
 
 /** The latest scan: by default the first one, stopped confident with 305 likely job emails left. */
-const currentScan = (overrides: Partial<ScanProgress> = {}): CurrentScan => ({
-  progress: {
+const currentScan = (overrides: Partial<ScanProgress> = {}): CurrentScan => {
+  const progress: ScanProgress = {
     scanId: "00000000-0000-4000-8000-0000000000c1",
     kind: "first",
     status: "stopped",
@@ -163,10 +165,17 @@ const currentScan = (overrides: Partial<ScanProgress> = {}): CurrentScan => ({
     calls: 38,
     tokens: 19000,
     ...overrides,
-  },
-  stopMessage: null,
-  totalTokens: 19000,
-});
+  };
+  return {
+    progress,
+    stopMessage: null,
+    stoppedAt: progress.status === "stopped" ? "2026-10-01T10:05:00.000Z" : null,
+    totalTokens: 19000,
+  };
+};
+
+/** What GET /scans/current answers before any scan: 200 with no progress, never a 404. */
+const NO_SCAN: CurrentScan = { progress: null, stopMessage: null, stoppedAt: null, totalTokens: 0 };
 
 /** A fake inbox API that filters and searches like the server. */
 function inboxApi(
@@ -179,10 +188,17 @@ function inboxApi(
     "GET /api/auth/session": { user: TEST_USER },
     "GET /api/workspaces": { items: [ws] },
     "GET /api/invites": { items: [] },
-    "GET /api/workspaces/:id/scans/current": () => scan ?? json({ error: "not_found" }, 404),
+    // Both answer what the real routes answer, checked against the shared schema so the fake
+    // can't drift from the contract.
+    "GET /api/workspaces/:id/scans/current": () => CurrentScanSchema.parse(scan ?? NO_SCAN),
     "POST /api/workspaces/:id/scans/analyze-rest": () => {
-      scan = currentScan({ kind: "analyze_rest", status: "running", analyzed: 0 });
-      return json(scan, 201);
+      scan = currentScan({
+        kind: "analyze_rest",
+        status: "running",
+        stopReason: null,
+        analyzed: 0,
+      });
+      return json(CurrentScanSchema.parse(scan), 201);
     },
     "GET /api/workspaces/:id/messages": (req: FakeRequest): MessageList => {
       const category = req.search.get("category");
@@ -346,7 +362,7 @@ describe("search and filter while likely job mail isn't analysed (F4.10, F5.5)",
   };
   const note = () => screen.findByRole("note", { name: "Not included" });
 
-  it("says how many are left out of an empty search and lets an admin analyze them", async () => {
+  it("says how many are left out of an empty search, with the banner's one Analyze them", async () => {
     const { ws, requests } = inboxApi({ scan: currentScan({ notAnalyzed: 305 }) });
     renderApp(paths.inbox(ws.id));
     await messageList();
@@ -360,12 +376,32 @@ describe("search and filter while likely job mail isn't analysed (F4.10, F5.5)",
     expect(left.textContent).toContain(
       "305 likely job emails aren't analyzed yet and aren't included.",
     );
-    await user.click(within(left).getByRole("button", { name: "Analyze them" }));
+    expect(within(left).getByText("Use Analyze them above to include them.")).toBeTruthy();
+    // One Analyze them on the page, the banner's: the note has none of its own.
+    expect(within(left).queryByRole("button")).toBeNull();
+    const buttons = screen.getAllByRole("button", { name: "Analyze them" });
+    expect(buttons).toHaveLength(1);
+    await user.click(buttons[0] as HTMLElement);
     await waitFor(() =>
       expect(requests.filter((r) => r.path.endsWith("/scans/analyze-rest"))).toHaveLength(1),
     );
+    // The note follows the run the banner started, from the same query.
     await waitFor(() => expect(within(left).getByText("They're being analyzed now.")).toBeTruthy());
-    expect(within(left).queryByRole("button")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Analyze them" })).toBeNull();
+  });
+
+  it("says nothing is left out of a search before any scan", async () => {
+    const { ws, requests } = inboxApi();
+    const { queryClient } = renderApp(paths.inbox(ws.id));
+    await messageList();
+    await search("Jonas Weber");
+    expect(await screen.findByText("No messages match.")).toBeTruthy();
+    // The scan query has had its answer (200, no progress), so the note had its chance to show.
+    const scanKey = [...queryKeys.area(ws.id, "scan"), "current"];
+    await waitFor(() => expect(queryClient.getQueryState(scanKey)?.status).toBe("success"));
+    expect(requests.some((r) => r.path.endsWith("/scans/current"))).toBe(true);
+    expect(screen.queryByRole("note", { name: "Not included" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Analyze them" })).toBeNull();
   });
 
   it("says so under a category filter that finds results too", async () => {

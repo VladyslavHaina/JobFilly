@@ -11,7 +11,7 @@ import { ApiError, api } from "../../api";
 import { Alert, Button, Loading, PageHeader, TextField } from "../../components";
 import { queryKeys, useWorkspace } from "../../hooks";
 import { apiPaths, paths } from "../../paths";
-import { likelyJobEmails, useCurrentScan, useScanAction } from "../scan/queries";
+import { likelyJobEmails, useCurrentScan } from "../scan/queries";
 import { CategoryChip, CouldNotAnalyze } from "./badges";
 import { CATEGORY_LABELS, formatListDate } from "./format";
 import { MessageDetailView } from "./MessageDetail";
@@ -84,53 +84,34 @@ function CategoryFilter(props: {
 }
 
 /**
- * Under a search or filter: "N likely job emails aren't analyzed yet and aren't included", with
- * Analyze them for admins and who can run it for everyone else. The count is the current scan's
- * live notAnalyzed, from the same query as the banner above the inbox.
+ * Under a search or filter: "N likely job emails aren't analyzed yet and aren't included", and
+ * who can change that. The count is the current scan's live notAnalyzed, from the same query as
+ * NotAnalyzedBanner above the inbox (routes.tsx), which holds the one Analyze them; admins are
+ * pointed there rather than given a second button with its own state.
  */
 function LeftOutNote({ workspaceId }: { workspaceId: string }) {
   const { can } = useWorkspace();
   const current = useCurrentScan(workspaceId);
-  const action = useScanAction(workspaceId);
   const progress = current.data?.progress;
   if (!progress || progress.notAnalyzed === 0) return null;
   const n = progress.notAnalyzed;
   const verb = n === 1 ? "isn't" : "aren't";
-  const running = progress.status !== "stopped";
-  const error =
-    action.error instanceof ApiError
-      ? action.error.message
-      : action.error
-        ? "That didn't work. Try again."
-        : null;
+  const hint =
+    progress.status !== "stopped"
+      ? "They're being analyzed now."
+      : can.admin
+        ? "Use Analyze them above to include them."
+        : "An admin of this workspace can analyze them.";
   return (
     <div
       role="note"
       aria-label="Not included"
-      className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-amber-950"
+      className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950"
     >
-      <div className="min-w-0 flex-1 text-sm">
-        <p>
-          {likelyJobEmails(n)} {verb} analyzed yet and {verb} included.
-        </p>
-        {running ? (
-          <p className="text-xs text-amber-900">They're being analyzed now.</p>
-        ) : (
-          !can.admin && (
-            <p className="text-xs text-amber-900">An admin of this workspace can analyze them.</p>
-          )
-        )}
-        {error && (
-          <p role="alert" className="text-xs text-red-700">
-            {error}
-          </p>
-        )}
-      </div>
-      {!running && can.admin && (
-        <Button busy={action.isPending} onClick={() => action.mutate({ kind: "analyze_rest" })}>
-          Analyze them
-        </Button>
-      )}
+      <p>
+        {likelyJobEmails(n)} {verb} analyzed yet and {verb} included.
+      </p>
+      <p className="text-xs text-amber-900">{hint}</p>
     </div>
   );
 }

@@ -1,15 +1,15 @@
 import { Link } from "react-router";
-import { ApiError } from "../../api";
 import { Button } from "../../components";
 import { useWorkspace } from "../../hooks";
 import { paths } from "../../paths";
-import { likelyJobEmails, useCurrentScan, useScanAction } from "./queries";
+import { likelyJobEmails, scanActionError, useCurrentScan, useScanAction } from "./queries";
 import { StopTime } from "./StopTime";
 
 // Above the job inbox (F4.10): after a scan stopped with likely job mail unread, "N more likely
-// job emails not analyzed" with Analyze them for admins; while a run is going, how far it is; and
-// once a run has stopped, how it ended and when (the same words as the scan screen). The run fills
-// in the job inbox only; the confirmed profile is never touched by it.
+// job emails not analyzed" with Analyze them for admins and who can run it for everyone else;
+// while a run is going, how far it is; and once a run has stopped, how it ended and when (the same
+// words as the scan screen). The run fills in the job inbox only; the confirmed profile is never
+// touched by it. The inbox's own "not included" note under a search points admins up here.
 
 export function NotAnalyzedBanner({ workspaceId }: { workspaceId: string }) {
   const { can } = useWorkspace();
@@ -57,12 +57,7 @@ export function NotAnalyzedBanner({ workspaceId }: { workspaceId: string }) {
     );
   }
 
-  const error =
-    action.error instanceof ApiError
-      ? action.error.message
-      : action.error
-        ? "That didn't work. Try again."
-        : null;
+  const error = scanActionError(action.error);
   return (
     <div role="status" className={`${frame} border-amber-200 bg-amber-50 text-amber-950`}>
       <div className="min-w-0 flex-1">
@@ -74,6 +69,9 @@ export function NotAnalyzedBanner({ workspaceId }: { workspaceId: string }) {
           <p className={`text-xs ${failed ? "text-red-800" : "text-amber-900"}`}>
             {stopMessage} <StopTime at={stoppedAt} />
           </p>
+        )}
+        {!can.admin && (
+          <p className="text-xs text-amber-900">An admin of this workspace can analyze them.</p>
         )}
         {error && (
           <p role="alert" className="text-xs text-red-700">
