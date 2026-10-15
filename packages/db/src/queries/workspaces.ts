@@ -5,6 +5,39 @@ import { memberships, users, workspaces } from "../tables";
 
 // Workspaces and their members. The owner is an admin who can't be removed or demoted.
 
+/** Creates a workspace with its owner as admin (registration creates the personal one). */
+export async function createWorkspace(
+  db: Database,
+  input: { name: string; ownerId: string },
+): Promise<{ id: string }> {
+  return db.transaction(async (tx) => {
+    const [row] = await tx
+      .insert(workspaces)
+      .values({ name: input.name, ownerId: input.ownerId })
+      .returning({ id: workspaces.id });
+    if (!row) throw new Error("workspace insert returned nothing");
+    await tx
+      .insert(memberships)
+      .values({ workspaceId: row.id, userId: input.ownerId, role: "admin" });
+    return row;
+  });
+}
+
+/** Adds a member, or sets the role of one already there (never the owner's). */
+export async function addMember(
+  db: Database,
+  workspaceId: string,
+  userId: string,
+  role: Role,
+): Promise<MemberChange> {
+  if ((await ownerOf(db, workspaceId)) === userId) return "owner";
+  await db
+    .insert(memberships)
+    .values({ workspaceId, userId, role })
+    .onConflictDoUpdate({ target: [memberships.workspaceId, memberships.userId], set: { role } });
+  return "ok";
+}
+
 export async function listWorkspacesForUser(
   db: Database,
   userId: string,

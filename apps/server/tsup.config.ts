@@ -10,5 +10,11 @@ export default defineConfig({
   // runtime. Native modules are the exception: list them in `external` and
   // add them to this app's own dependencies.
   noExternal: [/.*/],
+  // pg's optional native binding is never used (pg.native is never read).
+  external: ["pg-native"],
+  // Bundled CommonJS (pg) calls require() for Node built-ins; give the ESM bundle one.
+  banner: {
+    js: 'import { createRequire as __createRequire } from "node:module"; const require = __createRequire(import.meta.url);',
+  },
   clean: true,
 });

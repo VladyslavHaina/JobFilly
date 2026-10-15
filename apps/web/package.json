@@ -13,13 +13,12 @@
   "dependencies": {
     "@jobfilly/schema": "workspace:*",
     "@tanstack/react-query": "^5.104.1",
-    "hono": "^4.13.13",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "react-router": "^8.4.0"
+    "react-router": "^8.4.0",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@jobfilly/server": "workspace:*",
     "@tailwindcss/vite": "^4.3.3",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.7",

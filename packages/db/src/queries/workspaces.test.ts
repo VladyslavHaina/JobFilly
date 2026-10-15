@@ -3,7 +3,15 @@ import type { DatabaseConnection } from "../client";
 import { openTestDatabase } from "../testing";
 import { registerAccount } from "./accounts";
 import { acceptInvite, createInvite } from "./invites";
-import { getMembership, listMembers, removeMember, setMemberRole } from "./workspaces";
+import {
+  addMember,
+  createWorkspace,
+  getMembership,
+  listMembers,
+  listWorkspacesForUser,
+  removeMember,
+  setMemberRole,
+} from "./workspaces";
 
 let conn: DatabaseConnection;
 let maria: { userId: string; workspaceId: string };
@@ -69,6 +77,25 @@ describe("memberships", () => {
     expect((await listMembers(conn.db, maria.workspaceId)).map((m) => m.name)).toEqual([
       "Maria",
       "Tom",
+    ]);
+  });
+});
+
+describe("more workspaces", () => {
+  it("creates a workspace owned by its admin and adds members to it", async () => {
+    const { id } = await createWorkspace(conn.db, { name: "Job hunt", ownerId: tom.userId });
+    expect(await getMembership(conn.db, id, tom.userId)).toMatchObject({
+      name: "Job hunt",
+      role: "admin",
+      isOwner: true,
+    });
+    expect(await addMember(conn.db, id, maria.userId, "viewer")).toBe("ok");
+    expect(await addMember(conn.db, id, maria.userId, "editor")).toBe("ok");
+    expect(await addMember(conn.db, id, tom.userId, "viewer")).toBe("owner");
+    expect((await getMembership(conn.db, id, maria.userId))?.role).toBe("editor");
+    expect((await listWorkspacesForUser(conn.db, maria.userId)).map((w) => w.name)).toEqual([
+      "Maria's workspace",
+      "Job hunt",
     ]);
   });
 });

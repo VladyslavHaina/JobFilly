@@ -1,20 +1,16 @@
-import { HealthSchema } from "@jobfilly/schema";
+import { LivenessSchema } from "@jobfilly/schema";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "./api";
 
 export function App() {
   const health = useQuery({
     queryKey: ["health"],
-    queryFn: async () => {
-      const res = await api.api.health.$get();
-      if (!res.ok) throw new Error(`health check failed with HTTP ${res.status}`);
-      return HealthSchema.parse(await res.json());
-    },
+    queryFn: () => api("/api/health/live", LivenessSchema),
   });
 
   let status = "Connecting to the server…";
   if (health.isError) status = "Server unreachable";
-  else if (health.data) status = `Server ${health.data.status} · v${health.data.version}`;
+  else if (health.data) status = "Server ok";
 
   return (
     <main className="mx-auto max-w-xl p-8 font-sans">

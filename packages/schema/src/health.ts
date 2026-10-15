@@ -1,9 +1,5 @@
 import { z } from "zod";
 
-/** The scaffold's single health answer; replaced by liveness and readiness in the server. */
-export const HealthSchema = z.object({ status: z.literal("ok"), version: z.string() });
-export type Health = z.infer<typeof HealthSchema>;
-
 /** GET /api/health/live: the process is up. */
 export const LivenessSchema = z.object({ status: z.literal("ok") });
 export type Liveness = z.infer<typeof LivenessSchema>;

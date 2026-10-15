@@ -18,13 +18,13 @@ function renderApp() {
 }
 
 describe("App", () => {
-  it("shows the server version once the health check answers", async () => {
+  it("says the server is up once the health check answers", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => Response.json({ status: "ok", version: "1.2.3" })),
+      vi.fn(async () => Response.json({ status: "ok" })),
     );
     renderApp();
-    expect(await screen.findByText("Server ok · v1.2.3")).toBeTruthy();
+    expect(await screen.findByText("Server ok")).toBeTruthy();
   });
 
   it("says so when the server cannot be reached", async () => {
