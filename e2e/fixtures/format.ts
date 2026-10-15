@@ -20,6 +20,30 @@ import { fileURLToPath } from "node:url";
 //   ai/none/intake.json                      IntakeAnswer for an intake prompt with no Message-ID
 //   ai/ai.test.json                          the ai.test.v1 answer
 //
+//
+// From MVP 2 (the e2e-fixtures slice writes these files; this is their contract):
+//   <persona>/cvs/<file>.pdf|docx            the persona's CVs: hand-written PDFs and store-only
+//                                            DOCX zips, so e2e needs no new dependency
+//   <persona>/cvs.json                       CvFixture[]: each file with its name and SHA-256
+//   <persona>/deliver/<id>.eml               mail `seed deliver <id>` appends to INBOX during a
+//                                            run (over IMAP, never SMTP), dated `minutesAgo`
+//   <persona>/deliveries.json                DeliveryEntry[]: one per .eml of deliver/
+//   ai/<persona>/cv.json                     AnswerFile<CvAnswer>, keyed by the CV's SHA-256 (the
+//                                            prompt's "CV-SHA256:" line)
+//   ai/<persona>/match.json                  AnswerFile<MatchAnswer>, keyed by matchKey:
+//                                            "<Message-ID>#<position>" ("Message-ID:", "Role:")
+//   ai/<persona>/draft.json                  AnswerFile<DraftAnswer>, keyed by draftKey:
+//                                            "<Message-ID>#<attempt>" ("Message-ID:", "Attempt:")
+//   ai/assistant.json                        AssistantAnswerFile: by the user's message text (the
+//                                            prompt's "message" block), then by turn ("Turn:")
+//   assistant/requests.json                  AssistantRequest[]: the ten requests of the quality
+//                                            run (en, de, pt), each with the change it should
+//                                            produce
+//   <persona>/expected.json                  gains, per message: the sender verdict, per role the
+//                                            expected CV and hard conflicts (ExpectedMessageMvp2);
+//                                            and the persona's CVs' expected tags (ExpectedCv)
+// The prompts' key lines are pinned in packages/ai/src/tasks and e2e/fixtures/wire/wire.test.ts.
+//
 // Dates are relative: each message is `minutesAgo` old. The .eml Date header holds
 // FIXTURE_REFERENCE_TIME minus minutesAgo, so the files never change; the seed rewrites the Date
 // header and sets the IMAP internal date from the current time. Every body carries
@@ -362,3 +386,115 @@ export function readJson<T>(path: string): T {
 export function toJson(value: unknown): string {
   return `${JSON.stringify(value, null, 2)}\n`;
 }
+
+// --- MVP 2 ------------------------------------------------------------------------------------
+
+/** @public One CV file of a persona (<persona>/cvs.json). */
+export interface CvFixture {
+  /** The file under <persona>/cvs/. */
+  file: string;
+  /** The name shown in the app ("Backend (DE)"). */
+  name: string;
+  mediaType: "pdf" | "docx";
+  /** SHA-256 of the file's bytes, lower-case hex: the key of ai/<persona>/cv.json. */
+  contentHash: string;
+}
+
+/** @public One message `seed deliver <id>` delivers (<persona>/deliveries.json). */
+export interface DeliveryEntry {
+  /** The id passed to `seed deliver`. */
+  id: string;
+  /** The .eml path relative to <persona>/deliver/. */
+  file: string;
+  messageId: string;
+  /** How old the message is when delivered (all within the 14-day reply window). */
+  minutesAgo: number;
+}
+
+/** @public cv.v1's answer (CvReadOutput). */
+export interface CvAnswer {
+  language: string | null;
+  skills: string[];
+  roleFamilies: string[];
+  seniority: string | null;
+  countryHints: string[];
+  formatHints: string[];
+}
+
+type FitVerdict = "fits" | "conflicts" | "unknown";
+
+/** @public match.v1's answer (MatchAiOutput). */
+export interface MatchAnswer {
+  titleFit: { verdict: FitVerdict; reason: string };
+  skillCloseness: { skill: string; verdict: FitVerdict; reason: string }[];
+}
+
+/** @public draft.v1's answer (DraftOutput). */
+export interface DraftAnswer {
+  subject: string;
+  body: string;
+  language: string;
+  usedEntries: string[];
+  attachCv: boolean;
+  questions: { profileKey: string | null; groupKey: string; question: string; choices: string[] }[];
+}
+
+/** @public assistant.v1's answer (AssistantOutput); `changes` are packages/schema Changes. */
+export interface AssistantAnswer {
+  reply: string;
+  clarify: { question: string; choices: string[] } | null;
+  proposal: { summary: string; changes: unknown[] } | null;
+}
+
+/** @public ai/assistant.json: by the user's message text, then by turn ("1", "2", …). */
+export type AssistantAnswerFile = Record<string, Record<string, AssistantAnswer>>;
+
+/** @public One request of assistant/requests.json. */
+export interface AssistantRequest {
+  language: "en" | "de" | "pt";
+  text: string;
+  /** The Changes it should produce (packages/schema), or null when it should only clarify. */
+  expected: unknown[] | null;
+}
+
+/** @public The key of ai/<persona>/match.json. */
+export function matchKey(messageId: string, position: number): string {
+  return `${messageId}#${position}`;
+}
+
+/** @public The key of ai/<persona>/draft.json. */
+export function draftKey(messageId: string, attempt: 1 | 2): string {
+  return `${messageId}#${attempt}`;
+}
+
+/** @public What expected.json adds to a message in MVP 2. */
+export interface ExpectedMessageMvp2 {
+  sender?: { verdict: "looks_fine" | "caution" | "high_risk" };
+  /** Per role, in position order. */
+  roles?: { cv: string | null; hardConflicts: string[]; draft: boolean }[];
+}
+
+/** @public What expected.json adds per CV in MVP 2. */
+export interface ExpectedCv {
+  name: string;
+  tags: string[];
+  /** A skill the fake AI's answer invents, which the skill check drops (F2.2). */
+  droppedSkill?: string;
+}
+
+/** @public Where each MVP 2 file of a persona lives, relative to the fixtures directory. */
+export function personaPathsMvp2(persona: Persona) {
+  return {
+    cvs: `${persona}/cvs`,
+    cvList: `${persona}/cvs.json`,
+    deliver: `${persona}/deliver`,
+    deliveries: `${persona}/deliveries.json`,
+    cv: `ai/${persona}/cv.json`,
+    match: `ai/${persona}/match.json`,
+    draft: `ai/${persona}/draft.json`,
+  };
+}
+/** @public */
+export const ASSISTANT_ANSWERS_PATH = "ai/assistant.json";
+/** @public */
+export const ASSISTANT_REQUESTS_PATH = "assistant/requests.json";
