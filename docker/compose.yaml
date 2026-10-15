@@ -6,8 +6,3 @@ services:
     ports:
       # Loopback only until the API has authentication.
       - "127.0.0.1:8787:8787"
-    volumes:
-      - jobfilly-data:/data
-
-volumes:
-  jobfilly-data:

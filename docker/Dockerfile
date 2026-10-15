@@ -16,9 +16,8 @@ FROM node:24-slim
 WORKDIR /app
 COPY --from=build /out ./
 COPY --from=build /repo/apps/web/dist ./web
-ENV NODE_ENV=production HOST=0.0.0.0 PORT=8787 WEB_DIST=/app/web DATA_DIR=/data
-RUN mkdir -p /data && chown node:node /data
-VOLUME /data
+# Stateless: everything lives in PostgreSQL, so the image needs no volume.
+ENV NODE_ENV=production HOST=0.0.0.0 PORT=8787 WEB_DIST=/app/web
 EXPOSE 8787
 USER node
 CMD ["node", "dist/index.js"]
