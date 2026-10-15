@@ -78,8 +78,14 @@ describe("every API request", () => {
 
 describe("the workspace route modules", () => {
   // Every slice-owned module is mounted once, behind workspaceMember, with its own role checks.
+  // `reached` is what a built handler answers this empty request (a stub answers 501).
   const messageId = encodeURIComponent("<a+b/c%d@mail.example>");
-  const routes: [method: string, path: string, role: "viewer" | "editor" | "admin"][] = [
+  const routes: [
+    method: string,
+    path: string,
+    role: "viewer" | "editor" | "admin",
+    reached?: number,
+  ][] = [
     ["GET", "mailboxes", "viewer"],
     ["GET", "mailboxes/presets", "viewer"],
     ["POST", "mailboxes/test", "admin"],
@@ -92,10 +98,11 @@ describe("the workspace route modules", () => {
     ["POST", "scans", "admin"],
     ["POST", "scans/8f0e1c62-0000-4000-8000-000000000000/cancel", "admin"],
     ["POST", "scans/analyze-rest", "admin"],
-    ["GET", "messages", "viewer"],
-    ["GET", `messages/${messageId}`, "viewer"],
-    ["GET", `messages/${messageId}/body`, "viewer"],
-    ["PUT", `messages/${messageId}/category`, "editor"],
+    ["GET", "messages", "viewer", 200],
+    // No such message in the workspace, and an empty correction.
+    ["GET", `messages/${messageId}`, "viewer", 404],
+    ["GET", `messages/${messageId}/body`, "viewer", 404],
+    ["PUT", `messages/${messageId}/category`, "editor", 400],
     ["GET", "intake", "viewer"],
     ["PUT", "intake/answers/min_pay", "editor"],
     ["POST", "intake/confirm", "editor"],
@@ -123,11 +130,11 @@ describe("the workspace route modules", () => {
         Object.entries(as).map(async ([k, u]) => [k, await signedIn(app, deps, u)] as const),
       ),
     );
-    for (const [method, path, role] of routes) {
+    for (const [method, path, role, reached = 501] of routes) {
       const url = `/api/workspaces/${ws.workspaceId}/${path}`;
       const send = (who: string) =>
         clients[who]?.request(method, url, method === "GET" ? undefined : {});
-      expect((await send(role))?.status, `${method} ${path} as ${role}`).toBe(501);
+      expect((await send(role))?.status, `${method} ${path} as ${role}`).toBe(reached);
       const lower = below[role];
       if (lower) expect((await send(lower))?.status, `${method} ${path} as ${lower}`).toBe(403);
       expect((await send("outsider"))?.status, `${method} ${path} as outsider`).toBe(404);
