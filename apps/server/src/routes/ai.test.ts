@@ -1,5 +1,5 @@
 import { AI_PROVIDERS, type AiClient } from "@jobfilly/ai";
-import { getAiSettings, usageTotal } from "@jobfilly/db";
+import { getAiSettings, recordAiUsage, usageTotal } from "@jobfilly/db";
 import {
   type AiClientSettings,
   AiProviderListSchema,
@@ -7,6 +7,8 @@ import {
   AiSettingsResponseSchema,
   type AiTestOutput,
   AiTestResultSchema,
+  AiUsageListSchema,
+  type TaskId,
   type TaskResult,
 } from "@jobfilly/schema";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -139,6 +141,60 @@ describe("the provider catalogue (F3.1, F3.2)", () => {
     const res = await outsider.get(`${url}/providers`);
     expect(res.status).toBe(404);
     expect(await res.text()).not.toContain("api.anthropic.com");
+  });
+});
+
+describe("usage per day (MVP 2 F1.5)", () => {
+  const call = (workspaceId: string, at: string, inputTokens: number, task = "match.v1") =>
+    recordAiUsage(deps.db, workspaceId, {
+      scanId: null,
+      task: task as TaskId,
+      inputTokens,
+      outputTokens: 5,
+      at: new Date(at),
+    });
+
+  it("gives the workspace's model calls and tokens per day, newest first", async () => {
+    const other = await seedUser(deps);
+    await call(owner.workspaceId, "2026-10-14T08:00:00Z", 100, "classify.v1");
+    await call(owner.workspaceId, "2026-10-15T09:00:00Z", 200, "draft.v1");
+    await call(owner.workspaceId, "2026-10-15T23:59:00Z", 300);
+    await call(other.workspaceId, "2026-10-15T09:00:00Z", 999);
+    const res = await admin.get(`${url}/usage`);
+    expect(res.status).toBe(200);
+    expect(AiUsageListSchema.parse(await res.json())).toEqual({
+      items: [
+        { day: "2026-10-15", calls: 2, inputTokens: 500, outputTokens: 10 },
+        { day: "2026-10-14", calls: 1, inputTokens: 100, outputTokens: 5 },
+      ],
+    });
+  });
+
+  it("counts the calls the server makes, as they are recorded where they are made", async () => {
+    await admin.post(`${url}/test`, form);
+    const { items } = AiUsageListSchema.parse(await (await admin.get(`${url}/usage`)).json());
+    expect(items).toEqual([
+      {
+        day: deps.clock.now().toISOString().slice(0, 10),
+        calls: 1,
+        inputTokens: 74,
+        outputTokens: 5,
+      },
+    ]);
+  });
+
+  it("is empty before any call, readable by viewers, and not found for outsiders", async () => {
+    const viewer = await seedUser(deps);
+    const ws = await seedWorkspace(deps, { owner, members: [{ user: viewer, role: "viewer" }] });
+    await call(ws.workspaceId, "2026-10-15T09:00:00Z", 10);
+    const app = createApp(deps);
+    const base = `/api/workspaces/${ws.workspaceId}/ai/usage`;
+    expect(await (await admin.get(`${url}/usage`)).json()).toEqual({ items: [] });
+    const asViewer = await (await signedIn(app, deps, viewer)).get(base);
+    expect(asViewer.status).toBe(200);
+    expect(AiUsageListSchema.parse(await asViewer.json()).items).toHaveLength(1);
+    const outsider = await signedIn(app, deps, await seedUser(deps));
+    expect((await outsider.get(base)).status).toBe(404);
   });
 });
 
