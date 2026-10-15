@@ -20,7 +20,16 @@ beforeEach(async () => {
 });
 afterEach(() => conn.close());
 
-const models = { classify: "m1", extract: "m2", prefs: "m3", intake: "m4" };
+const models = {
+  classify: "m1",
+  extract: "m2",
+  prefs: "m3",
+  intake: "m4",
+  cv: "m5",
+  match: "m6",
+  draft: "m7",
+  assistant: "m8",
+};
 
 describe("AI settings", () => {
   it("is null until saved, then upserts", async () => {

@@ -4,10 +4,14 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import {
   AiMailItemSchema,
+  AssistantTaskInputSchema,
   batchResultSchema,
   CategorySchema,
+  CvReadInputSchema,
+  DraftTaskInputSchema,
   IntakeExtraInputSchema,
   JobFactsSchema,
+  MatchTaskInputSchema,
   PreferencesSchema,
   TASK_IDS,
   TASK_OUTPUT_SCHEMAS,
@@ -33,6 +37,10 @@ const INPUTS: Record<TaskId, z.ZodType> = {
   "prefs.v1": z.array(AiMailItemSchema),
   "intake.v1": IntakeExtraInputSchema,
   "ai.test.v1": z.null(),
+  "cv.v1": CvReadInputSchema,
+  "match.v1": MatchTaskInputSchema,
+  "draft.v1": DraftTaskInputSchema,
+  "assistant.v1": AssistantTaskInputSchema,
 };
 
 const OUTPUTS: Record<TaskId, z.ZodType> = {
@@ -43,6 +51,10 @@ const OUTPUTS: Record<TaskId, z.ZodType> = {
   "prefs.v1": batchResultSchema(z.object({ preferences: PreferencesSchema })),
   "intake.v1": taskResultSchema(TASK_OUTPUT_SCHEMAS["intake.v1"]),
   "ai.test.v1": taskResultSchema(TASK_OUTPUT_SCHEMAS["ai.test.v1"]),
+  "cv.v1": taskResultSchema(TASK_OUTPUT_SCHEMAS["cv.v1"]),
+  "match.v1": taskResultSchema(TASK_OUTPUT_SCHEMAS["match.v1"]),
+  "draft.v1": taskResultSchema(TASK_OUTPUT_SCHEMAS["draft.v1"]),
+  "assistant.v1": taskResultSchema(TASK_OUTPUT_SCHEMAS["assistant.v1"]),
 };
 
 /**

@@ -1,0 +1,21 @@
+{
+  "id": "chatcmpl-wire-assistant-v1",
+  "object": "chat.completion",
+  "created": 1790000000,
+  "model": "fixture-model",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "{\"reply\":\"I can hide roles on Asian time zones for you. Here is a proposal.\",\"clarify\":null,\"proposal\":{\"summary\":\"Hide roles whose working hours are UTC+05:00 or later\",\"changes\":[{\"op\":\"add\",\"target\":\"rule\",\"rule\":{\"description\":\"Hide roles whose working hours are UTC+05:00 or later\",\"when\":[{\"fact\":\"timeZones\",\"op\":\"within\",\"value\":{\"from\":\"UTC+05:00\",\"to\":\"UTC+14:00\"}}],\"then\":\"hide\",\"enabled\":true}}]}}"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 341,
+    "completion_tokens": 88,
+    "total_tokens": 429
+  }
+}

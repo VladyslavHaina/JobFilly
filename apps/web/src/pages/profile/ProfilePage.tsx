@@ -25,10 +25,15 @@ import { ScanFirst } from "../intake/ScanFirst";
 const errorText = (error: unknown) =>
   error instanceof ApiError ? error.message : "That didn't work. Try again.";
 
-const SOURCES = {
+const SOURCES: Record<ProfileEntry["source"], { text: string; tone: string }> = {
   scan: { text: "From the scan", tone: "bg-stone-100 text-stone-700 ring-stone-200" },
   you: { text: "Set by you", tone: "bg-indigo-50 text-indigo-800 ring-indigo-200" },
-} as const;
+  decision: { text: "From a decision", tone: "bg-amber-50 text-amber-900 ring-amber-200" },
+  assistant: {
+    text: "From the assistant",
+    tone: "bg-emerald-50 text-emerald-900 ring-emerald-200",
+  },
+};
 
 function Source({ entry }: { entry: ProfileEntry }) {
   const { text, tone } = SOURCES[entry.source];

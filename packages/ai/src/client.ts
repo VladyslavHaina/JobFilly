@@ -6,15 +6,27 @@ import {
   type AiTask,
   type AiTestOutput,
   AiTestOutputSchema,
+  type AssistantOutput,
+  AssistantOutputSchema,
+  type AssistantTaskInput,
   type BatchItemResult,
   type BatchResult,
   type Category,
   ClassifyOutputSchema,
+  type CvReadInput,
+  type CvReadOutput,
+  CvReadOutputSchema,
+  type DraftOutput,
+  DraftOutputSchema,
+  type DraftTaskInput,
   type ExtractOutput,
   ExtractOutputSchema,
   type IntakeExtraInput,
   type IntakeExtraOutput,
   IntakeExtraOutputSchema,
+  type MatchAiOutput,
+  MatchAiOutputSchema,
+  type MatchTaskInput,
   type Preferences,
   PrefsOutputSchema,
   type TaskId,
@@ -31,7 +43,7 @@ import {
   RetryError,
 } from "ai";
 import type { ZodType } from "zod";
-import { buildPrompt, type Prompt } from "./prompt";
+import { buildPrompt, type MailTaskId, type Prompt, promptFor } from "./prompt";
 import { type ModelFor, modelRegistry, type TaskModel } from "./registry";
 
 // Every model call of the app goes through this client. Each call is one request to the provider
@@ -64,6 +76,14 @@ export interface AiClient {
   ): Promise<BatchResult<{ preferences: Preferences }>>;
   intake(input: IntakeExtraInput, options?: CallOptions): Promise<TaskResult<IntakeExtraOutput>>;
   test(): Promise<TaskResult<AiTestOutput>>;
+  /** cv.v1: what one CV says (F2.1); every skill is checked against the text by the caller. */
+  readCv(input: CvReadInput, options?: CallOptions): Promise<TaskResult<CvReadOutput>>;
+  /** match.v1: the fuzzy parts of one role's match (F4). */
+  match(input: MatchTaskInput, options?: CallOptions): Promise<TaskResult<MatchAiOutput>>;
+  /** draft.v1: one reply draft (F6). */
+  draft(input: DraftTaskInput, options?: CallOptions): Promise<TaskResult<DraftOutput>>;
+  /** assistant.v1: one assistant turn (F8). */
+  assistant(input: AssistantTaskInput, options?: CallOptions): Promise<TaskResult<AssistantOutput>>;
 }
 
 const MESSAGES = {
@@ -156,7 +176,7 @@ export function clientFromModels(modelFor: ModelFor, options: AiClientOptions = 
   /** One answer per item; valid items are kept, the others retried once together. */
   async function batch<T>(
     task: AiTask,
-    taskId: TaskId,
+    taskId: MailTaskId,
     items: AiMailItem[],
     schema: ZodType,
     itemSchema: BatchItemSchema<T>,
@@ -267,6 +287,32 @@ export function clientFromModels(modelFor: ModelFor, options: AiClientOptions = 
     // The Test button makes exactly one tiny call (F3.1), on the classify model.
     test: () =>
       single("classify", "ai.test.v1", buildPrompt("ai.test.v1", []), AiTestOutputSchema, 1),
+    readCv: (input, opts) =>
+      single("cv", "cv.v1", promptFor("cv.v1", input), CvReadOutputSchema, opts?.maxCalls ?? 2),
+    match: (input, opts) =>
+      single(
+        "match",
+        "match.v1",
+        promptFor("match.v1", input),
+        MatchAiOutputSchema,
+        opts?.maxCalls ?? 2,
+      ),
+    draft: (input, opts) =>
+      single(
+        "draft",
+        "draft.v1",
+        promptFor("draft.v1", input),
+        DraftOutputSchema,
+        opts?.maxCalls ?? 2,
+      ),
+    assistant: (input, opts) =>
+      single(
+        "assistant",
+        "assistant.v1",
+        promptFor("assistant.v1", input),
+        AssistantOutputSchema,
+        opts?.maxCalls ?? 2,
+      ),
   };
 }
 

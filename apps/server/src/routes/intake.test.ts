@@ -31,6 +31,7 @@ import { MINUTE } from "../clock";
 import { createBackgroundWork } from "../deps";
 import {
   createTestDeps,
+  fakeAiClient,
   type SeededUser,
   type SeededWorkspace,
   seedAiSettings,
@@ -46,7 +47,16 @@ import {
 // The intake form over HTTP (F6.1-F6.7) on PGlite, with a fake AI for the one intake.v1 call.
 
 const AI_KEY = "E2E-SECRET-ai-key";
-const MODELS = { classify: "m", extract: "m", prefs: "m", intake: "m" };
+const MODELS = {
+  classify: "m",
+  extract: "m",
+  prefs: "m",
+  intake: "m",
+  cv: "m",
+  match: "m",
+  draft: "m",
+  assistant: "m",
+};
 const NOW = new Date("2026-10-01T10:00:00Z");
 const hoursAgo = (n: number) => new Date(NOW.getTime() - n * 3_600_000).toISOString();
 
@@ -78,7 +88,7 @@ function fakeAi() {
   const settings: AiClientSettings[] = [];
   let answer: () => Promise<IntakeAnswer> = async () => answered(QUESTIONS);
   const notUsed = () => Promise.reject(new Error("not used by the intake"));
-  const client: AiClient = {
+  const client: AiClient = fakeAiClient({
     classify: notUsed,
     extract: notUsed,
     prefs: notUsed,
@@ -87,7 +97,7 @@ function fakeAi() {
       calls.push(input);
       return answer();
     },
-  };
+  });
   return {
     calls,
     settings,

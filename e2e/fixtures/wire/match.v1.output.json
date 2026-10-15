@@ -1,0 +1,28 @@
+{
+  "ok": true,
+  "data": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "Senior Backend Engineer is a backend engineer role"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Go",
+        "verdict": "fits",
+        "reason": "Go is in the CV"
+      },
+      {
+        "skill": "Kafka",
+        "verdict": "unknown",
+        "reason": "Kafka is in neither the CV nor the profile"
+      }
+    ]
+  },
+  "usage": [
+    {
+      "task": "match.v1",
+      "inputTokens": 236,
+      "outputTokens": 71
+    }
+  ]
+}

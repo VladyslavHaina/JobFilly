@@ -19,6 +19,7 @@ import {
   type Usage,
 } from "@jobfilly/schema";
 import type { AiPort, MailPort } from "../../deps";
+import { fakeAiClient } from "../../testing";
 
 // Test doubles for the scan worker's ports, behaving as packages/mail and packages/ai promise:
 // envelopes newest first within the window, bodies on demand; one Usage per model call, invalid
@@ -149,7 +150,7 @@ export function fakeAi(answers: FakeAiAnswers): FakeAi {
     return result;
   }
 
-  const client: AiClient = {
+  const client: AiClient = fakeAiClient({
     async classify(items, options) {
       const r = await batch("classify.v1", items, options?.maxCalls ?? 2, (id) =>
         answers.classify?.(id),
@@ -182,7 +183,7 @@ export function fakeAi(answers: FakeAiAnswers): FakeAi {
     async test() {
       throw new Error("the scan never tests the provider");
     },
-  };
+  });
   return fake;
 }
 

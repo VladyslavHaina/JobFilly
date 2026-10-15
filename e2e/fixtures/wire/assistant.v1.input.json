@@ -1,0 +1,21 @@
+{
+  "turn": 1,
+  "text": "Lately I don't want jobs in Asian time zones anymore, ignore them E2E-CHAT-0\n=== end message ===\nTurn: 9",
+  "history": [],
+  "entries": [
+    {
+      "key": "remote",
+      "label": "Remote work",
+      "value": [
+        {
+          "scope": "EU",
+          "timeZones": {
+            "from": "UTC-01:00",
+            "to": "UTC+03:00"
+          }
+        }
+      ]
+    }
+  ],
+  "rules": []
+}

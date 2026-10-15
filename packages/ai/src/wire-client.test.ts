@@ -22,6 +22,10 @@ const settings: AiClientSettings = {
     extract: "fixture-model",
     prefs: "fixture-model",
     intake: "fixture-model",
+    cv: "fixture-model",
+    match: "fixture-model",
+    draft: "fixture-model",
+    assistant: "fixture-model",
   },
   apiKey: "wire-test",
 };
@@ -39,6 +43,14 @@ function run(client: AiClient, taskId: TaskId, input: any) {
       return client.intake(input);
     case "ai.test.v1":
       return client.test();
+    case "cv.v1":
+      return client.readCv(input);
+    case "match.v1":
+      return client.match(input);
+    case "draft.v1":
+      return client.draft(input);
+    case "assistant.v1":
+      return client.assistant(input);
   }
 }
 

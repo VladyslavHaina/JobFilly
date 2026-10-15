@@ -1,0 +1,38 @@
+{
+  "ok": true,
+  "data": {
+    "reply": "I can hide roles on Asian time zones for you. Here is a proposal.",
+    "clarify": null,
+    "proposal": {
+      "summary": "Hide roles whose working hours are UTC+05:00 or later",
+      "changes": [
+        {
+          "op": "add",
+          "target": "rule",
+          "rule": {
+            "description": "Hide roles whose working hours are UTC+05:00 or later",
+            "when": [
+              {
+                "fact": "timeZones",
+                "op": "within",
+                "value": {
+                  "from": "UTC+05:00",
+                  "to": "UTC+14:00"
+                }
+              }
+            ],
+            "then": "hide",
+            "enabled": true
+          }
+        }
+      ]
+    }
+  },
+  "usage": [
+    {
+      "task": "assistant.v1",
+      "inputTokens": 341,
+      "outputTokens": 88
+    }
+  ]
+}

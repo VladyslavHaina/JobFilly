@@ -15,6 +15,7 @@ import type { AiPort } from "../deps";
 import { open } from "../secrets";
 import {
   createTestDeps,
+  fakeAiClient,
   type SeededUser,
   seedAiSettings,
   seedUser,
@@ -28,7 +29,16 @@ import {
 // The AI settings routes (F3) on PGlite, with a fake AI port: no model is reached.
 
 const KEY = "E2E-SECRET-ai-key";
-const models = { classify: "m-c", extract: "m-e", prefs: "m-p", intake: "m-i" };
+const models = {
+  classify: "m-c",
+  extract: "m-e",
+  prefs: "m-p",
+  intake: "m-i",
+  cv: "m-cv",
+  match: "m-m",
+  draft: "m-d",
+  assistant: "m-a",
+};
 const form = {
   provider: "openai-compatible",
   baseUrl: "http://fake-ai:8080/v1",
@@ -58,13 +68,13 @@ function fakeAi(): FakeAi {
         const refuse = () => {
           throw new Error("only test() is expected here");
         };
-        const client: AiClient = {
+        const client: AiClient = fakeAiClient({
           test: async () => fake.result,
           classify: refuse,
           extract: refuse,
           prefs: refuse,
           intake: refuse,
-        };
+        });
         return client;
       },
     },

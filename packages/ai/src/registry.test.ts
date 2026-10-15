@@ -1,4 +1,4 @@
-import type { AiClientSettings, AiProviderId } from "@jobfilly/schema";
+import { AI_TASKS, type AiClientSettings, type AiProviderId } from "@jobfilly/schema";
 import { afterEach, describe, expect, it } from "vitest";
 import { createAiClient } from "./client";
 import { AI_PROVIDERS, aiProvider } from "./providers";
@@ -16,7 +16,16 @@ function settingsFor(
   return {
     provider,
     baseUrl: provider === "openai-compatible" ? "http://llm.local:11434/v1" : null,
-    models: { classify: "m-classify", extract: "m-extract", prefs: "m-prefs", intake: "m-intake" },
+    models: {
+      classify: "m-classify",
+      extract: "m-extract",
+      prefs: "m-prefs",
+      intake: "m-intake",
+      cv: "m-cv",
+      match: "m-match",
+      draft: "m-draft",
+      assistant: "m-assistant",
+    },
     apiKey: KEY,
     ...extra,
   };
@@ -119,13 +128,22 @@ describe("the provider registry", () => {
     }
   });
 
-  it("asks OpenAI for strict output except on extract.v1 and prefs.v1", async () => {
+  it("asks OpenAI for strict output except on extract.v1, prefs.v1 and assistant.v1", async () => {
     const { bodies, fetch } = bodyRecorder();
     const client = createAiClient(settingsFor("openai"), { fetch });
     await client.classify([mail]);
     await client.extract(mail);
     await client.prefs([mail]);
     await client.intake({ items: [], answers: [] });
+    await client.readCv({ contentHash: "a".repeat(64), fileName: "cv.pdf", text: "Go" });
+    await client.match({
+      messageId: "<m@x>",
+      position: 0,
+      role: { title: null, skills: [] },
+      profile: { targetRoles: [], skills: [] },
+      cvSkills: [],
+    });
+    await client.assistant({ turn: 1, text: "hi", history: [], entries: [], rules: [] });
     const formats = bodies.map(
       (b) => (b as { text?: { format?: { strict?: boolean; name?: string } } }).text?.format,
     );
@@ -134,6 +152,9 @@ describe("the provider registry", () => {
       ["extract_v1", false],
       ["prefs_v1", false],
       ["intake_v1", true],
+      ["cv_v1", true],
+      ["match_v1", true],
+      ["assistant_v1", false],
     ]);
   });
 
@@ -143,10 +164,10 @@ describe("the provider registry", () => {
     expect(seen[0]?.headers.get("authorization")).toBeNull();
   });
 
-  it("uses each task's model, and every provider has defaults for all four tasks", () => {
+  it("uses each task's model, and every provider has defaults for every task", () => {
     for (const info of AI_PROVIDERS) {
       const modelFor = modelRegistry(settingsFor(info.id, { models: info.defaultModels }));
-      for (const task of ["classify", "extract", "prefs", "intake"] as const) {
+      for (const task of AI_TASKS) {
         const model = modelFor(task).model as { modelId: string; provider: string };
         expect(model.modelId).toBe(aiProvider(info.id).defaultModels[task]);
         expect(model.provider).toContain(info.id);

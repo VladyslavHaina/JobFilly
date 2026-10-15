@@ -156,7 +156,16 @@ async function setup(
     seedAiSettings(d, workspaceId, {
       provider: "openai-compatible",
       baseUrl: "http://fake-ai.test/v1",
-      models: { classify: "m", extract: "m", prefs: "m", intake: "m" },
+      models: {
+        classify: "m",
+        extract: "m",
+        prefs: "m",
+        intake: "m",
+        cv: "m",
+        match: "m",
+        draft: "m",
+        assistant: "m",
+      },
       apiKey: "E2E-SECRET-ai-key",
       budgetPerRun: budget,
     });
@@ -503,7 +512,16 @@ describe("Couldn't analyze and the budget (F3.4, TBD-17)", { timeout: SLOW }, ()
         await seedAiSettings(s.deps, s.workspaceId, {
           provider: "openai-compatible",
           baseUrl: "http://fake-ai.test/v1",
-          models: { classify: "m", extract: "m", prefs: "m", intake: "m" },
+          models: {
+            classify: "m",
+            extract: "m",
+            prefs: "m",
+            intake: "m",
+            cv: "m",
+            match: "m",
+            draft: "m",
+            assistant: "m",
+          },
           apiKey,
         });
       }

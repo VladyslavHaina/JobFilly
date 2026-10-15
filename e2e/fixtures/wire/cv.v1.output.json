@@ -1,0 +1,18 @@
+{
+  "ok": true,
+  "data": {
+    "language": "en",
+    "skills": ["Go", "PostgreSQL", "Kubernetes"],
+    "roleFamilies": ["Backend engineering"],
+    "seniority": "Senior",
+    "countryHints": ["DE"],
+    "formatHints": ["one page"]
+  },
+  "usage": [
+    {
+      "task": "cv.v1",
+      "inputTokens": 212,
+      "outputTokens": 48
+    }
+  ]
+}

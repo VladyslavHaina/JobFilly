@@ -32,6 +32,10 @@ const TASK_LABELS: Record<AiTask, string> = {
   extract: "Model for job facts",
   prefs: "Model for your preferences",
   intake: "Model for extra questions",
+  cv: "Model for reading CVs",
+  match: "Model for matching roles",
+  draft: "Model for reply drafts",
+  assistant: "Model for the assistant",
 };
 
 const errorText = (error: unknown) =>
@@ -60,7 +64,16 @@ function initialState(saved: AiSettingsPublic | null): FormState {
         provider: "",
         baseUrl: "",
         apiKey: "",
-        models: { classify: "", extract: "", prefs: "", intake: "" },
+        models: {
+          classify: "",
+          extract: "",
+          prefs: "",
+          intake: "",
+          cv: "",
+          match: "",
+          draft: "",
+          assistant: "",
+        },
         budget: String(DEFAULT_BUDGET_PER_RUN),
       };
 }

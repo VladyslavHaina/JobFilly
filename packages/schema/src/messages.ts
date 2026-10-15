@@ -1,27 +1,10 @@
 import { z } from "zod";
+import { CategorySchema } from "./category";
 import { IsoDateTimeSchema } from "./common";
 import { JobFactsSchema } from "./facts";
 import { AddressSchema, EnvelopeSchema } from "./mailbox";
 
-/** The nine categories of F5, in the order the UI lists them. */
-export const CATEGORIES = [
-  "recruiter_outreach",
-  "job_alert",
-  "application_update",
-  "interview",
-  "assessment",
-  "offer",
-  "rejection",
-  "other_job",
-  "not_job",
-] as const;
-export const CategorySchema = z.enum(CATEGORIES);
-export type Category = z.infer<typeof CategorySchema>;
-
-/** The categories that count as job mail: every one except not_job. */
-export const JOB_CATEGORIES = CATEGORIES.filter(
-  (c): c is Exclude<Category, "not_job"> => c !== "not_job",
-);
+export { CATEGORIES, type Category, CategorySchema, JOB_CATEGORIES } from "./category";
 
 /** Who set a message's category: the scan, or a person correcting it (kept for good, F5.4). */
 export const CategorySourceSchema = z.enum(["scan", "you"]);

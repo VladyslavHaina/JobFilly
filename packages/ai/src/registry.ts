@@ -25,11 +25,13 @@ export type ModelFor = (task: AiTask) => TaskModel;
  * OpenAI's strict structured-output mode needs every key required; the prefs.v1 schema has
  * optional keys (TBD-45). extract.v1 was sent the same way while its `extra` was an open record;
  * `extra` now goes out as a list of closed {key, value} objects, and extract.v1 stays non-strict
- * until a run against OpenAI shows strict mode takes its patterns. For those tasks OpenAI gets
+ * until a run against OpenAI shows strict mode takes its patterns. assistant.v1's proposal holds
+ * the Change union with every profile value shape, which strict mode may refuse the same way, so
+ * it starts non-strict too. For those tasks OpenAI gets
  * the same JSON Schema without strict mode; the answer is still validated against the schema
  * here, as every answer is.
  */
-const NOT_STRICT: ReadonlySet<AiTask> = new Set(["extract", "prefs"]);
+const NOT_STRICT: ReadonlySet<AiTask> = new Set(["extract", "prefs", "assistant"]);
 
 export function modelRegistry(settings: AiClientSettings, fetchFn?: FetchFunction): ModelFor {
   // A provider SDK falls back to its own environment variable when no key is passed; the empty

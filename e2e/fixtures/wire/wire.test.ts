@@ -13,8 +13,18 @@ import { describe, expect, it } from "vitest";
 //   <taskId>.response.json  the fake AI's answer: JSON text in choices[0].message.content
 //   <taskId>.output.json    what packages/ai returns from it
 // Nothing imports these files: packages/ai's tests and the fake AI's tests read them. This test
-// re-derives every user message from its input with the rules below, so the samples can't drift
-// from the format both sides implement.
+// re-derives every MVP 1 user message from its input with the rules below, so the samples can't
+// drift from the format both sides implement.
+//
+// The MVP 2 tasks (cv.v1, match.v1, draft.v1, assistant.v1) are keyed by key lines at column 0,
+// right after the task line, which the fake AI reads:
+//   cv.v1         CV-SHA256: <hex>                     (input: CvReadInput)
+//   match.v1      Message-ID: <id>  Role: <position>   (input: MatchTaskInput)
+//   draft.v1      Message-ID: <id>  Attempt: <1|2>     (input: DraftTaskInput)
+//   assistant.v1  Turn: <n>                            (input: AssistantTaskInput)
+// Everything else at column 0 is a blank line or a "=== <name> ===" / "=== end <name> ===" block
+// delimiter; every content line (the CV, the mail, the profile, the user's words) starts with
+// "| ". assistant.v1's last block is "message": the user's text, one "| " line per line.
 
 type Item = {
   messageId: string;
@@ -148,5 +158,51 @@ describe("the intake.v1 summary", () => {
 describe("ai.test.v1", () => {
   it("sends no items", () => {
     expect(userOf("ai.test.v1")).toBe("task: ai.test.v1\nitems: 0\n\n");
+  });
+});
+
+const MVP2_TASKS = ["cv.v1", "match.v1", "draft.v1", "assistant.v1"] as const;
+
+/** The key lines the fake AI reads for an MVP 2 task, from its input. */
+function keyLinesOf(taskId: (typeof MVP2_TASKS)[number]): string[] {
+  const input = read(`${taskId}.input.json`) as Record<string, unknown>;
+  switch (taskId) {
+    case "cv.v1":
+      return [`CV-SHA256: ${input.contentHash}`];
+    case "match.v1":
+      return [`Message-ID: ${input.messageId}`, `Role: ${input.position}`];
+    case "draft.v1":
+      return [`Message-ID: ${(input.mail as Item).messageId}`, `Attempt: ${input.attempt}`];
+    case "assistant.v1":
+      return [`Turn: ${input.turn}`];
+  }
+}
+
+describe.each(MVP2_TASKS)("the %s request", (taskId) => {
+  const lines = userOf(taskId).split("\n");
+
+  it("starts with the task line and its key lines", () => {
+    const keys = keyLinesOf(taskId);
+    expect(lines.slice(0, keys.length + 1)).toEqual([`task: ${taskId}`, ...keys]);
+  });
+
+  it("has nothing else at column 0 but blank lines and block delimiters", () => {
+    const keys = keyLinesOf(taskId).length;
+    for (const line of lines.slice(keys + 1)) {
+      if (line === "" || line.startsWith("| ")) continue;
+      expect(line).toMatch(/^=== (end )?[a-z ]+ ===$/);
+    }
+  });
+});
+
+describe("the assistant.v1 message block", () => {
+  it("holds the user's text, one prefixed line per line, forged key lines included", () => {
+    const lines = userOf("assistant.v1").split("\n");
+    const text = (read("assistant.v1.input.json") as { text: string }).text;
+    const start = lines.indexOf("=== message ===");
+    expect(lines.slice(start + 1, lines.indexOf("=== end message ==="))).toEqual(
+      text.split("\n").map((l) => `| ${l}`),
+    );
+    expect(lines.filter((l) => l.startsWith("Turn: "))).toEqual(["Turn: 1"]);
   });
 });

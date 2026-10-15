@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CategorySchema } from "./category";
 import {
   CountryCodeSchema,
   CurrencyCodeSchema,
@@ -8,7 +9,6 @@ import {
   TimeZoneRangeSchema,
 } from "./common";
 import { ExtraAnswerSchema, JobFactsSchema } from "./facts";
-import { CategorySchema } from "./messages";
 
 /** The core questions of the intake form (F6), in the order the form asks them. */
 export const CORE_PROFILE_KEYS = [
@@ -40,18 +40,42 @@ export const CORE_PROFILE_LABELS: Record<CoreProfileKey, string> = {
   deal_breakers: "Deal-breakers",
 };
 
+/**
+ * The policy keys of the reply automation (F6.1, TBD-162): valid profile keys outside the intake
+ * form, each a one-number list. A key the profile doesn't set takes its POLICY_DEFAULTS value.
+ */
+export const POLICY_KEYS = ["reply_threshold", "reply_window_days"] as const;
+export const PolicyKeySchema = z.enum(POLICY_KEYS);
+export type PolicyKey = z.infer<typeof PolicyKeySchema>;
+
+/** The value a policy key has while the profile doesn't set it. */
+export const POLICY_DEFAULTS: Record<PolicyKey, number> = {
+  reply_threshold: 70,
+  reply_window_days: 14,
+};
+
+export const POLICY_LABELS: Record<PolicyKey, string> = {
+  reply_threshold: "Fit score that gets an automatic reply",
+  reply_window_days: "Days a message can wait for an automatic reply",
+};
+
 /** A short lowercase slug naming an extra question. */
 export const ExtraSlugSchema = z.string().regex(/^[a-z0-9][a-z0-9_-]{0,63}$/, "a lowercase slug");
 
-/** A core key, or "extra.<slug>" for one of the up to five extra questions. */
+/** A core key, a policy key, or "extra.<slug>" for one of the up to five extra questions. */
 export const ProfileKeySchema = z.union([
   CoreProfileKeySchema,
+  PolicyKeySchema,
   z.string().regex(/^extra\.[a-z0-9][a-z0-9_-]{0,63}$/, "extra.<slug>"),
 ]);
 export type ProfileKey = z.infer<typeof ProfileKeySchema>;
 
 export function isExtraKey(key: string): key is `extra.${string}` {
   return key.startsWith("extra.");
+}
+
+export function isPolicyKey(key: string): key is PolicyKey {
+  return (POLICY_KEYS as readonly string[]).includes(key);
 }
 
 // One value schema per core key. Every value is a list, so an empty answer is [].
@@ -93,6 +117,55 @@ export const PROFILE_VALUE_SCHEMAS = {
 /** An extra question's answer: the option(s) chosen or the words typed. */
 export const ExtraValueSchema = WordsSchema;
 
+/** A policy key's value: one whole number, as a one-item list like every profile value. */
+const PolicyNumberSchema = z.number().int().min(0).max(1000);
+export const PolicyValueSchema = z.array(PolicyNumberSchema).length(1);
+
+/**
+ * The keys whose value is a list of independent items (TBD-195): every core key, read from
+ * PROFILE_VALUE_SCHEMAS. A Change `add` appends items to them; on any other key (a policy key,
+ * an extra question) `add` sets the whole value. packages/core/src/profile/changes.ts.
+ */
+export const LIST_PROFILE_KEYS = Object.entries(PROFILE_VALUE_SCHEMAS)
+  .filter(([, schema]) => schema instanceof z.ZodArray)
+  .map(([key]) => key as CoreProfileKey);
+
+export function isListProfileKey(key: string): key is CoreProfileKey {
+  return (LIST_PROFILE_KEYS as readonly string[]).includes(key);
+}
+
+/** One item of each list key's value: what a decision answer adds (DecisionAnswer). */
+export const PROFILE_ITEM_SCHEMAS = {
+  target_roles: TextSchema,
+  seniority: TextSchema,
+  places: ProfilePlaceSchema,
+  remote: RemotePreferenceSchema,
+  contracts: TextSchema,
+  min_pay: MinPaySchema,
+  languages: TextSchema,
+  work_permits: WorkPermitSchema,
+  reply_to: CategorySchema,
+  deal_breakers: TextSchema,
+} as const satisfies Record<CoreProfileKey, z.ZodType>;
+
+/** Every shape one item of a profile value can take; words for extra and policy keys too. */
+export const ProfileItemSchema = z.union([
+  TextSchema,
+  z.number(),
+  ProfilePlaceSchema,
+  RemotePreferenceSchema,
+  MinPaySchema,
+  WorkPermitSchema,
+]);
+export type ProfileItem = z.infer<typeof ProfileItemSchema>;
+
+/** The schema of one item of `key`'s value. */
+export function profileItemSchema(key: ProfileKey): z.ZodType<ProfileItem> {
+  if (isPolicyKey(key)) return PolicyNumberSchema;
+  if (isExtraKey(key)) return TextSchema;
+  return PROFILE_ITEM_SCHEMAS[key as CoreProfileKey];
+}
+
 export type ProfileValues = {
   [K in CoreProfileKey]: z.infer<(typeof PROFILE_VALUE_SCHEMAS)[K]>;
 };
@@ -105,11 +178,13 @@ export const ProfileValueSchema = z.union([
   z.array(MinPaySchema),
   z.array(WorkPermitSchema),
   z.array(CategorySchema),
+  z.array(z.number()),
 ]);
 export type ProfileValue = z.infer<typeof ProfileValueSchema>;
 
-/** The value schema for a key: its core schema, or the extra-answer schema. */
+/** The value schema for a key: its core schema, the policy schema or the extra-answer schema. */
 export function profileValueSchema(key: ProfileKey): z.ZodType<ProfileValue> {
+  if (isPolicyKey(key)) return PolicyValueSchema;
   return isExtraKey(key) ? ExtraValueSchema : PROFILE_VALUE_SCHEMAS[key as CoreProfileKey];
 }
 
@@ -128,7 +203,11 @@ export type Confidence = z.infer<typeof ConfidenceSchema>;
 export const EvidenceSchema = z.object({ messageId: z.string(), reason: z.string() });
 export type Evidence = z.infer<typeof EvidenceSchema>;
 
-export const ProfileSourceSchema = z.enum(["scan", "you"]);
+/**
+ * Who set an entry: the scan's proposal, the user by hand, a decision answer (F7.4) or an applied
+ * assistant proposal (F8.3).
+ */
+export const ProfileSourceSchema = z.enum(["scan", "you", "decision", "assistant"]);
 export type ProfileSource = z.infer<typeof ProfileSourceSchema>;
 
 export const ProfileEntrySchema = z

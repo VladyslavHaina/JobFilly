@@ -73,7 +73,16 @@ async function connect() {
   await seedAiSettings(deps, ws.workspaceId, {
     provider: "openai-compatible",
     baseUrl: "http://fake-ai.test/v1",
-    models: { classify: "m", extract: "m", prefs: "m", intake: "m" },
+    models: {
+      classify: "m",
+      extract: "m",
+      prefs: "m",
+      intake: "m",
+      cv: "m",
+      match: "m",
+      draft: "m",
+      assistant: "m",
+    },
     apiKey: "E2E-SECRET-ai-key",
   });
 }

@@ -17,7 +17,16 @@ beforeEach(async () => {
 });
 afterEach(() => deps.close());
 
-const models = { classify: "m", extract: "m", prefs: "m", intake: "m" };
+const models = {
+  classify: "m",
+  extract: "m",
+  prefs: "m",
+  intake: "m",
+  cv: "m",
+  match: "m",
+  draft: "m",
+  assistant: "m",
+};
 
 describe("test seeding", () => {
   it("seeds a user with a verifiable password and a personal workspace", async () => {

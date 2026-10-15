@@ -9,6 +9,10 @@ const sameModel = (model: string): AiModels => ({
   extract: model,
   prefs: model,
   intake: model,
+  cv: model,
+  match: model,
+  draft: model,
+  assistant: model,
 });
 
 /**

@@ -1,0 +1,21 @@
+{
+  "id": "chatcmpl-wire-match-v1",
+  "object": "chat.completion",
+  "created": 1790000000,
+  "model": "fixture-model",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "{\"titleFit\":{\"verdict\":\"fits\",\"reason\":\"Senior Backend Engineer is a backend engineer role\"},\"skillCloseness\":[{\"skill\":\"Go\",\"verdict\":\"fits\",\"reason\":\"Go is in the CV\"},{\"skill\":\"Kafka\",\"verdict\":\"unknown\",\"reason\":\"Kafka is in neither the CV nor the profile\"}]}"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 236,
+    "completion_tokens": 71,
+    "total_tokens": 307
+  }
+}

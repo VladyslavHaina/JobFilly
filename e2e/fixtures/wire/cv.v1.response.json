@@ -1,0 +1,21 @@
+{
+  "id": "chatcmpl-wire-cv-v1",
+  "object": "chat.completion",
+  "created": 1790000000,
+  "model": "fixture-model",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "{\"language\":\"en\",\"skills\":[\"Go\",\"PostgreSQL\",\"Kubernetes\"],\"roleFamilies\":[\"Backend engineering\"],\"seniority\":\"Senior\",\"countryHints\":[\"DE\"],\"formatHints\":[\"one page\"]}"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 212,
+    "completion_tokens": 48,
+    "total_tokens": 260
+  }
+}

@@ -1,3 +1,4 @@
+import type { AiClient } from "@jobfilly/ai";
 import type { DatabaseConnection } from "@jobfilly/db";
 import { openTestDatabase } from "@jobfilly/db/testing";
 import type { Config } from "../config";
@@ -57,6 +58,24 @@ export interface TestDeps extends AppDeps {
 const refuse = (what: string) => () => {
   throw new Error(`no fake ${what} set: assign deps.${what} in the test`);
 };
+
+const unused = (what: string) => () => Promise.reject(new Error(`this test's fake has no ${what}`));
+
+/** An AiClient doing only what `methods` give; anything else rejects (tests only). */
+export function fakeAiClient(methods: Partial<AiClient>): AiClient {
+  return {
+    classify: unused("classify"),
+    extract: unused("extract"),
+    prefs: unused("prefs"),
+    intake: unused("intake"),
+    test: unused("test"),
+    readCv: unused("readCv"),
+    match: unused("match"),
+    draft: unused("draft"),
+    assistant: unused("assistant"),
+    ...methods,
+  };
+}
 
 /** A mail port that fails until a test replaces deps.mail. */
 const unsetMailPort: MailPort = { connect: refuse("mail") };

@@ -121,7 +121,16 @@ async function setup(me: Person, envelopes: Envelope[], answers: FakeAiAnswers) 
   await seedAiSettings(d, user.workspaceId, {
     provider: "openai-compatible",
     baseUrl: "http://fake-ai.test/v1",
-    models: { classify: "m", extract: "m", prefs: "m", intake: "m" },
+    models: {
+      classify: "m",
+      extract: "m",
+      prefs: "m",
+      intake: "m",
+      cv: "m",
+      match: "m",
+      draft: "m",
+      assistant: "m",
+    },
     apiKey: "key",
     budgetPerRun: 300,
   });

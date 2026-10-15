@@ -1,0 +1,13 @@
+{
+  "messageId": "<wire-match-1@agency.example>",
+  "position": 1,
+  "role": {
+    "title": "Senior Backend Engineer (Go)",
+    "skills": ["Go", "Kafka"]
+  },
+  "profile": {
+    "targetRoles": ["Backend engineer"],
+    "skills": []
+  },
+  "cvSkills": ["Go", "PostgreSQL", "Kubernetes"]
+}

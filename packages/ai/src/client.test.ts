@@ -356,6 +356,10 @@ describe("models per task", () => {
       extract: JSON.stringify({ messageId: "<item-1@mail.example>", roles: [] }),
       prefs: JSON.stringify({ items: [{ messageId: "<item-1@mail.example>", preferences: {} }] }),
       intake: JSON.stringify({ questions: [] }),
+      cv: "{}",
+      match: "{}",
+      draft: "{}",
+      assistant: "{}",
     };
     const client = clientFromModels((task) => {
       used.push(task);

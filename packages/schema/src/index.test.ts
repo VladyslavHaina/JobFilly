@@ -49,6 +49,17 @@ import {
   taskResultSchema,
 } from "./index";
 
+const MODELS = {
+  classify: "m",
+  extract: "m",
+  prefs: "m",
+  intake: "m",
+  cv: "m",
+  match: "m",
+  draft: "m",
+  assistant: "m",
+};
+
 const envelope = {
   messageId: "<abc+1/2%3@mail.example>",
   folder: "inbox",
@@ -112,8 +123,18 @@ describe("fixed ids", () => {
     expect(CategorySchema.safeParse("spam").success).toBe(false);
   });
 
-  it("has the five task ids", () => {
-    expect(TASK_IDS).toEqual(["classify.v1", "extract.v1", "prefs.v1", "intake.v1", "ai.test.v1"]);
+  it("has the nine task ids", () => {
+    expect(TASK_IDS).toEqual([
+      "classify.v1",
+      "extract.v1",
+      "prefs.v1",
+      "intake.v1",
+      "ai.test.v1",
+      "cv.v1",
+      "match.v1",
+      "draft.v1",
+      "assistant.v1",
+    ]);
   });
 
   it("orders roles viewer < editor < admin", () => {
@@ -276,8 +297,10 @@ describe("profile", () => {
     ).toBe(true);
   });
 
-  it("allows core keys and extra.<slug> only", () => {
+  it("allows core keys, the policy keys and extra.<slug> only", () => {
     expect(ProfileKeySchema.safeParse("places").success).toBe(true);
+    expect(ProfileKeySchema.safeParse("reply_threshold").success).toBe(true);
+    expect(ProfileKeySchema.safeParse("reply_window_days").success).toBe(true);
     expect(ProfileKeySchema.safeParse("extra.accepts-b2b").success).toBe(true);
     expect(ProfileKeySchema.safeParse("salary").success).toBe(false);
     expect(ProfileKeySchema.safeParse("extra.").success).toBe(false);
@@ -359,7 +382,7 @@ describe("AI", () => {
       defaultHost: null,
       keyRequired: false,
       baseUrlRequired: true,
-      defaultModels: { classify: "m", extract: "m", prefs: "m", intake: "m" },
+      defaultModels: MODELS,
     };
     expect(AiProviderListSchema.safeParse({ items: [provider] }).success).toBe(true);
     const { intake: _i, ...threeModels } = provider.defaultModels;
@@ -375,7 +398,7 @@ describe("AI", () => {
   it("refuses a base URL that carries a user name or password", () => {
     const input = {
       provider: "openai-compatible",
-      models: { classify: "m", extract: "m", prefs: "m", intake: "m" },
+      models: MODELS,
     };
     for (const baseUrl of [
       "https://user:E2E-SECRET-x@proxy.example/v1",
@@ -397,7 +420,7 @@ describe("AI", () => {
     const parsed = AiSettingsInputSchema.parse({
       provider: "openai-compatible",
       baseUrl: "http://fake-ai:8080/v1",
-      models: { classify: "m", extract: "m", prefs: "m", intake: "m" },
+      models: MODELS,
     });
     expect(parsed.budgetPerRun).toBe(DEFAULT_BUDGET_PER_RUN);
     expect(DEFAULT_BUDGET_PER_RUN).toBe(300);

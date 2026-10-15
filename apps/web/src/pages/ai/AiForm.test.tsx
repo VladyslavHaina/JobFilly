@@ -24,6 +24,10 @@ const models = (prefix: string) => ({
   extract: `${prefix}-extract`,
   prefs: `${prefix}-prefs`,
   intake: `${prefix}-intake`,
+  cv: `${prefix}-cv`,
+  match: `${prefix}-match`,
+  draft: `${prefix}-draft`,
+  assistant: `${prefix}-assistant`,
 });
 const vendor = (id: AiProviderId, label: string, defaultHost: string): AiProvider => ({
   id,
@@ -55,7 +59,16 @@ const api = (routes: Parameters<typeof fakeApi>[0]) =>
 const saved: AiSettingsPublic = {
   provider: "openai-compatible",
   baseUrl: "http://fake-ai:8080/v1",
-  models: { classify: "m-c", extract: "m-e", prefs: "m-p", intake: "m-i" },
+  models: {
+    classify: "m-c",
+    extract: "m-e",
+    prefs: "m-p",
+    intake: "m-i",
+    cv: "m-cv",
+    match: "m-m",
+    draft: "m-d",
+    assistant: "m-a",
+  },
   budgetPerRun: 300,
   hasKey: true,
   readBy: { provider: "OpenAI-compatible endpoint", host: "fake-ai:8080" },
@@ -67,9 +80,16 @@ afterEach(() => {
 });
 
 const modelFields = () =>
-  ["sorting mail", "job facts", "your preferences", "extra questions"].map(
-    (t) => (screen.getByLabelText(`Model for ${t}`) as HTMLInputElement).value,
-  );
+  [
+    "sorting mail",
+    "job facts",
+    "your preferences",
+    "extra questions",
+    "reading CVs",
+    "matching roles",
+    "reply drafts",
+    "the assistant",
+  ].map((t) => (screen.getByLabelText(`Model for ${t}`) as HTMLInputElement).value);
 
 async function pickCompatible(user: ReturnType<typeof userEvent.setup>) {
   await user.selectOptions(
@@ -115,6 +135,10 @@ describe.each(["onboarding", "settings"] as const)("AiForm in %s mode", (mode) =
       "anthropic-extract",
       "anthropic-prefs",
       "anthropic-intake",
+      "anthropic-cv",
+      "anthropic-match",
+      "anthropic-draft",
+      "anthropic-assistant",
     ]);
     await user.selectOptions(screen.getByLabelText("AI provider"), "Google");
     expect(modelFields()[0]).toBe("google-classify");
@@ -232,7 +256,7 @@ describe("saved settings", () => {
     expect(((await screen.findByLabelText("AI provider")) as HTMLSelectElement).value).toBe(
       "openai-compatible",
     );
-    expect(modelFields()).toEqual(["m-c", "m-e", "m-p", "m-i"]);
+    expect(modelFields()).toEqual(["m-c", "m-e", "m-p", "m-i", "m-cv", "m-m", "m-d", "m-a"]);
     expect((screen.getByLabelText("Model calls per scan run") as HTMLInputElement).value).toBe("5");
     expect(screen.getByText("A key is stored. Leave this empty to keep it.")).toBeTruthy();
     expect((screen.getByLabelText("API key (optional)") as HTMLInputElement).value).toBe("");

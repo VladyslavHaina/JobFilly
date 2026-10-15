@@ -1,14 +1,25 @@
 import { z } from "zod";
 import { IsoDateTimeSchema } from "./common";
+import { JobFactsSchema } from "./facts";
 import { AddressSchema, MailFolderSchema } from "./mailbox";
 import { ConfidenceSchema, ProfileKeySchema, ProfileValueSchema } from "./profile";
+import { RuleSchema } from "./rules";
 
 /** Every provider is an equal option; openai-compatible covers Ollama, LM Studio and similar. */
 export const AiProviderIdSchema = z.enum(["anthropic", "openai", "google", "openai-compatible"]);
 export type AiProviderId = z.infer<typeof AiProviderIdSchema>;
 
 /** The tasks a workspace picks a model for. */
-export const AI_TASKS = ["classify", "extract", "prefs", "intake"] as const;
+export const AI_TASKS = [
+  "classify",
+  "extract",
+  "prefs",
+  "intake",
+  "cv",
+  "match",
+  "draft",
+  "assistant",
+] as const;
 export const AiTaskSchema = z.enum(AI_TASKS);
 export type AiTask = z.infer<typeof AiTaskSchema>;
 
@@ -19,6 +30,10 @@ export const TASK_IDS = [
   "prefs.v1",
   "intake.v1",
   "ai.test.v1",
+  "cv.v1",
+  "match.v1",
+  "draft.v1",
+  "assistant.v1",
 ] as const;
 export const TaskIdSchema = z.enum(TASK_IDS);
 export type TaskId = z.infer<typeof TaskIdSchema>;
@@ -41,6 +56,10 @@ export const AiModelsSchema = z.object({
   extract: z.string().trim().min(1),
   prefs: z.string().trim().min(1),
   intake: z.string().trim().min(1),
+  cv: z.string().trim().min(1),
+  match: z.string().trim().min(1),
+  draft: z.string().trim().min(1),
+  assistant: z.string().trim().min(1),
 });
 export type AiModels = z.infer<typeof AiModelsSchema>;
 
@@ -162,6 +181,70 @@ export const IntakeExtraInputSchema = z.object({
   ),
 });
 export type IntakeExtraInput = z.infer<typeof IntakeExtraInputSchema>;
+
+/** cv.v1's input: the CV's text (untrusted) and its content hash, the key of the answer. */
+export const CvReadInputSchema = z.object({
+  contentHash: z.string().regex(/^[0-9a-f]{64}$/),
+  fileName: z.string(),
+  text: z.string(),
+});
+export type CvReadInput = z.infer<typeof CvReadInputSchema>;
+
+/**
+ * match.v1's input: exactly what the fuzzy part of the match sees (F4), one role at a time. Its
+ * hash is the key of the stored answer (match_ai_answers), so it holds nothing a rule or pay
+ * change could move.
+ */
+export const MatchTaskInputSchema = z.object({
+  messageId: z.string().min(1),
+  position: z.number().int().nonnegative(),
+  role: z.object({ title: z.string().nullable(), skills: z.array(z.string()) }),
+  profile: z.object({ targetRoles: z.array(z.string()), skills: z.array(z.string()) }),
+  /** The chosen CV's skills (CvChoiceResult.skills). */
+  cvSkills: z.array(z.string()),
+});
+export type MatchTaskInput = z.infer<typeof MatchTaskInputSchema>;
+
+/** A profile entry as a prompt shows it. */
+const PromptEntrySchema = z.object({
+  key: ProfileKeySchema,
+  label: z.string(),
+  value: ProfileValueSchema,
+});
+
+/**
+ * draft.v1's input: the message (untrusted), the role, the profile and the chosen CV — the only
+ * things a draft may use (F6.2). `attempt` is 2 when the first draft held a placeholder.
+ */
+export const DraftTaskInputSchema = z.object({
+  attempt: z.union([z.literal(1), z.literal(2)]),
+  mail: AiMailItemSchema,
+  position: z.number().int().nonnegative(),
+  role: JobFactsSchema,
+  entries: z.array(PromptEntrySchema),
+  cv: z
+    .object({
+      name: z.string(),
+      language: z.string().nullable(),
+      skills: z.array(z.string()),
+      text: z.string(),
+    })
+    .nullable(),
+});
+export type DraftTaskInput = z.infer<typeof DraftTaskInputSchema>;
+
+/**
+ * assistant.v1's input: the user's message (untrusted, any language), the turn number in the
+ * thread, the earlier turns, and the profile's entries and rules a proposal would change.
+ */
+export const AssistantTaskInputSchema = z.object({
+  turn: z.number().int().min(1),
+  text: z.string(),
+  history: z.array(z.object({ role: z.enum(["user", "assistant"]), text: z.string() })),
+  entries: z.array(PromptEntrySchema),
+  rules: z.array(RuleSchema),
+});
+export type AssistantTaskInput = z.infer<typeof AssistantTaskInputSchema>;
 
 /** The tokens of one model call; retries are calls too, so they get their own entry. */
 export const UsageSchema = z.object({

@@ -1,0 +1,21 @@
+{
+  "id": "chatcmpl-wire-draft-v1",
+  "object": "chat.completion",
+  "created": 1790000000,
+  "model": "fixture-model",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "{\"subject\":\"Re: Backend-Rolle in Berlin\",\"body\":\"Hallo Herr Weber,\\n\\nvielen Dank für Ihre Nachricht. Die Rolle als Backend-Entwicklerin in Berlin, hybrid, passt gut zu dem, was ich suche. Meinen Lebenslauf habe ich angehängt.\\n\\nViele Grüße\\nMaria Santos\",\"language\":\"de\",\"usedEntries\":[\"target_roles\",\"places\"],\"attachCv\":true,\"questions\":[]}"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 498,
+    "completion_tokens": 96,
+    "total_tokens": 594
+  }
+}
