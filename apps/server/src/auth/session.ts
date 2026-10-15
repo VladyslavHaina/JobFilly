@@ -1,5 +1,11 @@
 import { createHash, randomBytes } from "node:crypto";
-import { createSession, deleteSession, findSession, touchSession } from "@jobfilly/db";
+import {
+  createSession,
+  deleteSession,
+  findSession,
+  type StoredSession,
+  touchSession,
+} from "@jobfilly/db";
 import type { Context, MiddlewareHandler } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import type { AppEnv, SignedInEnv } from "../access/env";
@@ -44,34 +50,55 @@ export async function endSession(
   options: { clearCookie: boolean } = { clearCookie: true },
 ): Promise<void> {
   const sessionId = c.get("sessionId");
-  if (sessionId) await deleteSession(deps.db, sessionId);
+  if (sessionId) await deleteLiveSession(deps, sessionId);
   c.set("sessionId", undefined);
   if (options.clearCookie) {
     deleteCookie(c, SESSION_COOKIE, { path: "/", secure: deps.config.secureCookies });
   }
 }
 
+/** Deletes a session and closes its live-update streams on every replica. */
+async function deleteLiveSession(deps: AppDeps, sessionId: string): Promise<void> {
+  await deleteSession(deps.db, sessionId);
+  await deps.live.revoke({ type: "session.ended", sessionId });
+}
+
+/** The SHA-256 of the request's session cookie, if it has one. */
+export function sessionTokenHash(c: Context): string | undefined {
+  const token = getCookie(c, SESSION_COOKIE);
+  return token ? hashToken(token) : undefined;
+}
+
+/**
+ * The session whose cookie hashes to `tokenHash`, if it exists and has neither been idle too long
+ * nor lived too long; an expired one is deleted. Doesn't count as use (the SSE heartbeat calls it).
+ */
+export async function liveSession(deps: AppDeps, tokenHash: string): Promise<StoredSession | null> {
+  const session = await findSession(deps.db, tokenHash);
+  if (!session) return null;
+  const now = deps.clock.now().getTime();
+  const idle = now - session.lastUsedAt.getTime() >= SESSION_IDLE_MS;
+  const old = now - session.createdAt.getTime() >= SESSION_ABSOLUTE_MS;
+  if (idle || old) {
+    await deleteLiveSession(deps, session.id);
+    return null;
+  }
+  return session;
+}
+
 /** Resolves the cookie to a live session: sets `user` and `sessionId`, or leaves them unset. */
 export function sessionMiddleware(deps: AppDeps): MiddlewareHandler<AppEnv> {
   return async (c, next) => {
-    const token = getCookie(c, SESSION_COOKIE);
-    if (token) {
-      const session = await findSession(deps.db, hashToken(token));
-      const now = deps.clock.now().getTime();
-      if (session) {
-        const idle = now - session.lastUsedAt.getTime() >= SESSION_IDLE_MS;
-        const old = now - session.createdAt.getTime() >= SESSION_ABSOLUTE_MS;
-        if (idle || old) {
-          await deleteSession(deps.db, session.id);
-        } else {
-          if (now - session.lastUsedAt.getTime() >= TOUCH_EVERY_MS) {
-            await touchSession(deps.db, session.id, new Date(now));
-          }
-          c.set("user", session.user);
-          c.set("sessionId", session.id);
-          c.set("log", c.get("log").child({ userId: session.user.id }));
-        }
+    const tokenHash = sessionTokenHash(c);
+    const session = tokenHash ? await liveSession(deps, tokenHash) : null;
+    if (session) {
+      const now = deps.clock.now();
+      if (now.getTime() - session.lastUsedAt.getTime() >= TOUCH_EVERY_MS) {
+        await touchSession(deps.db, session.id, now);
       }
+      c.set("user", session.user);
+      c.set("sessionId", session.id);
+      c.set("log", c.get("log").child({ userId: session.user.id }));
     }
     await next();
   };

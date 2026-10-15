@@ -76,9 +76,12 @@ export function membersRoutes(deps: AppDeps) {
     )
     .delete("/:userId", requireRole("admin"), validParam(MemberParamsSchema), async (c) => {
       const workspaceId = c.get("workspaceId");
-      const result = await removeMember(deps.db, workspaceId, c.req.valid("param").userId);
+      const userId = c.req.valid("param").userId;
+      const result = await removeMember(deps.db, workspaceId, userId);
       if (result === "owner") return c.json(OWNER, 409);
       if (result === "not_found") return c.json(NOT_FOUND, 404);
+      // Their open live-update streams close on every replica before anything else is sent.
+      await deps.live.revoke({ type: "member.removed", workspaceId, userId });
       await deps.live.publish(workspaceId, { type: "workspace.updated", data: {} });
       return c.body(null, 204);
     });
