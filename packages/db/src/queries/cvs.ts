@@ -1,7 +1,7 @@
 import type { Cv, CvMediaType, CvReadOutput, CvReadStatus, CvTag } from "@jobfilly/schema";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, exists, or, sql } from "drizzle-orm";
 import type { Database } from "../client";
-import { cvs, profileCvs } from "../tables";
+import { cvs, profileCvs, profiles, roleCvChoices, roles } from "../tables";
 
 // CVs (F2): the file in Postgres (at most 5 MB, F2.4), its text, what cv.v1 read, and the tags.
 // The foundation's base queries: the replies slice (the attachment and draft.v1's input) and the
@@ -158,4 +158,206 @@ export async function getCvFile(
     .from(cvs)
     .where(and(eq(cvs.workspaceId, workspaceId), eq(cvs.id, cvId)));
   return row ?? null;
+}
+
+// --- Reading, tags, delete, profile links and the CV per role (the cvs-senders slice). --------
+
+/**
+ * Links a new CV to every profile of the workspace (MVP 2 has one), so the profile page lists it
+ * and its roles can use it.
+ */
+export async function linkCvToProfiles(
+  db: Database,
+  workspaceId: string,
+  cvId: string,
+): Promise<void> {
+  const list = await db
+    .select({ id: profiles.id })
+    .from(profiles)
+    .where(eq(profiles.workspaceId, workspaceId));
+  if (list.length === 0) return;
+  await db
+    .insert(profileCvs)
+    .values(list.map((p) => ({ workspaceId, profileId: p.id, cvId })))
+    .onConflictDoNothing();
+}
+
+/**
+ * The CVs a profile's roles choose from, oldest first: those linked to it, and those linked to
+ * no profile yet (uploaded before the profile existed), which belong to every profile.
+ */
+export async function listCvsForProfile(
+  db: Database,
+  workspaceId: string,
+  profileId: string,
+): Promise<Cv[]> {
+  const links = (profile: string | null) =>
+    db
+      .select({ one: sql`1` })
+      .from(profileCvs)
+      .where(
+        and(
+          eq(profileCvs.workspaceId, workspaceId),
+          eq(profileCvs.cvId, cvs.id),
+          profile === null ? undefined : eq(profileCvs.profileId, profile),
+        ),
+      );
+  const rows = await db
+    .select(cvColumns)
+    .from(cvs)
+    .where(
+      and(
+        eq(cvs.workspaceId, workspaceId),
+        or(exists(links(profileId)), sql`not ${exists(links(null))}`),
+      ),
+    )
+    .orderBy(asc(cvs.createdAt), asc(cvs.id));
+  return rows.map(toCv);
+}
+
+/**
+ * What cv.v1 read of a CV of the workspace with this content (cv.v1 is keyed by the content
+ * hash, so the same file is read once), or null.
+ */
+export async function findCvReadByHash(
+  db: Database,
+  workspaceId: string,
+  contentHash: string,
+): Promise<CvReadOutput | null> {
+  const [row] = await db
+    .select({ metadata: cvs.metadata })
+    .from(cvs)
+    .where(
+      and(
+        eq(cvs.workspaceId, workspaceId),
+        eq(cvs.contentHash, contentHash),
+        eq(cvs.readStatus, "done"),
+      ),
+    )
+    .orderBy(asc(cvs.createdAt))
+    .limit(1);
+  return row?.metadata ?? null;
+}
+
+/** Stores what cv.v1 read (its skills already checked) and the tags; the CV is then read. */
+export async function saveCvRead(
+  db: Database,
+  workspaceId: string,
+  cvId: string,
+  input: { metadata: CvReadOutput; tags: CvTag[]; at: Date },
+): Promise<Cv | null> {
+  const [row] = await db
+    .update(cvs)
+    .set({ metadata: input.metadata, tags: input.tags, readStatus: "done", updatedAt: input.at })
+    .where(and(eq(cvs.workspaceId, workspaceId), eq(cvs.id, cvId)))
+    .returning(cvColumns);
+  return row ? toCv(row) : null;
+}
+
+/** Marks a CV as unreadable (its read failed); it keeps whatever it had. */
+export async function markCvReadFailed(
+  db: Database,
+  workspaceId: string,
+  cvId: string,
+  at: Date,
+): Promise<void> {
+  await db
+    .update(cvs)
+    .set({ readStatus: "failed", updatedAt: at })
+    .where(and(eq(cvs.workspaceId, workspaceId), eq(cvs.id, cvId)));
+}
+
+/** Replaces the CV's tags (F2.1: AI tags kept or removed, the user's own added). */
+export async function updateCvTags(
+  db: Database,
+  workspaceId: string,
+  cvId: string,
+  tags: CvTag[],
+  at: Date,
+): Promise<Cv | null> {
+  const [row] = await db
+    .update(cvs)
+    .set({ tags, updatedAt: at })
+    .where(and(eq(cvs.workspaceId, workspaceId), eq(cvs.id, cvId)))
+    .returning(cvColumns);
+  return row ? toCv(row) : null;
+}
+
+/**
+ * Deletes a CV with its file (F2.5). Its profile links, CV-per-role overrides and stored match
+ * answers go with it (CASCADE); drafts and role evaluations stay and forget it (SET NULL), so a
+ * draft already in the mailbox stays there. False when there was no such CV.
+ */
+export async function deleteCv(db: Database, workspaceId: string, cvId: string): Promise<boolean> {
+  const rows = await db
+    .delete(cvs)
+    .where(and(eq(cvs.workspaceId, workspaceId), eq(cvs.id, cvId)))
+    .returning({ id: cvs.id });
+  return rows.length > 0;
+}
+
+/** The CV an editor chose for a role (F2.3), or null for the automatic choice. */
+export async function getRoleCvChoice(
+  db: Database,
+  workspaceId: string,
+  role: { messageId: string; position: number },
+): Promise<string | null> {
+  const [row] = await db
+    .select({ cvId: roleCvChoices.cvId })
+    .from(roleCvChoices)
+    .where(
+      and(
+        eq(roleCvChoices.workspaceId, workspaceId),
+        eq(roleCvChoices.messageId, role.messageId),
+        eq(roleCvChoices.position, role.position),
+      ),
+    );
+  return row?.cvId ?? null;
+}
+
+export type SetRoleCvChoiceResult =
+  | { ok: true; cv: Cv | null }
+  | { ok: false; error: "not_found" | "unknown_cv" };
+
+/**
+ * An editor's CV for one role (F2.3), or null to go back to the automatic choice. not_found: the
+ * workspace has no such role; unknown_cv: no such CV in the workspace.
+ */
+export async function setRoleCvChoice(
+  db: Database,
+  workspaceId: string,
+  input: { messageId: string; position: number; cvId: string | null; userId: string; at: Date },
+): Promise<SetRoleCvChoiceResult> {
+  const [role] = await db
+    .select({ id: roles.id })
+    .from(roles)
+    .where(
+      and(
+        eq(roles.workspaceId, workspaceId),
+        eq(roles.messageId, input.messageId),
+        eq(roles.position, input.position),
+      ),
+    );
+  if (!role) return { ok: false, error: "not_found" };
+  const where = and(
+    eq(roleCvChoices.workspaceId, workspaceId),
+    eq(roleCvChoices.messageId, input.messageId),
+    eq(roleCvChoices.position, input.position),
+  );
+  if (input.cvId === null) {
+    await db.delete(roleCvChoices).where(where);
+    return { ok: true, cv: null };
+  }
+  const found = await getCv(db, workspaceId, input.cvId);
+  if (!found) return { ok: false, error: "unknown_cv" };
+  const { text: _text, ...cv } = found;
+  const set = { cvId: cv.id, chosenBy: input.userId, chosenAt: input.at };
+  await db
+    .insert(roleCvChoices)
+    .values({ workspaceId, messageId: input.messageId, position: input.position, ...set })
+    .onConflictDoUpdate({
+      target: [roleCvChoices.workspaceId, roleCvChoices.messageId, roleCvChoices.position],
+      set,
+    });
+  return { ok: true, cv };
 }
