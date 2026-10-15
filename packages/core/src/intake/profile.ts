@@ -56,7 +56,7 @@ export function confirmedEntries(input: {
   return [...core, ...extras];
 }
 
-export type PatchResult = { ok: true; entries: ProfileEntry[] } | { ok: false; unknownKey: string };
+type PatchResult = { ok: true; entries: ProfileEntry[] } | { ok: false; unknownKey: string };
 
 /**
  * Replaces the values of some entries of a profile, each then set by `by` (source "you"). A key

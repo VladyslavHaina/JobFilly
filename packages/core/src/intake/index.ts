@@ -3,4 +3,4 @@
 
 export { aggregateIntake } from "./aggregate";
 export { buildIntakeExtraInput, extraEvidenceIds, foundExtraQuestions } from "./extras";
-export { confirmedEntries, type PatchResult, patchEntries } from "./profile";
+export { confirmedEntries, patchEntries } from "./profile";
