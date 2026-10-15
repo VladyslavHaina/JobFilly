@@ -93,6 +93,18 @@ describe("the fake mailbox", () => {
     expect(box.drafts().map((d) => d.reply.body)).toEqual(["New"]);
     await client.deleteDraft(replaced);
     expect(box.drafts()).toEqual([]);
+
+    // A Message-ID the caller chose is the draft's; a ref without a known UIDVALIDITY (0)
+    // finds the copy by it, as after a rebuilt folder.
+    const chosen = await client.saveDraft({ ...reply(original), draftMessageId: "<mine@x>" });
+    expect(chosen.draftMessageId).toBe("<mine@x>");
+    await client.deleteDraft({
+      path: "Drafts",
+      uid: 0,
+      uidValidity: 0,
+      draftMessageId: "<mine@x>",
+    });
+    expect(box.drafts()).toEqual([]);
   });
 
   it("fails every operation while paused, and works again after resume", async () => {

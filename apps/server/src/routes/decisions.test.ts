@@ -6,6 +6,8 @@ import {
   type NeedSpec,
 } from "@jobfilly/schema";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { requestReevaluation } from "../profile/changes";
+import { seedUser, type TestClient } from "../testing";
 import {
   CHF_NEED,
   createHarness,
@@ -13,9 +15,7 @@ import {
   draftAnswer,
   EUR_MIN,
   type Harness,
-} from "../drafts/harness";
-import { requestReevaluation } from "../profile/changes";
-import { seedUser, type TestClient } from "../testing";
+} from "../testing/replies";
 
 // The decision inbox over HTTP (F7.2–F7.7): similar questions as one decision, answering writes
 // the profile (source decision) and the waiting roles get their drafts, an answered question is
@@ -213,6 +213,21 @@ describe("answering (F7.4, F7.6)", () => {
       useForSimilar: true,
     });
     expect(again.status).toBe(409);
+  });
+
+  it("writes only the answer that claims the decision when two editors answer at once", async () => {
+    await seedThree();
+    const chf = await decisionOf("min_pay:CHF:year");
+    const answer = (value: unknown) =>
+      maria.post(`${base}/${chf.id}/answer`, { value, useForSimilar: true });
+    const results = await Promise.all([answer(CHF_120), answer("115,000")]);
+    expect(results.map((r) => r.status).sort()).toEqual([200, 409]);
+    const [profile] = await listProfiles(h.deps.db, h.ws);
+    const minPay = profile?.entries.find((e) => e.key === "min_pay")?.value as unknown[];
+    expect(minPay).toHaveLength(2);
+    expect(minPay[0]).toEqual(EUR_MIN);
+    expect(await getHistory(h.deps.db, h.ws, h.profileId)).toHaveLength(1);
+    expect(events("decision.answered")).toHaveLength(1);
   });
 
   it("without 'Use this answer for similar mail' answers only the messages waiting now", async () => {

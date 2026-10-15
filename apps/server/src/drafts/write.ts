@@ -20,10 +20,13 @@ import {
   type StoredDraft,
   saveDraftText,
 } from "@jobfilly/db";
+import type { MailClient } from "@jobfilly/mail";
 import type {
   AiError,
   DraftCreatePayload,
   DraftFailureKind,
+  DraftMailInput,
+  DraftRef,
   DraftTaskInput,
   JobFacts,
   MailFolder,
@@ -33,14 +36,16 @@ import type {
 import { aiClientFor } from "../ai-usage";
 import type { AppDeps } from "../deps";
 import type { Logger } from "../log";
-import { mailboxSession } from "../pipeline/evaluate";
+import { type MailboxSession, mailboxSession } from "../pipeline/evaluate";
 import { openAiKey } from "../secrets";
 import {
   attachmentFor,
   contentHash,
+  copyByMessageId,
   DraftMailboxError,
   isMailboxError,
   mailboxReason,
+  newDraftMessageId,
   originalFor,
 } from "./mailbox";
 
@@ -52,10 +57,19 @@ import {
 // 2. draft.v1 writes the reply from the profile and the chosen CV only (F6.2). Questions it can't
 //    answer from them release the claim and become decisions (F7). A template placeholder is
 //    regenerated once (Attempt: 2), then the draft fails with kind content, never retried
-//    automatically. No answer at all fails it with kind ai.
-// 3. The text is kept on the row, then saved to the mailbox with the chosen CV attached when the
-//    message asks for one (draft.v1's attachCv). A mailbox failure leaves the text, so the sweep's
-//    retry saves the same reply without another model call. No row is left in saving.
+//    automatically. No answer at all fails it with kind ai. Draft a reply's questions are asked
+//    even when the user chose "Don't ask for this message" before: they asked for this reply.
+// 3. The text is kept on the row with the Message-ID its copy will have, then saved to the
+//    mailbox with the chosen CV attached when the message asks for one (draft.v1's attachCv). A
+//    failure before or in the append fails the draft with kind mailbox and leaves the text, so the
+//    sweep's retry saves the same reply without another model call. The append is idempotent: a
+//    retry deletes any copy with that Message-ID first, which an attempt may have left when it
+//    died or failed after the append (recording it, a live event). Only a failure before or in
+//    the append is the mailbox's; after it the row stays saving for the retry.
+//
+// The leftover copy is found through deleteDraft with UIDVALIDITY 0, which no folder has, so
+// packages/mail looks the copy up by its Message-ID (the mailbox slice's client does this for a
+// draft whose UID it never learned).
 
 const AI_REASONS: Record<AiError["kind"], string> = {
   auth: "The AI provider didn't accept the key",
@@ -158,7 +172,16 @@ async function writeReply(
           position: role.position,
         })),
       );
-      const { released, created } = await releaseClaimWithNeeds(deps.db, ws, draft.id, groups, now);
+      const { released, created } = await releaseClaimWithNeeds(
+        deps.db,
+        ws,
+        draft.id,
+        groups,
+        now,
+        {
+          reopen: draft.origin === "on_demand",
+        },
+      );
       if (released) {
         for (const d of created)
           log.info("decision.created", { decisionId: d.id, source: "draft" });
@@ -193,6 +216,14 @@ async function writeReply(
   };
 }
 
+/** What goes to the mailbox: the reply, with the Message-ID chosen for its copy. */
+interface Prepared {
+  client: MailClient;
+  mail: DraftMailInput & { draftMessageId: string };
+  /** The text was written by an earlier attempt, which may have left a copy behind. */
+  retry: boolean;
+}
+
 /**
  * Writes the role's claimed draft and saves it to the mailbox. A role with no `saving` claim has
  * nothing to do (another job finished it). Aborted on shutdown, it leaves the claim for the job's
@@ -214,51 +245,129 @@ export async function createDraft(
     log.warn("pipeline.stage_failed", { stage: "draft", kind, attempts: draft.attempts });
     await publish();
   };
-
-  const session = mailboxSession(deps, ws);
-  try {
-    const [message] = await loadMessageInputs(deps.db, ws, [payload.messageId]);
-    const facts = message?.facts[payload.position];
-    if (!facts) return await fail("content", "This role is no longer in the message");
-    const original = await originalFor(deps, ws, session, payload.messageId);
-
-    let text: { subject: string; body: string; cvId: string | null };
-    if (draft.subject !== null && draft.body !== null) {
-      // A retry after a mailbox failure: the reply is written already.
-      text = { subject: draft.subject, body: draft.body, cvId: draft.cvId };
-    } else {
-      const role = { ...payload, facts, folder: message.folder };
-      const written = await writeReply(deps, ws, draft, role, original, log);
-      if (written.kind === "questions") return await publish();
-      if (written.kind === "failed") return await fail(written.failure, written.reason);
-      await saveDraftText(deps.db, ws, draft.id, { ...written, now: deps.clock.now() });
-      text = written;
-    }
-
-    const attachment = await attachmentFor(deps, ws, text.cvId);
-    const client = await session.get();
-    if (!client) throw new DraftMailboxError("No mailbox is connected");
-    const mail = { original, reply: { subject: text.subject, body: text.body }, attachment };
-    const ref = await client.saveDraft(mail);
-    await markDraftSaved(deps.db, ws, draft.id, {
-      ref,
-      contentHash: contentHash(mail),
-      now: deps.clock.now(),
-    });
-    log.info("draft.saved_to_mailbox", { draftId: draft.id, attached: attachment !== null });
-    await publish();
-    await deps.live.publish(ws, {
-      type: "messages.updated",
-      data: { messageIds: [payload.messageId] },
-    });
-  } catch (error) {
+  /** Nothing is in the mailbox from this attempt: the draft fails with kind mailbox. */
+  const failBeforeSaved = async (error: unknown) => {
     if (options.signal?.aborted) throw error;
     if (!isMailboxError(error)) {
       const name = error instanceof Error ? error.name : "unknown";
       log.warn("pipeline.stage_failed", { stage: "draft", error: name });
     }
     await fail("mailbox", mailboxReason(error));
+  };
+
+  const session = mailboxSession(deps, ws);
+  try {
+    let prepared: Prepared | null;
+    try {
+      prepared = await prepare(deps, payload, draft, session, log, { fail, publish });
+    } catch (error) {
+      return await failBeforeSaved(error);
+    }
+    if (!prepared) return;
+    const { client, mail, retry } = prepared;
+
+    let ref: DraftRef;
+    try {
+      if (retry) {
+        // An earlier attempt may have appended this copy without recording it (it failed after
+        // the append, or its replica died): that copy goes first, so one lands (F6.3, F6.4).
+        const { path } = await client.ensureDraftsFolder();
+        await client.deleteDraft(copyByMessageId(path, mail.draftMessageId));
+      }
+      ref = await client.saveDraft(mail);
+    } catch (error) {
+      return await failBeforeSaved(error);
+    }
+
+    // The copy is in the mailbox. A failure from here on (the database, a live event) isn't the
+    // mailbox's: the row stays saving, and the retry finds this copy by its Message-ID.
+    const saved = await markDraftSaved(deps.db, ws, draft.id, {
+      ref,
+      contentHash: contentHash(mail),
+      now: deps.clock.now(),
+    });
+    if (!saved) {
+      // Another run of this claim (the sweep took a stale one back) recorded its own copy.
+      await client.deleteDraft(ref).catch(() => {});
+      return;
+    }
+    log.info("draft.saved_to_mailbox", { draftId: draft.id, attached: mail.attachment !== null });
+    await publish();
+    await deps.live.publish(ws, {
+      type: "messages.updated",
+      data: { messageIds: [payload.messageId] },
+    });
   } finally {
     await session.close();
   }
+}
+
+/**
+ * The original, the reply and the mailbox for the append; null when the draft is done without
+ * one (its questions became decisions, or it failed). Any throw happens before the append.
+ */
+async function prepare(
+  deps: AppDeps,
+  payload: DraftCreatePayload,
+  draft: StoredDraft,
+  session: MailboxSession,
+  log: Logger,
+  done: { fail(kind: DraftFailureKind, reason: string): Promise<void>; publish(): Promise<void> },
+): Promise<Prepared | null> {
+  const ws = payload.workspaceId;
+  const [message] = await loadMessageInputs(deps.db, ws, [payload.messageId]);
+  const facts = message?.facts[payload.position];
+  if (!facts) {
+    await done.fail("content", "This role is no longer in the message");
+    return null;
+  }
+  const original = await originalFor(deps, ws, session, payload.messageId);
+
+  // A retry after a mailbox failure (or a run that died): the reply is written already, with the
+  // Message-ID its copy gets (saveDraftText keeps both together).
+  const kept =
+    draft.subject !== null && draft.body !== null && draft.draftMessageId !== null
+      ? {
+          subject: draft.subject,
+          body: draft.body,
+          cvId: draft.cvId,
+          draftMessageId: draft.draftMessageId,
+        }
+      : null;
+  let text: { subject: string; body: string; cvId: string | null; draftMessageId: string };
+  if (kept) {
+    text = kept;
+  } else {
+    const role = { ...payload, facts, folder: message.folder };
+    const written = await writeReply(deps, ws, draft, role, original, log);
+    if (written.kind === "questions") {
+      await done.publish();
+      return null;
+    }
+    if (written.kind === "failed") {
+      await done.fail(written.failure, written.reason);
+      return null;
+    }
+    const draftMessageId = await newDraftMessageId(deps, ws);
+    await saveDraftText(deps.db, ws, draft.id, {
+      ...written,
+      draftMessageId,
+      now: deps.clock.now(),
+    });
+    text = { ...written, draftMessageId };
+  }
+
+  const attachment = await attachmentFor(deps, ws, text.cvId);
+  const client = await session.get();
+  if (!client) throw new DraftMailboxError("No mailbox is connected");
+  return {
+    client,
+    retry: kept !== null,
+    mail: {
+      original,
+      reply: { subject: text.subject, body: text.body },
+      attachment,
+      draftMessageId: text.draftMessageId,
+    },
+  };
 }

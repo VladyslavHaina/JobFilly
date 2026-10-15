@@ -1,9 +1,9 @@
 import { addMember } from "@jobfilly/db";
-import { DraftListSchema, DraftSchema } from "@jobfilly/schema";
+import { DecisionListSchema, DraftListSchema, DraftSchema } from "@jobfilly/schema";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { createHarness, draftAnswer, type Harness } from "../drafts/harness";
 import { requestReevaluation } from "../profile/changes";
 import { seedUser, type TestClient } from "../testing";
+import { createHarness, draftAnswer, type Harness } from "../testing/replies";
 
 // Drafts over HTTP (F6.4, F6.5, F6.7): the list with each status and the failed reason, editing
 // (the mailbox copy is replaced, one copy remains), discarding (deleted from the mailbox, never
@@ -24,6 +24,18 @@ beforeEach(async () => {
 afterEach(() => h.close());
 
 const events = (name: string) => h.deps.logs.filter((l) => l.event === name);
+
+const RELOCATE_QUESTION = {
+  profileKey: "extra.relocate",
+  groupKey: "extra.relocate",
+  question: "Would you relocate to Ireland?",
+  choices: ["Yes", "No"],
+};
+
+async function decisions() {
+  const res = await maria.get(`/api/workspaces/${h.ws}/decisions`);
+  return DecisionListSchema.parse(await res.json()).items;
+}
 
 async function drafted(id: string) {
   await h.deliver(id);
@@ -75,6 +87,37 @@ describe("editing and discarding (F6.4)", () => {
     // A second edit replaces the edited copy.
     await maria.patch(`${base}/${draft.id}`, { subject: "Re: A role", body: "Second" });
     expect(h.mailbox.drafts().map((d) => d.reply.body)).toEqual(["Second"]);
+  });
+
+  it("leaves exactly one copy when two edits are saved at once", async () => {
+    const draft = await drafted(BERLIN);
+    const [a, b] = await Promise.all([
+      maria.patch(`${base}/${draft.id}`, { subject: "s", body: "First" }),
+      maria.patch(`${base}/${draft.id}`, { subject: "s", body: "Second" }),
+    ]);
+    expect([a?.status, b?.status]).toContain(200);
+    const copies = h.mailbox.drafts();
+    expect(copies).toHaveLength(1);
+    // The row names the copy that is left, with its text.
+    expect(await h.live(BERLIN)).toMatchObject({
+      status: "edited",
+      body: copies[0]?.reply.body,
+      mailbox: { uid: copies[0]?.uid, draftMessageId: copies[0]?.draftMessageId },
+    });
+    // The loser, if there was one, was told.
+    for (const res of [a, b]) if (res?.status !== 200) expect(res?.status).toBe(409);
+  });
+
+  it("leaves no copy when an edit races a discard", async () => {
+    const draft = await drafted(BERLIN);
+    const [edit, discard] = await Promise.all([
+      maria.patch(`${base}/${draft.id}`, { subject: "s", body: "Edited" }),
+      maria.post(`${base}/${draft.id}/discard`),
+    ]);
+    expect(discard?.status).toBe(200);
+    expect([200, 409]).toContain(edit?.status);
+    expect(h.mailbox.drafts()).toEqual([]);
+    expect(await h.live(BERLIN)).toBeNull();
   });
 
   it("keeps the edit out when the mailbox can't take it, and says so", async () => {
@@ -151,6 +194,69 @@ describe("Draft a reply (F6.5)", () => {
     expect(h.mailbox.drafts()).toHaveLength(1);
     // The role has its draft now: asking again is a conflict, not a second copy.
     expect((await maria.post(base, { messageId: DATA, position: 0 })).status).toBe(409);
+  });
+
+  it("asks what the reply needs, and writes the draft once it is answered (F6.5, F7.4)", async () => {
+    await h.deliver(DATA, { roles: [{ score: 52 }] });
+    await h.evaluate(DATA);
+    h.ai.answers.draft[key(DATA)] = draftAnswer({ questions: [RELOCATE_QUESTION] });
+    expect((await maria.post(base, { messageId: DATA, position: 0 })).status).toBe(202);
+    await h.drain();
+    expect(await h.live(DATA)).toBeNull();
+    const [decision] = await decisions();
+    expect(decision).toMatchObject({
+      question: "Would you relocate to Ireland?",
+      waiting: [{ messageId: DATA, position: 0 }],
+    });
+
+    h.ai.answers.draft[key(DATA)] = draftAnswer();
+    const answered = await maria.post(`/api/workspaces/${h.ws}/decisions/${decision?.id}/answer`, {
+      value: "No",
+      useForSimilar: false,
+    });
+    expect(answered.status).toBe(200);
+    await h.drain();
+    expect(await h.live(DATA)).toMatchObject({
+      status: "in_mailbox",
+      origin: "on_demand",
+      auto: false,
+    });
+    expect(h.mailbox.drafts()).toHaveLength(1);
+    // The draft was written with the answer given for this role.
+    expect(h.draftInputs[1]?.entries.map((e) => e.key)).toContain("extra.relocate");
+  });
+
+  it("asks again after Don't ask for this message, instead of doing nothing", async () => {
+    await h.deliver(DATA, { roles: [{ score: 52 }] });
+    await h.evaluate(DATA);
+    h.ai.answers.draft[key(DATA)] = draftAnswer({ questions: [RELOCATE_QUESTION] });
+    await maria.post(base, { messageId: DATA, position: 0 });
+    await h.drain();
+    const [decision] = await decisions();
+    const dismissed = await maria.post(
+      `/api/workspaces/${h.ws}/decisions/${decision?.id}/dismiss`,
+      { messageId: DATA, position: 0 },
+    );
+    expect(dismissed.status).toBe(200);
+    expect(await decisions()).toEqual([]);
+    // A re-evaluation never drafts the dismissed role on its own.
+    await requestReevaluation(h.deps, h.ws, { all: true }, "test");
+    await h.drain();
+    expect(await h.live(DATA)).toBeNull();
+
+    // Draft a reply again: the reply still needs the answer, so the question is back.
+    expect((await maria.post(base, { messageId: DATA, position: 0 })).status).toBe(202);
+    await h.drain();
+    expect((await decisions()).map((d) => [d.id, d.waiting.map((w) => w.messageId)])).toEqual([
+      [decision?.id, [DATA]],
+    ]);
+    h.ai.answers.draft[key(DATA)] = draftAnswer();
+    await maria.post(`/api/workspaces/${h.ws}/decisions/${decision?.id}/answer`, {
+      value: "Yes",
+      useForSimilar: true,
+    });
+    await h.drain();
+    expect(await h.live(DATA)).toMatchObject({ status: "in_mailbox", origin: "on_demand" });
   });
 
   it("takes a failed draft's row back", async () => {

@@ -1,5 +1,9 @@
 import { getDraftClaim, listDecisions, listDraftsToRetry, roleDecisions } from "@jobfilly/db";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { MailUnavailableError } from "@jobfilly/mail";
+import type { DraftMailInput, RuleEffect } from "@jobfilly/schema";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createDraft } from "../drafts/write";
+import { requestReevaluation } from "../profile/changes";
 import {
   CHF_NEED,
   createHarness,
@@ -7,8 +11,7 @@ import {
   draftAnswer,
   type Harness,
   NOW,
-} from "../drafts/harness";
-import { requestReevaluation } from "../profile/changes";
+} from "../testing/replies";
 import { reevaluateWorkspace } from "./reevaluate";
 
 // The reply stage and draft.create (F6.1–F6.4, F7.1, F7.3): a good match gets one draft in the
@@ -86,6 +89,10 @@ describe("the reply stage", () => {
       bytes: new TextEncoder().encode("%PDF-1.4 Backend (DE)"),
     });
     expect(await h.live(BERLIN)).toMatchObject({ language: "de", cvId: cv.id });
+    // draft.v1 gets the incoming mail's own text, whose language the reply is written in.
+    expect(h.draftInputs[0]?.mail.text).toBe(
+      "Hallo Maria, könnten Sie mir Ihren Lebenslauf schicken?",
+    );
     expect(h.draftInputs[0]?.cv).toEqual({
       name: "Backend (DE)",
       language: "de",
@@ -125,6 +132,35 @@ describe("the reply stage", () => {
     expect(await h.drain()).toBe(0);
     expect(await h.live("<low@x.example>")).toBeNull();
     expect(await h.live("<old@x.example>")).toBeNull();
+  });
+
+  it("holds back a category outside reply_to, a risky or unchecked sender, and rules (F6.1)", async () => {
+    const rule = (action: RuleEffect["action"]): RuleEffect => ({
+      ruleId: "00000000-0000-4000-8000-0000000000e1",
+      action,
+      reason: `Held by your rule (${action})`,
+      need: null,
+    });
+    const held = {
+      "<alert@jobs.example>": { category: "job_alert" as const },
+      "<scam@x.example>": { sender: "high_risk" as const },
+      "<unchecked@x.example>": { sender: "fails" as const },
+      "<no-draft@x.example>": { roles: [{ ruleEffects: [rule("no_draft")] }] },
+      "<hidden@x.example>": { roles: [{ ruleEffects: [rule("hide")] }] },
+    };
+    for (const [id, setup] of Object.entries(held)) {
+      await h.deliver(id, setup);
+      h.ai.answers.draft[key(id)] = draftAnswer();
+      await h.evaluate(id);
+    }
+    // The control: the same mail with nothing holding it back gets its draft.
+    await h.deliver(BERLIN);
+    h.ai.answers.draft[key(BERLIN)] = draftAnswer();
+    await h.evaluate(BERLIN);
+    expect(await h.drain()).toBe(1);
+    for (const id of Object.keys(held)) expect(await h.live(id)).toBeNull();
+    expect(h.mailbox.drafts().map((d) => d.original.messageId)).toEqual([BERLIN]);
+    expect(h.draftInputs.map((i) => i.mail.messageId)).toEqual([BERLIN]);
   });
 
   it("saves exactly one mailbox draft when a sync's evaluation races pipeline.reevaluate (F6.4)", async () => {
@@ -303,6 +339,94 @@ describe("a mailbox that can't take the draft", () => {
     await h.drain();
     expect(h.mailbox.drafts()).toHaveLength(1);
     expect((await h.live(BERLIN))?.status).toBe("in_mailbox");
+  });
+
+  /** The next append lands in the Drafts folder, but saveDraft then throws `error()`. */
+  function appendThenThrow(error: () => Error) {
+    const port = h.deps.mail;
+    let armed = true;
+    h.deps.mail = {
+      connect(conn, options) {
+        const client = port.connect(conn, options);
+        return {
+          ...client,
+          async saveDraft(input: DraftMailInput) {
+            const ref = await client.saveDraft(input);
+            if (!armed) return ref;
+            armed = false;
+            throw error();
+          },
+        };
+      },
+    };
+  }
+
+  it("lands one copy when an append got through but its answer was lost (F6.3)", async () => {
+    await h.deliver(BERLIN);
+    h.ai.answers.draft[key(BERLIN)] = draftAnswer();
+    appendThenThrow(() => new MailUnavailableError());
+    await h.evaluate(BERLIN);
+    await h.drain();
+    const failed = await h.live(BERLIN);
+    expect(failed).toMatchObject({ status: "failed", failureKind: "mailbox", mailbox: null });
+    // The Message-ID was chosen, on the mailbox's domain, before the append.
+    expect(failed?.draftMessageId).toMatch(/^<[0-9a-f-]+@inbox\.example>$/);
+    expect(h.mailbox.drafts().map((d) => d.draftMessageId)).toEqual([failed?.draftMessageId]);
+
+    expect((await reevaluateWorkspace(h.deps, h.ws, { stages: h.stages })).retried).toBe(1);
+    await h.drain();
+    const copies = h.mailbox.drafts();
+    expect(copies).toHaveLength(1);
+    expect(await h.live(BERLIN)).toMatchObject({
+      status: "in_mailbox",
+      mailbox: { uid: copies[0]?.uid, draftMessageId: failed?.draftMessageId },
+    });
+    expect(h.ai.calls.draft).toBe(1);
+  });
+
+  it("lands one copy when the replica died after the append and the sweep takes it back", async () => {
+    await h.deliver(BERLIN);
+    h.ai.answers.draft[key(BERLIN)] = draftAnswer();
+    await h.evaluate(BERLIN);
+    const dying = new AbortController();
+    appendThenThrow(() => {
+      dying.abort();
+      return new Error("replica died");
+    });
+    // The job's work as a replica that is gone right after the append.
+    const payload = { workspaceId: h.ws, messageId: BERLIN, position: 0, origin: "auto" as const };
+    await expect(createDraft(h.deps, payload, { signal: dying.signal })).rejects.toThrow(
+      "replica died",
+    );
+    expect(await h.live(BERLIN)).toMatchObject({ status: "saving", mailbox: null });
+    expect(h.mailbox.drafts()).toHaveLength(1);
+
+    h.deps.clock.advance(6 * 60_000);
+    await reevaluateWorkspace(h.deps, h.ws, { stages: h.stages });
+    await h.drain();
+    expect(h.mailbox.drafts()).toHaveLength(1);
+    expect((await h.live(BERLIN))?.status).toBe("in_mailbox");
+    expect(h.ai.calls.draft).toBe(1);
+  });
+
+  it("isn't a mailbox failure when what follows the append fails", async () => {
+    await h.deliver(BERLIN);
+    h.ai.answers.draft[key(BERLIN)] = draftAnswer();
+    await h.evaluate(BERLIN);
+    const publish = h.deps.live.publish.bind(h.deps.live);
+    let armed = true;
+    vi.spyOn(h.deps.live, "publish").mockImplementation(async (ws, event) => {
+      if (armed && event.type === "drafts.updated" && h.mailbox.drafts().length > 0) {
+        armed = false;
+        throw new Error("live bus down");
+      }
+      return publish(ws, event);
+    });
+    await h.drain();
+    expect(armed).toBe(false);
+    expect(await h.live(BERLIN)).toMatchObject({ status: "in_mailbox", failureKind: null });
+    expect(await listDraftsToRetry(h.deps.db, h.ws, NOW)).toEqual([]);
+    expect(h.mailbox.drafts()).toHaveLength(1);
   });
 
   it("fails with kind ai when draft.v1 gives no draft", async () => {

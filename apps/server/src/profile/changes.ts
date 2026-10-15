@@ -3,6 +3,7 @@ import { type AppliedChanges, applyChanges, type ChangeError } from "@jobfilly/c
 import {
   type ApplyProfileChangesResult,
   applyProfileChanges,
+  type Database,
   markStale,
   type StaleScope,
 } from "@jobfilly/db";
@@ -57,8 +58,26 @@ export async function applyAndReevaluate(
   changes: readonly Change[],
   meta: ChangeRequest,
 ): Promise<ApplyProfileChangesResult<ChangeError> | null> {
+  const result = await writeProfileChanges(deps, deps.db, ws, profileId, changes, meta);
+  if (result?.ok) await afterProfileChanges(deps, ws, result, meta.source);
+  return result;
+}
+
+/**
+ * applyAndReevaluate's write alone, on `db`: a decision answer passes the transaction that
+ * answers the decision, so the profile changes only when the answer is claimed (F7.4). The
+ * caller runs afterProfileChanges once that transaction is committed.
+ */
+export function writeProfileChanges(
+  deps: AppDeps,
+  db: Database,
+  ws: string,
+  profileId: string,
+  changes: readonly Change[],
+  meta: ChangeRequest,
+): Promise<ApplyProfileChangesResult<ChangeError> | null> {
   const at = deps.clock.now();
-  const result = await applyProfileChanges(deps.db, ws, profileId, changes, {
+  return applyProfileChanges(db, ws, profileId, changes, {
     ...meta,
     at,
     apply: (state, list): AppliedChanges =>
@@ -70,10 +89,17 @@ export async function applyAndReevaluate(
         newRuleId: randomUUID,
       }),
   });
-  if (!result?.ok) return result;
+}
+
+/** What follows a written change: the re-evaluation of every role, and profiles.updated. */
+export async function afterProfileChanges(
+  deps: AppDeps,
+  ws: string,
+  result: Extract<ApplyProfileChangesResult<ChangeError>, { ok: true }>,
+  source: ChangeRequest["source"],
+): Promise<void> {
   if (result.entry) {
-    await requestReevaluation(deps, ws, { all: true }, `profile.${meta.source}`);
+    await requestReevaluation(deps, ws, { all: true }, `profile.${source}`);
   }
   await deps.live.publish(ws, { type: "profiles.updated", data: {} });
-  return result;
 }

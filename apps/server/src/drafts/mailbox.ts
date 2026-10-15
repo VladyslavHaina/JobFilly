@@ -1,10 +1,11 @@
-import { createHash } from "node:crypto";
-import { getCvFile, getMessageRef } from "@jobfilly/db";
+import { createHash, randomUUID } from "node:crypto";
+import { getCvFile, getMailboxConnection, getMessageRef } from "@jobfilly/db";
 import { MailUnavailableError } from "@jobfilly/mail";
 import {
   CV_MIME_TYPES,
   type DraftAttachment,
   type DraftMailInput,
+  type DraftRef,
   type OriginalMessage,
 } from "@jobfilly/schema";
 import type { AppDeps } from "../deps";
@@ -61,6 +62,27 @@ export async function attachmentFor(
     bytes: new Uint8Array(file.bytes),
   };
 }
+
+/**
+ * A new draft's own Message-ID header, on the mailbox address's domain, chosen before the append
+ * and kept on the draft row (saveDraftText), so a retry can find the copy an attempt left.
+ */
+export async function newDraftMessageId(deps: AppDeps, ws: string): Promise<string> {
+  const address = (await getMailboxConnection(deps.db, ws))?.address ?? "";
+  const domain = /^[^\s@<>]+@([^\s@<>]+\.[^\s@<>]+)$/.exec(address)?.[1] ?? "jobfilly.invalid";
+  return `<${randomUUID()}@${domain}>`;
+}
+
+/**
+ * Where a copy with this Message-ID may be although its UID was never recorded: UIDVALIDITY 0
+ * is never a folder's (RFC 3501), so deleting it finds the copy by its Message-ID.
+ */
+export const copyByMessageId = (path: string, draftMessageId: string): DraftRef => ({
+  path,
+  uid: 0,
+  uidValidity: 0,
+  draftMessageId,
+});
 
 /** SHA-256 of what the mailbox copy holds of ours: the subject, the body and the attachment. */
 export function contentHash(input: Pick<DraftMailInput, "reply" | "attachment">): string {

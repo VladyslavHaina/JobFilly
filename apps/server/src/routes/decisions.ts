@@ -20,24 +20,30 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { NOT_FOUND, requireRole, validJson, validParam, type WorkspaceEnv } from "../access";
 import type { AppDeps } from "../deps";
-import { applyAndReevaluate, requestReevaluation } from "../profile/changes";
+import { afterProfileChanges, requestReevaluation, writeProfileChanges } from "../profile/changes";
 
 // The decision inbox (F7): list, the open count for the navigation, answer, Not now, Don't ask
 // for this message. Viewers see decisions but can't answer them (F7.7). Mounted once at
 // /api/workspaces/:workspaceId/decisions.
 //
 // Answering (F7.4) with "Use this answer for similar mail" writes the answer to the profile as
-// one `add` of a single item (source decision) through the profile change service, which
-// re-evaluates every role; so the waiting roles are re-matched and drafted, and later mail that
-// needs the same answer uses it (F7.6). Without it the answer is kept on the decision for the
-// roles waiting now only: they are re-evaluated with it, and the profile doesn't change. A
-// decision without a profile key (an ask_first rule) is always answered for its roles only.
+// one `add` of a single item (source decision) through the profile change service, in the
+// transaction that claims the decision, which then re-evaluates every role; so the waiting roles
+// are re-matched and drafted, and later mail that needs the same answer uses it (F7.6). Without
+// it the answer is kept on the decision for the roles waiting now only: they are re-evaluated
+// with it, and the profile doesn't change. A decision without a profile key (an ask_first rule)
+// is answered for its roles only: the rule asks for each message, so the UI says so instead of
+// offering "Use this answer for similar mail", and the flag is ignored for it.
 
 const DecisionParamsSchema = z.object({ decisionId: IdSchema });
 
 const view = ({ answer: _a, ...decision }: StoredDecision): Decision => decision;
 
 const NOT_OPEN = { error: "conflict", message: "This decision was answered already" } as const;
+const DOESNT_FIT = {
+  error: "invalid",
+  message: "That answer doesn't fit this question. Pick one or write it differently.",
+} as const;
 
 export function decisionsRoutes(deps: AppDeps) {
   return new Hono<WorkspaceEnv>()
@@ -63,37 +69,44 @@ export function decisionsRoutes(deps: AppDeps) {
         if (!decision) return c.json(NOT_FOUND, 404);
         if (decision.status !== "open") return c.json(NOT_OPEN, 409);
         const item = answerItem(decision, value);
-        if (item === null) {
-          const message =
-            "That answer doesn't fit this question. Pick one or write it differently.";
-          return c.json({ error: "invalid", message }, 400);
+        if (item === null) return c.json(DOESNT_FIT, 400);
+        const profileKey = useForSimilar ? decision.profileKey : null;
+        const profile =
+          profileKey === null
+            ? null
+            : (await listProfiles(deps.db, ws)).find((p) => p.confirmedAt !== null);
+        if (profileKey !== null && !profile) {
+          const message = "Confirm your profile first, so the answer has somewhere to go";
+          return c.json({ error: "conflict", message }, 409);
         }
-        const remember = useForSimilar && decision.profileKey !== null;
-        if (remember && decision.profileKey !== null) {
-          const profile = (await listProfiles(deps.db, ws)).find((p) => p.confirmedAt !== null);
-          if (!profile) {
-            const message = "Confirm your profile first, so the answer has somewhere to go";
-            return c.json({ error: "conflict", message }, 409);
-          }
-          const applied = await applyAndReevaluate(
-            deps,
-            ws,
-            profile.id,
-            [answerChange(decision.profileKey, item)],
-            { source: "decision", userId, request: decision.question },
-          );
-          if (!applied?.ok) {
-            const message =
-              "That answer doesn't fit this question. Pick one or write it differently.";
-            return c.json({ error: "invalid", message }, 400);
-          }
+        // The decision is claimed first, and the profile entry is written in that same
+        // transaction: of two answers racing, only the one that claims it reaches the profile,
+        // and a refused entry leaves the decision open.
+        const answered = await answerDecision(
+          deps.db,
+          ws,
+          decisionId,
+          { answer: item, userId, now: deps.clock.now() },
+          profileKey !== null && profile
+            ? async (tx) => {
+                const written = await writeProfileChanges(
+                  deps,
+                  tx,
+                  ws,
+                  profile.id,
+                  [answerChange(profileKey, item)],
+                  { source: "decision", userId, request: decision.question },
+                );
+                return { keep: written?.ok === true, value: written };
+              }
+            : undefined,
+        );
+        if (answered.status === "not_open") return c.json(NOT_OPEN, 409);
+        if (answered.status === "refused") return c.json(DOESNT_FIT, 400);
+        const remember = answered.written?.ok === true;
+        if (answered.written?.ok) {
+          await afterProfileChanges(deps, ws, answered.written, "decision");
         }
-        const answered = await answerDecision(deps.db, ws, decisionId, {
-          answer: item,
-          userId,
-          now: deps.clock.now(),
-        });
-        if (!answered) return c.json(NOT_OPEN, 409);
         // The waiting roles are re-matched and get their drafts (the reply stage).
         if (answered.roles.length > 0) {
           await requestReevaluation(deps, ws, { roles: answered.roles }, "decision.answered");

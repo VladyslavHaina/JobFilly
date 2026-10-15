@@ -3,6 +3,7 @@ import {
   type Draft,
   DraftCreateSchema,
   type DraftList,
+  DraftListQuerySchema,
   DraftUpdateSchema,
   IdSchema,
 } from "@jobfilly/schema";
@@ -27,7 +28,6 @@ import { requestDraft } from "../drafts/request";
 // written by draft.create, so it answers 202 with the draft in status saving.
 
 const DraftParamsSchema = z.object({ draftId: IdSchema });
-const DraftQuerySchema = z.object({ messageId: z.string().min(1).optional() });
 
 const STATUS = { not_found: 404, conflict: 409, mailbox: 503 } as const;
 
@@ -39,7 +39,7 @@ function answer(result: DraftChange) {
 
 export function draftsRoutes(deps: AppDeps) {
   return new Hono<WorkspaceEnv>()
-    .get("/", requireRole("viewer"), validQuery(DraftQuerySchema), async (c) => {
+    .get("/", requireRole("viewer"), validQuery(DraftListQuerySchema), async (c) => {
       const drafts = await listDrafts(deps.db, c.get("workspaceId"), c.req.valid("query"));
       return c.json({ items: drafts.map(publicDraft) } satisfies DraftList);
     })

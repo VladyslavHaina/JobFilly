@@ -1,5 +1,6 @@
 import { createConfirmedProfile, liveDraftFor, type StoredDraft } from "@jobfilly/db";
 import {
+  type Category,
   type Cv,
   type DraftOutput,
   type DraftTaskInput,
@@ -8,6 +9,8 @@ import {
   PIPELINE_REEVALUATE_JOB,
   PipelineReevaluatePayloadSchema,
   type ProfileEntry,
+  type RuleEffect,
+  type SenderVerdict,
 } from "@jobfilly/schema";
 import { type App, createApp } from "../app";
 import { defineJob } from "../jobs/queue";
@@ -16,25 +19,12 @@ import { evaluateMessage } from "../pipeline/evaluate";
 import { reevaluateWorkspace } from "../pipeline/reevaluate";
 import { replyStage } from "../pipeline/reply";
 import type { Stages } from "../pipeline/stages";
-import {
-  createFakeAi,
-  createFakeMailbox,
-  createTestDeps,
-  type FakeAiClient,
-  type FakeMailbox,
-  recordingStages,
-  roleFacts,
-  type SeededUser,
-  seedAiSettings,
-  seedCv,
-  seedJobMail,
-  seedMailbox,
-  seedUser,
-  signedIn,
-  TEST_AI_MODELS,
-  type TestClient,
-  type TestDeps,
-} from "../testing";
+import { createFakeAi, type FakeAiClient } from "./ai";
+import { createTestDeps, TEST_AI_MODELS, type TestDeps } from "./deps";
+import { signedIn, type TestClient } from "./http";
+import { createFakeMailbox, type FakeMailbox } from "./mailbox";
+import { recordingStages, roleFacts, seedJobMail } from "./pipeline";
+import { type SeededUser, seedAiSettings, seedCv, seedMailbox, seedUser } from "./seed";
 
 // The replies slice's test setup (tests only): Maria's workspace with a mailbox, AI settings and
 // a confirmed profile holding an EUR minimum, the fake mailbox and the fake AI, and pipeline
@@ -70,7 +60,12 @@ interface RoleSetup {
   score?: number;
   needs?: NeedSpec[];
   cvId?: string | null;
+  /** What the rules do to the role; a hide effect also hides it. */
+  ruleEffects?: RuleEffect[];
 }
+
+/** The sender check a message gets: a verdict, or "fails" for a sender stage that throws. */
+type SenderSetup = SenderVerdict | "fails";
 
 const entry = (key: ProfileEntry["key"], value: ProfileEntry["value"]): ProfileEntry => ({
   key,
@@ -117,6 +112,9 @@ export interface Harness {
       text?: string;
       subject?: string;
       references?: string[];
+      category?: Category;
+      /** The sender check (default looks fine). */
+      sender?: SenderSetup;
       roles?: (RoleSetup & { facts?: Partial<JobFacts> })[];
     },
   ): Promise<void>;
@@ -132,10 +130,16 @@ export interface Harness {
 
 export async function createHarness(options: { entries?: ProfileEntry[] } = {}): Promise<Harness> {
   const roles = new Map<string, RoleSetup>();
+  const senders = new Map<string, SenderSetup>();
   const recording = recordingStages();
   recording.score = (id, position) => roles.get(`${id}#${position}`)?.score ?? 80;
   const stages: Stages = {
-    sender: recording.sender,
+    async sender(input, ctx) {
+      const setup = senders.get(input.message.messageId);
+      if (setup === "fails") throw new Error("sender stage failed");
+      const result = await recording.sender(input, ctx);
+      return setup ? { ...result, check: { ...result.check, verdict: setup } } : result;
+    },
     async cvChoice(input, ctx) {
       const choice = await recording.cvChoice(input, ctx);
       const cvId = roles.get(`${input.message.messageId}#${input.role.position}`)?.cvId ?? null;
@@ -152,9 +156,14 @@ export async function createHarness(options: { entries?: ProfileEntry[] } = {}):
         hard: false,
         need,
       }));
-      return evaluation.match
-        ? { ...evaluation, match: { ...evaluation.match, verdicts } }
-        : evaluation;
+      const ruleEffects = setup?.ruleEffects ?? [];
+      const hide = ruleEffects.find((e) => e.action === "hide");
+      const ruled = {
+        ...evaluation,
+        ruleEffects,
+        hidden: hide ? { ruleId: hide.ruleId, reason: hide.reason } : null,
+      };
+      return ruled.match ? { ...ruled, match: { ...ruled.match, verdicts } } : ruled;
     },
     reply: replyStage,
   };
@@ -228,8 +237,10 @@ export async function createHarness(options: { entries?: ProfileEntry[] } = {}):
       setups.forEach((setup, position) => {
         roles.set(`${messageId}#${position}`, setup);
       });
+      if (input.sender) senders.set(messageId, input.sender);
       const envelope = await seedJobMail(deps, ws, mailbox, {
         messageId,
+        category: input.category,
         receivedAt: input.receivedAt ?? daysAgo(1),
         subject: input.subject ?? "A role for you",
         text: input.text ?? "Hello Maria, a backend role for you. Could you send your CV?",
