@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  AI_PROVIDERS,
   AiEventSchema,
+  AiModelsSchema,
+  AiProviderIdSchema,
   AiSettingsInputSchema,
+  aiReadBy,
   batchResultSchema,
   CATEGORIES,
   CategorySchema,
@@ -234,6 +238,27 @@ describe("profile", () => {
 });
 
 describe("AI", () => {
+  it("lists every provider once, each with a default model per task", () => {
+    expect(AI_PROVIDERS.map((p) => p.id)).toEqual(AiProviderIdSchema.options);
+    for (const p of AI_PROVIDERS)
+      expect(AiModelsSchema.safeParse(p.defaultModels).success).toBe(true);
+  });
+
+  it("names the provider and the host that reads the mail", () => {
+    expect(aiReadBy("anthropic", null)).toEqual({
+      provider: "Anthropic",
+      host: "api.anthropic.com",
+    });
+    expect(aiReadBy("openai-compatible", "http://fake-ai:8080/v1")).toEqual({
+      provider: "OpenAI-compatible endpoint",
+      host: "fake-ai:8080",
+    });
+    expect(aiReadBy("openai", "https://user:E2E-SECRET-x@Proxy.example/v1").host).toBe(
+      "proxy.example",
+    );
+    expect(aiReadBy("openai-compatible", null).host).toBe("");
+  });
+
   it("defaults the budget to 300 calls and never needs the key to save", () => {
     const parsed = AiSettingsInputSchema.parse({
       provider: "openai-compatible",
