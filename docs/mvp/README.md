@@ -124,12 +124,14 @@ The real-AI quality runs and the Helm install read the environment variables lis
 
 | Service | What it is |
 | --- | --- |
-| `proxy` | Round-robin reverse proxy, the only entry point: `http://127.0.0.1:8080` |
-| `app-a`, `app-b` | Two replicas of the same image (MVP 3 adds `app-c`) |
+| `proxy` | Round-robin reverse proxy at `http://127.0.0.1:8080`, routing only to replicas whose `/api/health/ready` answers 200. It also exposes each replica directly — `:8081` for `app-a`, `:8082` for `app-b`, `:8083` for `app-c` — for read-only checks (writes through these ports fail the `Origin` check by design) |
+| `app-a`, `app-b` | Two replicas of the same image (MVP 3 adds `app-c`), with `hostname` set to their name, a read-only root filesystem, `/tmp` as tmpfs, a non-root user, a non-default `PORT`, and `stop_grace_period: 30s` |
 | `postgres` | The database |
-| `imap` | Disposable mail server (GreenMail): IMAP and SMTP with one account per persona |
+| `imap` | Disposable mail server (GreenMail), in memory: IMAP and SMTP with one or more accounts per persona. Pause it to simulate an outage; never stop it, or its mail is gone |
 | `seed` | Loads `e2e/fixtures/<persona>/mail` into the mailboxes; during a run it also delivers new mail and inspects folders (each MVP lists the commands it uses) |
 | `fake-ai` | OpenAI-compatible stub with canned answers |
+| `dns`, `rdap` | From MVP 2: CoreDNS with a fixture zone and a fake RDAP service, for the domain checks |
+| `oauth` | From MVP 3: a fake OAuth authorisation server, reachable through the proxy |
 
 Commands:
 
@@ -139,11 +141,20 @@ Commands:
 | `pnpm e2e:stack up` | Starts a fresh stack under its own compose project name, which it prints |
 | `pnpm e2e:stack down` | Takes that stack down with its containers, networks and volumes |
 | `pnpm e2e:specs [--mvp <n>]` | Runs the specs (all, or one MVP's) against the running stack |
+| `pnpm e2e:soak` | MVP 3 sign-off only: the two-hour soak against a fresh three-replica stack |
 
 - The fake AI is set up through the UI like any OpenAI-compatible endpoint (base URL
-  `http://fake-ai:8080/v1`). It answers from `e2e/fixtures/ai/` by task id plus the `Message-ID`s
-  in the prompt (for the assistant: the user's message), and returns HTTP 500 (and logs why) for
-  any prompt it has no answer for, so a missing fixture is never silent.
+  `http://fake-ai:8080/v1`). It answers from `e2e/fixtures/ai/` by task id plus a key: the
+  `Message-ID`s in the prompt (classification, extraction, drafts), the `Message-ID` and role
+  position (matching), the CV's content hash (CV reading), the user's message and turn (assistant),
+  a template for generated soak mail, or nothing (`ai.test.v1`). It returns HTTP 500 (and logs why)
+  for any prompt it has no answer for, so a missing fixture is never silent. Every answer waits
+  `FAKE_AI_DELAY_MS` (300 in the test stack), so runs last long enough for mid-run steps and
+  "thinking" states are visible.
+- Fixture dates are relative ("12 days ago"): `seed` sets each message's `Date` header and IMAP
+  internal date from the current time, so the 90-day window, the 14-day reply window and the
+  21-day pipeline flag behave the same on every run. `seed deliver` appends over IMAP and never
+  uses SMTP, so `seed inspect smtp` shows only what the app itself sent.
 - One run plays the scenarios of every MVP up to the current one, in order, on one fresh stack.
   Later scenarios start from the state earlier ones leave behind — MVP 2 relies on the profile
   Maria confirmed in MVP 1.
@@ -155,9 +166,10 @@ Commands:
 - Two personas, defined in MVP 1, each with a mailbox, CVs (from MVP 2), new mail to deliver during
   runs, and `expected.json` holding the ground truth per message (category, job facts, sender
   verdict, match, profile answers).
-- **Sentinels:** every fixture message body contains a unique marker `BODYSENTINEL-<id>` after its
-  first 200 characters (so a stored snippet never carries it); every test password and API key is a
-  unique string `E2E-SECRET-<name>`. The leak checks below look for them.
+- **Sentinels:** every fixture message body contains a unique marker `BODYSENTINEL-<id>` at least
+  1,000 characters into its decoded text (and the same in its HTML part), so a stored snippet never
+  carries it; every test password and API key is a unique string `E2E-SECRET-<name>`; test messages
+  typed into the assistant carry `E2E-CHAT-<n>`. The leak checks below look for them.
 
 ## Validation protocol (every MVP, every run)
 
@@ -168,35 +180,42 @@ Commands:
 - Start at `http://127.0.0.1:8080`. Move only by clicking visible links and buttons, typing into
   visible fields, and the keyboard (Tab, Enter, Esc) where a scenario asks for it. The only URLs
   typed by hand are the start URL and invite links a person would receive.
-- During the walkthrough: no API calls, no database reads, no hidden elements. Infrastructure steps
-  (stopping a replica, delivering mail with `seed`) are allowed where a scenario lists them.
+- During the walkthrough: no API calls, no database reads, no hidden elements. Allowed where a
+  scenario lists them: infrastructure steps (killing or pausing a service, delivering mail with
+  `seed`), verification steps (`seed inspect …`, unpacking a downloaded file), and probes.
+- Uploading a file through the page's file picker is a person's action and is fine.
+- **Probes** are `curl` requests listed inside the scenario that creates the state they need. They
+  sign in with `curl` to get their own session and send `Origin: http://127.0.0.1:8080`, except the
+  probe that tests the `Origin` check itself.
 - After each step: read the accessibility snapshot and check the expected text or state is
   visible; screenshot every step marked 📸; check the browser console shows no errors and no failed
-  requests other than expected ones.
+  requests. Expected failures are only the ones a scenario provokes on purpose (a wrong password, a
+  refused action).
 - Write down anything a person would trip over, even when the criterion passes: unclear wording,
   more than 2 seconds without feedback, broken layout, dead ends. These are **findings**: blockers
   and important ones are fixed before sign-off; minor ones are listed in the sign-off notes.
 
 ### 2. Watch the logs
 
-- Before the walkthrough, capture both replicas into the run folder, e.g.
+- Before the walkthrough, capture every app replica into the run folder, e.g.
   `docker compose -p <project> -f docker/compose.e2e.yaml logs -f --no-log-prefix app-a app-b > <run>/app.log`
+  (add `app-c` from MVP 3).
 - After each scenario, check:
   - every event listed for the scenario appears, with the listed fields;
   - no line at level `error` or `fatal` and no stack trace, unless the scenario expects one;
-  - across the run, requests were served by both replicas (`instance` field).
+  - across the run, `http.request` lines show every replica served requests (`instance` field).
 
 ### 3. Leak checks (end of run)
 
-- No `BODYSENTINEL-*`, no `E2E-SECRET-*` and no fixture subject line appears in `app.log`.
+- No `BODYSENTINEL-*`, `E2E-SECRET-*`, `E2E-CHAT-*` or fixture subject line appears in `app.log`.
 - A `pg_dump` of the database contains no `E2E-SECRET-*` (passwords are hashed, secrets encrypted)
   and, in fake-AI runs, no `BODYSENTINEL-*` (message bodies are never stored).
 - In a real-AI run, the real key appears in neither.
 
-### 4. Security probes (end of run, `curl` allowed)
+### 4. Security probes
 
-The probes listed in each MVP: cross-workspace access, role limits, cross-origin writes, sessions
-after sign-out.
+They run inside their scenarios (see the rules above), at the moment the state they need exists:
+cross-workspace access, role limits, cross-origin writes, sessions after sign-out, send tokens.
 
 ### 5. Codify
 
@@ -215,6 +234,7 @@ per criterion and scenario plus the findings, the screenshots, and `app.log`.
   means no failed criterion, no blocker or important finding, no unexpected error logs, no leaks.
 - One run with a real AI provider meets the MVP's quality thresholds.
 - The evidence audit finds nothing to refute.
-- All earlier MVPs' specs pass.
+- All earlier MVPs' specs pass, except steps a later MVP explicitly replaces (it says so under
+  its scope), which are updated in that MVP's codify step.
 - The sign-off table at the end of the MVP file gets a row: date, status, commit, run folder, real
   AI provider, and the TBD.md entries still open.

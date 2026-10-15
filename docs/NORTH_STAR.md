@@ -48,10 +48,10 @@ them (a partner, a friend, a career coach), who can be invited into their worksp
 
 - A **workspace** holds mailboxes, CVs, profiles, the job inbox, drafts, decisions and AI
   settings. Every user gets a personal one at sign-up.
-- The owner invites people by email and gives each a role: **viewer** (sees), **editor** (works
+- Admins (starting with the owner) invite people by email and give each a role: **viewer** (sees), **editor** (works
   the job search: profile, decisions, drafts, assistant changes) or **admin** (also members,
-  mailboxes, AI settings). The owner also chooses what a member sees: everything, or the job
-  pipeline without mail content.
+  mailboxes, AI settings). Admins also choose what a member sees: everything, or the job pipeline
+  without mail content.
 - One person can belong to several workspaces and switch between them.
 
 ## Profiles and rules
@@ -100,7 +100,7 @@ a visible warning.
 
 ## Platform
 
-- **A self-hosted server:** Docker today, Kubernetes for the end state. No desktop app.
+- **A self-hosted server:** Docker today, Kubernetes for the end state.
 - **PostgreSQL holds everything** — data, sessions, the job queue and live updates — so a
   deployment is just the app plus Postgres.
 - **Login is a cookie-based session stored in Postgres.** No sticky sessions: any replica serves

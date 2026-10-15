@@ -349,7 +349,7 @@ async function validate(round, mode, scenarios, criteria) {
         ? `the codified specs of MVP 1 to ${MVP - 1} (they bring the stack to the state this MVP starts from)`
         : 'no specs (none exist before MVP 1)'
   const stack = await run(
-    `${CONTEXT}\n\nOpen validation run ${round} (${mode}) for MVP ${MVP}. In the main checkout on ${BRANCH} with a clean tree: create the run folder e2e/reports/mvp-${MVP}/<UTC timestamp>-r${round}-${mode}; bring up a fresh test stack with "pnpm e2e:stack up" (docs/mvp/README.md); start capturing both replicas' logs into <run folder>/app.log in the background and note the capture's process id in the run folder; then run ${specs} against the running stack with "pnpm e2e:specs". Return the run folder, the compose project and every failing spec.`,
+    `${CONTEXT}\n\nOpen validation run ${round} (${mode}) for MVP ${MVP}. In the main checkout on ${BRANCH} with a clean tree: create the run folder e2e/reports/mvp-${MVP}/<UTC timestamp>-r${round}-${mode}; bring up a fresh test stack with "pnpm e2e:stack up" (docs/mvp/README.md); start capturing the logs of every app replica (app-a and app-b, plus app-c from MVP 3) into <run folder>/app.log in the background and note the capture's process id in the run folder; then run ${specs} against the running stack with "pnpm e2e:specs". Return the run folder, the compose project and every failing spec.`,
     { label: `stack:r${round}:${mode}`, phase: 'Validate', schema: STACK },
   )
   const walks = []
@@ -357,7 +357,7 @@ async function validate(round, mode, scenarios, criteria) {
     for (const s of scenarios) {
       const w = take(
         await run(
-          `${CONTEXT}\n\nWalk scenario ${s.id} ("${s.title}") of ${DOC} on the running stack at http://127.0.0.1:8080 (compose project ${stack.project}), exactly as the validation protocol in docs/mvp/README.md describes: Playwright MCP, like a person — visible buttons, fields and the keyboard only; no API calls or database reads during the walkthrough; infrastructure steps only where the scenario lists them. Earlier specs in this run: ${stack.specFailures.length ? `failing: ${stack.specFailures.join('; ')}` : 'all passed'}. Save screenshots of the camera-marked steps into ${stack.runDir}. Afterwards check ${stack.runDir}/app.log for the events the scenario lists and for error or fatal lines. Report every criterion the scenario covers with evidence, and every finding a person would trip over.`,
+          `${CONTEXT}\n\nWalk scenario ${s.id} ("${s.title}") of ${DOC} on the running stack at http://127.0.0.1:8080 (compose project ${stack.project}), exactly as the validation protocol in docs/mvp/README.md describes: Playwright MCP, like a person — visible buttons, fields and the keyboard only; no API calls or database reads during the walkthrough; infrastructure steps, verification steps and probes only where the scenario lists them (probes use curl with their own session, as the protocol says). Earlier specs in this run: ${stack.specFailures.length ? `failing: ${stack.specFailures.join('; ')}` : 'all passed'}. Save screenshots of the camera-marked steps into ${stack.runDir}. Afterwards check ${stack.runDir}/app.log for the events the scenario lists and for error or fatal lines. Report every criterion the scenario covers with evidence, and every finding a person would trip over.`,
           { label: `walk:${s.id}:r${round}`, phase: 'Validate', schema: WALK },
         ),
         `MVP ${MVP} · Validate (${s.id})`,
@@ -375,7 +375,7 @@ async function validate(round, mode, scenarios, criteria) {
     }
   }
   const close = await run(
-    `${CONTEXT}\n\nClose validation run ${round} (${mode}) of MVP ${MVP}${stack ? ` in ${stack.runDir}` : ''}: run the leak checks (app.log and a pg_dump; if a real AI key was used, look for it too) and the security probes listed in ${DOC}; check the criteria listed under "Proven outside the walkthrough"; check both replicas served requests; write report.md in the run folder from the stack result and the walkthrough results below. Then stop the log capture and take the stack down with "pnpm e2e:stack down", confirming no containers, networks or volumes of the project remain. Keep only the three newest run folders of this MVP and delete older ones.\n\n${JSON.stringify({ stack, walks })}`,
+    `${CONTEXT}\n\nClose validation run ${round} (${mode}) of MVP ${MVP}${stack ? ` in ${stack.runDir}` : ''}: run the leak checks (app.log and a pg_dump; if a real AI key was used, look for it too); check the criteria listed under "Proven outside the walkthrough" in ${DOC} that this run can show (for example the migrations at the start of the run, the log rules, the stack's own up and down) and report the rest as passed only if their tests exist and pass; check from the http.request lines that every replica served requests; write report.md in the run folder from the stack result and the walkthrough results below. Then stop the log capture and take the stack down with "pnpm e2e:stack down", confirming no containers, networks or volumes of the project remain. Keep only the three newest run folders of this MVP and delete older ones.\n\n${JSON.stringify({ stack, walks })}`,
     { label: `close:r${round}:${mode}`, phase: 'Validate', schema: CLOSE },
   )
   return assess(stack, walks, close, criteria, mode)
@@ -569,11 +569,24 @@ while (true) {
             ),
           )
         }
-        const audit = await run(
+        if (MVP === 3) {
+          const soak = await run(
+            `${CONTEXT}\n\nSoak for MVP 3 (round ${round}): run "pnpm e2e:soak" as F10.3 in ${DOC} describes, record the memory, job and latency figures in a soak.md in a new run folder under e2e/reports/mvp-3/, update the observed resource use in docs/ARCHITECTURE.md (F10.4) and commit that, and make sure the soak stack is gone afterwards.`,
+            { label: `soak:r${round}`, phase: 'Confirm', schema: QUALITY },
+          )
+          if (!soak || !soak.ran || !soak.pass) {
+            failing = soak
+              ? soak.results.filter((r) => !r.pass).map((r) => `soak: ${r.threshold} — measured ${r.measured}`).concat(soak.ran ? [] : [`soak did not run: ${soak.notes}`])
+              : ['the soak agent returned nothing']
+          }
+        }
+        const audit = failing.length ? null : await run(
           `${CONTEXT}\n\nEvidence audit for MVP ${MVP}. Try to refute that MVP ${MVP} is done. Read ${DOC}, the run reports in ${runDirs.join(', ')} and the code on ${BRANCH}. For every acceptance criterion check that the evidence is real and enough: a scenario step that was actually performed and observed, a test that would fail without the code, a log line that exists. Also look for stubs, fakes or test-only shortcuts in production code paths. Refute whenever the evidence is missing or thin.`,
           { label: `audit:r${round}`, phase: 'Confirm', schema: AUDIT },
         )
-        if (audit && audit.refuted.length) {
+        if (failing.length) {
+          // the soak failed; fall through to the fix round
+        } else if (audit && audit.refuted.length) {
           failing = audit.refuted.map((r) => `audit: ${r.ref}: ${r.why}`)
         } else {
           status = q && q.ran ? 'signed off' : 'accepted with open items'

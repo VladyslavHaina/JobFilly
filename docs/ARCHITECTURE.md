@@ -101,16 +101,22 @@ Every MVP keeps these true; the Helm chart after MVP 3 relies on them.
 - Stateless replicas; nothing on local disk except temporary files.
 - `GET /api/health/live` (process up) and `GET /api/health/ready` (database reachable and
   migrations applied).
-- Migrations run under a Postgres advisory lock, so replicas starting together apply them once.
-  `node dist/index.js migrate` runs them alone, for a migration job.
-- On `SIGTERM`: readiness turns 503, in-flight requests finish within 20 seconds, running jobs
-  hand back their leases, the process exits 0.
+- Migrations run at start under a Postgres advisory lock, so replicas starting together apply
+  them once (one `db.migrated` line). `node dist/index.js migrate` runs them alone, for a migration
+  job. Migrations stay backward compatible with the previous release — add first, remove in a
+  later release — because old and new replicas run side by side during a rolling update.
+- On `SIGTERM`, in this order: readiness turns 503 at once; the replica keeps serving for a 5-second
+  drain so load balancers stop routing to it; it stops accepting connections and closes open
+  live-update streams (browsers reconnect to another replica); in-flight requests finish within 20
+  seconds; running jobs hand back their leases; the process exits 0. Orchestrators must allow at
+  least 30 seconds (`stop_grace_period`, `terminationGracePeriodSeconds`).
 - Runs as a non-root user with a read-only root filesystem and listens on `$PORT`.
 
 ## Logs
 
-- JSON lines on stdout with `time`, `level`, `instance`, `event` (dot-separated, e.g.
-  `scan.stopped`), `requestId` for HTTP requests, and `workspaceId` / `userId` as ids.
+- JSON lines on stdout with `time`, `level`, `instance` (the replica's hostname), `event`
+  (dot-separated, e.g. `scan.stopped`), `requestId` for HTTP requests, and `workspaceId` / `userId`
+  as ids. Every HTTP request logs `http.request` with method, route pattern, status and duration.
 - Never logged: passwords, keys, tokens, cookies, message bodies, subjects, email addresses, CV
   text, assistant messages.
 

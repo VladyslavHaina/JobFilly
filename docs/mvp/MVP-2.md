@@ -26,16 +26,27 @@ F1 → F2 → F3 → F4 → F5 → F6 → F7 → F8.
 ## Fixtures added
 
 - **CVs:** Maria — "Backend (EN)" PDF, "Backend (DE)" DOCX, "Data engineering (EN)" PDF; Tom —
-  "Nurse (EN)" DOCX. The expected tags, skills and CV choice per role are in `expected.json`.
-- **Mail delivered during runs** (`seed deliver <id>`): a Berlin backend role in German that asks
-  for a CV; a remote EU role in English on CET hours; an Amsterdam role (Maria removed Amsterdam in
-  MVP 1); an onsite role in Singapore; three remote roles on Asia-Pacific hours (UTC+8, UTC+8,
-  UTC+10); a data-engineering role; a Zurich role paid in CHF that asks for her rate; a role in
-  Dublin that asks whether she would relocate; a second Zurich role in CHF; a scam asking for a fee;
-  a "recruiter" for a large company writing from a free-mail address.
+  "Nurse (EN)" DOCX. The expected tags, skills and CV choice per role are in `expected.json`. The
+  fake AI's answer for "Data engineering (EN)" includes one skill that is not in the CV.
+- **Mail delivered during runs** (`seed deliver <id>`), all dated within the last 14 days:
+  - a Berlin backend role in German that asks for a CV;
+  - a remote EU role in English on CET hours (the fake AI's first draft for it contains "[Name]");
+  - a hybrid Amsterdam role (Maria removed Amsterdam in MVP 1);
+  - an onsite role in Singapore;
+  - three remote roles on Asia-Pacific hours (UTC+8, UTC+8, UTC+10), one of which scores 70 or more;
+  - a data-engineering role that scores below the reply threshold;
+  - a Zurich role and a Basel role, both paid in CHF, both asking for her rate;
+  - a remote-first role with a Dublin office that asks whether she would relocate later;
+  - a second Zurich role in CHF, delivered after the CHF question is answered;
+  - a scam asking for a fee and a passport scan;
+  - a "recruiter" for a large company writing from a free-mail address.
+- **The first scan's backlog:** every good match in Maria's MVP 1 mailbox is older than 14 days,
+  so the backlog gets matches but no automatic drafts.
+- **Assistant:** `e2e/fixtures/assistant/requests.json` — ten requests in English, German and
+  Portuguese, each with the change it should produce.
 - **Domains:** the test stack adds a DNS server (CoreDNS with a fixture zone) and a fake RDAP
   service, so domain checks run for real without the internet.
-- **Seed commands used:** `seed deliver <id>`, `seed inspect drafts <persona>`,
+- **Seed commands used:** `seed deliver <id>`, `seed inspect drafts <persona>`, `seed inspect smtp`,
   `seed reset-uidvalidity <persona>`.
 
 ## F1. Continuous sync
@@ -44,7 +55,7 @@ F1 → F2 → F3 → F4 → F5 → F6 → F7 → F8.
 
 - `packages/mail`: incremental fetch by UID per folder, `UIDVALIDITY` handling.
 - `apps/server`: a sync job per mailbox every `JOBFILLY_SYNC_INTERVAL_SECONDS` (15 in the test
-  stack); the analysis pipeline per new message (sort → facts → sender check → match → draft or
+  stack); the analysis pipeline per message (sort → facts → sender check → match → draft or
   decision).
 - `apps/web`: live inbox updates; mailbox status ("Synced 2 minutes ago", "Can't reach the mail
   server since 10:42").
@@ -53,19 +64,22 @@ F1 → F2 → F3 → F4 → F5 → F6 → F7 → F8.
 
 - **F1.1** New mail shows up in the job inbox — sorted, with facts, sender check and match — within
   one sync interval plus processing, live for everyone in the workspace.
-- **F1.2** Only one sync per mailbox runs at a time across replicas; a stopped replica's sync is
-  taken over.
+- **F1.2** Only one sync per mailbox runs at a time across replicas; a killed replica's sync is
+  taken over once its lease expires.
 - **F1.3** When the mail server reports a new `UIDVALIDITY`, the app re-indexes the folder and keeps
   every correction, decision and draft, matched by `Message-ID`.
 - **F1.4** A failed sync is retried with back-off and shown as mailbox status, never silently.
 - **F1.5** Settings › AI shows model calls and tokens per day for the workspace.
+- **F1.6** Job messages analysed before this MVP (the first scan's backlog) also get the sender
+  check and a match. Drafts are created automatically only for messages received within the reply
+  window (profile entry `reply_window_days`, default 14).
 
 ## F2. CVs
 
 **Structure**
 
-- `packages/ai`: CV reading (task `cv.v1`): language, skills as written, role families, seniority,
-  country and format hints.
+- `packages/ai`: CV reading (task `cv.v1`, keyed by the CV's content hash): language, skills as
+  written, role families, seniority, country and format hints.
 - `packages/core`: CV choice per role (tags, metadata, language) with a reason; the skill check
   that drops any skill not found in the CV text.
 - `packages/db`: `cvs` (file in Postgres, at most 5 MB, text, skills, tags, metadata), links from
@@ -116,7 +130,8 @@ F1 → F2 → F3 → F4 → F5 → F6 → F7 → F8.
 - `packages/core`: compares job facts with profile entries and rules, giving *fits*, *conflicts* or
   *unknown* for each; hard conflicts cap the score.
 - `packages/ai`: only the fuzzy parts (does a title fit the target roles, how close are the skills)
-  — task `match.v1`.
+  — task `match.v1`, one call per role, keyed by `Message-ID` and the role's position in the
+  message.
 - `packages/schema`: `Match { score, verdicts [{ entryKey | ruleId, verdict, reason }], skills
   { matched, missing }, cvId, capped }`.
 - `apps/web`: fit score in the list; a match panel in the message detail.
@@ -155,7 +170,8 @@ F1 → F2 → F3 → F4 → F5 → F6 → F7 → F8.
 - **F5.3** A lookup that fails marks the check "incomplete", never "looks fine".
 - **F5.4** An editor can mark a sender trusted or blocked; it is kept across syncs and named in the
   explanation.
-- **F5.5** The fixture scam is high risk (fee, passport) and the free-mail "recruiter" is caution.
+- **F5.5** Both scams — the one in the first scan's backlog and the one delivered in this MVP — are
+  high risk (fee, passport); the free-mail "recruiter" is caution.
 
 ## F6. Drafts
 
@@ -163,8 +179,8 @@ F1 → F2 → F3 → F4 → F5 → F6 → F7 → F8.
 
 - `packages/ai`: reply drafting (task `draft.v1`), output `{ subject, body, language, usedEntries,
   attachCv, questions }`.
-- `packages/core`: the reply policy (profile entries `reply_to` and `reply_threshold`, default 70)
-  and the placeholder check.
+- `packages/core`: the reply policy (profile entries `reply_to`, `reply_threshold` default 70 and
+  `reply_window_days` default 14) and the placeholder check.
 - `packages/mail`: build the MIME message (`In-Reply-To`, `References`, optional CV attachment) and
   save it to Drafts with the `\Draft` flag; replace and delete drafts.
 - `packages/db`: `drafts` (status, mailbox reference, content hash). A draft row holds only the
@@ -175,9 +191,10 @@ F1 → F2 → F3 → F4 → F5 → F6 → F7 → F8.
 
 **Acceptance criteria**
 
-- **F6.1** Recruiter outreach that scores at or above the reply threshold, isn't high risk, and
-  isn't held back by a `hide`, `no_draft` or `ask_first` rule gets a reply draft automatically, in
-  the language of the incoming message.
+- **F6.1** A message gets a reply draft automatically when its category is in the profile's
+  `reply_to` (by default recruiter outreach), it arrived within the reply window, its role scores at
+  or above the reply threshold, the sender isn't high risk, and no `hide`, `no_draft` or `ask_first`
+  rule holds it back. The draft is in the language of the incoming message.
 - **F6.2** A draft uses only the profile and the chosen CV. Anything it can't back up becomes a
   question for the decision inbox instead of a guess. A draft containing a template placeholder
   ("[Name]", "{company}") is rejected and regenerated once, then marked failed.
@@ -186,8 +203,8 @@ F1 → F2 → F3 → F4 → F5 → F6 → F7 → F8.
 - **F6.4** Editors review and edit drafts in the app. Saving replaces the mailbox draft (exactly one
   copy remains); discarding deletes it from the mailbox.
 - **F6.5** Editors can ask for a draft on any role with **Draft a reply**, whatever its score.
-- **F6.6** Nothing is sent: the app makes no SMTP connection in this MVP, and the test SMTP server
-  receives nothing.
+- **F6.6** Nothing is sent: the app makes no SMTP connection in this MVP, and `seed inspect smtp`
+  shows nothing.
 - **F6.7** The Drafts page shows each draft's status: in mailbox, edited, discarded, failed (with
   the reason). Viewers can read drafts but not change them.
 
@@ -196,8 +213,7 @@ F1 → F2 → F3 → F4 → F5 → F6 → F7 → F8.
 **Structure**
 
 - `packages/core`: decisions are created from a draft's `questions`, from match unknowns that a
-  reply can't go without, and from `ask_first` rules; similar questions are grouped by profile
-  key.
+  reply can't go without, and from `ask_first` rules; similar questions are grouped by profile key.
 - `packages/db`: `decisions` with the messages waiting on each.
 - `apps/server`: `/api/workspaces/:id/decisions` (list, answer, not now, don't ask for this
   message).
@@ -227,7 +243,8 @@ F1 → F2 → F3 → F4 → F5 → F6 → F7 → F8.
   | null, proposal: { summary, changes: Change[] } | null }`, where a `Change` adds, updates or
   removes a rule or a profile entry.
 - `packages/core`: impact preview — the profile with the change applied, run against the current
-  roles (how many get hidden or shown, scores that move, drafts that won't be created).
+  roles (how many get hidden or shown, scores that move, drafts that won't be created, drafts already
+  in the mailbox).
 - `packages/db`: `assistant_threads`, `assistant_messages`, `profile_history` (every change with
   who, when, source and the request behind it).
 - `apps/server`: `/api/workspaces/:id/assistant` (send a message), `…/proposals/:id/apply`,
@@ -259,46 +276,50 @@ F1 → F2 → F3 → F4 → F5 → F6 → F7 → F8.
 
 ## Log events
 
-`sync.completed {mailboxId, new}`, `sync.failed` (warn), `sync.uidvalidity_changed`,
-`pipeline.message_processed`, `cv.uploaded`, `cv.skill_dropped` (warn), `match.scored`,
-`rule.applied {ruleId, action}`, `sender.checked {verdict}`, `sender.lookup_incomplete` (warn),
-`draft.created`, `draft.saved_to_mailbox`, `draft.updated`, `draft.discarded`,
-`draft.rejected_placeholder` (warn), `decision.created`, `decision.answered`,
+`sync.started {mailboxId}`, `sync.completed {mailboxId, new}`, `sync.failed` (warn),
+`sync.uidvalidity_changed`, `pipeline.message_processed`, `cv.uploaded`, `cv.skill_dropped` (warn),
+`match.scored`, `rule.applied {ruleId, action}`, `sender.checked {verdict}`,
+`sender.lookup_incomplete` (warn), `draft.created`, `draft.saved_to_mailbox`, `draft.updated`,
+`draft.discarded`, `draft.rejected_placeholder` (warn), `decision.created`, `decision.answered`,
 `assistant.message {threadId}`, `assistant.proposal_created {proposalId, changes}`,
-`assistant.proposal_applied`, `assistant.proposal_discarded`, `profile.change_undone`.
+`assistant.proposal_applied`, `assistant.proposal_discarded`, `profile.change_undone`. Every line
+carries `instance`.
 
 ## End-to-end scenarios
 
+Probes follow the rules in [MVP 1](MVP-1.md#end-to-end-scenarios) (own `curl` session, `Origin`
+header set).
+
 | # | Scenario | Covers |
 | --- | --- | --- |
-| S1 | **CVs** 📸 Maria opens **CVs** → uploads her three CVs → each shows suggested tags (language, role family, seniority) → she adds the tag "preferred" to Backend (EN) → the profile page lists all three. Logs: `cv.uploaded` ×3. | F2.1, F2.2, F2.4 |
-| S2 | **New mail flows in** `seed deliver` the batch of new messages → without reloading, they appear within about 30 seconds with category, facts, sender badge and fit score → mailbox status "Synced just now" → Settings › AI shows today's model calls and tokens. Logs: `sync.completed new=…`, `pipeline.message_processed` per message. | F1.1, F1.2, F1.5 |
-| S3 | **A good match gets a draft in the mailbox** 📸 Open the Berlin role (German, asks for a CV) → labelled "fit score", ≥ 70, with the reasons listed and the matched and missing skills from the CV → CV "Backend (DE)" chosen with its reason → the draft is in German with the CV attached → verification step: `seed inspect drafts maria` shows exactly one draft, threaded to the original, with the attachment, and `seed inspect inbox` shows the test SMTP server received nothing. Logs: `match.scored`, `draft.created`, `draft.saved_to_mailbox`. | F4.1, F4.4, F4.5, F2.3, F6.1–F6.3, F6.6 |
-| S4 | **Edit, discard, draft on demand** Edit the remote-EU draft and save → `seed inspect drafts` shows one draft with the new text → discard another draft → gone from the mailbox → open the data-engineering role (below the threshold, no draft) → **Draft a reply** → a draft using "Data engineering (EN)" → delete that CV → it's gone from the CVs page and the role's CV choice, and `seed inspect drafts` still shows the draft. | F6.4, F6.5, F6.7, F2.3, F2.5 |
-| S5 | **Decisions** 📸 The decision inbox shows "Minimum pay in CHF per year?" waiting on the Zurich role, and "Would you relocate to Ireland?" waiting on the Dublin role → answer CHF with a suggested amount and **Use this answer for similar mail** → within a minute the Zurich role is re-scored, its draft appears and the decision is gone → `seed deliver` the second Zurich role → no new decision; its draft uses the answer. Logs: `decision.created` ×2, `decision.answered`. | F7.1–F7.6, F4.6 |
-| S6 | **Sender check** The scam message is "High risk" with "asks for a fee" and "asks for a passport scan", and has no draft → the free-mail recruiter is "Caution" → mark that sender **Trusted** → it stays trusted after the next sync and the explanation says so. | F5.1–F5.5 |
-| S7 | **Conflicts and policy** The Amsterdam role and the Singapore onsite role are capped at 40 or less, the conflict listed first, no draft → a job alert never gets a draft → the CHF role before the decision shows pay "unknown — different currency". | F4.2, F4.3, F6.1 |
-| S8 | **Assistant: time zones** 📸 Open **Assistant** → type "Lately I don't want jobs in Asian time zones anymore, ignore them" → a "thinking" state, then a proposal card: "Hide roles whose working hours are UTC+5 or later", impact "hides 3 roles" → change the range to UTC+4 → **Apply** → the three Asia-Pacific roles move under **Hidden** with "Hidden by your rule …" → the profile history shows the change (source: assistant) → **Undo** → the roles are back. Logs: `assistant.proposal_created`, `assistant.proposal_applied`, `rule.applied action=hide`, `profile.change_undone`. | F8.1–F8.5, F8.9, F3.1–F3.5 |
-| S9 | **Assistant: unclear and not allowed** Type "stop showing me bad jobs" → a clarifying question with choices → pick one → a proposal → **Discard** → nothing changed. Type "send my reply to the Berlin recruiter" → "I can't send mail" with where drafts are reviewed. Type a message in German → the reply is in German. Type a message containing `E2E-SECRET-chat` → later absent from `app.log`. | F8.1, F8.6, F8.7, F8.10 |
-| S10 | **Roles** Tom as viewer in Maria's workspace sees drafts, decisions and the assistant; editing, answering and **Apply** are disabled. | F6.7, F7.7, F8.8 |
-| S11 | **Resilience** Stop `app-b` during a sync → the sync completes on `app-a` → stop the `imap` service → the mailbox shows "Can't reach the mail server since …" → start it → the status recovers and new mail flows again → `seed reset-uidvalidity maria` → after the next sync every correction, decision and draft is still there. Logs: `sync.failed`, `sync.uidvalidity_changed`. | F1.2–F1.4 |
+| S1 | **CVs** 📸 Maria opens **CVs** → uploads her three CVs with the file picker → each shows suggested tags (language, role family, seniority); "Data engineering (EN)" doesn't list the skill the fake AI invented → she adds the tag "preferred" to Backend (EN) → the profile page lists all three. Tom uploads "Nurse (EN)" in his own workspace. Probe: Maria's session downloading Tom's CV → 404. Logs: `cv.uploaded` ×4, `cv.skill_dropped`. | F2.1, F2.2, F2.4 |
+| S2 | **New mail flows in** `seed deliver` the batch of new messages (except the second Zurich role) → without reloading, they appear within about 30 seconds with category, facts, sender badge and fit score → mailbox status "Synced just now" → Settings › AI shows today's model calls and tokens. Logs: `sync.started`, `sync.completed new=…`, `pipeline.message_processed` per message. | F1.1, F1.2, F1.5, F1.6 |
+| S3 | **A good match gets a draft in the mailbox** 📸 Open the Berlin role (German, asks for a CV) → labelled "fit score", ≥ 70, with the reasons listed and the matched and missing skills from the CV → CV "Backend (DE)" chosen with its reason → the draft is in German with the CV attached → verification step: `seed inspect drafts maria` shows exactly one draft in reply to the Berlin message, threaded, with the attachment; `seed inspect smtp` shows nothing. Logs: `match.scored`, `draft.created`, `draft.saved_to_mailbox`. | F4.1, F4.4, F4.5, F2.3, F6.1–F6.3, F6.6 |
+| S4 | **Edit, discard, draft on demand** The remote-EU draft exists although the fake AI's first attempt had a placeholder (logs `draft.rejected_placeholder`) → edit it and save → `seed inspect drafts maria` shows one draft for that thread with the new text → discard another draft → gone from the mailbox → open the data-engineering role (below the threshold, no draft) → **Draft a reply** → a draft using "Data engineering (EN)" → delete that CV → it's gone from the CVs page and from the role's CV choice, and `seed inspect drafts maria` still shows the draft. | F6.2, F6.4, F6.5, F6.7, F2.3, F2.5 |
+| S5 | **Decisions** 📸 Before answering, the Zurich role shows pay "unknown — different currency" → the decision inbox shows "Minimum pay in CHF per year?" waiting on both the Zurich and the Basel role, and "Would you relocate to Ireland?" waiting on the Dublin role → on the relocation decision press **Not now** (it stays), then **Don't ask for this message** (it closes, no draft) → answer CHF with a suggested amount and **Use this answer for similar mail** → within a minute both roles are re-scored, their drafts appear and the decision is gone → `seed deliver` the second Zurich role → no new decision; its draft uses the answer. Logs: `decision.created` ×2, `decision.answered`. | F7.1–F7.6, F4.3, F4.6 |
+| S6 | **Sender check** Both scams are "High risk" with "asks for a fee" and "asks for a passport scan", and neither has a draft → the free-mail recruiter is "Caution" → mark that sender **Trusted** → it stays trusted after the next sync and the explanation says so. | F5.1–F5.5 |
+| S7 | **Conflicts and policy** The Amsterdam role and the Singapore onsite role are capped at 40 or less, the conflict listed first, no draft → a job alert never gets a draft → a good match from the first scan's backlog older than 14 days has a match but no automatic draft. | F4.2, F6.1, F1.6 |
+| S8 | **Assistant: time zones** 📸 Open **Assistant** → type "Lately I don't want jobs in Asian time zones anymore, ignore them" → a "thinking" state, then a proposal card: "Hide roles whose working hours are UTC+5 or later", impact "hides 3 roles; 1 draft is already in your mailbox and stays there" → change the range to UTC+4 → **Apply** → the three Asia-Pacific roles move under **Hidden** with "Hidden by your rule …", and `seed inspect drafts maria` still shows that draft → the profile history shows the change (source: assistant) → **Undo** → the roles are back. Logs: `assistant.proposal_created`, `assistant.proposal_applied`, `rule.applied action=hide`, `profile.change_undone`. | F8.1–F8.5, F8.9, F3.1–F3.5 |
+| S9 | **Assistant: unclear and not allowed** Type "stop showing me bad jobs" → a clarifying question with choices → pick one → a proposal → **Discard** → nothing changed. Type "send my reply to the Berlin recruiter" → "I can't send mail" with where drafts are reviewed. Type a message in German → the reply is in German. Type a message containing `E2E-CHAT-1` → it later appears in the stored history but not in `app.log`. | F8.1, F8.6, F8.7, F8.10 |
+| S10 | **Roles** Maria sets Tom back to **Viewer** → Tom sees drafts, decisions and the assistant; editing, answering and **Apply** are disabled. Probes: Tom applying a proposal, answering a decision, editing a draft → 403 each. | F6.7, F7.7, F8.8 |
+| S11 | **Resilience** Deliver one message, read the `instance` of the next `sync.started`, and kill that replica → the next sync runs on the other replica and the message arrives; start the killed replica again → `docker compose pause imap` → the mailbox shows "Can't reach the mail server since …" → `docker compose unpause imap` → the status recovers and new mail flows again → `seed reset-uidvalidity maria` → after the next sync every correction, decision and draft is still there. Logs: `job.lease_expired`, `sync.failed`, `sync.uidvalidity_changed`. | F1.2–F1.4 |
 | S12 | **Regression** All MVP 1 specs pass. | — |
 
-**Security probes (curl):** Tom as viewer applying a proposal, answering a decision, editing a
-draft → 403; another workspace's CV download → 404; no `E2E-SECRET-*` or CV text in `app.log` or in
-any API response that shouldn't carry it.
+**Proven outside the walkthrough:** F2.4 by an integration test (uploads never touch the replica's
+disk) plus the read-only root filesystem of the test stack; F8.10 also by the `E2E-CHAT-*` leak
+check.
 
 ## Quality with a real AI provider (sign-off run)
 
 - Every draft is in the language of the incoming message and contains no placeholders.
-- The validator reads ten drafts and checks every statement against the profile and the CV: at
+- The quality run reads ten drafts and checks every statement against the profile and the CV: at
   least nine are fully backed, and no draft invents a skill.
 - CV choice matches `expected.json` for at least 90% of roles.
 - Every hard conflict in the fixtures is detected.
-- The scam is high risk; overall sender verdicts agree with `expected.json` at least 80% of the
+- Both scams are high risk; overall sender verdicts agree with `expected.json` at least 80% of the
   time.
-- Ten scripted assistant requests in English, German and Portuguese: at least nine produce the
-  expected change, and none is applied without **Apply**.
+- The ten requests in `e2e/fixtures/assistant/requests.json`: at least nine produce the expected
+  change, and none is applied without **Apply**.
 
 ## Sign-off
 
