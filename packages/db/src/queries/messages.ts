@@ -234,6 +234,36 @@ export async function countNotAnalyzed(db: Database, workspaceId: string): Promi
 }
 
 /**
+ * What one scan run has done with likely job mail, counted from the rows themselves so a run
+ * taken over by another replica counts what the previous one stored after its last checkpoint:
+ * `analyzed` is every likely job message the run analysed or marked "Couldn't analyze", `jobFound`
+ * those whose category is job mail.
+ */
+export async function countScanAnalysis(
+  db: Database,
+  workspaceId: string,
+  scanId: string,
+): Promise<{ analyzed: number; jobFound: number }> {
+  const [row] = await db
+    .select({
+      analyzed: count(),
+      jobFound: count(
+        sql`case when ${messages.analysisStatus} = 'done' and ${messages.category} <> 'not_job' then 1 end`,
+      ),
+    })
+    .from(messages)
+    .where(
+      and(
+        eq(messages.workspaceId, workspaceId),
+        eq(messages.analyzedByScanId, scanId),
+        inArray(messages.stageOne, ["likely_job", "job_alert"]),
+        ne(messages.analysisStatus, "pending"),
+      ),
+    );
+  return { analyzed: row?.analyzed ?? 0, jobFound: row?.jobFound ?? 0 };
+}
+
+/**
  * Stores the model's analysis of one message: its category (unless a person corrected it, which
  * is kept for good) and its roles, which replace any earlier ones. False for an unknown message.
  */
