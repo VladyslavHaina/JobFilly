@@ -8,8 +8,8 @@ import { apiPaths } from "../../paths";
 
 // Continuous sync in the UI (F1.4, F1.5): the mailbox status in the inbox header ("Synced 2
 // minutes ago", "Can't reach the mail server since 10:42") and the model usage per day in
-// Settings › AI. The status refetches on every mailbox.updated event (the "mailbox" live area) and
-// its wording follows the clock; the usage refetches whenever messages were analysed (the
+// Settings › AI. The status refetches on every mailbox.updated event (the "mailbox" live area)
+// and its wording follows the clock; the usage refetches whenever messages were analysed (the
 // "messages" area), which is when the sync and the scans call the model.
 
 const MINUTE = 60_000;
@@ -52,7 +52,7 @@ function sinceText(iso: string, now: Date): string {
 /** The status line of one mailbox, and a detail when the reason isn't the server being away. */
 function statusText(sync: MailboxSyncStatus, now: Date): { line: string; detail: string | null } {
   if (sync.state === "failing" && sync.failingSince) {
-    const away = sync.message === null || sync.message === "Couldn't reach the mail server";
+    const away = sync.reason === null || sync.reason === "unreachable";
     return {
       line: `Can't reach the mail server since ${sinceText(sync.failingSince, now)}`,
       detail: away ? null : sync.message,

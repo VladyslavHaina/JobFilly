@@ -100,6 +100,8 @@ describe("MailboxStatus (F1.4)", () => {
     const status = await screen.findByRole("status");
     expect(await within(status).findByText("Can't reach the mail server since 10:42")).toBeTruthy();
     expect(within(status).getByText("It's tried again on its own.")).toBeTruthy();
+    // The server being away needs no detail, whatever its words.
+    expect(within(status).queryByText("Couldn't reach the mail server")).toBeNull();
   });
 
   it("names a reason the user can act on, like a refused password", async () => {
