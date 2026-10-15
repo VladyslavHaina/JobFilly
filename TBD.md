@@ -1477,3 +1477,165 @@ These make sign-off possible; without them the build goes on and records an open
 - **If you decide otherwise:** Keeping streams open on errors would leave the original leak open whenever the database misbehaves.
 - **Refs:** apps/server/src/live/routes.ts, apps/server/src/live/hub.ts revoke()
 - **Status:** open
+
+## TBD-118 · Fixture-based proofs wait one round; intake and scan drop their merges of mvp-1-e2e-fixtures
+- **Kind:** decision
+- **Where:** MVP 1 · Fix round 2
+- **Context:** TBD-94 allowed the intake and scan fix tasks to merge the unmerged mvp-1-e2e-fixtures for read-only fixture data. Verification rejected both branches for exactly that ([scope] findings on 8bd9b4e and bbb36f4): it carries an unverified slice into mvp-1 and makes fix tasks share paths. The F6.6 fixtures test, the scan's F4.2/F4.5 persona proofs and the confident-stop test all need e2e/fixtures in mvp-1, which only the e2e-fixtures task can deliver this round.
+- **Options:**
+  1. Keep the sibling merges (as TBD-94 chose) and accept the scope findings
+  2. Copy the fixtures into each branch
+  3. Rebuild intake and scan without the merge, land e2e-fixtures this round, and add the fixture-based proofs in the next round
+- **Chosen:** Option 3. intake-live continues from mvp-1-intake-profile (no merge). The scan task rebases its own commits without bbb36f4 and leaves apps/server/src/jobs/scan/fixtures.test.ts out (it stays in mvp-1-fix-r1-scan's history). packages/core/src/intake/fixtures.test.ts, the scan fixtures test and confidence-stop.test.ts are listed as notDone for round 3. This reverses TBD-94's choice. It keeps each slice's work verifiable on its own and stops unverified work from reaching mvp-1 through another branch, as the verifiers and TBD-87 require. It also gives fixture data one owner and no copies. The next validation run with the fake AI still checks F6.6, F4.2 and F4.5 end to end, as soon as the stack starts.
+- **If you decide otherwise:** If the owner prefers the proofs now, merge mvp-1-fix-r2-e2e-fixtures into the intake and scan branches after it passes verification, and add the tests there. The integrator then has to merge e2e-fixtures first.
+- **Refs:** F6.6, F4.2, F4.5, TBD-31, TBD-87, TBD-94; branches mvp-1-fix-r1-intake-profile (8bd9b4e), mvp-1-fix-r1-scan (bbb36f4), mvp-1-e2e-fixtures (1843f88)
+- **Status:** open
+
+## TBD-119 · Intake-profile and live-access fixes share one task, because both must edit docs/ARCHITECTURE.md
+- **Kind:** decision
+- **Where:** MVP 1 · Fix round 2
+- **Context:** Three fixes this round must change docs/ARCHITECTURE.md: intake (the intake.v1 shutdown behaviour and the 102-column line), live-access (a new NOTIFY message kind and session-bound streams) and e2e-fixtures (the new coupling from apps/server/src/e2e-fixtures.test.ts). The triage rule forbids two tasks sharing a path.
+- **Options:**
+  1. Give ARCHITECTURE to one task and let the others fail verification on the docs rule again
+  2. Combine intake and live-access into one task that owns ARCHITECTURE, and make the e2e fix one that needs no ARCHITECTURE change
+  3. Let several tasks edit different sections of ARCHITECTURE in parallel
+- **Chosen:** Option 2. Task intake-live continues mvp-1-intake-profile, cherry-picks the two live-access commits (327b8bd, bb7a842), fixes both sets of findings and owns docs/ARCHITECTURE.md. The e2e-fixtures task removes apps/server/src/e2e-fixtures.test.ts instead of documenting it (see the next decision). Both server fixes can then land this round with their docs, and the no-shared-path rule holds. Live-access is two small commits that touch only live/, auth/session.ts, routes/workspaces.ts and the events schema, so folding them in barely grows the task.
+- **If you decide otherwise:** Split mvp-1-fix-r2-intake-live back into two branches (the live-access commits are separable) and give ARCHITECTURE to one of them per round.
+- **Refs:** docs/ARCHITECTURE.md; mvp-1-fix-r1-live-access (327b8bd, bb7a842); mvp-1-intake-profile (de9cac6); CLAUDE.md 'Update ARCHITECTURE when you change a boundary'
+- **Status:** open
+
+## TBD-120 · The server-side schema check of the persona fixtures is removed now and comes back next round in packages/schema
+- **Kind:** decision
+- **Where:** MVP 1 · Fix round 2
+- **Context:** apps/server/src/e2e-fixtures.test.ts reads e2e/fixtures/{maria,tom,ai} and validates them against the real schemas. That is a cross-boundary coupling ARCHITECTURE doesn't document, and it sits in the wrong project. Documenting it needs docs/ARCHITECTURE.md, which belongs to intake-live this round. The e2e-fixtures branch must pass verification this round, or the stack still can't start.
+- **Options:**
+  1. Move the test to packages/schema and edit ARCHITECTURE (conflicts with intake-live)
+  2. Remove the test from the e2e branch now and re-add it in packages/schema next round, with the other fixture-based proofs and one ARCHITECTURE sentence
+- **Chosen:** Remove it now and re-add it as a packages/schema test next to wire.test.ts in round 3. The same ARCHITECTURE sentence will then cover every package test that reads persona fixtures (schema, F6.6 intake, F4.2/F4.5 scan). Unblocking the test stack matters most, since every validation criterion waits on it. The test was passing, not failing, and removing it removes the undocumented coupling. Until it returns, the fixtures are still checked inside e2e (consistency, build and compare tests), and in the live stack packages/ai validates the fake AI's answers.
+- **If you decide otherwise:** Give docs/ARCHITECTURE.md to the e2e-fixtures task, move the test to packages/schema/src now, and defer the intake shutdown and live-access ARCHITECTURE updates one round.
+- **Refs:** apps/server/src/e2e-fixtures.test.ts; packages/schema/src/wire.test.ts; docs/ARCHITECTURE.md e2e/ bullet
+- **Status:** open
+
+## TBD-121 · One helper opens the AI key; connect and scan switch to it after integration
+- **Kind:** decision
+- **Where:** MVP 1 · Fix round 2
+- **Context:** intake, connect (routes/ai.ts `|| null`) and scan (jobs/scan/index.ts openSecret) each open the sealed AI key their own way. Intake passes "" through where the others pass null. The three live on separate unmerged branches with disjoint paths this round.
+- **Options:**
+  1. Fix intake only, with a shared openAiKey helper in apps/server/src/secrets.ts, and switch connect and scan to it after integration
+  2. Make all three use it now (they would share paths across tasks)
+- **Chosen:** intake-live adds openAiKey(secretKey, sealed) to apps/server/src/secrets.ts ("" becomes null) and uses it. After integration, connect's routes/ai.ts and scan's jobs/scan/index.ts should switch to it in a later round. It fixes the behaviour that is wrong (intake) now and keeps fix tasks disjoint. The other two already behave correctly.
+- **If you decide otherwise:** Add the switch-over to the next fix round's server task, or let the integrator do it during the merge.
+- **Refs:** apps/server/src/routes/intake.ts:127; mvp-1-fix-r1-connect:apps/server/src/routes/ai.ts:57; mvp-1-fix-r1-scan:apps/server/src/jobs/scan/index.ts:41-45
+- **Status:** open
+
+## TBD-122 · No code task for the report.md the harness refused to write, or for the validation-only checks
+- **Kind:** decision
+- **Where:** MVP 1 · Fix round 2
+- **Context:** The close step could not write e2e/reports/mvp-1/<run>/report.md: the harness refuses report files from subagents ('Subagents should return findings as text'). The probes S1-S10, leak-app-log, leak-pg-dump, the per-scenario log checks and every 'no passing evidence' item failed only because the stack never started.
+- **Options:**
+  1. Change the workflow script so the orchestrator writes report.md from the close result
+  2. Treat the close result as the run's report and leave the workflow unchanged
+  3. Give these items to a code task
+- **Chosen:** No code task. The report-file refusal is a harness limitation, not a repo defect: for now the run's report is the close step's structured result. The validation-only items are listed in the e2e-fixtures task for context only, and the next full validation run re-checks them. A fix agent can't change harness behaviour, and editing the workflow scripts is not a build fix task. Putting validation-only checks in a hermetic fix task would fail verification, because they can only be shown on a running stack.
+- **If you decide otherwise:** The owner can let the close step write report.md, or have build-mvp.js write it from the CLOSE result, so the run folder holds a report again.
+- **Refs:** e2e/reports/mvp-1/20261015T100402Z-r1-walkthrough/; .claude/workflows/build-mvp.js close step; docs/mvp/README.md 'Fix rounds'
+- **Status:** open
+
+## TBD-123 · Where mvp-1 is merged into the rebuilt scan branch
+- **Kind:** decision
+- **Where:** MVP 1 · Fix round 2 (scan)
+- **Context:** The task allowed either replaying all scan commits linearly onto mvp-1, or replaying onto mvp-1-scan and then merging mvp-1. The later commits (eb42dd7, especially its app.test.ts edit) were written on top of the merged state.
+- **Options:**
+  1. Linear replay of every commit onto mvp-1
+  2. Replay onto mvp-1-scan, merge mvp-1 after the worker commit as 46aa985 did, then replay the HTTP and web commits
+- **Chosen:** Replay onto mvp-1-scan, merge mvp-1 after 4092f70's replay, then cherry-pick eb42dd7, 0080bf7 and 167e55f. It keeps the original history, so each later commit applies to the same tree it was written against. Every step applied without conflicts, and app.test.ts got only the change eb42dd7 already had.
+- **If you decide otherwise:** A linear rebase onto mvp-1 would give the same final tree with a different history. Anyone who prefers that can rebase the branch without changing the content.
+- **Refs:** 825716a (merge), 46aa985 (original merge), bbb36f4 (dropped sibling merge)
+- **Status:** open
+
+## TBD-124 · How the scan-window test proves the page follows the constant
+- **Kind:** decision
+- **Where:** MVP 1 · Fix round 2 (scan)
+- **Context:** A test that checks for the text `last ${SCAN_WINDOW_DAYS} days` passes against the hard-coded '90 days' as long as the constant stays 90, so it would not catch the drift. Root vitest config says PGlite projects should avoid vi.mock; the web project is isolated and does not use PGlite.
+- **Options:**
+  1. Assert text built from the real constant
+  2. Mock @jobfilly/schema for the whole file
+  3. vi.doMock in one test with fresh imports of the page and its test helpers
+- **Chosen:** vi.doMock in one test: SCAN_WINDOW_DAYS becomes 37, the page and components/testing are imported fresh, and the mock is undone in finally. It fails against the old hard-coded text (I checked) and leaves the other tests on the real schema.
+- **If you decide otherwise:** A file-wide mock would change the constant for every test in scan.test.tsx; asserting against the real constant would not catch the hard-coding.
+- **Refs:** apps/web/src/pages/scan/scan.test.tsx, apps/web/src/pages/scan/index.tsx, packages/schema/src/scan.ts:89
+- **Status:** open
+
+## TBD-125 · Which file is the single source of persona names and addresses
+- **Kind:** decision
+- **Where:** MVP 1 · Fix round 2 (e2e-fixtures)
+- **Context:** The persona list and addresses were copied in fixtures/format.ts, stack.ts and seed/accounts.ts, and no test checked that the copies agreed. The task allowed either direction.
+- **Options:**
+  1. fixtures/format.ts holds PERSONAS and PERSONA_ADDRESSES; seed/accounts.ts and stack.ts derive from it
+  2. seed/accounts.ts holds the accounts; format.ts builds PERSONA_ADDRESSES from ACCOUNTS[p].user
+- **Chosen:** fixtures/format.ts is the source. ACCOUNTS is built from PERSONAS and PERSONA_ADDRESSES, with passwords E2E-SECRET-<persona>-imap, and is typed Record<Persona, Account>. format.ts already describes every fixture file, and the generator writes the persona addresses into the .eml headers. With imports running one way only (seed and stack import fixtures), there is no import cycle. Adding a persona now fails typecheck until every Record<Persona, …> is filled in, and stack.test.ts fails until compose's GreenMail users include it.
+- **If you decide otherwise:** Make accounts.ts the source and have format.ts import ACCOUNTS. format.ts and the generator would then depend on seed/.
+- **Refs:** e2e/fixtures/format.ts, e2e/seed/accounts.ts, e2e/stack.ts, e2e/seed/main.ts
+- **Status:** open
+
+## TBD-126 · How to show the seed entry point works without Docker or a real mailbox
+- **Kind:** decision
+- **Where:** MVP 1 · Fix round 2 (e2e-fixtures)
+- **Context:** Running seed/main.ts against real fixtures needs an IMAP server. Tests must be hermetic and must never start the Docker stack.
+- **Options:**
+  1. Spawn seed/main.ts against a loopback IMAP stand-in that refuses LOGIN, recording the user name
+  2. Implement enough IMAP in the stand-in to accept the full load (LIST, STATUS, APPEND)
+  3. Only test loadPersona in-process (already done in load.test.ts)
+- **Chosen:** A loopback stand-in that greets the client, answers CAPABILITY and refuses LOGIN. The test expects the seed to exit 1 with 'refused the login' and to have logged in with the persona's account. loadPersona reads and checks every fixture before it connects, and load.test.ts tests that. So reaching LOGIN proves the real entry point, run with compose's arguments, environment and working directory, resolved every fixture. A full IMAP fake would be large and fragile, and the in-process load test already checks how messages are appended.
+- **If you decide otherwise:** A fuller IMAP fake would also exercise APPEND through imapflow, at the cost of a lot of protocol code in e2e.
+- **Refs:** e2e/seed/main.test.ts, e2e/seed/load.test.ts
+- **Status:** open
+
+## TBD-127 · How the abandoned intake.v1 claim is released
+- **Kind:** decision
+- **Where:** MVP 1 · Fix round 2 (intake-live)
+- **Context:** The task asks to release the claim by setting claimed_at to null. packages/db has no function that does that, and packages/db is outside this task's paths. The no-shared-paths rule for this round and the rule that workspace data goes only through packages/db rule out both editing it and writing raw SQL.
+- **Options:**
+  1. Add releaseIntakeExtras to packages/db (outside the allowed paths)
+  2. Raw SQL in the server (against the workspace-scoping rule)
+  3. Backdate the claim to the epoch through the existing takeOverIntakeExtras, guarded to this claim
+- **Chosen:** releaseClaim in routes/intake.ts calls takeOverIntakeExtras with at = new Date(0) and staleBefore = claim.at + 1 ms. A claim dated at the epoch is stale for every caller, so the next GET /intake on any replica takes it over at once, as a null claimed_at would. The cut-off releases only this claim: a later takeover, or an outcome already stored, is left alone. The intake.test.ts test shows another replica taking over with no time passing and Confirm then returning 201.
+- **If you decide otherwise:** Add releaseIntakeExtras(db, workspaceId, claim) to packages/db. It would set claimed_at to null where status is pending and the claim matches, and releaseClaim would call it. That is a one-line swap, and the route's existing claimedAt === null branch already takes such a claim over.
+- **Refs:** apps/server/src/routes/intake.ts (releaseClaim, askForExtras); packages/db/src/queries/profiles.ts (takeOverIntakeExtras)
+- **Status:** open
+
+## TBD-128 · The abort stops waiting for the model but does not cancel the request
+- **Kind:** decision
+- **Where:** MVP 1 · Fix round 2 (intake-live)
+- **Context:** The task asks to abort the running call with an AbortSignal. packages/ai's CallOptions has no signal field, and packages/ai is outside this task's paths.
+- **Options:**
+  1. Add signal to packages/ai CallOptions (outside the allowed paths)
+  2. Race the call against the signal in the server and ignore its later answer
+- **Chosen:** askForExtras checks signal.throwIfAborted() before the call, and races client.intake against the signal (untilAborted). Once aborted, the answer is never used and the claim is released. Shutdown can't be held up by a slow provider, and the claim is free for another replica right away. The leftover HTTP request ends when the process exits a moment later.
+- **If you decide otherwise:** Once packages/ai accepts CallOptions.signal, pass the same signal to client.intake so the provider request is cancelled too.
+- **Refs:** apps/server/src/routes/intake.ts (untilAborted); packages/ai/src/index.ts (CallOptions)
+- **Status:** open
+
+## TBD-129 · Connect and scan switch to openAiKey after integration
+- **Kind:** decision
+- **Where:** MVP 1 · Fix round 2 (intake-live)
+- **Context:** routes/ai.ts and jobs/scan/index.ts already map a sealed "" to null their own way. Their files are outside this task's paths.
+- **Options:**
+  1. Edit them now (outside the allowed paths)
+  2. Leave them; switch them after integration
+- **Chosen:** Only routes/intake.ts uses openAiKey on this branch. The task says so, and no two tasks this round may share a path.
+- **If you decide otherwise:** After integration, replace the `|| null` in routes/ai.ts:57 and openSecret in jobs/scan/index.ts with openAiKey(deps.config.secretKey, sealed).
+- **Refs:** apps/server/src/secrets.ts (openAiKey)
+- **Status:** open
+
+## TBD-130 · Minimum pay amounts are read in the UI's English locale
+- **Kind:** decision
+- **Where:** MVP 1 · Fix round 2 (intake-live)
+- **Context:** The parser must use the same locale the inbox formats in. That is UI_LOCALE = "en", so dot decimals and comma groups. Users who write '70.000' or '450,50' will see 'Retype the amount, written like 1,234.50' instead of a silently wrong number.
+- **Options:**
+  1. Read with the browser's locale (navigator.language)
+  2. Read with the inbox's UI_LOCALE
+- **Chosen:** parseAmount defaults to UI_LOCALE. Spaces are read as digit grouping in any locale, and only 3-digit groups are accepted. Amounts are then read in the same notation they are shown in, and nothing locale-specific is hard-coded. The separators come from Intl, and anything ambiguous is refused, never guessed.
+- **If you decide otherwise:** If the UI gains a user locale, pass it to both formatPay and parseAmount. The tests already cover a comma-decimal locale (de).
+- **Refs:** apps/web/src/pages/inbox/format.ts (parseAmount); apps/web/src/pages/intake/answers.tsx (MinPayEditor)
+- **Status:** open
