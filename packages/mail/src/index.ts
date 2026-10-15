@@ -4,6 +4,7 @@ import type {
   MailFolder,
   MailPreset,
   MailTestResult,
+  MessageRef,
 } from "@jobfilly/schema";
 
 // Mail access: IMAP (imapflow) and parsing (mailparser). Nothing in this package sends mail on
@@ -16,13 +17,6 @@ export const MAIL_PRESETS: readonly MailPreset[] = [];
 export interface MailClientOptions {
   /** Plain-text IMAP is refused unless JOBFILLY_ALLOW_INSECURE_MAIL=true (F2.4). */
   allowInsecure: boolean;
-}
-
-/** Where one message lives in the mailbox, to fetch its body on demand. */
-export interface MessageRef {
-  folderPath: string;
-  uidValidity: number;
-  uid: number;
 }
 
 export interface MailClient {
