@@ -250,11 +250,18 @@ Rules:
 
 ### The assistant
 
-- Each member has their own threads (`assistant_threads.user_id`); every read takes the user id
-  as well as the workspace id, and another member's thread or proposal answers 404.
-- A message gets one assistant.v1 call (`apps/server/src/assistant/service.ts`). A proposal is
-  kept only when it is a list of rule and entry Changes that apply to the profile, and with a
-  clarifying question no proposal is kept; otherwise the reply says why nothing was proposed.
+- Each member has their own threads (`assistant_threads.user_id`). Only the thread lookups
+  (`getLatestThread`, `getThread`) take the user id as well as the workspace id; the reads by
+  thread or proposal id (`listThreadMessages`, `listThreadProposals`, `nextTurn`, `getProposal`)
+  take only the workspace id, so the server calls them with a thread it got from a lookup, or
+  checks the proposal's member (`ownProposal`) before acting. Another member's thread or proposal
+  answers 404.
+- A message gets one assistant.v1 call (`apps/server/src/assistant/service.ts`). packages/ai asks
+  the provider for `AssistantOutputSchema` but checks the answer against `AssistantAnswerSchema`,
+  which also lets through changes outside rules and entries, so the server can refuse such a
+  proposal in words with the reply kept (F8.7). A proposal is kept only when it is a list of rule
+  and entry Changes that apply to the profile, and with a clarifying question no proposal is
+  kept; otherwise the reply says why nothing was proposed.
   Its card is stored with its impact preview and worded from its before and after
   (`changeLines`, packages/core).
 - The impact preview (`previewImpact`, packages/core) runs `applyChanges`, the rules engine, the

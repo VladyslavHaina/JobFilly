@@ -12,8 +12,11 @@ import { assistantMessages, assistantProposals, assistantThreads, matchAiAnswers
 
 // The assistant's storage (F8): each member's threads, their messages and the proposals in them.
 // Messages and proposals are stored for the history and never logged (F8.10). A thread belongs to
-// one member: every read takes the member's user id as well as the workspace id, so nobody reads
-// another member's conversation. Proposals change status only while open (Apply or Discard, once).
+// one member: the thread lookups (getLatestThread, getThread) take the member's user id as well as
+// the workspace id. The reads by thread or proposal id (listThreadMessages, listThreadProposals,
+// nextTurn, getProposal) take only the workspace id: call them with a thread from a lookup, or
+// check the proposal's userId before acting, so nobody reads another member's conversation.
+// Proposals change status only while open (Apply or Discard, once).
 
 /** A stored message of a thread. `turn` is shared by the user's message and the reply to it. */
 export interface StoredAssistantMessage {
