@@ -393,6 +393,39 @@ describe("the inbox of MVP 2: fit, sender, drafts and the Hidden filter (F3.4)",
     });
   });
 
+  it("gives each row only its own message's fit, sender, draft and hidden reason", async () => {
+    await seedMix();
+    const reason = "Hidden by your rule";
+    await saveEvaluation(conn.db, ws, id(3), evaluated(0, { score: 90, hidden: reason }), at);
+    await saveEvaluation(conn.db, ws, id(3), evaluated(1, { score: 80, hidden: reason }), at);
+    for (const [n, verdict] of [
+      [3, "caution"],
+      [2, "high_risk"],
+    ] as const) {
+      await saveSenderCheck(
+        conn.db,
+        ws,
+        id(n),
+        { verdict, complete: true, reasons: [], mark: null },
+        at,
+      );
+    }
+    await claimDraft(conn.db, ws, { messageId: id(3), position: 1 }, { origin: "auto", now: at });
+    const shown = await listInbox(conn.db, ws);
+    expect(
+      shown.items.map((m) => [m.id, m.fit, m.sender?.verdict ?? null, m.hidden, m.draft]),
+    ).toEqual([
+      [id(8), null, null, null, null],
+      [id(5), null, null, null, null],
+      [id(2), null, "high_risk", null, null],
+    ]);
+    const hidden = await listInbox(conn.db, ws, { hidden: true });
+    expect(hidden.items.map((m) => [m.id, m.fit?.score, m.sender?.verdict, m.hidden])).toEqual([
+      [id(3), 90, "caution", { reason }],
+    ]);
+    expect((await getInboxMessage(conn.db, ws, id(2)))?.fit).toBeNull();
+  });
+
   it("lists a message whose roles are all hidden only under the Hidden filter, with the reason", async () => {
     await seedMix();
     const reason = "Hidden by your rule: hours outside UTC−1 to UTC+3";

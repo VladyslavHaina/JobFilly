@@ -184,6 +184,57 @@ describe("rules", () => {
     });
   });
 
+  it("stores a rule given no description with its plain words (F3.1)", () => {
+    const outsideEu: RuleDraft = {
+      description: "  ",
+      when: [{ fact: "timeZones", op: "outside", value: { from: "UTC-01:00", to: "UTC+03:00" } }],
+      then: "hide",
+      enabled: true,
+    };
+    const added = applyChanges(maria, [{ op: "add", target: "rule", rule: outsideEu }], ctx());
+    expect(added.ok && added.rules[0]?.description).toBe(
+      "Hide roles whose hours are outside UTC−1 to UTC+3",
+    );
+  });
+
+  it("rewords a rule whose conditions change under its old description, and keeps a new one", () => {
+    const added = applyChanges(maria, [{ op: "add", target: "rule", rule }], ctx("assistant"));
+    if (!added.ok) throw new Error("expected ok");
+    const state = { entries: added.entries, rules: added.rules };
+    const id = added.rules[0]?.id ?? "";
+    const plus4 = {
+      ...rule,
+      when: [
+        {
+          fact: "timeZones" as const,
+          op: "within" as const,
+          value: { from: "UTC+04:00", to: "UTC+14:00" },
+        },
+      ],
+    };
+    const stale = applyChanges(
+      state,
+      [{ op: "update", target: "rule", ruleId: id, rule: plus4 }],
+      ctx("you"),
+    );
+    expect(stale.ok && stale.rules[0]?.description).toBe(
+      "Hide roles whose hours are within UTC+4 to UTC+14",
+    );
+    const reworded = applyChanges(
+      state,
+      [
+        {
+          op: "update",
+          target: "rule",
+          ruleId: id,
+          rule: { ...plus4, description: "Hide roles on UTC+4 or later" },
+        },
+      ],
+      ctx("you"),
+    );
+    expect(reworded.ok && reworded.rules[0]?.description).toBe("Hide roles on UTC+4 or later");
+  });
+
   it("restores a snapshot with the changes Undo applies", () => {
     const changes: Change[] = [
       { op: "add", target: "rule", rule },

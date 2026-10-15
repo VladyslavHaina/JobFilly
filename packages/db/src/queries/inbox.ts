@@ -46,6 +46,12 @@ export interface InboxListQuery {
   hidden?: boolean;
 }
 
+// In a select list drizzle writes the columns of a query's single table without the table's name,
+// so `${messages.workspaceId}` inside a subquery there would name the subquery's own column and
+// match every row of the workspace. The subqueries below name the outer row in full.
+const outerWorkspaceId = sql.raw(`"messages"."workspace_id"`);
+const outerMessageId = sql.raw(`"messages"."message_id"`);
+
 const listColumns = {
   messageId: messages.messageId,
   fromAddress: messages.fromAddress,
@@ -58,22 +64,22 @@ const listColumns = {
   fit: sql<{ score: number; capped: boolean; stale: boolean } | null>`(
     select json_build_object('score', e.score, 'capped', e.capped, 'stale', e.stale)
     from role_evaluations e
-    where e.workspace_id = ${messages.workspaceId} and e.message_id = ${messages.messageId}
+    where e.workspace_id = ${outerWorkspaceId} and e.message_id = ${outerMessageId}
       and e.score is not null
     order by (e.hidden_rule_id is null) desc, e.score desc, e.position
     limit 1)`,
   sender: sql<{ verdict: SenderVerdict; complete: boolean } | null>`(
     select json_build_object('verdict', sc.verdict, 'complete', sc.complete)
     from sender_checks sc
-    where sc.workspace_id = ${messages.workspaceId} and sc.message_id = ${messages.messageId})`,
+    where sc.workspace_id = ${outerWorkspaceId} and sc.message_id = ${outerMessageId})`,
   hiddenReason: sql<string | null>`(
     select e.hidden_reason from role_evaluations e
-    where e.workspace_id = ${messages.workspaceId} and e.message_id = ${messages.messageId}
+    where e.workspace_id = ${outerWorkspaceId} and e.message_id = ${outerMessageId}
       and e.hidden_rule_id is not null
     order by e.position limit 1)`,
   draft: sql<{ status: DraftStatus } | null>`(
     select json_build_object('status', d.status) from drafts d
-    where d.workspace_id = ${messages.workspaceId} and d.message_id = ${messages.messageId}
+    where d.workspace_id = ${outerWorkspaceId} and d.message_id = ${outerMessageId}
       and d.status <> 'discarded'
     order by d.updated_at desc limit 1)`,
 };
@@ -81,12 +87,12 @@ const listColumns = {
 /** Every role of the message is evaluated and hidden by a rule (it has at least one). */
 const allHidden = sql`(exists (
     select 1 from roles r
-    where r.workspace_id = ${messages.workspaceId} and r.message_id = ${messages.messageId})
+    where r.workspace_id = ${outerWorkspaceId} and r.message_id = ${outerMessageId})
   and not exists (
     select 1 from roles r
     left join role_evaluations e on e.workspace_id = r.workspace_id
       and e.message_id = r.message_id and e.position = r.position
-    where r.workspace_id = ${messages.workspaceId} and r.message_id = ${messages.messageId}
+    where r.workspace_id = ${outerWorkspaceId} and r.message_id = ${outerMessageId}
       and (e.id is null or e.hidden_rule_id is null)))`;
 
 interface ListRow {

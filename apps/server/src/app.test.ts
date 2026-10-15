@@ -126,9 +126,10 @@ describe("the workspace route modules", () => {
     ["DELETE", `cvs/${ID}`, "editor", 501],
     ["GET", `cvs/${ID}/file`, "viewer", 501],
     ["PUT", "senders/marks", "editor", 501],
-    ["GET", `profiles/${ID}/rules`, "viewer", 501],
-    ["PATCH", `profiles/${ID}/rules/${ID}`, "editor", 501],
-    ["DELETE", `profiles/${ID}/rules/${ID}`, "editor", 501],
+    // A profile's rules: no such profile, an empty switch, no such rule.
+    ["GET", `profiles/${ID}/rules`, "viewer", 404],
+    ["PATCH", `profiles/${ID}/rules/${ID}`, "editor", 400],
+    ["DELETE", `profiles/${ID}/rules/${ID}`, "editor", 404],
     ["GET", `profiles/${ID}/history`, "viewer", 501],
     ["POST", `profiles/${ID}/history/${ID}/undo`, "editor", 501],
     ["GET", "drafts", "viewer", 501],
