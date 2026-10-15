@@ -2,17 +2,31 @@ import { randomUUID } from "node:crypto";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { routePath } from "hono/route";
-import type { AppEnv } from "./access/env";
+import type { AppEnv, WorkspaceEnv } from "./access/env";
+import { workspaceMember } from "./access/membership";
+import { originCheck } from "./access/origin";
+import { requireUser, sessionMiddleware } from "./auth/session";
 import type { AppDeps } from "./deps";
+import { eventsRoutes } from "./live/routes";
+import { authRoutes } from "./routes/auth";
 import { healthRoutes } from "./routes/health";
+import { invitesRoutes } from "./routes/invites";
+import { membersRoutes, workspaceInvitesRoutes, workspacesRoutes } from "./routes/workspaces";
+
+/** A workspace route module: mounted once at /api/workspaces/:workspaceId/<name>. */
+export type WorkspaceRoutes = (deps: AppDeps) => Hono<WorkspaceEnv>;
 
 // The HTTP API. The Node server and the tests mount this same app.
+//
+// Every /api request passes, in order: the request context (id, logger, http.request line), the
+// Origin check for state-changing methods, and the session. Everything under
+// /api/workspaces/:workspaceId/ also needs a signed-in member of that workspace (else 404). Roles
+// are not applied here: each route module calls requireRole on its own handlers (else 403).
 export function createApp(deps: AppDeps) {
   const app = new Hono<AppEnv>();
 
-  // Every request gets an id and one http.request line with the route pattern (never the path,
-  // which can hold a Message-ID). API answers are never cached, so Back after sign-out shows
-  // nothing.
+  // http.request carries the route pattern, never the path (which can hold a Message-ID). API
+  // answers are never cached, so Back after sign-out shows nothing.
   app.use("/api/*", async (c, next) => {
     const started = performance.now();
     const requestId = randomUUID();
@@ -35,6 +49,8 @@ export function createApp(deps: AppDeps) {
       ...(workspaceId ? { workspaceId } : {}),
     });
   });
+  app.use("/api/*", originCheck(deps.config.origin));
+  app.use("/api/*", sessionMiddleware(deps));
 
   app.onError((error, c) => {
     if (error instanceof HTTPException) return error.getResponse();
@@ -43,6 +59,17 @@ export function createApp(deps: AppDeps) {
   });
 
   app.route("/api/health", healthRoutes(deps));
+  app.route("/api/auth", authRoutes(deps));
+  app.route("/api/invites", invitesRoutes(deps));
+  app.route("/api/workspaces", workspacesRoutes(deps));
+
+  const workspace = app.basePath("/api/workspaces/:workspaceId");
+  workspace.use("/*", requireUser, workspaceMember(deps));
+  const mount = (name: string, routes: WorkspaceRoutes) =>
+    workspace.route(`/${name}`, routes(deps));
+  mount("members", membersRoutes);
+  mount("invites", workspaceInvitesRoutes);
+  mount("events", (d) => eventsRoutes(d));
 
   app.all("/api/*", (c) => c.json({ error: "not_found" }, 404));
   return app;
