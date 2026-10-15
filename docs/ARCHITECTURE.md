@@ -175,10 +175,11 @@ Rules:
   input); each stage's body lives in its own file and slice (`sender.ts` and `cv-choice.ts`:
   cvs-senders, `match.ts`: rules-match, `reply.ts`: replies).
 - The sender stage runs only when the sender check is missing (new mail, the backlog) or stale (a
-  sender mark changed, or its failed domain lookup has expired). It is the only stage that reads the mail body (`ctx.body()`, fetched once,
-  never stored). A re-evaluation after a profile, rule, decision or CV change passes the stored
-  check on, so re-scoring never touches the mailbox and works while it is down. A failed sender
-  stage leaves the check missing for a later sweep; the reply waits for it.
+  sender mark changed, or its failed domain lookup has expired). It is the only stage that reads the
+  mail body (`ctx.body()`, fetched once, never stored). A re-evaluation after a profile, rule,
+  decision or CV change passes the stored check on, so re-scoring never touches the mailbox and
+  works while it is down. A failed sender stage leaves the check missing for a later sweep; the
+  reply waits for it.
 - A message no longer in the mailbox under its stored reference (`fetchBody` returns null, and
   `ctx.body()` throws `MessageGoneError`) gets an incomplete check, never better than caution,
   with the `message_gone` reason, so it leaves the work list instead of being fetched on every
