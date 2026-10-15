@@ -1,5 +1,5 @@
 import type { SenderCheck } from "@jobfilly/schema";
-import { cleanup, screen, waitFor } from "@testing-library/react";
+import { cleanup, configure, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
@@ -11,6 +11,8 @@ import {
 import { SenderBadge, SenderPanel } from "./index";
 
 // The sender badge on inbox rows and the sender panel in the message detail (F5.1–F5.4).
+// A mark is a round trip to the fake API; waits get more than the default on a busy machine.
+configure({ asyncUtilTimeout: 4000 });
 
 const ws = testWorkspace();
 const marksUrl = `/api/workspaces/${ws.id}/senders/marks`;

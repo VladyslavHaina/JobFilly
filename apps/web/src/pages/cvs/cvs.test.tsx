@@ -1,5 +1,5 @@
 import type { Cv, CvChoice as CvChoiceValue } from "@jobfilly/schema";
-import { cleanup, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, configure, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
@@ -14,6 +14,8 @@ import { CvsPage } from "./CvsPage";
 import { ProfileCvPrompt } from "./ProfileCvPrompt";
 
 // The CVs page (F2.1), a role's CV choice (F2.3) and the profile's CV prompt, against a fake API.
+// An upload is two round trips (the upload, then the list), so waits get more than the default.
+configure({ asyncUtilTimeout: 4000 });
 
 const ws = testWorkspace();
 const url = `/api/workspaces/${ws.id}/cvs`;
@@ -83,10 +85,7 @@ describe("the CVs page (F2.1)", () => {
       type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     });
     await userEvent.upload(screen.getByLabelText("Upload CVs"), file);
-    // The upload, then the list's refetch: two round trips, so a little more time than default.
-    expect(
-      await screen.findByRole("heading", { name: "Backend (DE)" }, { timeout: 4000 }),
-    ).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "Backend (DE)" })).toBeTruthy();
     expect(seen.filter((r) => r.method === "POST").map((r) => r.path)).toEqual([url]);
     expect(forms).toHaveLength(1);
     expect((forms[0]?.get("file") as File | undefined)?.name).toBe("Backend (DE).docx");

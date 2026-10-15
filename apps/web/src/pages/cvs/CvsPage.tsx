@@ -59,7 +59,10 @@ function CvCard({ cv }: { cv: Cv }) {
         method: "PATCH",
         body: { tags: nextTags(cv.tags, labels) },
       }),
-    onSuccess: refresh,
+    onSuccess: (updated) =>
+      client.setQueryData<Cv[]>(cvsKey(workspaceId), (list) =>
+        list?.map((c) => (c.id === updated.id ? updated : c)),
+      ),
   });
   const remove = useMutation({
     mutationFn: () => apiVoid(`${cvsPath(workspaceId)}/${cv.id}`, { method: "DELETE" }),
