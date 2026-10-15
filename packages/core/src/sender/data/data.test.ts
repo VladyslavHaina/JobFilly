@@ -12,9 +12,9 @@ describe("the sender data files", () => {
     expect(new Set(domains).size).toBe(domains.length);
   });
 
-  it("have phrases for every signal in English, German and Portuguese, lower case", () => {
+  it("have phrases for every signal in English, German, Portuguese and Dutch, lower case", () => {
     const { languages } = loadMessageSignals();
-    expect(Object.keys(languages).sort()).toEqual(["de", "en", "pt"]);
+    expect(Object.keys(languages).sort()).toEqual(["de", "en", "nl", "pt"]);
     for (const lists of Object.values(languages)) {
       for (const phrases of [lists.asks_for_fee, lists.asks_for_id, lists.chat_only]) {
         expect(phrases.length).toBeGreaterThan(0);

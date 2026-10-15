@@ -47,7 +47,7 @@ describe("detectLanguage", () => {
     );
   });
 
-  it("names a language without phrase lists too, so its check is marked incomplete", () => {
+  it("names every language with common words, whether or not it has phrase lists", () => {
     expect(
       detectLanguage(
         "Hallo Maria, wij zoeken een backend engineer voor ons team in Amsterdam. Heb je zin in een gesprek? Met vriendelijke groet",

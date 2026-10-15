@@ -95,6 +95,33 @@
         "entrevista por chat",
         "só pelo whatsapp"
       ]
+    },
+    "nl": {
+      "asks_for_fee": [
+        "inschrijfkosten",
+        "registratiekosten",
+        "administratiekosten",
+        "trainingskosten",
+        "borg betalen",
+        "vooruitbetaling",
+        "kosten vooraf betalen"
+      ],
+      "asks_for_id": [
+        "kopie van je paspoort",
+        "kopie van uw paspoort",
+        "scan van je paspoort",
+        "scan van uw paspoort",
+        "kopie van je identiteitskaart",
+        "kopie van uw identiteitsbewijs",
+        "paspoortscan"
+      ],
+      "chat_only": [
+        "alleen via whatsapp",
+        "alleen via telegram",
+        "via telegram",
+        "sollicitatiegesprek via chat",
+        "alleen per whatsapp"
+      ]
     }
   }
 }

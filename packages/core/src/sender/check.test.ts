@@ -236,10 +236,15 @@ describe("incomplete checks (F5.3)", () => {
   });
 
   it("a message in a language without phrase lists is incomplete", () => {
-    const nl = checkSender(input({ language: "nl", text: "Hallo Maria, wij zoeken een collega." }));
-    expect(nl).toMatchObject({ verdict: "caution", complete: false });
-    expect(nl.reasons[0]?.reason).toBe(
-      "Can't read Dutch text for warning signs yet, so this check is incomplete",
+    const fr = checkSender(
+      input({
+        language: "fr",
+        text: "Bonjour Maria, nous cherchons une collègue pour notre équipe.",
+      }),
+    );
+    expect(fr).toMatchObject({ verdict: "caution", complete: false });
+    expect(fr.reasons[0]?.reason).toBe(
+      "Can't read French text for warning signs yet, so this check is incomplete",
     );
     const unknown = checkSender(input({ language: null }));
     expect(unknown).toMatchObject({ verdict: "caution", complete: false });
