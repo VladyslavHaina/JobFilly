@@ -5,4 +5,9 @@
 export { orderNewestFirst, toBatches } from "./batches";
 export { loadJobPlatforms } from "./platforms";
 export { stageOne } from "./stage-one";
-export { type ConfidenceTracker, createConfidenceTracker, stopMessage } from "./tracker";
+export {
+  type ConfidenceTracker,
+  countFirmAnswers,
+  createConfidenceTracker,
+  stopMessage,
+} from "./tracker";

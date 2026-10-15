@@ -45,13 +45,20 @@ function snapshot(proposal: IntakeProposal): string {
   return JSON.stringify(answers);
 }
 
+const answered = (proposal: IntakeProposal) =>
+  proposal.entries.filter((e) => isCoreKey(e.key) && e.value.length > 0);
+const isFirm = (e: IntakeProposal["entries"][number]) =>
+  e.confidence === "medium" || e.confidence === "high";
+
 /** At least one core question answered, and every answered one at medium or high confidence. */
 function firm(proposal: IntakeProposal): boolean {
-  const answered = proposal.entries.filter((e) => isCoreKey(e.key) && e.value.length > 0);
-  return (
-    answered.length > 0 &&
-    answered.every((e) => e.confidence === "medium" || e.confidence === "high")
-  );
+  const answers = answered(proposal);
+  return answers.length > 0 && answers.every(isFirm);
+}
+
+/** The core questions answered at medium or high confidence: the scan screen's "answers firm". */
+export function countFirmAnswers(proposal: IntakeProposal): number {
+  return answered(proposal).filter(isFirm).length;
 }
 
 export function createConfidenceTracker(

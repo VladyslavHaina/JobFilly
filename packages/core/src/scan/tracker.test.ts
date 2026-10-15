@@ -1,6 +1,6 @@
 import type { IntakeProposal, IntakeProposalEntry, TrackerState } from "@jobfilly/schema";
 import { describe, expect, it } from "vitest";
-import { createConfidenceTracker, stopMessage } from "./tracker";
+import { countFirmAnswers, createConfidenceTracker, stopMessage } from "./tracker";
 
 function entry(
   key: IntakeProposalEntry["key"],
@@ -127,6 +127,21 @@ describe("the confidence tracker (F4.4)", () => {
     const resumed = createConfidenceTracker("first", memory);
     resumed.begin(proposal());
     expect(resumed.afterBatch(state(firm))).toEqual({ reason: "confident" });
+  });
+});
+
+describe("countFirmAnswers", () => {
+  it("counts the answered core questions at medium or high confidence", () => {
+    expect(countFirmAnswers(firm)).toBe(2);
+    expect(
+      countFirmAnswers(
+        proposal(
+          entry("target_roles", ["backend engineer"], "low"),
+          entry("extra.b2b", ["yes"], "high"),
+          entry("min_pay", [], null),
+        ),
+      ),
+    ).toBe(0);
   });
 });
 
