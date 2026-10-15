@@ -212,5 +212,11 @@ export const DraftMailInputSchema = z.object({
   original: OriginalMessageSchema,
   reply: z.object({ subject: z.string(), body: z.string() }),
   attachment: DraftAttachmentSchema.nullable(),
+  /**
+   * The draft's own Message-ID header ("<...>") when the caller chose it; the client makes one
+   * when absent. draft.create chooses and keeps it before the append, so a retry after an append
+   * whose outcome it never recorded can find and delete that copy first (one copy, F6.3, F6.4).
+   */
+  draftMessageId: z.string().min(1).optional(),
 });
 export type DraftMailInput = z.infer<typeof DraftMailInputSchema>;

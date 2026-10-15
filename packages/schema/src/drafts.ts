@@ -48,6 +48,10 @@ export type Draft = z.infer<typeof DraftSchema>;
 export const DraftListSchema = z.object({ items: z.array(DraftSchema) });
 export type DraftList = z.infer<typeof DraftListSchema>;
 
+/** GET /drafts: every draft of the workspace, or one message's (the draft panel). */
+export const DraftListQuerySchema = z.object({ messageId: z.string().min(1).optional() });
+export type DraftListQuery = z.infer<typeof DraftListQuerySchema>;
+
 /** PATCH /drafts/:draftId: the edited reply; saving replaces the mailbox draft (F6.4). */
 export const DraftUpdateSchema = z.object({
   subject: TextSchema.max(998),
