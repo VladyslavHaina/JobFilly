@@ -1,7 +1,10 @@
 {
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
-    "types": ["node"]
+    "types": ["node"],
+    // Node runs the test stack's entry points (node e2e/fake-ai/main.ts) by stripping types, so
+    // relative imports name the .ts file.
+    "allowImportingTsExtensions": true
   },
   "include": ["**/*.ts"],
   "exclude": ["node_modules", ".stack", "reports"]
