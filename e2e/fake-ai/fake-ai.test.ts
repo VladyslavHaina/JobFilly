@@ -175,7 +175,12 @@ describe.each(PERSONAS)("the fake AI on %s's mailbox", (persona) => {
       if (!truth || !isJobCategory(truth.category)) continue;
       const content = contentOf("extract.v1", [e.messageId]);
       expect(content.messageId).toBe(e.messageId);
-      expect(content.roles).toEqual(truth.invalid ? INVALID_VALUE : truth.facts);
+      // A model writes `extra` as a list of { key, value }; the facts hold it as a record.
+      const roles = truth.facts?.map((f) => ({
+        ...f,
+        extra: Object.entries(f.extra).map(([key, value]) => ({ key, value })),
+      }));
+      expect(content.roles).toEqual(truth.invalid ? INVALID_VALUE : roles);
     }
   });
 

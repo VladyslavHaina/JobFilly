@@ -72,6 +72,20 @@ export type Answer = { ok: true; content: unknown } | { ok: false; reason: strin
 
 const missing = (reason: string): Answer => ({ ok: false, reason });
 
+/**
+ * The fixtures hold `extra` as the app stores it, a { key: value } record; a model writes it as a
+ * list of { key, value } (ExtraAnswerSchema in packages/schema), so the answer is sent that way.
+ */
+function withExtraAsList<T extends { extra?: Record<string, string> }>(
+  value: T,
+): Omit<T, "extra"> & { extra?: { key: string; value: string }[] } {
+  if (value.extra === undefined) return value as Omit<T, "extra">;
+  return {
+    ...value,
+    extra: Object.entries(value.extra).map(([key, v]) => ({ key, value: v })),
+  };
+}
+
 function lookup<T>(
   store: AnswerStore,
   id: string,
@@ -101,7 +115,7 @@ export function answerFor(store: AnswerStore, prompt: Prompt): Answer {
           if (a === null) return missing(`no prefs.v1 answer for ${id}`);
           items.push({
             messageId: id,
-            preferences: a === "invalid" ? INVALID_VALUE : a.preferences,
+            preferences: a === "invalid" ? INVALID_VALUE : withExtraAsList(a.preferences),
           });
         }
       }
@@ -114,7 +128,10 @@ export function answerFor(store: AnswerStore, prompt: Prompt): Answer {
       if (a === null) return missing(`no extract.v1 answer for ${id}`);
       return {
         ok: true,
-        content: { messageId: id, roles: a === "invalid" ? INVALID_VALUE : a.roles },
+        content: {
+          messageId: id,
+          roles: a === "invalid" ? INVALID_VALUE : a.roles.map(withExtraAsList),
+        },
       };
     }
     case "intake.v1": {
