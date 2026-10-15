@@ -1,8 +1,40 @@
+# The app and PostgreSQL. Start with:
+#   JOBFILLY_SECRET_KEY=$(openssl rand -base64 32) docker compose -f docker/compose.yaml up --build
+# Keep the same key afterwards: it encrypts the stored mail passwords and AI keys.
 services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: jobfilly
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-jobfilly}
+      POSTGRES_DB: jobfilly
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jobfilly -d jobfilly"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
   jobfilly:
     build:
       context: ..
       dockerfile: docker/Dockerfile
+    environment:
+      DATABASE_URL: postgres://jobfilly:${POSTGRES_PASSWORD:-jobfilly}@postgres:5432/jobfilly
+      JOBFILLY_SECRET_KEY: ${JOBFILLY_SECRET_KEY:?set JOBFILLY_SECRET_KEY, e.g. $(openssl rand -base64 32)}
+      PUBLIC_URL: ${PUBLIC_URL:-http://127.0.0.1:8787}
+      PORT: "8787"
     ports:
-      # Loopback only until the API has authentication.
+      # Loopback only; put a TLS proxy in front to open it up.
       - "127.0.0.1:8787:8787"
+    read_only: true
+    tmpfs:
+      - /tmp
+    stop_grace_period: 30s
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pgdata:

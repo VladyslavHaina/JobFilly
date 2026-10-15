@@ -5,3 +5,8 @@
 .github
 .env
 .env.*
+.playwright-mcp
+e2e/reports
+e2e/.stack
+playwright-report
+test-results
