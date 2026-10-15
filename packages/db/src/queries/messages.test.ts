@@ -6,6 +6,7 @@ import { openTestDatabase } from "../testing";
 import { registerAccount } from "./accounts";
 import {
   countNotAnalyzed,
+  countScanAnalysis,
   getRoles,
   getStoredMessages,
   listPendingCandidates,
@@ -16,6 +17,7 @@ import {
   saveEnvelopes,
   savePreferences,
 } from "./messages";
+import { createScan } from "./scans";
 
 let conn: DatabaseConnection;
 let ws: string;
@@ -275,6 +277,65 @@ describe("pending work", () => {
     expect(
       (await listPendingOwnReplies(conn.db, ws, { limit: 20 })).map((m) => m.envelope.uid),
     ).toEqual([5]);
+  });
+});
+
+describe("countScanAnalysis", () => {
+  it("counts the likely job mail one run analysed or failed, and the job mail among it", async () => {
+    const r = await registerAccount(conn.db, {
+      name: "Ana",
+      email: "ana@inbox.example",
+      passwordHash: "h",
+      workspaceName: "Ana",
+    });
+    if (!r.ok) throw new Error("expected ok");
+    const scan = async () => {
+      const s = await createScan(conn.db, r.workspaceId, { kind: "first", startedBy: r.user.id });
+      if (!s.ok) throw new Error("expected ok");
+      await conn.db.execute(sql`update scans set status = 'stopped' where id = ${s.scan.id}`);
+      return s.scan.id;
+    };
+    const [run, earlier] = [await scan(), await scan()];
+    const w = r.workspaceId;
+    await saveEnvelopes(conn.db, w, [
+      at(envelope(1), "likely_job"),
+      at(envelope(2), "likely_job"),
+      at(envelope(3), "job_alert"),
+      at(envelope(4), "likely_job"),
+      at(envelope(5), "likely_job"),
+      at(envelope(6), "own_reply"),
+      at(envelope(7), "likely_job"),
+    ]);
+    const id = (n: number) => envelope(n).messageId;
+    await saveAnalysis(conn.db, w, {
+      messageId: id(1),
+      scanId: run,
+      category: "interview",
+      roles: [],
+    });
+    await saveAnalysis(conn.db, w, {
+      messageId: id(2),
+      scanId: run,
+      category: "not_job",
+      roles: [],
+    });
+    await saveAnalysis(conn.db, w, {
+      messageId: id(3),
+      scanId: run,
+      category: "job_alert",
+      roles: [],
+    });
+    await markAnalysisFailed(conn.db, w, { messageId: id(4), scanId: run });
+    await saveAnalysis(conn.db, w, {
+      messageId: id(5),
+      scanId: earlier,
+      category: "offer",
+      roles: [],
+    });
+    await savePreferences(conn.db, w, { messageId: id(6), scanId: run, preferences: {} });
+    expect(await countScanAnalysis(conn.db, w, run)).toEqual({ analyzed: 4, jobFound: 2 });
+    expect(await countScanAnalysis(conn.db, w, earlier)).toEqual({ analyzed: 1, jobFound: 1 });
+    expect(await countScanAnalysis(conn.db, ws, run)).toEqual({ analyzed: 0, jobFound: 0 });
   });
 });
 
