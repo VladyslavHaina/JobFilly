@@ -92,10 +92,15 @@ describe("the message deep link", () => {
     signedIn();
     const { router } = renderApp(paths.inbox(ws.id));
     expect((await screen.findByTestId("inbox")).textContent).toBe(`inbox ${ws.id} (list)`);
+    // The probe is already on the page when the route changes, so wait for its text to change.
     await router.navigate(paths.message(ws.id, "<x/y@z>"));
-    expect((await screen.findByTestId("inbox")).textContent).toBe(`inbox ${ws.id} <x/y@z>`);
+    await waitFor(() =>
+      expect(screen.getByTestId("inbox").textContent).toBe(`inbox ${ws.id} <x/y@z>`),
+    );
     await router.navigate(paths.inbox(ws.id));
-    expect((await screen.findByTestId("inbox")).textContent).toBe(`inbox ${ws.id} (list)`);
+    await waitFor(() =>
+      expect(screen.getByTestId("inbox").textContent).toBe(`inbox ${ws.id} (list)`),
+    );
   });
 });
 
