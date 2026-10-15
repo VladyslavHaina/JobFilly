@@ -6,16 +6,15 @@ import {
 } from "@jobfilly/db";
 import { FAILURE_MESSAGES, MAIL_PRESETS } from "@jobfilly/mail";
 import {
-  IdSchema,
   type MailboxInput,
   MailboxInputSchema,
   type MailboxList,
+  MailboxParamsSchema,
   type MailboxPublic,
   type MailPresetList,
   type MailTestResult,
 } from "@jobfilly/schema";
 import { Hono } from "hono";
-import { z } from "zod";
 import { NOT_FOUND, requireRole, validJson, validParam, type WorkspaceEnv } from "../access";
 import type { AppDeps } from "../deps";
 import type { Logger } from "../log";
@@ -111,17 +110,12 @@ export function mailboxRoutes(deps: AppDeps) {
       });
       return c.json(body, 201);
     })
-    .delete(
-      "/:mailboxId",
-      requireRole("admin"),
-      validParam(z.object({ mailboxId: IdSchema })),
-      async (c) => {
-        const deleted = await deleteMailbox(
-          deps.db,
-          c.get("workspaceId"),
-          c.req.valid("param").mailboxId,
-        );
-        return deleted ? c.body(null, 204) : c.json(NOT_FOUND, 404);
-      },
-    );
+    .delete("/:mailboxId", requireRole("admin"), validParam(MailboxParamsSchema), async (c) => {
+      const deleted = await deleteMailbox(
+        deps.db,
+        c.get("workspaceId"),
+        c.req.valid("param").mailboxId,
+      );
+      return deleted ? c.body(null, 204) : c.json(NOT_FOUND, 404);
+    });
 }
