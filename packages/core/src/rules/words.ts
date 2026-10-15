@@ -9,7 +9,7 @@ import type { PayPeriod, TimeZoneRange } from "@jobfilly/schema";
 export const norm = (s: string) => s.trim().replace(/\s+/g, " ").toLowerCase();
 
 /** Minutes east of UTC of "UTC+05:30". */
-export function offsetMinutes(offset: string): number {
+function offsetMinutes(offset: string): number {
   const m = /^UTC([+-])(\d{2}):(\d{2})$/.exec(offset);
   if (!m) return Number.NaN;
   const minutes = Number(m[2]) * 60 + Number(m[3]);
@@ -17,7 +17,7 @@ export function offsetMinutes(offset: string): number {
 }
 
 /** A range as minutes, lower end first. */
-export function rangeMinutes(range: TimeZoneRange): [number, number] {
+function rangeMinutes(range: TimeZoneRange): [number, number] {
   const a = offsetMinutes(range.from);
   const b = offsetMinutes(range.to);
   return a <= b ? [a, b] : [b, a];
