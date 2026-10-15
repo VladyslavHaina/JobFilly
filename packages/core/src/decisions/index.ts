@@ -1,4 +1,15 @@
-// Pure logic for decisions from a draft's questions, match needs and ask_first rules, grouped by
-// group key (F7). Created by the foundation and exported from ../index.ts; the replies slice writes
-// it.
-export {};
+// Pure logic for the decision inbox (F7): needs from match verdicts, ask_first rules and a draft's
+// questions, grouped by group key; whether a role is drafted, asked about or held; and an answer
+// as the profile item it adds.
+export { answerChange, answerItem, itemFromText } from "./answers";
+export {
+  groupNeeds,
+  isOpen,
+  type NeedGroup,
+  type NeedSource,
+  needsFromQuestions,
+  type RoleNeed,
+  type RoleNeedsInput,
+  roleNeeds,
+} from "./needs";
+export { planReply, type ReplyPlan, type ReplyPlanInput } from "./plan";
