@@ -106,16 +106,51 @@ export function redact(value: unknown, depth = 0): unknown {
   if (value === null || typeof value !== "object") return value;
   if (depth > 6) return REDACTED;
   if (value instanceof Date) return value.toISOString();
-  if (value instanceof Error) {
-    // The message may quote input, so it is masked too; stack traces are never logged.
-    return { name: value.name, message: redact(value.message, depth + 1) };
-  }
+  if (value instanceof Error) return redactError(value, depth);
   if (Array.isArray(value)) return value.map((v) => redact(v, depth + 1));
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(value)) {
     out[k] = isSecretKey(k) ? REDACTED : redact(v, depth + 1);
   }
   return out;
+}
+
+// Drizzle wraps every failed query in an error whose message is "Failed query: <sql>\nparams:
+// <every bound value>" and whose cause is the driver's error. The values may be mail content,
+// profile answers or ciphertexts, so nothing from "Failed query:" on is ever logged.
+const FAILED_QUERY = /Failed query:[\s\S]*/;
+// A pg SQLSTATE ("23505") or a Node system error code ("ECONNREFUSED").
+const ERROR_CODE = /^[A-Za-z0-9_]{1,32}$/;
+
+function errorCode(error: unknown): string | undefined {
+  if (typeof error !== "object" || error === null) return undefined;
+  const code = (error as { code?: unknown }).code;
+  return typeof code === "string" && ERROR_CODE.test(code) ? code : undefined;
+}
+
+/**
+ * An error as it is logged: its name, its code if it has one, and its masked message; stack
+ * traces are never logged. A failed query keeps only the driver's code and message, never the
+ * SQL or its bound parameters.
+ */
+function redactError(error: Error, depth: number): Record<string, unknown> {
+  const failedQuery = FAILED_QUERY.test(error.message) || ("query" in error && "params" in error);
+  if (!failedQuery) {
+    const code = errorCode(error);
+    return {
+      name: error.name,
+      ...(code ? { code } : {}),
+      // The message may quote input, so it is masked too.
+      message: redact(error.message, depth + 1),
+    };
+  }
+  // Drizzle's error keeps the default name "Error"; its class name says what it is.
+  const name = error.name === "Error" ? error.constructor.name || error.name : error.name;
+  const cause = error.cause instanceof Error ? error.cause : undefined;
+  const code = errorCode(cause) ?? errorCode(error);
+  // Without a cause, what's left of the message ("Failed query", or a wrapper's own words).
+  const message = (cause?.message ?? error.message).replace(FAILED_QUERY, "Failed query");
+  return { name, ...(code ? { code } : {}), message: redact(message, depth + 1) };
 }
 
 export interface LoggerOptions {
