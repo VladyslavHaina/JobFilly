@@ -184,9 +184,14 @@ describe("the first scan with the real intake aggregation", { timeout: SLOW }, (
     expect(logs(s.d, "scan.stopped")).toEqual([
       expect.objectContaining({ level: "info", reason: "confident" }),
     ]);
+    // Stopped, not failed: no cause, and the stop is dated as this run's (TBD-112).
+    expect(current.stopMessage).not.toBeNull();
+    expect(current.stoppedAt).toBe(NOW.toISOString());
+    expect(logs(s.d, "scan.stopped")[0]).not.toHaveProperty("stopCause");
 
     // The answers the scan stopped on: the replies' own, and what job mail keeps offering.
     const scan = await getScan(s.d.db, s.workspaceId, progress?.scanId ?? "");
+    expect(scan).toMatchObject({ stopReason: "confident", stopCause: null });
     const proposal = aggregateIntake(await loadIntakeInput(s.d.db, s.workspaceId));
     const byKey = new Map(proposal.entries.map((e) => [e.key, e]));
     expect(byKey.get("target_roles")).toMatchObject({
@@ -224,9 +229,13 @@ describe("the first scan with the real intake aggregation", { timeout: SLOW }, (
       notAnalyzed: 0,
     });
     expect(logs(s.d, "job.failed")).toEqual([]);
+    expect(logs(s.d, "scan.batch_completed").length).toBeGreaterThan(0);
     expect(logs(s.d, "scan.stopped")).toEqual([
       expect.objectContaining({ level: "info", reason: "done" }),
     ]);
+    expect(current.stoppedAt).toBe(NOW.toISOString());
+    const scan = await getScan(s.d.db, s.workspaceId, current.progress?.scanId ?? "");
+    expect(scan).toMatchObject({ stopReason: "done", stopCause: null });
     const proposal = aggregateIntake(await loadIntakeInput(s.d.db, s.workspaceId));
     expect(proposal.entries.map((e) => e.key)).toEqual([...CORE_PROFILE_KEYS]);
     for (const entry of proposal.entries) {
