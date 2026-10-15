@@ -1307,6 +1307,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "stop_cause": {
+          "name": "stop_cause",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "counts": {
           "name": "counts",
           "type": "jsonb",
@@ -1423,6 +1429,10 @@
         "scans_status_check": {
           "name": "scans_status_check",
           "value": "status in ('queued', 'running', 'stopped')"
+        },
+        "scans_stop_cause_check": {
+          "name": "scans_stop_cause_check",
+          "value": "stop_cause is null or stop_cause in ('mailbox', 'ai', 'internal')"
         }
       },
       "isRLSEnabled": false

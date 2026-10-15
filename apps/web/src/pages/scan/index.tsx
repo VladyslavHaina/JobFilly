@@ -5,6 +5,7 @@ import { Alert, Button, Card, Loading, PageHeader } from "../../components";
 import { useWorkspace } from "../../hooks";
 import { paths } from "../../paths";
 import { likelyJobEmails, useCurrentScan, useScanAction } from "./queries";
+import { StopTime } from "./StopTime";
 
 // The scan screen (F4): start the first scan, watch its counts change live in every open browser
 // of the workspace (F4.6), and read why it stopped (F4.4). Admins start, cancel and analyze the
@@ -61,15 +62,29 @@ function Counts({ progress, totalTokens }: { progress: ScanProgress; totalTokens
         <Stat label="Answers firming up" value={progress.answersFirm} hint="medium or high" />
         <Stat label="Not analyzed yet" value={progress.notAnalyzed} />
         <Stat label="AI calls this run" value={progress.calls} />
-        <Stat label="Tokens used" value={totalTokens} hint="all AI calls so far" />
+        <Stat
+          label="Tokens used in total"
+          value={totalTokens}
+          hint="every AI call in this workspace"
+        />
       </dl>
     </>
   );
 }
 
-function Status({ progress, stopMessage }: { progress: ScanProgress; stopMessage: string | null }) {
+function Status({
+  progress,
+  stopMessage,
+  stoppedAt,
+}: {
+  progress: ScanProgress;
+  stopMessage: string | null;
+  stoppedAt: string | null;
+}) {
   if (progress.status === "queued") {
-    return <Loading label="Starting the scan…" />;
+    return (
+      <Loading label={progress.kind === "first" ? "Starting the scan…" : "Analyze them started…"} />
+    );
   }
   if (progress.status === "running") {
     return (
@@ -88,7 +103,11 @@ function Status({ progress, stopMessage }: { progress: ScanProgress; stopMessage
       : progress.stopReason === "budget" || progress.stopReason === "cancelled"
         ? "warning"
         : "success";
-  return <Alert tone={tone} title={stopMessage ?? "Stopped"} />;
+  return (
+    <Alert tone={tone} title={stopMessage ?? "Stopped"}>
+      {stoppedAt && <StopTime at={stoppedAt} />}
+    </Alert>
+  );
 }
 
 export function ScanPage({ workspaceId }: { workspaceId: string }) {
@@ -100,7 +119,7 @@ export function ScanPage({ workspaceId }: { workspaceId: string }) {
   if (current.isPending) return <Loading />;
   if (current.isError) return <Alert>Couldn't load the scan. Reload the page to try again.</Alert>;
 
-  const { progress, stopMessage, totalTokens } = current.data;
+  const { progress, stopMessage, stoppedAt, totalTokens } = current.data;
   const active = progress?.status === "queued" || progress?.status === "running";
   const stopped = progress?.status === "stopped";
   // The first scan may be started again only when it never got anywhere.
@@ -119,7 +138,7 @@ export function ScanPage({ workspaceId }: { workspaceId: string }) {
       <Card className="flex flex-col gap-5">
         {progress ? (
           <>
-            <Status progress={progress} stopMessage={stopMessage} />
+            <Status progress={progress} stopMessage={stopMessage} stoppedAt={stoppedAt} />
             <Counts progress={progress} totalTokens={totalTokens} />
           </>
         ) : (
@@ -152,7 +171,7 @@ export function ScanPage({ workspaceId }: { workspaceId: string }) {
               busy={action.isPending}
               onClick={() => action.mutate({ kind: "analyze_rest" })}
             >
-              Analyze them
+              {action.isPending ? "Starting…" : "Analyze them"}
             </Button>
           )}
           {stopped && progress.kind === "first" && !canStart && (
