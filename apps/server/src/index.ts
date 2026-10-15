@@ -5,7 +5,9 @@ import { loadConfig } from "./config";
 import { createDeps } from "./deps";
 import { createLogger } from "./log";
 import { startServer } from "./node";
+import { sweep } from "./pipeline/sweep";
 import { shutdown } from "./shutdown";
+import { createScheduler } from "./sync/scheduler";
 
 // The server process. `node dist/index.js` serves the API and the UI; `node dist/index.js
 // migrate` only applies the migrations (a Kubernetes migration job) and exits.
@@ -41,6 +43,7 @@ if (process.argv[2] === "migrate") {
 }
 
 const deps = createDeps({ config, connection, log });
+const scheduler = createScheduler(deps);
 const server = await startServer({
   app: createApp(deps),
   hostname: config.host,
@@ -63,6 +66,7 @@ for (const signal of ["SIGTERM", "SIGINT"] as const) {
       live: deps.live,
       queue: deps.queue,
       background: deps.background,
+      scheduler,
       closeDatabase: () => connection.close(),
     }).then(
       () => process.exit(0),
@@ -87,6 +91,10 @@ for (;;) {
   }
 }
 if (!stopping) {
+  // One sweep at startup: a deployment whose profile was confirmed before MVP 2 ran gets its
+  // backlog evaluated without anyone doing anything (F1.6); then one every sync interval.
+  await sweep(deps).catch((error: unknown) => log.warn("pipeline.sweep_failed", { error }));
   deps.queue.start();
+  scheduler.start();
   log.info("server.ready", { url: server.url });
 }

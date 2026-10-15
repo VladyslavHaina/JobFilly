@@ -6,7 +6,7 @@ import {
 } from "@jobfilly/schema";
 import { describe, expect, it } from "vitest";
 import { aggregateIntake } from "./aggregate";
-import { confirmedEntries, patchEntries } from "./profile";
+import { confirmedEntries } from "./profile";
 
 // What Confirm saves and how profile edits apply (F6.5): every entry with its source.
 
@@ -104,35 +104,5 @@ describe("confirmedEntries", () => {
       at: AT,
     });
     expect(entries.map((e) => e.key)).toEqual([...CORE_PROFILE_KEYS]);
-  });
-});
-
-describe("patchEntries", () => {
-  const entries = confirmedEntries({ proposal: proposal(), edits: [], questions, at: AT });
-
-  it("replaces the values it names, each then set by you", () => {
-    const result = patchEntries(entries, [{ key: "contracts", value: ["B2B", "permanent"] }], {
-      userId: USER,
-      at: EDITED,
-    });
-    if (!result.ok) throw new Error("expected ok");
-    const contracts = result.entries.find((e) => e.key === "contracts");
-    expect(contracts).toMatchObject({
-      value: ["B2B", "permanent"],
-      source: "you",
-      updatedBy: USER,
-      updatedAt: EDITED,
-    });
-    expect(result.entries.filter((e) => e.source === "you")).toHaveLength(1);
-    expect(entries.find((e) => e.key === "contracts")?.source).toBe("scan");
-  });
-
-  it("refuses a key the profile doesn't have", () => {
-    expect(
-      patchEntries(entries, [{ key: "extra.salary-history", value: ["x"] }], {
-        userId: USER,
-        at: EDITED,
-      }),
-    ).toEqual({ ok: false, unknownKey: "extra.salary-history" });
   });
 });

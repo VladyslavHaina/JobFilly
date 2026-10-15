@@ -15,10 +15,11 @@ import {
 import { jobRegistry } from "./jobs/registry";
 import { createLiveHub, type LiveHub } from "./live";
 import type { Logger } from "./log";
+import { createDomainPort } from "./senders/lookup";
 
 // What every route and job handler gets: the database, configuration, clock, logger, live
-// updates, the queue, and the ports to the mailbox and the AI provider. Tests replace the ports
-// with fakes (src/testing), so no test needs a mailbox or a model.
+// updates, the queue, and the ports to the mailbox, the AI provider and the domain lookups. Tests
+// replace the ports with fakes (src/testing), so no test needs a mailbox, a model or a network.
 
 export interface MailPort {
   connect(conn: MailConnection, options: { allowInsecure: boolean }): MailClient;
@@ -26,6 +27,16 @@ export interface MailPort {
 
 export interface AiPort {
   client(settings: AiClientSettings): AiClient;
+}
+
+/**
+ * Domain lookups for the sender check (F5): when a domain was registered (RDAP, through
+ * JOBFILLY_RDAP_URL) and its MX records (DNS). Each throws when the lookup fails, which leaves the
+ * check incomplete, never "looks fine" (F5.3). senders/lookup.ts builds the real one.
+ */
+export interface DomainPort {
+  rdap(domain: string): Promise<{ registeredAt: string | null }>;
+  mx(domain: string): Promise<string[]>;
 }
 
 /** Readiness (F7.2): the database is reachable, migrated, and shutdown hasn't begun. */
@@ -115,6 +126,7 @@ export interface AppDeps {
   background: BackgroundWork;
   mail: MailPort;
   ai: AiPort;
+  domains: DomainPort;
   intake: { aggregate: typeof aggregateIntake };
   health: Health;
 }
@@ -167,6 +179,7 @@ export interface DepsInput {
   clock?: Clock;
   mail?: MailPort;
   ai?: AiPort;
+  domains?: DomainPort;
   registry?: JobRegistry;
   queue?: Omit<JobQueueOptions, "owner">;
   /** How long shutdown waits for aborted background work (default 5 s, as for jobs). */
@@ -186,6 +199,7 @@ export function createDeps(input: DepsInput): AppDeps {
     background: createBackgroundWork({ stopGraceMs: input.backgroundStopGraceMs }),
     mail: input.mail ?? mailPort,
     ai: input.ai ?? aiPort(input.log),
+    domains: input.domains ?? createDomainPort(input.config),
     intake: { aggregate: aggregateIntake },
     health: createHealth(input.connection),
   };

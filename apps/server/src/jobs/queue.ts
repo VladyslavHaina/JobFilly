@@ -1,6 +1,7 @@
 import {
   claimJob,
   completeJob,
+  enqueueJob,
   handBackJob,
   MAX_LEASE_MS,
   renewLease,
@@ -15,6 +16,12 @@ import type { AppDeps } from "../deps";
 // saves a checkpoint after each step; if its replica dies, another one claims the job once the
 // lease has expired and the handler resumes from that checkpoint, so handlers must be idempotent.
 // On shutdown running handlers are aborted and their jobs handed back.
+//
+// Dedupe (TBD-178): a job enqueued with a dedupe key (enqueue below, keys from jobDedupeKey in
+// @jobfilly/schema) has at most one of its kind waiting and one running across replicas; the
+// claim in packages/db skips a waiting one while another with its key runs under a live lease.
+// So each mailbox syncs once at a time (F1.2), and a change made during a re-evaluation still
+// gets the next one.
 //
 // The queue's own bookkeeping (completing or handing back a job) never throws: run() is fired
 // without being awaited, so a rejection there would be unhandled and kill the replica. A database
@@ -263,4 +270,17 @@ export function createJobQueue(
       return running.size;
     },
   };
+}
+
+/**
+ * Adds a job, with a dedupe key when given: while one with the key waits, this is a no-op
+ * (`enqueued` false). Pass a transaction as `db` to enqueue together with other writes.
+ */
+export function enqueue(
+  deps: Pick<AppDeps, "db" | "clock">,
+  workspaceId: string,
+  job: { type: string; payload: unknown; dedupeKey?: string },
+  db: AppDeps["db"] = deps.db,
+): Promise<{ id: string; enqueued: boolean }> {
+  return enqueueJob(db, workspaceId, { ...job, now: deps.clock.now() });
 }

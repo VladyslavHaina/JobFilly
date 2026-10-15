@@ -7,17 +7,29 @@ import {
 } from "@jobfilly/db";
 import {
   CategoryCorrectionSchema,
+  CvChoiceOverrideSchema,
   type MessageBody,
   type MessageDetail,
   type MessageList,
   MessageListQuerySchema,
 } from "@jobfilly/schema";
 import { type Context, Hono } from "hono";
-import { NOT_FOUND, requireRole, validJson, validQuery, type WorkspaceEnv } from "../access";
+import { z } from "zod";
+import {
+  NOT_FOUND,
+  requireRole,
+  validJson,
+  validParam,
+  validQuery,
+  type WorkspaceEnv,
+} from "../access";
+import { setCvOverride } from "../cvs/override";
 import type { AppDeps } from "../deps";
 import { open } from "../secrets";
+import { notImplemented } from "./not-implemented";
 
-// The job inbox: list, detail, body on demand, category correction (F5).
+// The job inbox: list (with the Hidden filter, F3.4), detail, body on demand, category correction
+// (F5), and an editor's CV choice for one role (F2.3, delegated to cvs/override.ts).
 // :messageId is the URL-encoded RFC Message-ID (angle brackets included); Hono hands it over
 // decoded, '/' and '%' included.
 // Mounted once at /api/workspaces/:workspaceId/messages; each handler applies its own role.
@@ -37,6 +49,11 @@ const OWN_REPLY = {
 
 const messageIdOf = (c: Context<WorkspaceEnv>) => c.req.param("messageId") ?? "";
 
+const RoleParamsSchema = z.object({
+  messageId: z.string().min(1),
+  position: z.coerce.number().int().min(0).max(10_000),
+});
+
 export function messageRoutes(deps: AppDeps) {
   return (
     new Hono<WorkspaceEnv>()
@@ -46,6 +63,7 @@ export function messageRoutes(deps: AppDeps) {
           category: query.category,
           q: query.q,
           showNonJob: query.showNonJob === "true",
+          hidden: query.hidden === "true",
           page: query.page,
         });
         return c.json(list satisfies MessageList);
@@ -107,6 +125,27 @@ export function messageRoutes(deps: AppDeps) {
           const detail = await getInboxMessage(deps.db, workspaceId, messageId);
           if (!detail) return c.json(NOT_FOUND, 404);
           return c.json(detail satisfies MessageDetail);
+        },
+      )
+      .put(
+        "/:messageId/roles/:position/cv",
+        requireRole("editor"),
+        validParam(RoleParamsSchema),
+        validJson(CvChoiceOverrideSchema),
+        async (c) => {
+          const workspaceId = c.get("workspaceId");
+          const { position } = c.req.valid("param");
+          const result = await setCvOverride(deps, workspaceId, {
+            messageId: messageIdOf(c),
+            position,
+            cvId: c.req.valid("json").cvId,
+            userId: c.get("user").id,
+          });
+          if (!result.ok) {
+            if (result.error === "not_implemented") return notImplemented(c);
+            return c.json(NOT_FOUND, 404);
+          }
+          return c.json(result.cvChoice);
         },
       )
   );

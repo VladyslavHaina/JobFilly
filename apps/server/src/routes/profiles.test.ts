@@ -1,4 +1,11 @@
-import { saveAnalysis, saveEnvelopes, savePreferences } from "@jobfilly/db";
+import {
+  getHistory,
+  listToEvaluate,
+  saveAnalysis,
+  saveEnvelopes,
+  saveEvaluation,
+  savePreferences,
+} from "@jobfilly/db";
 import {
   type Envelope,
   IntakeFormSchema,
@@ -164,6 +171,54 @@ describe("PATCH /profiles/:profileId", () => {
     });
     expect(updated.entries.find((e) => e.key === "places")?.source).toBe("scan");
     expect(await profiles(viewer)).toEqual([updated]);
+  });
+
+  it("records the change in the history and re-evaluates every role (F4.6)", async () => {
+    const created = await confirm();
+    await saveEnvelopes(deps.db, ws.workspaceId, [
+      { envelope: envelope(jobId(3), 3, "inbox"), verdict: "likely_job", reason: "test" },
+    ]);
+    await saveAnalysis(deps.db, ws.workspaceId, {
+      messageId: jobId(3),
+      scanId: null,
+      category: "recruiter_outreach",
+      roles: [facts({ title: "Backend Engineer" })],
+    });
+    await saveEvaluation(
+      deps.db,
+      ws.workspaceId,
+      jobId(3),
+      {
+        position: 0,
+        match: null,
+        hidden: null,
+        ruleEffects: [],
+        cvChoice: { cvId: null, reason: "No CV yet", source: "auto" },
+      },
+      NOW,
+    );
+    const res = await editor.patch(profilesPath(`/${created.id}`), {
+      entries: [
+        { key: "contracts", value: ["unbefristet"] },
+        // A policy key the profile doesn't have yet is one the form may set.
+        { key: "reply_threshold", value: [80] },
+      ],
+    });
+    expect(res.status).toBe(200);
+    const updated = ProfileSchema.parse(await res.json());
+    expect(updated.entries.find((e) => e.key === "reply_threshold")).toMatchObject({
+      value: [80],
+      source: "you",
+    });
+    expect(await getHistory(deps.db, ws.workspaceId, created.id)).toMatchObject([
+      {
+        source: "you",
+        request: null,
+        before: { entries: [{ key: "contracts" }, { key: "reply_threshold", value: null }] },
+      },
+    ]);
+    const stale = await listToEvaluate(deps.db, ws.workspaceId);
+    expect(stale.find((m) => m.messageId === jobId(3))?.roles).toMatchObject([{ state: "stale" }]);
   });
 
   it("refuses viewers (403), non-members (404), unknown profiles and questions", async () => {

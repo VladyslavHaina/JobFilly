@@ -7,14 +7,21 @@ import { requireUser, sessionMiddleware } from "./auth/session";
 import type { AppDeps } from "./deps";
 import { eventsRoutes } from "./live";
 import { aiRoutes } from "./routes/ai";
+import { assistantRoutes } from "./routes/assistant";
 import { authRoutes } from "./routes/auth";
+import { cvsRoutes } from "./routes/cvs";
+import { decisionsRoutes } from "./routes/decisions";
+import { draftsRoutes } from "./routes/drafts";
 import { healthRoutes } from "./routes/health";
+import { historyRoutes } from "./routes/history";
 import { intakeRoutes } from "./routes/intake";
 import { invitesRoutes } from "./routes/invites";
 import { mailboxRoutes } from "./routes/mailboxes";
 import { messageRoutes } from "./routes/messages";
 import { profileRoutes } from "./routes/profiles";
+import { rulesRoutes } from "./routes/rules";
 import { scanRoutes } from "./routes/scans";
+import { sendersRoutes } from "./routes/senders";
 import { membersRoutes, workspaceInvitesRoutes, workspacesRoutes } from "./routes/workspaces";
 
 /** A workspace route module: mounted once at /api/workspaces/:workspaceId/<name>. */
@@ -80,6 +87,14 @@ export function createApp(deps: AppDeps) {
   mount("messages", messageRoutes);
   mount("intake", intakeRoutes);
   mount("profiles", profileRoutes);
+  // MVP 2. Rules and the history live under /profiles/:profileId next to the profile routes.
+  mount("profiles", rulesRoutes);
+  mount("profiles", historyRoutes);
+  mount("cvs", cvsRoutes);
+  mount("senders", sendersRoutes);
+  mount("drafts", draftsRoutes);
+  mount("decisions", decisionsRoutes);
+  mount("assistant", assistantRoutes);
 
   app.all("/api/*", (c) => c.json({ error: "not_found" }, 404));
   return app;

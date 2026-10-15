@@ -40,6 +40,7 @@ import { requireRole, validJson, validParam, type WorkspaceEnv } from "../access
 import { MINUTE } from "../clock";
 import type { AppDeps } from "../deps";
 import type { Logger } from "../log";
+import { requestReevaluation } from "../profile/changes";
 import { openAiKey } from "../secrets";
 
 // The intake form: proposals, answers, confirm (F6).
@@ -313,6 +314,9 @@ export function intakeRoutes(deps: AppDeps) {
       if (!created.ok) return c.json(CONFIRMED, 409);
       c.get("log").info("intake.confirmed", { profileId: created.profile.id });
       await deps.live.publish(workspaceId, { type: "intake.updated", data: {} });
+      // The backlog is matched once the profile exists (F1.6): until now only the sender checks
+      // could run.
+      await requestReevaluation(deps, workspaceId, { all: true }, "intake.confirmed");
       return c.json(created.profile satisfies Profile, 201);
     });
 }

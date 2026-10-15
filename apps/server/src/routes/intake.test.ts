@@ -3,6 +3,7 @@ import type { AiClient } from "@jobfilly/ai";
 import { aggregateIntake } from "@jobfilly/core";
 import {
   getIntakeExtras,
+  listToEvaluate,
   loadIntakeInput,
   saveAnalysis,
   saveEnvelopes,
@@ -29,9 +30,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp } from "../app";
 import { MINUTE } from "../clock";
 import { createBackgroundWork } from "../deps";
+import { reevaluateWorkspace, requestRun } from "../pipeline/reevaluate";
 import {
   createTestDeps,
   fakeAiClient,
+  recordingStages,
   type SeededUser,
   type SeededWorkspace,
   seedAiSettings,
@@ -704,6 +707,27 @@ describe("POST /intake/confirm (F6.5)", () => {
     expect(res.status).toBe(201);
     const profile = ProfileSchema.parse(await res.json());
     expect(profile.entries.map((e) => e.key)).toContain("extra.relocation");
+  });
+
+  it("has the first scan's backlog matched once confirmed (F1.6)", async () => {
+    const stages = recordingStages();
+    stages.sender = async () => ({
+      verdict: "looks_fine",
+      complete: true,
+      reasons: [],
+      mark: null,
+    });
+    // Before Confirm the pipeline can only check the senders: there is no profile to match.
+    await reevaluateWorkspace(deps, ws.workspaceId, { stages });
+    expect(await listToEvaluate(deps.db, ws.workspaceId)).toHaveLength(6);
+    await settledForm(viewer);
+    expect((await editor.post(intakePath("/confirm"), {})).status).toBe(201);
+    // Confirm asked for the re-evaluation: one is waiting.
+    expect((await requestRun(deps, ws.workspaceId, "probe")).enqueued).toBe(false);
+    const outcome = await reevaluateWorkspace(deps, ws.workspaceId, { stages });
+    expect(outcome.processed).toBe(6);
+    expect(stages.calls.filter((c) => c.startsWith("match"))).toHaveLength(6);
+    expect(await listToEvaluate(deps.db, ws.workspaceId)).toEqual([]);
   });
 
   it("can be finished without any edit", async () => {

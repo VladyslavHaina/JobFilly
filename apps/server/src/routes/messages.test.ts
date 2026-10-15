@@ -1,5 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { getStoredMessages, markAnalysisFailed, saveAnalysis, saveEnvelopes } from "@jobfilly/db";
+import {
+  getStoredMessages,
+  markAnalysisFailed,
+  saveAnalysis,
+  saveEnvelopes,
+  saveEvaluation,
+} from "@jobfilly/db";
 import type { MailClient } from "@jobfilly/mail";
 import {
   type Envelope,
@@ -496,5 +502,44 @@ describe("first page speed (F5.5)", () => {
     timings.sort((a, b) => a - b);
     const p95 = timings[Math.ceil(0.95 * timings.length) - 1] ?? Infinity;
     expect(p95).toBeLessThan(1000);
+  });
+});
+
+describe("the inbox of MVP 2 (F3.4, F2.3)", () => {
+  const RULE = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+
+  it("lists messages whose roles are all hidden only under hidden=true, with the reason", async () => {
+    await seedMix();
+    const reason = "Hidden by your rule: hours outside UTC−1 to UTC+3";
+    await saveEvaluation(
+      deps.db,
+      ws.workspaceId,
+      id(2),
+      {
+        position: 0,
+        match: null,
+        hidden: { ruleId: RULE, reason },
+        ruleEffects: [{ ruleId: RULE, action: "hide", reason, need: null }],
+        cvChoice: { cvId: null, reason: "No CV yet", source: "auto" },
+      },
+      deps.clock.now(),
+    );
+    expect((await list(viewer)).items.map((m) => m.id)).not.toContain(id(2));
+    const hidden = await list(viewer, "?hidden=true");
+    expect(hidden.items.map((m) => [m.id, m.hidden])).toEqual([[id(2), { reason }]]);
+    expect((await viewer.get(`${path(ws.workspaceId)}?hidden=maybe`)).status).toBe(400);
+  });
+
+  it("takes an editor's CV choice for a role on its pinned path, behind the role guard", async () => {
+    await seedMix();
+    const cvPath = `${path(ws.workspaceId, id(2))}/roles/0/cv`;
+    expect((await outsider.put(cvPath, { cvId: null })).status).toBe(404);
+    expect((await viewer.put(cvPath, { cvId: null })).status).toBe(403);
+    expect((await editor.put(cvPath, { cvId: "not-a-uuid" })).status).toBe(400);
+    expect(
+      (await editor.put(`${path(ws.workspaceId, id(2))}/roles/x/cv`, { cvId: null })).status,
+    ).toBe(404);
+    // cvs-senders writes the choice itself (cvs/override.ts).
+    expect((await editor.put(cvPath, { cvId: null })).status).toBe(501);
   });
 });

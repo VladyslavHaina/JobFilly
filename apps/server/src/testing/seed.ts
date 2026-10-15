@@ -1,9 +1,12 @@
+import { createHash } from "node:crypto";
 import {
   addMember,
   createMailbox,
   createScan,
   createWorkspace,
   getScan,
+  insertCv,
+  linkProfileCv,
   listMembers,
   registerAccount,
   saveAiSettings,
@@ -13,6 +16,9 @@ import {
 import {
   type AiModels,
   type AiProviderId,
+  type Cv,
+  type CvMediaType,
+  type CvTag,
   DEFAULT_BUDGET_PER_RUN,
   EMPTY_SCAN_COUNTS,
   type MailConnection,
@@ -171,4 +177,55 @@ export async function seedScan(
   const scan = await getScan(deps.db, workspaceId, created.scan.id);
   if (!scan) throw new Error("seedScan: the scan vanished");
   return scan;
+}
+
+/**
+ * A CV as if uploaded and read (tests of the replies and rules-match slices make CVs without the
+ * cvs-senders slice): its bytes, its text, and what cv.v1 read, linked to `profileId` when given.
+ */
+export async function seedCv(
+  deps: AppDeps,
+  workspaceId: string,
+  input: {
+    name: string;
+    mediaType?: CvMediaType;
+    fileName?: string;
+    bytes?: Uint8Array;
+    text?: string;
+    language?: string | null;
+    skills?: string[];
+    roleFamilies?: string[];
+    seniority?: string | null;
+    tags?: CvTag[];
+    /** Leave it unread (readStatus pending, no metadata). */
+    unread?: boolean;
+    profileId?: string;
+    createdBy?: string | null;
+  },
+): Promise<Cv> {
+  const mediaType = input.mediaType ?? "pdf";
+  const bytes = input.bytes ?? new TextEncoder().encode(`%PDF-1.4 ${input.name}`);
+  const cv = await insertCv(deps.db, workspaceId, {
+    name: input.name,
+    fileName: input.fileName ?? `${input.name}.${mediaType}`,
+    mediaType,
+    bytes,
+    contentHash: createHash("sha256").update(bytes).digest("hex"),
+    text: input.unread ? null : (input.text ?? input.skills?.join(", ") ?? ""),
+    metadata: input.unread
+      ? null
+      : {
+          language: input.language ?? "en",
+          skills: input.skills ?? [],
+          roleFamilies: input.roleFamilies ?? [],
+          seniority: input.seniority ?? null,
+          countryHints: [],
+          formatHints: [],
+        },
+    tags: input.tags ?? [],
+    createdBy: input.createdBy ?? null,
+    at: deps.clock.now(),
+  });
+  if (input.profileId) await linkProfileCv(deps.db, workspaceId, input.profileId, cv.id);
+  return cv;
 }

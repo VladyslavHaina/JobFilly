@@ -27,6 +27,17 @@ describe("createDeps", () => {
     });
     expect(deps.intake.aggregate).toBe(aggregateIntake);
   });
+
+  it("wires a domain port, which a test or a slice can replace", async () => {
+    const log = createLogger({ level: "error", instance: "test-instance", write: () => {} });
+    const connection = fakeConnection({ reachable: true, migrated: true });
+    const config = { instance: "test-instance", rdapUrl: "https://rdap.test" } as Config;
+    const real = createDeps({ config, connection, log });
+    expect(typeof real.domains.rdap).toBe("function");
+    expect(typeof real.domains.mx).toBe("function");
+    const domains = { rdap: async () => ({ registeredAt: null }), mx: async () => [] };
+    expect(createDeps({ config, connection, log, domains }).domains).toBe(domains);
+  });
 });
 
 describe("readiness", () => {

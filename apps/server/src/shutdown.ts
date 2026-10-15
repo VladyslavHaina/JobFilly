@@ -3,9 +3,10 @@ import type { JobQueue } from "./jobs/queue";
 import type { LiveHub } from "./live";
 import type { Logger } from "./log";
 import type { RunningServer } from "./node";
+import type { Scheduler } from "./sync/scheduler";
 
-// Graceful shutdown on SIGTERM, in the order of ARCHITECTURE › Kubernetes readiness: readiness
-// turns 503 at once; a drain so load balancers stop routing here; stop accepting connections and
+// Graceful shutdown on SIGTERM, in the order of ARCHITECTURE › Kubernetes readiness: the
+// scheduler stops starting syncs and sweeps; readiness turns 503 at once; a drain so load balancers stop routing here; stop accepting connections and
 // close the live-update streams (browsers reconnect elsewhere); in-flight requests get up to 20
 // seconds; running jobs hand back their leases while background work (the intake.v1 call) is
 // aborted and releases its claim, both while the database is still open; then the caller exits 0.
@@ -17,6 +18,8 @@ export interface ShutdownTargets {
   live: LiveHub;
   queue: JobQueue;
   background: BackgroundWork;
+  /** Stops at once, so no new sync or sweep starts during shutdown. */
+  scheduler?: Pick<Scheduler, "stop">;
   /** Closes the database last. */
   closeDatabase(): Promise<void>;
 }
@@ -36,6 +39,7 @@ export async function shutdown(targets: ShutdownTargets, options: ShutdownOption
   const sleep = options.sleep ?? realSleep;
   const { health, log, server, live, queue, background } = targets;
 
+  targets.scheduler?.stop();
   health.beginShutdown();
   log.info("server.shutting_down", { drainMs: options.drainMs ?? DRAIN_MS });
   await sleep(options.drainMs ?? DRAIN_MS);

@@ -84,6 +84,7 @@ describe("the workspace route modules", () => {
   // whose slice isn't here yet answer 501. A 404 for a route that should read, or a 500, would mean
   // broken workspace scoping or a crash, so the status is exact.
   const messageId = encodeURIComponent("<a+b/c%d@mail.example>");
+  const ID = "8f0e1c62-0000-4000-8000-000000000001";
   const MAILBOX = ":mailboxId";
   const routes: [
     method: string,
@@ -116,6 +117,36 @@ describe("the workspace route modules", () => {
     ["POST", "intake/confirm", "editor", 409],
     ["GET", "profiles", "viewer", 200],
     ["PATCH", "profiles/8f0e1c62-0000-4000-8000-000000000000", "editor", 404],
+    // MVP 2: the pinned routes, their guards in place before the slices write the handlers. The
+    // CV choice of a role takes an editor and checks its body first.
+    ["PUT", `messages/${messageId}/roles/0/cv`, "editor", 400],
+    ["GET", "cvs", "viewer", 501],
+    ["POST", "cvs", "editor", 501],
+    ["PATCH", `cvs/${ID}`, "editor", 501],
+    ["DELETE", `cvs/${ID}`, "editor", 501],
+    ["GET", `cvs/${ID}/file`, "viewer", 501],
+    ["PUT", "senders/marks", "editor", 501],
+    ["GET", `profiles/${ID}/rules`, "viewer", 501],
+    ["PATCH", `profiles/${ID}/rules/${ID}`, "editor", 501],
+    ["DELETE", `profiles/${ID}/rules/${ID}`, "editor", 501],
+    ["GET", `profiles/${ID}/history`, "viewer", 501],
+    ["POST", `profiles/${ID}/history/${ID}/undo`, "editor", 501],
+    ["GET", "drafts", "viewer", 501],
+    ["POST", "drafts", "editor", 501],
+    ["GET", `drafts/${ID}`, "viewer", 501],
+    ["PATCH", `drafts/${ID}`, "editor", 501],
+    ["POST", `drafts/${ID}/discard`, "editor", 501],
+    ["GET", "decisions", "viewer", 501],
+    ["GET", "decisions/count", "viewer", 501],
+    ["POST", `decisions/${ID}/answer`, "editor", 501],
+    ["POST", `decisions/${ID}/not-now`, "editor", 501],
+    ["POST", `decisions/${ID}/dismiss`, "editor", 501],
+    // Viewers chat and discard; applying and editing a proposal take an editor (F8.8).
+    ["GET", "assistant", "viewer", 501],
+    ["POST", "assistant", "viewer", 501],
+    ["PATCH", `assistant/proposals/${ID}`, "editor", 501],
+    ["POST", `assistant/proposals/${ID}/apply`, "editor", 501],
+    ["POST", `assistant/proposals/${ID}/discard`, "viewer", 501],
   ];
   const below = { viewer: null, editor: "viewer", admin: "editor" } as const;
 

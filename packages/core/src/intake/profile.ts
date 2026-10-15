@@ -4,12 +4,11 @@ import type {
   IntakeProposal,
   ProfileEntry,
   ProfileKey,
-  ProfileValue,
 } from "@jobfilly/schema";
 
 // What Confirm saves (F6.5): the proposal with the user's edits on top, so every entry records
 // where it came from: source "scan" for a proposal kept as it was, "you" for an answer the user
-// set. Later edits on the profile page replace values the same way.
+// set. Later edits on the profile page are Changes (packages/core/src/profile/changes.ts).
 
 /** The reason an extra question's evidence carries: the mail the question was found in. */
 const EXTRA_REASON = "the question was found in this email";
@@ -54,32 +53,4 @@ export function confirmedEntries(input: {
     return edit ? { ...base, ...set(edit) } : { ...base, value: [], confidence: null, ...fromScan };
   });
   return [...core, ...extras];
-}
-
-type PatchResult = { ok: true; entries: ProfileEntry[] } | { ok: false; unknownKey: string };
-
-/**
- * Replaces the values of some entries of a profile, each then set by `by` (source "you"). A key
- * the profile doesn't have is refused, so a patch can't invent questions.
- */
-export function patchEntries(
-  entries: readonly ProfileEntry[],
-  changes: readonly { key: ProfileKey; value: ProfileValue }[],
-  by: { userId: string; at: string },
-): PatchResult {
-  const next = [...entries];
-  for (const change of changes) {
-    const index = next.findIndex((e) => e.key === change.key);
-    const current = next[index];
-    if (!current) return { ok: false, unknownKey: change.key };
-    next[index] = {
-      ...current,
-      value: change.value,
-      confidence: null,
-      source: "you",
-      updatedAt: by.at,
-      updatedBy: by.userId,
-    };
-  }
-  return { ok: true, entries: next };
 }

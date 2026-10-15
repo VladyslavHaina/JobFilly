@@ -168,3 +168,28 @@ describe("database errors in the log", () => {
     });
   });
 });
+
+describe("MVP 2's secret fields (F8.10)", () => {
+  it("redacts drafts, decisions, assistant messages and proposals, and profile snapshots", () => {
+    const fields = {
+      reply: "E2E-CHAT-1 reply",
+      question: "Minimum pay in CHF per year?",
+      choices: ["CHF 120,000"],
+      summary: "Hide Asian time zones",
+      request: "E2E-CHAT-2 lately I don't want…",
+      clarify: { question: "Which ones?", choices: ["a"] },
+      proposal: { summary: "s", changes: [] },
+      description: "Hide roles whose hours are UTC+05:00 or later",
+      before: { entries: [{ key: "min_pay", value: [] }] },
+      after: { entries: [] },
+      Reply_To: "kept as replyto, also redacted",
+    };
+    const safe = redact(fields) as Record<string, unknown>;
+    for (const key of Object.keys(fields)) expect(safe[key]).toBe(REDACTED);
+    const lines: string[] = [];
+    const log = createLogger({ level: "info", instance: "app-a", write: (l) => lines.push(l) });
+    log.info("assistant.proposal_created", { proposalId: "p1", changes: 2, ...fields });
+    expect(lines[0]).not.toMatch(/E2E-CHAT|CHF|UTC\+05|Hide/);
+    expect(JSON.parse(lines[0] ?? "{}")).toMatchObject({ proposalId: "p1", changes: 2 });
+  });
+});

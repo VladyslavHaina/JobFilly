@@ -1,10 +1,12 @@
 import { claimJob, enqueueJob, getJob, saveJobCheckpoint } from "@jobfilly/db";
+import { PIPELINE_REEVALUATE_JOB } from "@jobfilly/schema";
 import { afterEach, describe, expect, it } from "vitest";
 import { z } from "zod";
 import { createTestDeps, seedUser, type TestDeps } from "../testing";
 import {
   createJobQueue,
   defineJob,
+  enqueue,
   type JobContext,
   type JobRegistry,
   LeaseLostError,
@@ -280,10 +282,48 @@ describe("the job queue worker", () => {
   });
 });
 
+describe("dedupe keys across replicas (F1.2, TBD-178)", () => {
+  it("keeps one waiting, runs one at a time, and still runs one enqueued meanwhile", async () => {
+    let release: () => void = () => {};
+    const runs: number[] = [];
+    const registry: JobRegistry = {
+      "test.job": defineJob(Payload, async (ctx) => {
+        runs.push(ctx.payload.n);
+        if (ctx.payload.n === 1) await new Promise<void>((r) => (release = r));
+      }),
+    };
+    deps = await createTestDeps({ registry });
+    const d = deps;
+    const { workspaceId } = await seedUser(d);
+    const job = (n: number) =>
+      enqueue(d, workspaceId, { type: "test.job", payload: { n }, dedupeKey: "sync:m1" });
+    expect((await job(1)).enqueued).toBe(true);
+    expect((await job(2)).enqueued).toBe(false);
+    // Replica A runs the first; replica B finds the key running and starts nothing.
+    const a = d.queue.runOnce();
+    await expect.poll(() => runs).toEqual([1]);
+    const third = await job(3);
+    expect(third.enqueued).toBe(true);
+    const b = createJobQueue(d, registry, { owner: "app-b" });
+    expect(await b.runOnce()).toBe(false);
+    release();
+    await a;
+    expect(await b.runOnce()).toBe(true);
+    expect(runs).toEqual([1, 3]);
+    expect((await getJob(d.db, workspaceId, third.id))?.status).toBe("done");
+  });
+});
+
 describe("the registry", () => {
   it("runs 'scan.run' jobs with scanRunHandler and checks their payload", () => {
     const def = jobRegistry["scan.run"];
     expect(def?.handler).toBe(scanRunHandler);
     expect(def?.payload.safeParse({ scanId: "x", workspaceId: "y" }).success).toBe(false);
+  });
+
+  it("runs pipeline.reevaluate, the sweep's job", () => {
+    const def = jobRegistry[PIPELINE_REEVALUATE_JOB];
+    expect(def).toBeDefined();
+    expect(def?.payload.safeParse({ workspaceId: "x", reason: "sweep" }).success).toBe(false);
   });
 });

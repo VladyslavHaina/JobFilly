@@ -1,11 +1,12 @@
 import type { LogLevel } from "./config";
 
 // JSON lines on stdout (ARCHITECTURE › Logs): time, level, instance, event, and ids. Passwords,
-// keys, tokens, cookies, bodies, subjects, email addresses, Message-IDs and AI output are never
-// written: fields with those names are redacted, and anything shaped like an email address or a
-// Message-ID is masked wherever it appears in a value.
+// keys, tokens, cookies, bodies, subjects, email addresses, Message-IDs, AI output, CV text and
+// assistant messages and proposals (F8.10) are never written: fields with those names are
+// redacted, and anything shaped like an email address or a Message-ID is masked wherever it
+// appears in a value. assistant.proposal_created logs `changes` as a count, never the changes.
 
-/** The events of MVP 1 (MVP-1.md › Log events), plus a few operational ones. */
+/** The events of MVP 1 and MVP 2 (each MVP's › Log events), plus a few operational ones. */
 export type LogEvent =
   | "http.request"
   | "http.error"
@@ -36,7 +37,34 @@ export type LogEvent =
   | "intake.extras_failed"
   | "server.ready"
   | "server.shutting_down"
-  | "server.stopped";
+  | "server.stopped"
+  // MVP 2 (MVP-2.md › Log events)
+  | "sync.started"
+  | "sync.completed"
+  | "sync.failed"
+  | "sync.uidvalidity_changed"
+  | "pipeline.message_processed"
+  | "cv.uploaded"
+  | "cv.skill_dropped"
+  | "match.scored"
+  | "rule.applied"
+  | "sender.checked"
+  | "sender.lookup_incomplete"
+  | "draft.created"
+  | "draft.saved_to_mailbox"
+  | "draft.updated"
+  | "draft.discarded"
+  | "draft.rejected_placeholder"
+  | "decision.created"
+  | "decision.answered"
+  | "assistant.message"
+  | "assistant.proposal_created"
+  | "assistant.proposal_applied"
+  | "assistant.proposal_discarded"
+  | "profile.change_undone"
+  // Operational: a pipeline stage or the sweep failed for one item (it is retried later).
+  | "pipeline.stage_failed"
+  | "pipeline.sweep_failed";
 
 export type LogFields = Record<string, unknown>;
 
@@ -90,6 +118,17 @@ const SECRET_KEYS = new Set([
   "prompt",
   "output",
   "query",
+  // MVP 2: drafts, decisions and the assistant (F8.10).
+  "reply",
+  "question",
+  "choices",
+  "summary",
+  "request",
+  "clarify",
+  "proposal",
+  "description",
+  "before",
+  "after",
 ]);
 
 export const REDACTED = "[redacted]";

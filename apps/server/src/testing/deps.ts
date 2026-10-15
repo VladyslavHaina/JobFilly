@@ -2,15 +2,17 @@ import type { AiClient } from "@jobfilly/ai";
 import type { DatabaseConnection } from "@jobfilly/db";
 import { openTestDatabase } from "@jobfilly/db/testing";
 import type { MailClient } from "@jobfilly/mail";
+import type { AiModels } from "@jobfilly/schema";
 import type { Config } from "../config";
-import { type AiPort, type AppDeps, createDeps, type MailPort } from "../deps";
+import { type AiPort, type AppDeps, createDeps, type DomainPort, type MailPort } from "../deps";
 import type { JobRegistry } from "../jobs/queue";
 import { createLogger, type LogEvent } from "../log";
 import { type MovableClock, movableClock } from "./clock";
 
 // AppDeps for tests: a migrated in-memory PGlite database, a clock that only moves when told,
-// a captured log, and mail and AI ports that refuse to work until a test sets a fake. Nothing
-// reaches a real mailbox, model or network.
+// a captured log, mail and AI ports that refuse to work until a test sets a fake (createFakeMailbox
+// in ./mailbox.ts, createFakeAi in ./ai.ts), and a fake DomainPort. Nothing reaches a real
+// mailbox, model or network.
 
 /** The fixed JOBFILLY_SECRET_KEY of every test (32 bytes). */
 export const TEST_SECRET_KEY = new Uint8Array(32).fill(42);
@@ -47,6 +49,7 @@ interface LogLine {
 
 export interface TestDeps extends AppDeps {
   clock: MovableClock;
+  domains: FakeDomainPort;
   /** Every line logged so far, parsed. */
   logs: LogLine[];
   /** The raw JSON lines, for leak checks. */
@@ -58,6 +61,18 @@ export interface TestDeps extends AppDeps {
 
 const refuse = (what: string) => () => {
   throw new Error(`no fake ${what} set: assign deps.${what} in the test`);
+};
+
+/** A model for every task, for AI settings in tests. */
+export const TEST_AI_MODELS: AiModels = {
+  classify: "m",
+  extract: "m",
+  prefs: "m",
+  intake: "m",
+  cv: "m",
+  match: "m",
+  draft: "m",
+  assistant: "m",
 };
 
 const unused = (what: string) => () => Promise.reject(new Error(`this test's fake has no ${what}`));
@@ -95,6 +110,41 @@ export function fakeAiClient(methods: Partial<AiClient>): AiClient {
   };
 }
 
+/**
+ * The fake DomainPort (F5): RDAP and MX answers per domain, set with setRdap and setMx ('fail'
+ * makes the lookup throw, as a failed lookup does), a default for every other domain (registered
+ * ten years before the test clock's start, one MX record), and call counts.
+ */
+export interface FakeDomainPort extends DomainPort {
+  setRdap(domain: string, answer: { registeredAt: string | null } | "fail"): void;
+  setMx(domain: string, answer: string[] | "fail"): void;
+  calls: { rdap: string[]; mx: string[] };
+}
+
+export function createFakeDomains(defaults: { registeredAt?: string } = {}): FakeDomainPort {
+  const rdap = new Map<string, { registeredAt: string | null } | "fail">();
+  const mx = new Map<string, string[] | "fail">();
+  const calls = { rdap: [] as string[], mx: [] as string[] };
+  const registeredAt = defaults.registeredAt ?? "2016-10-01T00:00:00.000Z";
+  return {
+    calls,
+    setRdap: (domain, answer) => rdap.set(domain.toLowerCase(), answer),
+    setMx: (domain, answer) => mx.set(domain.toLowerCase(), answer),
+    async rdap(domain) {
+      calls.rdap.push(domain);
+      const answer = rdap.get(domain.toLowerCase()) ?? { registeredAt };
+      if (answer === "fail") throw new Error("RDAP lookup failed");
+      return answer;
+    },
+    async mx(domain) {
+      calls.mx.push(domain);
+      const answer = mx.get(domain.toLowerCase()) ?? [`mx.${domain.toLowerCase()}`];
+      if (answer === "fail") throw new Error("MX lookup failed");
+      return answer;
+    },
+  };
+}
+
 /** A mail port that fails until a test replaces deps.mail. */
 const unsetMailPort: MailPort = { connect: refuse("mail") };
 /** An AI port that fails until a test replaces deps.ai. */
@@ -106,6 +156,7 @@ export interface TestDepsOptions {
   config?: Partial<Config>;
   mail?: MailPort;
   ai?: AiPort;
+  domains?: FakeDomainPort;
   /** The job types the queue runs (default: the app's registry). */
   registry?: JobRegistry;
   /** Lease length for the queue (default 30 s). */
@@ -127,6 +178,7 @@ export async function createTestDeps(options: TestDepsOptions = {}): Promise<Tes
       logs.push(JSON.parse(line) as LogLine);
     },
   });
+  const domains = options.domains ?? createFakeDomains();
   const deps = createDeps({
     config,
     connection,
@@ -134,6 +186,7 @@ export async function createTestDeps(options: TestDepsOptions = {}): Promise<Tes
     clock,
     mail: options.mail ?? unsetMailPort,
     ai: options.ai ?? unsetAiPort,
+    domains,
     registry: options.registry,
     queue: { pollMs: 20, stopGraceMs: 1000, leaseMs: options.leaseMs },
     backgroundStopGraceMs: 1000,
@@ -141,6 +194,7 @@ export async function createTestDeps(options: TestDepsOptions = {}): Promise<Tes
   await deps.live.start();
   return Object.assign(deps, {
     clock,
+    domains,
     logs,
     rawLogs,
     connection,
