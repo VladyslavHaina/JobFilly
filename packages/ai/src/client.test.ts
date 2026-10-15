@@ -183,6 +183,59 @@ describe("batched tasks (F3.4, TBD-17)", () => {
     ]);
   });
 
+  it("never picks between two answers for the same Message-ID: the item is retried", async () => {
+    const { client, prompts, events } = clientWith([
+      classified([
+        [1, "interview"],
+        [2, "offer"],
+        [1, "not_job"],
+      ]),
+      classified([[1, "interview"]]),
+    ]);
+    const result = await client.classify([item(1), item(2)]);
+    expect(prompts).toHaveLength(2);
+    expect(messageIdsIn(prompts[1] ?? "")).toEqual(["<item-1@mail.example>"]);
+    expect(result.items).toEqual([
+      { messageId: "<item-1@mail.example>", ok: true, data: { category: "interview" } },
+      { messageId: "<item-2@mail.example>", ok: true, data: { category: "offer" } },
+    ]);
+    expect(events).toEqual([
+      { event: "ai.output_invalid", taskId: "classify.v1", reason: "schema", items: 1, attempt: 1 },
+    ]);
+  });
+
+  it("fails an item answered twice on the retry too as invalid_output", async () => {
+    const twice = classified([
+      [1, "interview"],
+      [1, "not_job"],
+    ]);
+    const { client, events } = clientWith([twice, twice]);
+    const result = await client.classify([item(1)]);
+    expect(result.items).toEqual([
+      {
+        messageId: "<item-1@mail.example>",
+        ok: false,
+        error: { kind: "invalid_output", message: expect.any(String) },
+      },
+    ]);
+    expect(events.map((e) => [e.reason, e.attempt])).toEqual([
+      ["schema", 1],
+      ["schema", 2],
+    ]);
+  });
+
+  it("returns an item answered twice as not_retried with maxCalls 1", async () => {
+    const { client, prompts } = clientWith([
+      classified([
+        [1, "interview"],
+        [1, "not_job"],
+      ]),
+    ]);
+    const result = await client.classify([item(1)], { maxCalls: 1 });
+    expect(prompts).toHaveLength(1);
+    expect(result.items[0]).toMatchObject({ ok: false, error: { kind: "not_retried" } });
+  });
+
   it("validates prefs per item against PreferencesSchema", async () => {
     const { client } = clientWith([
       JSON.stringify({

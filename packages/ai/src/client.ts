@@ -288,6 +288,7 @@ function checkItems<T>(
   const answers = (json.value as { items?: unknown } | null)?.items;
   if (!Array.isArray(answers)) return { valid, reason: "schema" };
   const wanted = new Set(pending.map((item) => item.messageId));
+  const repeated = new Set<string>();
   let schemaError = false;
   for (const answer of answers) {
     const parsed = itemSchema.safeParse(answer);
@@ -296,8 +297,14 @@ function checkItems<T>(
       continue;
     }
     const id = parsed.data.messageId;
-    if (wanted.has(id) && !valid.has(id)) valid.set(id, parsed.data);
+    if (!wanted.has(id)) continue;
+    if (valid.has(id) || repeated.has(id)) repeated.add(id);
+    else valid.set(id, parsed.data);
   }
+  // An item answered twice has no single answer: picking one would be a guess, so the item stays
+  // pending as invalid output and is retried like any other.
+  for (const id of repeated) valid.delete(id);
+  if (repeated.size > 0) schemaError = true;
   return { valid, reason: schemaError ? "schema" : "missing" };
 }
 
