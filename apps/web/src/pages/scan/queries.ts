@@ -10,7 +10,7 @@ import { apiPaths } from "../../paths";
 
 const POLL_WHILE_RUNNING_MS = 5000;
 
-export const currentScanKey = (workspaceId: string) =>
+const currentScanKey = (workspaceId: string) =>
   [...queryKeys.area(workspaceId, "scan"), "current"] as const;
 
 const scansApi = (workspaceId: string) => `${apiPaths.workspace(workspaceId)}/scans`;
