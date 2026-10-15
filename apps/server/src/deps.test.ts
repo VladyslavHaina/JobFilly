@@ -1,6 +1,9 @@
+import { aggregateIntake } from "@jobfilly/core";
 import type { DatabaseConnection } from "@jobfilly/db";
 import { describe, expect, it } from "vitest";
-import { createBackgroundWork, createHealth } from "./deps";
+import type { Config } from "./config";
+import { createBackgroundWork, createDeps, createHealth } from "./deps";
+import { createLogger } from "./log";
 
 function fakeConnection(state: { reachable: boolean; migrated: boolean }): DatabaseConnection {
   return {
@@ -14,6 +17,17 @@ function fakeConnection(state: { reachable: boolean; migrated: boolean }): Datab
     close: async () => {},
   };
 }
+
+describe("createDeps", () => {
+  it("wires the real intake aggregation from @jobfilly/core, not a stand-in", () => {
+    const deps = createDeps({
+      config: { instance: "test-instance" } as Config,
+      connection: fakeConnection({ reachable: true, migrated: true }),
+      log: createLogger({ level: "error", instance: "test-instance", write: () => {} }),
+    });
+    expect(deps.intake.aggregate).toBe(aggregateIntake);
+  });
+});
 
 describe("readiness", () => {
   it("is ready only when the database is reachable and migrated", async () => {
