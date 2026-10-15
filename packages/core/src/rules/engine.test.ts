@@ -422,8 +422,16 @@ describe("every op against every fact", () => {
       why: "pay period not stated",
     });
     expect(state(below, pay({}))).toEqual({ state: "unknown", why: "pay amount not stated" });
-    // Only a minimum stated: it is the top of what is offered.
-    expect(state(below, pay({ min: 90000 })).state).toBe("holds");
+    // Only a minimum stated ("from …"): the top is open, so it is below only when known to be.
+    expect(state(below, pay({ min: 90000 }))).toEqual({
+      state: "unknown",
+      why: "highest pay not stated",
+    });
+    expect(state(below, pay({ min: PAY_VALUE.amount })).state).toBe("fails");
+    expect(state(below, pay({ min: 200000 })).state).toBe("fails");
+    // Only a maximum stated ("up to …"): that is the top.
+    expect(state(below, pay({ max: 90000 })).state).toBe("holds");
+    expect(state(below, pay({ max: 200000 })).state).toBe("fails");
   });
 
   it("compares numbers with extra facts written as numbers", () => {

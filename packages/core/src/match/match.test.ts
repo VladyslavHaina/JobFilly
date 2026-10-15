@@ -343,6 +343,60 @@ describe("hard conflicts (F4.2)", () => {
     });
   });
 
+  it("a place the mail only half-states is unknown, not a conflict", () => {
+    const place = (
+      rolePlaces: JobFacts["places"],
+      mine = maria,
+      workMode: JobFacts["workMode"] = "hybrid",
+    ) => matchRole(input({ profile: mine, facts: facts({ places: rolePlaces, workMode }) })).match;
+
+    // A country with no city, against your city.
+    const country = place([{ country: "DE", city: null }]);
+    expect(country.capped).toBe(false);
+    expect(country.score).toBeGreaterThan(40);
+    expect(byKey(country.verdicts, "places")).toMatchObject({
+      verdict: "unknown",
+      hard: false,
+      reason: "DE, hybrid — city not stated, so not compared with your 'Berlin, hybrid'",
+    });
+
+    // A city with no country, against your country.
+    const germany = {
+      entries: [
+        ...maria.entries.filter((e) => e.key !== "places"),
+        entry("places", [{ country: "DE", city: null, mode: "hybrid" }]),
+      ],
+    };
+    const city = place([{ country: null, city: "Berlin" }], germany);
+    expect(city.capped).toBe(false);
+    expect(city.score).toBeGreaterThan(40);
+    expect(byKey(city.verdicts, "places")).toMatchObject({
+      verdict: "unknown",
+      hard: false,
+      reason: "Berlin, hybrid — country not stated, so not compared with your 'DE, hybrid'",
+    });
+
+    // Stated in full, they compare as before.
+    expect(
+      byKey(place([{ country: "DE", city: "Berlin" }], germany).verdicts, "places")?.verdict,
+    ).toBe("fits");
+    expect(byKey(place([{ country: null, city: "Berlin" }]).verdicts, "places")?.verdict).toBe(
+      "fits",
+    );
+    // Another country, or another city, is still not one of your places.
+    expect(place([{ country: "NL", city: null }]).capped).toBe(true);
+    expect(place([{ country: null, city: "Munich" }]).capped).toBe(true);
+    // A work mode none of the places it could be takes still conflicts.
+    const onsite = place([{ country: "DE", city: null }], maria, "onsite");
+    expect(onsite.capped).toBe(true);
+    expect(onsite.verdicts[0]).toMatchObject({
+      entryKey: "places",
+      verdict: "conflicts",
+      hard: true,
+      reason: "DE, onsite — you accept 'Berlin, hybrid' only",
+    });
+  });
+
   it("a cap_score rule caps the score at 40 and is listed first", () => {
     const { match, ruleEffects, hidden } = matchRole(input({ rules: [capRule] }));
     expect(match.score).toBe(40);
@@ -498,6 +552,31 @@ describe("pay only in the same currency and period (F4.3)", () => {
     ]);
   });
 
+  it("never takes a minimum alone for the most a role pays", () => {
+    const eur = (min: number | null, max: number | null, asWritten: string) =>
+      matchRole(
+        input({ facts: facts({ pay: { min, max, currency: "EUR", period: "year", asWritten } }) }),
+      ).match;
+    // "From €50k" may go past your €70,000: unknown, not a conflict, and never capped.
+    const from = eur(50000, null, "from €50k a year");
+    expect(from.capped).toBe(false);
+    expect(byKey(from.verdicts, "min_pay")).toMatchObject({
+      verdict: "unknown",
+      hard: false,
+      reason: "from €50k a year — highest pay not stated",
+      need: null,
+    });
+    // A minimum at or over yours meets it.
+    expect(byKey(eur(70000, null, "from €70k").verdicts, "min_pay")).toMatchObject({
+      verdict: "fits",
+      reason: "from €70k — meets your minimum of €70,000 a year",
+    });
+    // "Up to" states the top: under yours, it is a hard conflict.
+    const upTo = eur(null, 60000, "up to €60k");
+    expect(upTo.capped).toBe(true);
+    expect(upTo.verdicts[0]).toMatchObject({ entryKey: "min_pay", verdict: "conflicts" });
+  });
+
   it("leaves pay out when the profile states no minimum", () => {
     const noPay = { entries: maria.entries.filter((e) => e.key !== "min_pay") };
     const { match } = matchRole(input({ profile: noPay, facts: facts({ pay: chf(1, 2) }) }));
@@ -525,6 +604,55 @@ describe("skills from the chosen CV and the profile (F4.4)", () => {
     expect(match.skills).toEqual({
       matched: ["Go (Golang)", "postgresql"],
       missing: ["Kafka", "Java"],
+    });
+  });
+
+  it("never counts a skill as matched because a short CV skill sits inside it", () => {
+    const skills = (cv: string[], role: string[]) =>
+      matchRole(input({ facts: facts({ skills: role }), cv: { cvId: CV, skills: cv } })).match;
+    const cases: [string, string][] = [
+      ["C", "Objective-C"],
+      ["Go", "Go-to-market strategy"],
+      ["Testing", "Penetration testing"],
+      ["Design", "System design"],
+      ["Java", "Java EE"],
+    ];
+    for (const [cv, role] of cases) {
+      const match = skills([cv], [role]);
+      expect(match.skills, `${cv} against ${role}`).toEqual({ matched: [], missing: [role] });
+      expect(match.verdicts.find((v) => v.entryKey === null && v.ruleId === null)?.verdict).toBe(
+        "conflicts",
+      );
+    }
+    // A missing skill earns no credit: the score is the same as with no CV skills at all.
+    expect(skills(["Go"], ["Go-to-market strategy"]).score).toBe(
+      skills([], ["Go-to-market strategy"]).score,
+    );
+    // The profile's own skills follow the same rule.
+    const withSkills = { entries: [...maria.entries, entry("extra.skills", ["C", "Testing"])] };
+    const { match } = matchRole(
+      input({
+        profile: withSkills,
+        facts: facts({ skills: ["Objective-C", "Penetration testing", "c", "TESTING"] }),
+        cv: { cvId: CV, skills: [] },
+      }),
+    );
+    expect(match.skills).toEqual({
+      matched: ["c", "TESTING"],
+      missing: ["Objective-C", "Penetration testing"],
+    });
+  });
+
+  it("matches the same skill with other spacing, punctuation or a parenthesised alias", () => {
+    const { match } = matchRole(
+      input({
+        facts: facts({ skills: ["Node.js", "C#", "Go", "Kubernetes (K8s)", "C++"] }),
+        cv: { cvId: CV, skills: ["NodeJS", "c#", "Go (Golang)", "Kubernetes", "C"] },
+      }),
+    );
+    expect(match.skills).toEqual({
+      matched: ["Node.js", "C#", "Go", "Kubernetes (K8s)"],
+      missing: ["C++"],
     });
   });
 

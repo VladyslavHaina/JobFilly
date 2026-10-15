@@ -33,7 +33,8 @@ import { formatAmount, formatRange, norm, rangeDisjoint, rangeWithin } from "../
 //   currency"), never converted (F4.3). That unknown is the one a reply can't go without, so it
 //   carries the need "Minimum pay in CHF per year?" (groupKey min_pay:CHF:year).
 // - Matched and missing skills come from the chosen CV and the profile; a skill counts as matched
-//   only when the CV or the profile lists it (the same words, or its words inside the role's).
+//   only when the CV or the profile lists that same skill (case, spacing, punctuation and a
+//   parenthesised alias aside).
 //   The model's closeness never makes a missing skill a fit (F4.4); it only explains.
 // - The model (match.v1) judges only the fuzzy parts: whether the title fits a target role, and
 //   how close the role's skills are. Everything else is compared here.
@@ -151,14 +152,21 @@ const tokens = (s: string) =>
   norm(s)
     .split(/[^\p{L}\p{N}+#.]+/u)
     .filter(Boolean);
+/** A skill's letters, digits, + and #, lower-cased: "Node.js" and "NodeJS" are both "nodejs". */
 const bare = (s: string) => norm(s).replace(/[^\p{L}\p{N}+#]/gu, "");
+/** A skill without its parenthesised aliases: "Go (Golang)" is "Go". */
+const withoutAlias = (s: string) => s.replace(/\([^)]*\)/g, " ");
 
-/** Whether `have` (a CV or profile skill) is the role's `want`: the same words, or its words. */
+/**
+ * Whether `have` (a CV or profile skill) is the role's `want`: the same skill, written with other
+ * case, spacing or punctuation, or with a parenthesised alias ("Go (Golang)" is "Go"). A skill
+ * merely inside another is a different one: "C" isn't "Objective-C", nor "Testing" "Penetration
+ * testing" (F4.4). Any closer reading is the model's, and it only explains.
+ */
 function sameSkill(want: string, have: string): boolean {
-  if (bare(want) !== "" && bare(want) === bare(have)) return true;
-  const w = tokens(want);
-  const h = tokens(have);
-  return h.length > 0 && h.every((t) => w.includes(t));
+  const names = (s: string) => [bare(s), bare(withoutAlias(s))].filter((n) => n !== "");
+  const mine = names(have);
+  return names(want).some((n) => mine.includes(n));
 }
 
 function skillsPart(input: MatchRoleInput): {
@@ -208,12 +216,27 @@ function skillsPart(input: MatchRoleInput): {
 const placeWords = (p: { city: string | null; country: string | null }) =>
   p.city ?? p.country ?? "somewhere";
 
-const samePlace = (role: JobFacts["places"][number], mine: Place) => {
-  if (role.country && role.country !== mine.country) return false;
-  if (!role.country && !role.city) return false;
-  if (mine.city === null) return role.country === mine.country;
-  return role.city !== null && norm(role.city) === norm(mine.city);
-};
+/**
+ * How a place the role states compares with one you accept: the same place, another place, or
+ * one the mail half-states so it could be yours ("DE" against your 'Berlin', "Berlin" with no
+ * country against your 'DE'). That last one is unknown, never a conflict: nothing is guessed.
+ */
+type PlaceMatch = { kind: "same" } | { kind: "other" } | { kind: "maybe"; why: string };
+
+function placeMatch(role: JobFacts["places"][number], mine: Place): PlaceMatch {
+  if (role.country !== null) {
+    if (role.country !== mine.country) return { kind: "other" };
+    if (mine.city === null) return { kind: "same" };
+    if (role.city === null) return { kind: "maybe", why: "city not stated" };
+    return { kind: norm(role.city) === norm(mine.city) ? "same" : "other" };
+  }
+  if (role.city === null) return { kind: "other" };
+  if (mine.city === null) return { kind: "maybe", why: "country not stated" };
+  return { kind: norm(role.city) === norm(mine.city) ? "same" : "other" };
+}
+
+const samePlace = (role: JobFacts["places"][number], mine: Place) =>
+  placeMatch(role, mine).kind === "same";
 
 /** Whether a place you accept in `mode` takes a role in `roleMode` (onsite also takes hybrid). */
 const modeAccepted = (roleMode: "onsite" | "hybrid", mine: Place["mode"]) =>
@@ -361,11 +384,28 @@ function placeVerdict(input: MatchRoleInput): MatchVerdict {
       `${where}, ${mode} — fits your '${placeWords(accepted)}, ${accepted.mode}'`,
     );
   }
-  if (samePlaces.length > 0) {
+  // Places the mail only half-states: one that would take the work mode is unknown.
+  const maybe = places.flatMap((p) =>
+    rolePlaces.flatMap((r) => {
+      const m = placeMatch(r, p);
+      return m.kind === "maybe" ? [{ place: p, why: m.why }] : [];
+    }),
+  );
+  const couldFit = maybe.find((m) => modeAccepted(mode, m.place.mode));
+  if (couldFit) {
+    const { place, why } = couldFit;
+    return verdict(
+      "places",
+      "unknown",
+      `${where}, ${mode} — ${why}, so not compared with your '${placeWords(place)}, ${place.mode}'`,
+    );
+  }
+  const candidates = [...new Set([...samePlaces, ...maybe.map((m) => m.place)])];
+  if (candidates.length > 0) {
     return verdict(
       "places",
       "conflicts",
-      `${where}, ${mode} — you accept ${quoted(samePlaces.map((p) => `${placeWords(p)}, ${p.mode}`))} only`,
+      `${where}, ${mode} — you accept ${quoted(candidates.map((p) => `${placeWords(p)}, ${p.mode}`))} only`,
       { hard: true },
     );
   }
@@ -420,7 +460,7 @@ function payVerdict(input: MatchRoleInput): { credit: number; verdict: MatchVerd
   }
   const compared = comparePay(pay, same);
   if (compared.state === "unknown") return unknown(`${written} — ${compared.why}`);
-  if (compared.top < same.amount) {
+  if (compared.below) {
     return {
       credit: 0,
       verdict: verdict(

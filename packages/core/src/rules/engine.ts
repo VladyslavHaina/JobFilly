@@ -156,14 +156,16 @@ const FAILS: ConditionResult = { state: "fails" };
 const HOLDS: ConditionResult = { state: "holds" };
 const when = (holds: boolean): ConditionResult => (holds ? HOLDS : FAILS);
 
-/** The highest pay a role states: its maximum, or its only amount. */
-const topPay = (pay: Pay): number | null => pay.max ?? pay.min;
-
 /**
- * Pay against a threshold, only in the same currency and period (F4.3): "below" holds when even
- * the highest pay stated is under the threshold.
+ * Pay against a threshold, only in the same currency and period (F4.3): below when even the
+ * highest pay offered is under the threshold. A minimum alone ("from €50k", as the inbox shows it)
+ * leaves the top open, and an open top is never guessed: a minimum under the threshold is unknown
+ * ("highest pay not stated"), one at or over it is not below.
  */
-export function comparePay(pay: Pay, threshold: Pick<PayThreshold, "currency" | "period">) {
+export function comparePay(
+  pay: Pay,
+  threshold: Pick<PayThreshold, "amount" | "currency" | "period">,
+) {
   if (!pay.currency) return { state: "unknown" as const, why: "pay currency not stated" };
   if (!pay.period) return { state: "unknown" as const, why: "pay period not stated" };
   if (pay.currency !== threshold.currency) {
@@ -171,9 +173,10 @@ export function comparePay(pay: Pay, threshold: Pick<PayThreshold, "currency" | 
   }
   if (pay.period !== threshold.period)
     return { state: "unknown" as const, why: "different period" };
-  const top = topPay(pay);
-  if (top === null) return { state: "unknown" as const, why: "pay amount not stated" };
-  return { state: "known" as const, top };
+  if (pay.max !== null) return { state: "known" as const, below: pay.max < threshold.amount };
+  if (pay.min === null) return { state: "unknown" as const, why: "pay amount not stated" };
+  if (pay.min >= threshold.amount) return { state: "known" as const, below: false };
+  return { state: "unknown" as const, why: "highest pay not stated" };
 }
 
 function wordsCondition(op: Condition["op"], fact: FactValue, words: string[]): ConditionResult {
@@ -227,7 +230,7 @@ export function evaluateCondition(condition: Condition, subject: RuleSubject): C
     if (fact.kind === "pay" && isPayThreshold(value)) {
       const compared = comparePay(fact.value, value);
       if (compared.state === "unknown") return compared;
-      return when(compared.top < value.amount);
+      return when(compared.below);
     }
     if (typeof value === "number") return numberCondition(op, fact, value);
     return FAILS;
