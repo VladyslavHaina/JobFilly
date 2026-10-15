@@ -1,4 +1,9 @@
-import { buildIntakeExtraInput, confirmedEntries, extraEvidenceIds } from "@jobfilly/core";
+import {
+  buildIntakeExtraInput,
+  confirmedEntries,
+  extraEvidenceIds,
+  foundExtraQuestions,
+} from "@jobfilly/core";
 import {
   claimIntakeExtras,
   createConfirmedProfile,
@@ -20,13 +25,14 @@ import {
   type ExtraQuestion,
   IntakeAnswerInputSchema,
   type IntakeEdit,
+  type IntakeExtraOutput,
   type IntakeForm,
   type IntakeProposal,
   isExtraKey,
-  MAX_EXTRA_QUESTIONS,
   type Profile,
   ProfileKeySchema,
   profileValueSchema,
+  type TaskResult,
 } from "@jobfilly/schema";
 import { Hono } from "hono";
 import { z } from "zod";
@@ -58,6 +64,10 @@ const CONFIRMED = {
   message: "Your profile is already confirmed. Change it on the profile page.",
 } as const;
 const NO_SUCH_QUESTION = { error: "not_found", message: "There is no such question" } as const;
+const EXTRAS_PENDING = {
+  error: "extras_pending",
+  message: "The questions found in your mail are still on their way. Confirm once they show.",
+} as const;
 
 /** A pending claim older than this belongs to a replica that is gone. */
 const EXTRAS_CLAIM_STALE_MS = 2 * MINUTE;
@@ -82,41 +92,54 @@ async function currentQuestions(deps: AppDeps, workspaceId: string): Promise<Ext
 
 /**
  * Makes the one intake.v1 call for a claim and stores its outcome. Runs after the response: it
- * never holds a request or a transaction open while the model answers.
+ * never holds a request or a transaction open while the model answers. Only the questions the
+ * mail it was shown backs are kept (foundExtraQuestions).
+ *
+ * A database failure is thrown to the caller, which logs it and leaves the claim pending for the
+ * 2-minute takeover. A replica that starts shutting down while the model answers abandons the
+ * call the same way, so nothing is written to a database that is being closed.
  */
 async function askForExtras(
   deps: AppDeps,
   workspaceId: string,
   proposal: IntakeProposal,
   claim: { instance: string; at: Date },
+  log: Logger,
 ): Promise<void> {
   let status: "done" | "failed" = "failed";
   let questions: ExtraQuestion[] = [];
   const settings = await getAiSettings(deps.db, workspaceId);
   if (settings) {
+    const input = buildIntakeExtraInput(
+      proposal,
+      await getStoredMessages(deps.db, workspaceId, extraEvidenceIds(proposal)),
+    );
+    let result: TaskResult<IntakeExtraOutput> | null = null;
     try {
-      const messages = await getStoredMessages(deps.db, workspaceId, extraEvidenceIds(proposal));
       const client = deps.ai.client({
         provider: settings.provider,
         baseUrl: settings.baseUrl,
         models: settings.models,
         apiKey: settings.keyCiphertext ? open(deps.config.secretKey, settings.keyCiphertext) : null,
       });
-      const result = await client.intake(buildIntakeExtraInput(proposal, messages));
-      for (const usage of result.usage) {
-        await recordAiUsage(deps.db, workspaceId, {
-          scanId: null,
-          task: usage.task,
-          inputTokens: usage.inputTokens,
-          outputTokens: usage.outputTokens,
-        });
-      }
-      if (result.ok) {
-        status = "done";
-        questions = result.data.questions.slice(0, MAX_EXTRA_QUESTIONS);
-      }
-    } catch {
-      // The provider or the client failed: the form goes on without extra questions.
+      result = await client.intake(input);
+    } catch (error) {
+      // The client failed outright (a provider failure comes back as a result, not a throw): the
+      // form goes on without extra questions.
+      log.warn("intake.extras_failed", { workspaceId, error: errorName(error) });
+    }
+    if (deps.health.shuttingDown) return;
+    for (const usage of result?.usage ?? []) {
+      await recordAiUsage(deps.db, workspaceId, {
+        scanId: null,
+        task: usage.task,
+        inputTokens: usage.inputTokens,
+        outputTokens: usage.outputTokens,
+      });
+    }
+    if (result?.ok) {
+      status = "done";
+      questions = foundExtraQuestions(result.data.questions, input);
     }
   }
   await finishIntakeExtras(deps.db, workspaceId, {
@@ -127,6 +150,12 @@ async function askForExtras(
   });
   await deps.live.publish(workspaceId, { type: "intake.updated", data: {} });
 }
+
+/**
+ * Only an error's name is logged for the background call: a database error's message quotes the
+ * query's parameters, which can hold the model's questions, and AI output is never logged.
+ */
+const errorName = (error: unknown) => (error instanceof Error ? error.name : "unknown");
 
 /** The extra questions' state for the form, claiming the call when nobody has (yet). */
 async function extrasFor(
@@ -151,8 +180,8 @@ async function extrasFor(
     });
   }
   if (claimed) {
-    askForExtras(deps, workspaceId, proposal, claim).catch((error) =>
-      log.error("http.error", { error }),
+    askForExtras(deps, workspaceId, proposal, claim, log).catch((error: unknown) =>
+      log.warn("intake.extras_failed", { workspaceId, error: errorName(error) }),
     );
     return { status: "pending", questions: [] };
   }
@@ -206,11 +235,16 @@ export function intakeRoutes(deps: AppDeps) {
     .post("/confirm", requireRole("editor"), validJson(ConfirmIntakeInputSchema), async (c) => {
       const workspaceId = c.get("workspaceId");
       if (!(await formIsOpen(deps, workspaceId))) return c.json(NOT_READY, 409);
+      if (await hasProfile(deps.db, workspaceId)) return c.json(CONFIRMED, 409);
+      // Confirming now would save a profile without the extra questions, and they could never be
+      // answered after: the profile takes no new keys.
+      const extras = await getIntakeExtras(deps.db, workspaceId);
+      if (extras?.status === "pending") return c.json(EXTRAS_PENDING, 409);
       const now = deps.clock.now();
       const entries = confirmedEntries({
         proposal: await proposalOf(deps, workspaceId),
         edits: await listIntakeAnswers(deps.db, workspaceId),
-        questions: await currentQuestions(deps, workspaceId),
+        questions: extras?.status === "done" ? extras.questions : [],
         at: now.toISOString(),
       });
       const created = await createConfirmedProfile(deps.db, workspaceId, {

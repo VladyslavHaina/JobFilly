@@ -57,7 +57,7 @@ const QUESTIONS: ExtraQuestion[] = [
     slug: "notice-period",
     label: "What is your notice period?",
     options: ["1 month", "3 months"],
-    evidence: [],
+    evidence: ["<job-4@agency.example>"],
   },
 ];
 
@@ -433,6 +433,77 @@ describe("GET /intake (F6.1)", () => {
     expect(ai.calls).toHaveLength(1);
   });
 
+  it("shows only questions found in the mail: evidence it was shown, each slug once", async () => {
+    await seedMariaMail(ws.workspaceId);
+    await stopFirstScan();
+    const invented = "<invented-by-the-model@nowhere.example>";
+    ai.answerWith(async () =>
+      answered([
+        { ...QUESTIONS[0], evidence: [invented, replyId(1)] } as ExtraQuestion,
+        { slug: "visa", label: "Do you need a visa?", options: [], evidence: [invented] },
+        { slug: "start-date", label: "When could you start?", options: [], evidence: [] },
+        { ...QUESTIONS[0], label: "Relocation, asked again?" } as ExtraQuestion,
+        QUESTIONS[1] as ExtraQuestion,
+      ]),
+    );
+    const settled = await settledForm(viewer);
+    expect(settled.extras).toEqual({ status: "done", questions: QUESTIONS });
+    // Only what is shown can be answered.
+    for (const slug of ["visa", "start-date"]) {
+      const res = await editor.put(intakePath(`/answers/extra.${slug}`), { value: ["x"] });
+      expect(res.status, slug).toBe(404);
+    }
+  });
+
+  it("logs a client failure as a warning without its message, and goes on without extras", async () => {
+    await seedMariaMail(ws.workspaceId);
+    await stopFirstScan();
+    ai.answerWith(() => Promise.reject(new TypeError("E2E-MARKER-client-failure")));
+    expect((await settledForm(viewer)).extras).toEqual({ status: "failed", questions: [] });
+    const line = deps.logs.find((l) => l.event === "intake.extras_failed");
+    expect(line).toMatchObject({ level: "warn", workspaceId: ws.workspaceId, error: "TypeError" });
+    expect(deps.rawLogs.join("\n")).not.toContain("E2E-MARKER");
+    expect(deps.logs.filter((l) => l.level === "error")).toEqual([]);
+  });
+
+  it("never logs the model's questions when storing them fails", async () => {
+    await seedMariaMail(ws.workspaceId);
+    await stopFirstScan();
+    // Postgres refuses a NUL character in jsonb, so finishIntakeExtras fails with a database error
+    // whose message quotes the query's parameters: the model's questions.
+    ai.answerWith(async () =>
+      answered([{ ...(QUESTIONS[0] as ExtraQuestion), label: "E2E-MARKER-question\u0000?" }]),
+    );
+    await form(viewer);
+    await vi.waitFor(() =>
+      expect(deps.logs.find((l) => l.event === "intake.extras_failed")).toBeTruthy(),
+    );
+    const line = deps.logs.find((l) => l.event === "intake.extras_failed");
+    expect(line).toMatchObject({ level: "warn", workspaceId: ws.workspaceId });
+    expect(line?.error).toMatch(/Error$/);
+    expect(deps.rawLogs.join("\n")).not.toContain("E2E-MARKER");
+    expect(deps.logs.filter((l) => l.level === "error")).toEqual([]);
+    // The claim stays pending, for the 2-minute takeover.
+    expect((await form(viewer)).extras.status).toBe("pending");
+  });
+
+  it("abandons the call when the replica starts shutting down while the model answers", async () => {
+    await seedMariaMail(ws.workspaceId);
+    await stopFirstScan();
+    const held = deferred<IntakeAnswer>();
+    ai.answerWith(() => held.promise);
+    await form(viewer);
+    await vi.waitFor(() => expect(ai.calls).toHaveLength(1));
+    deps.health.beginShutdown();
+    held.resolve(answered(QUESTIONS));
+    // Nothing more is written: no usage, the claim left pending for another replica to take over.
+    await new Promise((r) => setTimeout(r, 50));
+    expect(await usageTotal(deps.db, ws.workspaceId)).toMatchObject({ calls: 0 });
+    expect((await form(viewer)).extras.status).toBe("pending");
+    expect(events.filter((e) => e.type === "intake.updated")).toEqual([]);
+    expect(deps.logs.filter((l) => l.level === "error" || l.level === "warn")).toEqual([]);
+  });
+
   it("gives Tom's thin inbox every answer empty, and intake.v1 no items (F6.6)", async () => {
     await saveEnvelopes(deps.db, ws.workspaceId, [
       { envelope: envelope(jobId(1), 1, "inbox"), verdict: "likely_job", reason: "test" },
@@ -545,6 +616,21 @@ describe("POST /intake/confirm (F6.5)", () => {
       profileId: profile.id,
       workspaceId: ws.workspaceId,
     });
+  });
+
+  it("waits for the extra questions: refused while they are pending, then saved with them", async () => {
+    const held = deferred<IntakeAnswer>();
+    ai.answerWith(() => held.promise);
+    expect((await form(editor)).extras.status).toBe("pending");
+    const early = await editor.post(intakePath("/confirm"), {});
+    expect(early.status).toBe(409);
+    expect(await early.json()).toMatchObject({ error: "extras_pending" });
+    held.resolve(answered(QUESTIONS));
+    await settledForm(editor);
+    const res = await editor.post(intakePath("/confirm"), {});
+    expect(res.status).toBe(201);
+    const profile = ProfileSchema.parse(await res.json());
+    expect(profile.entries.map((e) => e.key)).toContain("extra.relocation");
   });
 
   it("can be finished without any edit", async () => {
