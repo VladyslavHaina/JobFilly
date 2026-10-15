@@ -1,11 +1,7 @@
-import {
-  AI_PROVIDERS,
-  type AiClientSettings,
-  type AiProviderId,
-  aiProvider,
-} from "@jobfilly/schema";
+import type { AiClientSettings, AiProviderId } from "@jobfilly/schema";
 import { afterEach, describe, expect, it } from "vitest";
 import { createAiClient } from "./client";
+import { AI_PROVIDERS, aiProvider } from "./providers";
 import { modelRegistry } from "./registry";
 
 // The registry builds each provider from the workspace's settings alone: its models, its key and

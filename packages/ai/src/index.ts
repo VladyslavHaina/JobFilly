@@ -9,3 +9,4 @@ export {
   type CallOptions,
   createAiClient,
 } from "./client";
+export { AI_PROVIDERS, aiProvider, aiReadBy } from "./providers";
