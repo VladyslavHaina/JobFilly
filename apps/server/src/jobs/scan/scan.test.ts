@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { orderNewestFirst } from "@jobfilly/core";
 import {
   claimJob,
@@ -167,7 +168,7 @@ async function setup(
   d.intake = { aggregate: aggregateFromReplies };
   const events: LiveEvent[] = [];
   d.live.subscribe(
-    workspaceId,
+    { workspaceId, userId: admin.id, sessionId: randomUUID() },
     (e) => events.push(e),
     () => {},
   );

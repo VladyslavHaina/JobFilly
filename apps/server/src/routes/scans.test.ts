@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { claimJob, recordAiUsage, SCAN_RUN_JOB, stopScan } from "@jobfilly/db";
 import { CurrentScanSchema, type Envelope, type LiveEvent, type StopCause } from "@jobfilly/schema";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -47,7 +48,7 @@ beforeEach(async () => {
   outsider = await signedIn(app, deps, o);
   events = [];
   deps.live.subscribe(
-    ws.workspaceId,
+    { workspaceId: ws.workspaceId, userId: owner.id, sessionId: randomUUID() },
     (event) => events.push(event),
     () => {},
   );
