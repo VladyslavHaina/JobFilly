@@ -1953,3 +1953,690 @@ These make sign-off possible; without them the build goes on and records an open
 - **If you decide otherwise:** Remove stoppedAt from CurrentScanSchema and the route, and drop StopTime.tsx and its uses.
 - **Refs:** S8; packages/schema/src/scan.ts; apps/web/src/pages/scan/StopTime.tsx
 - **Status:** open
+
+## TBD-156 · Untracked .claude/worktrees/ handled with a local git exclude instead of a stash
+- **Kind:** decision
+- **Where:** MVP 2 · Preflight
+- **Context:** The only thing making the tree dirty was the untracked .claude/worktrees/ directory. It holds 95 live git worktrees that the workflow harness created during the MVP 1 run. The preflight says to stash anything untracked with 'git stash push -u'. But stash -u removes untracked files after stashing them, so it would have deleted those registered worktrees, or failed on them as embedded repositories.
+- **Options:**
+  1. git stash push -u as written
+  2. Add .claude/worktrees/ to the committed .gitignore
+  3. Add .claude/worktrees/ to the local .git/info/exclude
+- **Chosen:** Added '.claude/worktrees/' to .git/info/exclude. This is local only and nothing was committed. The tree is now clean and no files were moved or deleted. It keeps the harness's worktrees safe and gets a clean tree without committing a change to the repo for a tooling artifact.
+- **If you decide otherwise:** A stash -u would have wiped or broken 95 registered worktrees. Changing .gitignore would add a repo commit that has nothing to do with MVP 2. The owner can add it to .gitignore later, or prune the stale worktrees with 'git worktree prune' after removing them.
+- **Refs:** .git/info/exclude; git worktree list
+- **Status:** open
+
+## TBD-157 · mvp-2 branched from mvp-1, not from main
+- **Kind:** decision
+- **Where:** MVP 2 · Preflight
+- **Context:** MVP 1 is signed off on branch mvp-1 (status 'accepted with open items', commit b3d20f1, sign-off commit b662b79) but is not merged into main.
+- **Options:**
+  1. Create mvp-2 from main
+  2. Create mvp-2 from mvp-1
+- **Chosen:** Created mvp-2 from mvp-1 at b662b79. The preflight rule says to branch from mvp-1 when MVP 1 is not merged into main. MVP 2 builds on MVP 1's code.
+- **If you decide otherwise:** Branching from main would leave out all of MVP 1's code.
+- **Refs:** docs/mvp/MVP-1.md sign-off table; git merge-base --is-ancestor mvp-1 main -> not merged
+- **Status:** open
+
+## TBD-158 · Merge MVP 1's unmerged intake/profile/live branch into mvp-2 first
+- **Kind:** decision
+- **Where:** MVP 2 · Plan
+- **Context:** mvp-2 does not contain MVP 1's F6: profiles.ts and intake.ts answer 501, packages/db/src/queries/profiles.ts is empty, and ProfilePage and IntakePage are stubs. That work is on mvp-1-fix-r4-intake-live-merge, 30 commits ahead and 1 behind mvp-2, along with live-stream revocation. MVP 2's rules, matching, reply policy, decisions and assistant all rest on the confirmed profile.
+- **Options:**
+  1. Merge mvp-1-fix-r4-intake-live-merge into mvp-2 as foundation step 0
+  2. Rebuild a minimal profile store inside MVP 2
+  3. Leave it and build MVP 2 without a profile
+- **Chosen:** Merge it first, with --no-ff (a dry-run git merge-tree shows no conflicts), then pnpm check, fixing only what the merge breaks. MVP 2 can't serve its criteria without the profile, and the branch holds finished and reviewed MVP 1 work. Rebuilding it would duplicate that work and diverge from it.
+- **If you decide otherwise:** The foundation would have to build its own profile storage and page, and MVP 1's F6 would stay missing.
+- **Refs:** branch mvp-1-fix-r4-intake-live-merge; TBD-35; TBD-150; TBD-151; apps/server/src/routes/profiles.ts; packages/db/src/queries/profiles.ts
+- **Status:** open
+
+## TBD-159 · Six slices: drafts and decisions together; the assistant waits for rules-match
+- **Kind:** decision
+- **Where:** MVP 2 · Plan
+- **Context:** Eight function areas (F1 to F8) plus the test-stack work, but at most 6 slices. Decisions come from draft questions and from match unknowns, and answering one creates drafts. The assistant's impact preview has to run the real rules engine and match.
+- **Options:**
+  1. drafts and decisions as one 'replies' slice; assistant dependsOn rules-match
+  2. cvs and sender-check merged; drafts and decisions separate
+  3. The test stack folded into the foundation
+- **Chosen:** The foundation takes F1. The slices are cvs, sender-check, rules-match, replies (F6 and F7), assistant (F8, depends on rules-match) and e2e-fixtures (no criteria). The reply-or-ask decision is one point in the pipeline, so giving it one owner removes a fragile contract between two slices. A preview built against a stub engine would prove nothing.
+- **If you decide otherwise:** Splitting replies needs a pinned decide-stage signature between drafts and decisions. Removing the dependency means the preview tests only become meaningful after integration.
+- **Refs:** docs/mvp/MVP-2.md F6, F7, F8
+- **Status:** open
+
+## TBD-160 · The foundation owns all four new AI tasks and their wire samples
+- **Kind:** decision
+- **Where:** MVP 2 · Plan
+- **Context:** The prompt layout and the e2e/fixtures/wire samples pin the exact request bodies. If each slice edited packages/ai/src/prompt.ts, client.ts and the wire files, they would collide, and the fake AI couldn't rely on the key lines.
+- **Options:**
+  1. The foundation implements cv.v1, match.v1, draft.v1 and assistant.v1 with pinned key lines
+  2. Each slice adds its own task to packages/ai
+- **Chosen:** The foundation implements the four tasks with these key lines: CV-SHA256, Message-ID with Role, Message-ID with Attempt, and Turn. It also writes their wire samples. Prompt wording is tuned in fix rounds. One owner for the wire contract keeps packages/ai and the fake AI in step, and it lets the e2e-fixtures slice build answers at the same time as the others.
+- **If you decide otherwise:** The wire files would need per-task ownership, and every prompt change would touch e2e/fixtures/wire.
+- **Refs:** docs/ARCHITECTURE.md › AI; e2e/fixtures/wire/wire.test.ts; packages/ai/src/prompt.ts
+- **Status:** open
+
+## TBD-161 · The analysis pipeline as a foundation orchestrator with stage files owned by slices
+- **Kind:** decision
+- **Where:** MVP 2 · Plan
+- **Context:** F1's pipeline (sort → facts → sender check → match → draft or decision) calls four slices' logic, and F1 comes first in the build order.
+- **Options:**
+  1. The orchestrator lives in pipeline/evaluate.ts, with stub stages in slice-owned files (sender.ts, cv-choice.ts, match.ts, reply.ts)
+  2. Each slice hooks itself into the sync job
+- **Chosen:** The orchestrator and a re-evaluation job for missing or stale evaluations (which also covers the first scan's backlog) are in the foundation. The stage types are pinned in pipeline/stages.ts. The slices stay disjoint and can be tested on their own, and one mechanism serves new mail, the backlog, profile and rule changes, decision answers and undo.
+- **If you decide otherwise:** The slices would all edit the sync job.
+- **Refs:** apps/server/src/pipeline; F1.1; F1.6; F3.5; F4.6; F7.4; F8.3
+- **Status:** open
+
+## TBD-162 · Policy keys and the new profile sources
+- **Kind:** decision
+- **Where:** MVP 2 · Plan
+- **Context:** F6 names reply_threshold (default 70) and reply_window_days (default 14) as profile entries. F7.4 and F8.3 need the sources decision and assistant, but ProfileSource has only scan and you.
+- **Options:**
+  1. Add them as valid profile keys outside CORE_PROFILE_KEYS, as one-element lists, and extend ProfileSource
+  2. Add them to the intake's core questions
+- **Chosen:** Valid keys outside the intake form, with POLICY_DEFAULTS applied when they aren't set. ProfileSource gains decision and assistant. The intake form MVP 1 validated stays unchanged, and every profile value stays a list.
+- **If you decide otherwise:** The intake form and its fixtures would change.
+- **Refs:** packages/schema/src/profile.ts
+- **Status:** open
+
+## TBD-163 · Only one sync per mailbox through a dedupe key on jobs
+- **Kind:** decision
+- **Where:** MVP 2 · Plan
+- **Context:** F1.2 needs a single sync per mailbox across replicas, with takeover. The queue already has leases but nothing stops a job being queued twice.
+- **Options:**
+  1. jobs.dedupe_key with a partial unique index while queued or running; every replica's scheduler tries to enqueue
+  2. Elect one scheduler with an advisory lock
+- **Chosen:** The dedupe key. Replicas stay interchangeable, and the existing lease takeover covers a replica that is killed.
+- **If you decide otherwise:** An advisory-lock leader with its own failover.
+- **Refs:** packages/db/src/tables.ts jobs; F1.2
+- **Status:** open
+
+## TBD-164 · Sync starts after the first scan and reads the Inbox only
+- **Kind:** decision
+- **Where:** MVP 2 · Plan
+- **Context:** Continuous sync and the first scan both read the mailbox. Users would notice if new mail were analysed before the first scan's proposal.
+- **Options:**
+  1. Sync starts once the workspace's first scan has stopped, from the highest stored UID
+  2. Sync from the moment the mailbox connects
+- **Chosen:** After the first scan stops, INBOX UIDs above the highest stored UID. This avoids racing the first scan and double analysis, and the scan already covers everything before it.
+- **If you decide otherwise:** The sync and the scan would need coordination over the same UIDs.
+- **Refs:** F1.1; apps/server/src/sync
+- **Status:** open
+
+## TBD-165 · The domain lookup cache is workspace-scoped in Postgres
+- **Kind:** decision
+- **Where:** MVP 2 · Plan
+- **Context:** F5 asks for cached RDAP and DNS lookups. A global cache table would be a fourth unscoped db exception.
+- **Options:**
+  1. A domain_lookups table with workspace_id
+  2. A global table (an ARCHITECTURE exception)
+  3. Memory per replica
+- **Chosen:** Workspace-scoped table. It keeps the workspace-scoping rule, and replicas share the cache.
+- **If you decide otherwise:** Add an exception to ARCHITECTURE for a shared cache.
+- **Refs:** docs/ARCHITECTURE.md › Workspaces; F5
+- **Status:** open
+
+## TBD-166 · New dependencies: unpdf and mammoth for CV text; fixture CVs without dependencies
+- **Kind:** decision
+- **Where:** MVP 2 · Plan
+- **Context:** F2.1 accepts PDF and DOCX uploads, so their text has to be read. The fixture generator has to write the PDF and DOCX files.
+- **Options:**
+  1. unpdf and mammoth in apps/server, added by the foundation; the generator hand-writes the PDFs and a store-only DOCX zip
+  2. pdfjs-dist and docx libraries in e2e
+- **Chosen:** unpdf and mammoth in apps/server (knip-ignored until the cvs slice imports them); no new e2e dependencies. Both are pure-JavaScript and need no native modules or install scripts. Adding them up front keeps pnpm-lock.yaml out of the parallel slices.
+- **If you decide otherwise:** Swap the libraries in apps/server/src/cvs.
+- **Refs:** apps/server/package.json; knip.jsonc; pnpm-workspace.yaml minimumReleaseAge
+- **Status:** open
+
+## TBD-167 · Proposals in their own assistant_proposals table
+- **Kind:** decision
+- **Where:** MVP 2 · Plan
+- **Context:** F8 names assistant_threads, assistant_messages and profile_history. Apply and discard address /proposals/:id.
+- **Options:**
+  1. A separate assistant_proposals table with status
+  2. A proposal JSON column on assistant_messages
+- **Chosen:** A separate table. Apply, discard and editing before Apply need a row with its own id and status.
+- **If you decide otherwise:** Store proposals inside messages and look them up by message id.
+- **Refs:** F8.2; F8.3
+- **Status:** open
+
+## TBD-168 · Existing AI settings get the new per-task models from their extract model
+- **Kind:** decision
+- **Where:** MVP 2 · Plan
+- **Context:** AI_TASKS gains cv, match, draft and assistant, but saved settings hold only four models.
+- **Options:**
+  1. Backfill in the migration from the extract model
+  2. Make the new keys optional, with a fallback at runtime
+- **Chosen:** Migration backfill; the schema requires every task. Every task always has a model, and MVP 1 workspaces keep working without anyone opening Settings.
+- **If you decide otherwise:** Optional keys, with fallback logic in packages/ai.
+- **Refs:** packages/schema/src/ai.ts AiModelsSchema; ai_settings.models
+- **Status:** open
+
+## TBD-169 · Merge MVP 1's unmerged intake/profile/live branch into mvp-2 first, and record that fix round 4 is unrecorded
+- **Kind:** decision
+- **Where:** MVP 2 · Plan
+- **Context:** mvp-2 does not contain MVP 1's F6: profiles.ts and intake.ts answer 501, packages/db/src/queries/profiles.ts is empty, and ProfilePage and IntakePage are stubs. That work is on mvp-1-fix-r4-intake-live-merge, 30 commits (+6.5k lines) ahead and 1 behind mvp-2. TBD.md has no record of fix round 4 or of that branch passing verification; the MVP 1 sign-off row names fix rounds but its commit b3d20f1 predates the merge.
+- **Options:**
+  1. Merge it as foundation step 0, with the merge reviewed as its own unit and the gap recorded in TBD.md
+  2. Rebuild a minimal profile store inside MVP 2
+  3. Leave it and build MVP 2 without a profile
+- **Chosen:** Merge it first with --no-ff as its own commit (a dry-run git merge-tree shows no conflicts), then run pnpm check, fixing only what the merge breaks. TBD.md records that fix round 4 and this branch's verification have no entry. The foundation verifiers review the merge diff separately from the contract diff. MVP 2 can't serve its criteria without the confirmed profile. Reviewing the merge on its own keeps 6.5k unreviewed lines from hiding inside the foundation diff.
+- **If you decide otherwise:** The foundation would have to build its own profile storage and page, and MVP 1's F6 would stay missing on mvp-2.
+- **Refs:** branch mvp-1-fix-r4-intake-live-merge; TBD-150; TBD-151; docs/mvp/MVP-1.md Sign-off; apps/server/src/routes/profiles.ts
+- **Status:** open
+
+## TBD-170 · Six slices: a mailbox slice for the F1 runtime; CVs and the sender check together; drafts and decisions stay one slice, made smaller
+- **Kind:** decision
+- **Where:** MVP 2 · Plan
+- **Context:** The foundation was too large for one agent. The README caps the plan at 6 slices, and F1 runtime, F2, F3/F4, F5, F6, F7, F8 and the test stack are eight units. Splitting drafts from decisions as well as moving sync out would need 7 slices.
+- **Options:**
+  1. mailbox (F1.1–F1.5, F6.3, F6.6), cvs-senders, rules-match, replies (F6 rest, F7), assistant, e2e-fixtures
+  2. Split replies into drafts and decisions and merge sync with drafts
+  3. Keep sync in the foundation
+- **Chosen:** mailbox; cvs-senders; rules-match; replies, made smaller; assistant (depends on rules-match); e2e-fixtures. Replies loses the reply policy table (now replyEligibility in the foundation), MIME and Drafts-folder I/O (now mailbox), and fact-based need derivation (now verdict.need from rules-match). All IMAP work has one owner. The draft-or-ask point keeps one owner, so there is no fragile contract between drafts and decisions. Replies drops from 14 criteria across 7 code areas to 12, with no mail-package work.
+- **If you decide otherwise:** Splitting replies needs a pinned reply → decide stage contract and a seventh slot, which means merging two other areas.
+- **Refs:** docs/mvp/README.md Plan phase (3–6 slices); docs/mvp/MVP-2.md F1, F6, F7
+- **Status:** open
+
+## TBD-171 · F1.1 and F1.6 are proven with fake stages at slice level and re-checked by an integration test
+- **Kind:** decision
+- **Where:** MVP 2 · Plan
+- **Context:** F1.1 needs sender check and match, and F1.6 needs the backlog to get them. The stage implementations land in parallel slices, so the foundation and the mailbox slice only have stub stages.
+- **Options:**
+  1. The foundation (F1.6) and mailbox (F1.1) prove the orchestration with injected fake stages, and the integrator adds pipeline.integration.test.ts with real stages
+  2. Give F1.1 and F1.6 to a slice that depends on every stage slice
+- **Chosen:** The slice-level proof uses fake stages. After all merges, the integrator writes apps/server/src/pipeline/pipeline.integration.test.ts with real stages and fakes only at the ports. A dependent slice would serialize the build behind four slices for two criteria. The integration test proves the real chain once all stages exist, and S2 and S7 walk it.
+- **If you decide otherwise:** Add a seventh, final slice for these two criteria, or accept that they are proven only by the walkthrough.
+- **Refs:** F1.1; F1.6; apps/server/src/pipeline/evaluate.ts
+- **Status:** open
+
+## TBD-172 · The foundation owns all four new AI tasks and their wire samples
+- **Kind:** decision
+- **Where:** MVP 2 · Plan
+- **Context:** The prompt layout and the e2e/fixtures/wire samples pin the exact request bodies. If each slice edited packages/ai or the wire files, they would collide, and the fake AI couldn't rely on the key lines.
+- **Options:**
+  1. The foundation implements cv.v1, match.v1, draft.v1 and assistant.v1 with pinned key lines
+  2. Each slice adds its own task
+- **Chosen:** The foundation implements the four tasks with the key lines CV-SHA256, Message-ID+Role, Message-ID+Attempt and Turn, and writes their wire samples. Prompt wording is tuned in fix rounds. One owner of the wire contract keeps packages/ai and the fake AI in step, and lets e2e-fixtures build answers in parallel.
+- **If you decide otherwise:** The wire files would need per-task ownership.
+- **Refs:** docs/ARCHITECTURE.md › AI; e2e/fixtures/wire/wire.test.ts; packages/ai/src/prompt.ts
+- **Status:** open
+
+## TBD-173 · The pipeline backbone in the foundation: orchestrator, re-evaluation and the profile change service
+- **Kind:** decision
+- **Where:** MVP 2 · Plan
+- **Context:** F1's pipeline calls four slices' logic. Re-evaluation has many triggers: profile and rule changes, decision answers, undo, intake confirm, a finished CV read, CV delete, a CV-choice override and a sender mark.
+- **Options:**
+  1. evaluate.ts, reevaluate.ts and requestReevaluation(scope) in the foundation, with slice-owned stage files
+  2. Each slice hooks into the sync job
+- **Chosen:** The orchestrator, the pipeline.reevaluate job and requestReevaluation with scopes all, roles, messages, sender address and sender domain. Each trigger is pinned to its owner: intake confirm (foundation), cv.read and CV delete (cvs-senders), sender marks (cvs-senders), rules (rules-match), answers (replies), apply and undo (assistant). One mechanism serves new mail, the backlog and every change, and the slices stay disjoint.
+- **If you decide otherwise:** The slices would all edit the sync job.
+- **Refs:** apps/server/src/pipeline; apps/server/src/profile/changes.ts; F1.6; F2.3; F3.5; F4.6; F5.4; F7.4; F8.3
+- **Status:** open
+
+## TBD-174 · With no confirmed profile, only the sender check runs; the backlog is matched when the intake is confirmed
+- **Kind:** decision
+- **Where:** MVP 2 · Plan
+- **Context:** The re-evaluation after the first scan and the first syncs both run before the user confirms the intake form, so there is no profile to match against.
+- **Options:**
+  1. Run the sender stage, leave the roles unevaluated, and enqueue re-evaluation on intake confirm
+  2. Mark the roles evaluated with no match
+  3. Delay sync until confirm
+- **Chosen:** Without a profile, only the sender stage runs and the roles stay in listToEvaluate. Intake confirm calls requestReevaluation({all}). F1.6 then actually happens in the end-to-end flow. Sender verdicts appear early because they don't depend on the profile.
+- **If you decide otherwise:** Matching would need a default profile, which would mean guessing.
+- **Refs:** apps/server/src/routes/intake.ts confirm; F1.6; CLAUDE.md 'Unknown means ask'
+- **Status:** open
+
+## TBD-175 · Fuzzy match answers are stored, so re-scoring is pure
+- **Kind:** decision
+- **Where:** MVP 2 · Plan
+- **Context:** F3.5 and F4.6 need re-scoring within a minute, and the impact preview runs the real match. Calling match.v1 again for hundreds of backlog roles at about 300 ms on 2×2 worker slots would miss the minute and would make the preview call the AI.
+- **Options:**
+  1. Store match.v1 answers per (message, position, CV, input hash) in match_ai_answers
+  2. Call match.v1 on every re-evaluation
+- **Chosen:** Store them. The input hash covers exactly what match.v1 sees, so rule, pay and policy changes re-score without AI calls, and the preview never calls the AI. It meets the one-minute criteria, keeps AI cost flat, and makes the preview deterministic.
+- **If you decide otherwise:** Re-scoring time and cost grow with the backlog, and the preview needs its own AI budget.
+- **Refs:** packages/db match_ai_answers; F3.5; F4.6; F8.2
+- **Status:** open
+
+## TBD-176 · The sender check reads message signals from per-language phrase lists in data files and the transient body
+- **Kind:** decision
+- **Where:** MVP 2 · Plan
+- **Context:** Mail bodies are never stored, no AI task covers sender signals, and both scams, including the backlog one, must be high risk (F5.5). Market-specific lists (free-mail providers) can't live in code.
+- **Options:**
+  1. Phrase lists per language and the free-mail domain list in packages/core/src/sender/data/*.json; the body is fetched lazily through ctx.body() for the backlog and re-evaluation, and never stored
+  2. Add sender signals to the extract task, which would mean re-extracting the backlog
+  3. A new AI task, which the spec doesn't name
+- **Chosen:** Data files with en, de and pt phrase lists, plus the transient body. A message in a language without lists gets complete=false, so it is never 'looks fine'. It is deterministic and hermetic, costs no AI calls, works for the backlog, and stays within the no-market-specific-code rule.
+- **If you decide otherwise:** Add a signals field to extract.v1 and re-run extraction for the backlog.
+- **Refs:** packages/core/src/sender/data; apps/server/src/pipeline/stages.ts StageContext.body; F5.1; F5.3; F5.5
+- **Status:** open
+
+## TBD-177 · Decision needs are carried on match verdicts and rule effects; reply eligibility is a shared pure function
+- **Kind:** decision
+- **Where:** MVP 2 · Plan
+- **Context:** Replies has to turn 'pay unknown — different currency' into 'Minimum pay in CHF per year?', grouped across messages. The assistant's preview has to know which drafts won't be created.
+- **Options:**
+  1. verdict.need and ruleEffects.need as NeedSpec {groupKey, profileKey, question, choices}, with groupKeyFor in packages/schema, and replyEligibility in packages/core/src/policy
+  2. Replies derives needs from facts itself, and the assistant depends on replies
+- **Chosen:** Needs on verdicts and effects; replyEligibility in the foundation. The only module that knows why something is unknown says so, and neither replies nor the assistant recomputes facts or depends on another parallel slice.
+- **If you decide otherwise:** Replies duplicates the match's fact logic, and the assistant waits for replies.
+- **Refs:** packages/schema/src/match.ts, decisions.ts; packages/core/src/policy/reply.ts; F7.1; F7.3; F8.2; F8.5
+- **Status:** open
+
+## TBD-178 · Job dedupe: one waiting and one running per key
+- **Kind:** decision
+- **Where:** MVP 2 · Plan
+- **Context:** A single sync per mailbox (F1.2) needs dedupe, but a unique key held 'while queued or running' would stop a change made during a re-evaluation from queuing the next one (F4.6).
+- **Options:**
+  1. A unique index only while queued, with the claim skipping a key that has a running job
+  2. A unique key while queued or running
+  3. An advisory-lock scheduler
+- **Chosen:** Queued-only uniqueness plus a single-flight claim, and pipeline.reevaluate keeps going while anything is stale. Each mailbox still has at most one sync running, every change gets a later re-evaluation, and replicas stay interchangeable.
+- **If you decide otherwise:** Changes made during a re-evaluation wait for the next trigger.
+- **Refs:** packages/db/src/queries/jobs.ts; apps/server/src/jobs/queue.ts; F1.2; F4.6
+- **Status:** open
+
+## TBD-179 · One live draft per role, enforced by the database
+- **Kind:** decision
+- **Where:** MVP 2 · Plan
+- **Context:** Inline evaluation during sync can race pipeline.reevaluate, which could append two mailbox drafts (F6.4 needs exactly one copy).
+- **Options:**
+  1. A partial unique index on (workspace, message, position) where status <> discarded, claimed by insert with status saving before the IMAP append
+  2. An application-level lock
+- **Chosen:** The partial unique index plus a saving claim state. Only the process that inserts the row writes to the mailbox. It holds across replicas and still allows a new draft after a discard.
+- **If you decide otherwise:** Use an advisory lock per role.
+- **Refs:** packages/db drafts; packages/schema/src/drafts.ts status saving; F6.4
+- **Status:** open
+
+## TBD-180 · Sync starts after the first scan and reads the Inbox only
+- **Kind:** decision
+- **Where:** MVP 2 · Plan
+- **Context:** Continuous sync and the first scan both read the mailbox.
+- **Options:**
+  1. Sync once the workspace's first scan has stopped, from the highest stored UID
+  2. Sync from connect
+- **Chosen:** After the first scan stops, INBOX UIDs above the highest stored UID. This avoids racing the first scan and analysing messages twice.
+- **If you decide otherwise:** The sync and the scan would need coordination over the same UIDs.
+- **Refs:** F1.1; apps/server/src/sync
+- **Status:** open
+
+## TBD-181 · The domain lookup cache is workspace-scoped in Postgres
+- **Kind:** decision
+- **Where:** MVP 2 · Plan
+- **Context:** F5 asks for cached RDAP and DNS lookups. A global table would be a fourth unscoped db exception.
+- **Options:**
+  1. domain_lookups with workspace_id
+  2. A global table
+  3. Memory per replica
+- **Chosen:** Workspace-scoped table. It keeps the workspace-scoping rule, and replicas share the cache.
+- **If you decide otherwise:** Add an exception to ARCHITECTURE.
+- **Refs:** docs/ARCHITECTURE.md › Workspaces; F5
+- **Status:** open
+
+## TBD-182 · Dependencies and knip: unpdf and mammoth up front; the integrator removes ignore entries
+- **Kind:** decision
+- **Where:** MVP 2 · Plan
+- **Context:** F2.1 reads PDF and DOCX. The ignore list in knip.jsonc may only hold dependencies a later MVP needs, and several slices would otherwise edit it.
+- **Options:**
+  1. The foundation adds unpdf and mammoth to apps/server with knip ignores; the integrator removes the unpdf, mammoth and nodemailer entries when it merges the slice that imports them
+  2. Each slice edits knip.jsonc
+- **Chosen:** The first option. The fixture generator hand-writes the PDFs and a store-only DOCX zip, so e2e gets no new dependencies. pnpm-lock.yaml and knip.jsonc stay out of the parallel slices, and pnpm unused runs at integration anyway.
+- **If you decide otherwise:** Swap the libraries in apps/server/src/cvs.
+- **Refs:** apps/server/package.json; knip.jsonc; pnpm-workspace.yaml minimumReleaseAge
+- **Status:** open
+
+## TBD-183 · Policy keys and the new profile sources
+- **Kind:** decision
+- **Where:** MVP 2 · Plan
+- **Context:** F6 names reply_threshold and reply_window_days, and F7.4 and F8.3 need the sources decision and assistant.
+- **Options:**
+  1. Valid keys outside CORE_PROFILE_KEYS with POLICY_DEFAULTS; extend ProfileSource
+  2. Add them to the intake form
+- **Chosen:** Valid keys outside the intake form, with POLICY_DEFAULTS, and ProfileSource gains decision and assistant. The validated intake form stays unchanged.
+- **If you decide otherwise:** The intake form and its fixtures would change.
+- **Refs:** packages/schema/src/profile.ts
+- **Status:** open
+
+## TBD-184 · Proposals in their own assistant_proposals table
+- **Kind:** decision
+- **Where:** MVP 2 · Plan
+- **Context:** Apply, discard and editing before Apply address /proposals/:id.
+- **Options:**
+  1. A separate table
+  2. A JSON column on assistant_messages
+- **Chosen:** A separate table. A proposal needs its own id and status.
+- **If you decide otherwise:** Look proposals up by message id.
+- **Refs:** F8.2; F8.3
+- **Status:** open
+
+## TBD-185 · Existing AI settings get the new per-task models from their extract model
+- **Kind:** decision
+- **Where:** MVP 2 · Plan
+- **Context:** AI_TASKS gains cv, match, draft and assistant, but saved settings hold only four models.
+- **Options:**
+  1. A backfill in the migration
+  2. Optional keys with a fallback at runtime
+- **Chosen:** The migration backfill; the schema requires every task. Every task always has a model.
+- **If you decide otherwise:** Optional keys, with a fallback in packages/ai.
+- **Refs:** packages/schema/src/ai.ts; ai_settings.models
+- **Status:** open
+
+## TBD-186 · Merge all three unmerged MVP 1 fix-round-4 branches into mvp-2 first, and record that fix round 4 is unrecorded
+- **Kind:** decision
+- **Where:** MVP 2 · Plan
+- **Context:** mvp-2 does not contain MVP 1's F6: profiles.ts and intake.ts answer 501, packages/db/src/queries/profiles.ts is empty, and ProfilePage and IntakePage are stubs. That work is on mvp-1-fix-r4-intake-live-merge, 30 commits (+6.5k lines, 54 files) ahead and 1 behind mvp-2. Two more fix-round-4 branches are unmerged, each 3 commits ahead. mvp-1-fix-r4-inbox-search-unanalysed changes InboxPage.tsx and its test plus pages/scan. mvp-1-fix-r4-e2e-f53-proof-order changes e2e/stack.test.ts and e2e/fixtures/f53-proof.ts and adds specs/mvp-1/99-f5.3-stored-equals-expected.spec.ts. The three touch disjoint files and git merge-tree is clean for every pair. TBD.md has no record of fix round 4 (the last entry is TBD-149).
+- **Options:**
+  1. Merge all three as separate --no-ff commits in foundation step 0, each reviewed as its own unit, with the gap recorded in TBD.md
+  2. Merge only the intake branch and leave the other two
+  3. Rebuild a minimal profile store inside MVP 2
+- **Chosen:** Merge all three, in the order intake-live-merge, inbox-search-unanalysed, e2e-f53-proof-order, each with --no-ff as its own commit. Then run pnpm check and pnpm unused, and fix only what the merges break, in separate commits. A branch that unexpectedly conflicts is left out and recorded in TBD.md. TBD.md records that fix round 4 and these branches' verification have no entry. The foundation verifiers review each merge diff separately from the contract diff. MVP 2 can't serve its criteria without the confirmed profile. Leaving out the two small branches would lose their fixes, or make them conflict later with the foundation's InboxPage slot edits and the e2e-fixtures slice's stack.test.ts, and S12 could fail. Separate reviews keep 6.5k unreviewed lines from hiding in the foundation diff.
+- **If you decide otherwise:** The search/Analyze-them fix and the F5.3 proof-order fix would have to be redone on top of MVP 2's InboxPage and stack.test.ts, and MVP 1's F6 would stay missing on mvp-2.
+- **Refs:** branches mvp-1-fix-r4-intake-live-merge, mvp-1-fix-r4-inbox-search-unanalysed (fc0bcc7), mvp-1-fix-r4-e2e-f53-proof-order (ff12d97); TBD-141; TBD-142; TBD-144; TBD-147; docs/mvp/MVP-1.md Sign-off
+- **Status:** open
+
+## TBD-187 · Six slices: a mailbox slice for the F1 runtime; CVs and the sender check together; drafts and decisions stay one slice, made smaller
+- **Kind:** decision
+- **Where:** MVP 2 · Plan
+- **Context:** The foundation was too large for one agent. The README caps the plan at 6 slices, and F1 runtime, F2, F3/F4, F5, F6, F7, F8 and the test stack are eight units. Splitting drafts from decisions as well as moving sync out would need 7 slices.
+- **Options:**
+  1. mailbox (F1.1–F1.5, F6.3, F6.6), cvs-senders, rules-match, replies (F6 rest, F7), assistant, e2e-fixtures
+  2. Split replies into drafts and decisions and merge sync with drafts
+  3. Keep sync in the foundation
+- **Chosen:** mailbox; cvs-senders; rules-match; replies, made smaller; assistant (depends on rules-match); e2e-fixtures. Replies loses the reply policy table and the role-level draft lifecycle (now replyEligibility and draft-claims in the foundation), MIME and Drafts-folder I/O (now mailbox), and fact-based need derivation (now verdict.need from rules-match). cvs-senders gets the CV base queries from the foundation and stays one slice, because the cap rules out a seventh. All IMAP work has one owner. The draft-or-ask point keeps one owner, so there is no fragile contract between drafts and decisions. Replies drops from 14 criteria across 7 code areas to 12, with no mail-package work.
+- **If you decide otherwise:** Splitting replies needs a pinned reply → decide stage contract and a seventh slot, which means merging two other areas.
+- **Refs:** docs/mvp/README.md Plan phase (3–6 slices); docs/mvp/MVP-2.md F1, F2, F5, F6, F7
+- **Status:** open
+
+## TBD-188 · F1.1 and F1.6 are proven with fake stages at slice level and re-checked by an integration test
+- **Kind:** decision
+- **Where:** MVP 2 · Plan
+- **Context:** F1.1 needs sender check and match, and F1.6 needs the backlog to get them. The stage implementations land in parallel slices, so the foundation and the mailbox slice only have stub stages.
+- **Options:**
+  1. The foundation (F1.6) and mailbox (F1.1) prove the orchestration with injected fake stages, and the integrator adds pipeline.integration.test.ts with real stages
+  2. Give F1.1 and F1.6 to a slice that depends on every stage slice
+- **Chosen:** The slice-level proof uses fake stages. After all merges, the integrator writes apps/server/src/pipeline/pipeline.integration.test.ts with real stages and fakes only at the ports. A dependent slice would serialize the build behind four slices for two criteria. The integration test proves the real chain once all stages exist, and S2 and S7 walk it.
+- **If you decide otherwise:** Add a seventh, final slice for these two criteria, or accept that they are proven only by the walkthrough.
+- **Refs:** F1.1; F1.6; apps/server/src/pipeline/evaluate.ts
+- **Status:** open
+
+## TBD-189 · The foundation pins the four AI task contracts; the slices own the prompt bodies
+- **Kind:** decision
+- **Where:** MVP 2 · Plan
+- **Context:** The prompt layout and the e2e/fixtures/wire samples pin the exact request bodies, and the fake AI depends on the key lines. Writing four full prompts and their wire samples kept the foundation, already the largest unit, on everyone's critical path.
+- **Options:**
+  1. The foundation registers the tasks and writes tasks/<task>.ts with the pinned header, key lines, framing and a provisional instruction plus initial wire samples; each slice owns its task's instruction body and wire files afterwards
+  2. The foundation implements all four prompts in full
+  3. Each slice adds its whole task, schema and registration included
+- **Chosen:** The first option. The key lines (CV-SHA256, Message-ID+Role, Message-ID+Attempt, Turn), the output schemas and the framing are fixed in the foundation. cv → cvs-senders, match → rules-match, draft → replies, assistant → assistant. A slice that changes its body regenerates its own four wire files, and the TASK_IDS-driven wire tests cover them. The fake AI and the e2e fixtures rely only on what stays pinned, so e2e-fixtures can build answers in parallel. Prompt wording sits with the code that interprets the answer, and the foundation gets smaller.
+- **If you decide otherwise:** The foundation writes the full prompts, and wording is tuned in fix rounds.
+- **Refs:** docs/ARCHITECTURE.md › AI; packages/ai/src/prompt.ts; packages/ai/src/wire.test.ts; e2e/fixtures/wire/wire.test.ts
+- **Status:** open
+
+## TBD-190 · The pipeline backbone in the foundation: orchestrator, re-evaluation, the sweep and the profile change service
+- **Kind:** decision
+- **Where:** MVP 2 · Plan
+- **Context:** F1's pipeline calls four slices' logic. Re-evaluation has many triggers: profile and rule changes, decision answers, undo, intake confirm, a finished CV read, CV delete, a CV-choice override and a sender mark.
+- **Options:**
+  1. evaluate.ts, reevaluate.ts, sweep.ts and requestReevaluation(scope) in the foundation, with slice-owned stage files
+  2. Each slice hooks into the sync job
+- **Chosen:** The orchestrator, the pipeline.reevaluate job, the sweep, and requestReevaluation with scopes all, roles, messages, sender address and sender domain. Each trigger is pinned to its owner: intake confirm, startup and interval sweep (foundation), cv.read and CV delete (cvs-senders), sender marks (cvs-senders), rules (rules-match), answers (replies), apply and undo (assistant). One mechanism serves new mail, the backlog and every change, and the slices stay disjoint.
+- **If you decide otherwise:** The slices would all edit the sync job.
+- **Refs:** apps/server/src/pipeline; apps/server/src/profile/changes.ts; F1.6; F2.3; F3.5; F4.6; F5.4; F7.4; F8.3
+- **Status:** open
+
+## TBD-191 · A startup and per-interval sweep evaluates any backlog and retries failed evaluations and mailbox-failed drafts
+- **Kind:** decision
+- **Where:** MVP 2 · Plan
+- **Context:** Intake confirm was the only F1.6 trigger. A deployment whose profile was confirmed before MVP 2 code runs never gets that trigger. A role whose evaluation failed (AI 500, IMAP down) stayed missing until some unrelated change happened.
+- **Options:**
+  1. sweep(deps) at startup and on every scheduler interval enqueues a deduped pipeline.reevaluate for each workspace with work (listWorkspacesWithWork)
+  2. Only mail.sync enqueues re-evaluation after a successful sync
+  3. A one-off migration-time job
+- **Chosen:** The sweep, on startup and every JOBFILLY_SYNC_INTERVAL_SECONDS, whatever the sync outcome. pipeline.reevaluate processes each item at most once per run, so failures wait for the next sweep instead of looping. listWorkspacesWithWork is a cross-workspace read like the job claim and the scheduler's mailbox listing, and ARCHITECTURE records it. An upgraded deployment and every failed item are picked up within one interval with no user action. Dedupe keeps it at one run per workspace, and it doesn't depend on the mail server being reachable.
+- **If you decide otherwise:** Failed roles wait for an unrelated change, and an upgraded deployment needs a manual re-confirm.
+- **Refs:** apps/server/src/pipeline/sweep.ts; packages/db/src/queries/evaluations.ts listWorkspacesWithWork; F1.6; S11
+- **Status:** open
+
+## TBD-192 · The sender stage runs only when the check is missing or stale
+- **Kind:** decision
+- **Where:** MVP 2 · Plan
+- **Context:** evaluateMessage ran the sender stage first every time, and it reads ctx.body(), a lazy IMAP fetch. An {all} re-evaluation after a rule, profile, decision or CV change would have fetched every backlog body over IMAP. That threatens the one-minute bound of F3.5, F4.6, F7.4 and F8.3, and fails while IMAP is paused (S11).
+- **Options:**
+  1. Skip the stage when a current check exists; only new mail (missing) and sender-scoped requests (stale) run it
+  2. Always re-run it
+  3. Cache bodies (not allowed: bodies are never stored)
+- **Chosen:** Skip unless missing or stale. A failed sender stage leaves the check missing for the next sweep. The roles are still matched, and the reply is held as sender_check_pending until the check exists. Re-scoring stays pure and IMAP-free, and the sender check still reflects marks and new mail. No draft is ever made without a sender check.
+- **If you decide otherwise:** Every global change costs one IMAP fetch per backlog message.
+- **Refs:** apps/server/src/pipeline/evaluate.ts; F3.5; F4.6; F5.4; F7.4; F8.3; S11
+- **Status:** open
+
+## TBD-193 · An automatic draft is created only for a role that never had a draft and was not dismissed
+- **Kind:** decision
+- **Where:** MVP 2 · Plan
+- **Context:** The one-live-draft index excludes 'discarded', and replyEligibility didn't look at a role's draft history. So the next re-evaluation after a discard would have recreated an automatic draft: S5's CHF answer and S8's Apply/Undo both re-evaluate. That undoes S4's discard, against 'nothing changes without the user's say'.
+- **Options:**
+  1. replyEligibility takes origin and draftHistory {hadDraft, dismissed}: auto and decision drafts need no prior draft row of any status and no dismissal; only Draft a reply (on_demand) drafts after a discard
+  2. Keep discarded rows live in the index
+  3. Record a per-role 'no more drafts' flag on discard
+- **Chosen:** The draftHistory input. A claim released because draft.v1 raised questions is deleted, not kept, so the role still counts as never drafted and gets its draft after the decision. A content failure (placeholder twice) counts as a draft and is not retried automatically. Discard is final unless the user asks again. Decisions still release held roles, and the impact preview counts drafts the same way.
+- **If you decide otherwise:** Discarded drafts reappear in the mailbox after any rule, profile or decision change.
+- **Refs:** packages/core/src/policy/reply.ts; packages/db/src/queries/draft-claims.ts; F6.1; F6.4; F6.5; F7.5; S4; S5; S8
+- **Status:** open
+
+## TBD-194 · A draft whose mailbox write fails is marked failed (kind mailbox) and retried by the sweep
+- **Kind:** decision
+- **Where:** MVP 2 · Plan
+- **Context:** The claim inserts a 'saving' row before the IMAP append. If draft.create fails (IMAP paused in S11), the row would stay in saving and block that role for good, since the queue doesn't retry failed jobs.
+- **Options:**
+  1. Mark it failed with failureKind mailbox and a reason; the sweep re-claims it up to 5 attempts, along with saving rows older than 5 minutes
+  2. Delete the claim on failure
+  3. Leave it in saving
+- **Chosen:** Mark it failed with kind mailbox and retry it from the sweep. The Drafts page shows the failed reason meanwhile (F6.7). Draft a reply can reuse a failed row. No role is blocked for good. The user sees what happened, and drafts held during an outage appear after recovery, still with at most one live draft per role.
+- **If you decide otherwise:** Failed rows need a manual Draft a reply to recover.
+- **Refs:** packages/db drafts.failure_kind, attempts, claimed_at; apps/server/src/pipeline/reevaluate.ts; F6.4; F6.7; S11
+- **Status:** open
+
+## TBD-195 · Decision answers append to list-valued profile keys, and 'already answered' is decided by group key
+- **Kind:** decision
+- **Where:** MVP 2 · Plan
+- **Context:** min_pay is a list (z.array(MinPaySchema)), and Maria already has an EUR minimum from MVP 1. Checking F7.6 by profile key would never create S5's CHF decision. Turning the answer into an 'update' of min_pay would replace her EUR minimum.
+- **Options:**
+  1. Pin the Change semantics in core/profile/changes.ts: add appends to list keys, update replaces; a decision answer is an add of one item; answeredFor(profile, groupKey) decides F7.6
+  2. Store per-currency keys (min_pay_chf …)
+  3. Ask the user whether to replace or append
+- **Chosen:** Append semantics, plus answeredFor by group key. min_pay:CHF:year is answered only by a CHF per-year item. S5 gets its decision, Maria's EUR minimum survives, and F7.6 holds for the second Zurich role. No market-specific keys are added.
+- **If you decide otherwise:** The schema would need per-currency profile keys, or every answer would ask how to merge.
+- **Refs:** packages/core/src/profile/changes.ts; packages/schema/src/profile.ts LIST_PROFILE_KEYS; packages/schema/src/decisions.ts; F7.3; F7.6; S5
+- **Status:** open
+
+## TBD-196 · The foundation pins CvChoiceResult and the base CV read queries
+- **Kind:** decision
+- **Where:** MVP 2 · Plan
+- **Context:** Replies needs the CV bytes, file name and media type for the attachment (F6.3/S3), and the CV text and skills for draft.v1 (F6.2). The match stage needs the chosen CV's skills (F4.4) and the input hash. Only cvs-senders could read CVs, and neither slice depended on it.
+- **Options:**
+  1. Pin CvChoiceResult {cvId, name, language, skills, reason, source} in pipeline/stages.ts and implement insertCv, getCv, getCvFile, listCvs and listProfileCvs in the foundation, plus a seedCv test helper
+  2. Make replies and rules-match depend on cvs-senders
+- **Chosen:** Pin them in the foundation. cvs-senders extends cvs.ts afterwards and keeps those signatures. The three slices stay parallel, and the stage boundary carries exactly what the match needs.
+- **If you decide otherwise:** Replies and rules-match wait for cvs-senders, which serializes most of the build.
+- **Refs:** apps/server/src/pipeline/stages.ts; packages/db/src/queries/cvs.ts; F2.3; F4.4; F6.2; F6.3
+- **Status:** open
+
+## TBD-197 · CV foreign keys: SET NULL on drafts and evaluations, CASCADE on links, overrides and stored match answers
+- **Kind:** decision
+- **Where:** MVP 2 · Plan
+- **Context:** F2.5 deletes a CV while its drafts stay. cvs-senders' delete would otherwise hit a foreign key on a table owned by the foundation or replies.
+- **Options:**
+  1. drafts.cv_id and role_evaluations.cv_id nullable with ON DELETE SET NULL; profile_cvs, role_cv_choices and match_ai_answers ON DELETE CASCADE
+  2. Soft-delete CVs
+  3. No foreign keys
+- **Chosen:** The first option, pinned in the migration and tested there. Deleting removes the file and every link at once, keeps the drafts (S4), and the follow-up re-evaluation re-chooses a CV.
+- **If you decide otherwise:** CV delete needs per-table cleanup code spread across slices.
+- **Refs:** packages/db/migrations/0001_mvp2; F2.5; S4
+- **Status:** open
+
+## TBD-198 · With no confirmed profile, only the sender check runs; the backlog is matched when the intake is confirmed
+- **Kind:** decision
+- **Where:** MVP 2 · Plan
+- **Context:** The re-evaluation after the first scan and the first syncs both run before the user confirms the intake form, so there is no profile to match against.
+- **Options:**
+  1. Run the sender stage, leave the roles unevaluated, and enqueue re-evaluation on intake confirm
+  2. Mark the roles evaluated with no match
+  3. Delay sync until confirm
+- **Chosen:** Without a profile, only the sender stage runs and the roles stay in listToEvaluate. Intake confirm calls requestReevaluation({all}), and the sweep covers an already-confirmed profile. F1.6 then actually happens in the end-to-end flow. Sender verdicts appear early because they don't depend on the profile.
+- **If you decide otherwise:** Matching would need a default profile, which would mean guessing.
+- **Refs:** apps/server/src/routes/intake.ts confirm; F1.6; CLAUDE.md 'Unknown means ask'
+- **Status:** open
+
+## TBD-199 · Fuzzy match answers are stored, so re-scoring is pure
+- **Kind:** decision
+- **Where:** MVP 2 · Plan
+- **Context:** F3.5 and F4.6 need re-scoring within a minute, and the impact preview runs the real match. Calling match.v1 again for hundreds of backlog roles at about 300 ms on 2×2 worker slots would miss the minute and would make the preview call the AI.
+- **Options:**
+  1. Store match.v1 answers per (message, position, CV, input hash) in match_ai_answers
+  2. Call match.v1 on every re-evaluation
+- **Chosen:** Store them. The input hash covers exactly what match.v1 sees, including CvChoiceResult.skills. Rule, pay and policy changes re-score without AI calls, and the preview never calls the AI. It meets the one-minute criteria, keeps AI cost flat, and makes the preview deterministic.
+- **If you decide otherwise:** Re-scoring time and cost grow with the backlog, and the preview needs its own AI budget.
+- **Refs:** packages/db match_ai_answers; F3.5; F4.6; F8.2
+- **Status:** open
+
+## TBD-200 · The sender check reads message signals from per-language phrase lists in data files and the transient body
+- **Kind:** decision
+- **Where:** MVP 2 · Plan
+- **Context:** Mail bodies are never stored, no AI task covers sender signals, and both scams, including the backlog one, must be high risk (F5.5). Market-specific lists (free-mail providers) can't live in code.
+- **Options:**
+  1. Phrase lists per language and the free-mail domain list in packages/core/src/sender/data/*.json; the body is fetched lazily through ctx.body() and never stored
+  2. Add sender signals to the extract task, which would mean re-extracting the backlog
+  3. A new AI task, which the spec doesn't name
+- **Chosen:** Data files with en, de and pt phrase lists, plus the transient body. A message in a language without lists gets complete=false, so it is never 'looks fine'. It is deterministic and hermetic, costs no AI calls, works for the backlog, and stays within the no-market-specific-code rule.
+- **If you decide otherwise:** Add a signals field to extract.v1 and re-run extraction for the backlog.
+- **Refs:** packages/core/src/sender/data; apps/server/src/pipeline/stages.ts StageContext.body; F5.1; F5.3; F5.5
+- **Status:** open
+
+## TBD-201 · Decision needs are carried on match verdicts and rule effects; reply eligibility is a shared pure function
+- **Kind:** decision
+- **Where:** MVP 2 · Plan
+- **Context:** Replies has to turn 'pay unknown — different currency' into 'Minimum pay in CHF per year?', grouped across messages. The assistant's preview has to know which drafts won't be created.
+- **Options:**
+  1. verdict.need and ruleEffects.need as NeedSpec {groupKey, profileKey, question, choices}, with groupKeyFor in packages/schema, and replyEligibility in packages/core/src/policy
+  2. Replies derives needs from facts itself, and the assistant depends on replies
+- **Chosen:** Needs on verdicts and effects; replyEligibility in the foundation. The only module that knows why something is unknown says so, and neither replies nor the assistant recomputes facts or depends on another parallel slice.
+- **If you decide otherwise:** Replies duplicates the match's fact logic, and the assistant waits for replies.
+- **Refs:** packages/schema/src/match.ts, decisions.ts; packages/core/src/policy/reply.ts; F7.1; F7.3; F8.2; F8.5
+- **Status:** open
+
+## TBD-202 · Job dedupe: one waiting and one running per key
+- **Kind:** decision
+- **Where:** MVP 2 · Plan
+- **Context:** A single sync per mailbox (F1.2) needs dedupe, but a unique key held 'while queued or running' would stop a change made during a re-evaluation from queuing the next one (F4.6).
+- **Options:**
+  1. A unique index only while queued, with the claim skipping a key that has a running job
+  2. A unique key while queued or running
+  3. An advisory-lock scheduler
+- **Chosen:** Queued-only uniqueness plus a single-flight claim, and pipeline.reevaluate enqueues the next run while anything is stale. Each mailbox still has at most one sync running, every change gets a later re-evaluation, and replicas stay interchangeable.
+- **If you decide otherwise:** Changes made during a re-evaluation wait for the next trigger.
+- **Refs:** packages/db/src/queries/jobs.ts; apps/server/src/jobs/queue.ts; F1.2; F4.6
+- **Status:** open
+
+## TBD-203 · One live draft per role, enforced by the database
+- **Kind:** decision
+- **Where:** MVP 2 · Plan
+- **Context:** Inline evaluation during sync can race pipeline.reevaluate, which could append two mailbox drafts (F6.4 needs exactly one copy).
+- **Options:**
+  1. A partial unique index on (workspace, message, position) where status <> discarded, claimed by insert with status saving before the IMAP append
+  2. An application-level lock
+- **Chosen:** The partial unique index plus a saving claim state. Only the process that holds the claim writes to the mailbox. It holds across replicas and still allows a new draft (through Draft a reply) after a discard.
+- **If you decide otherwise:** Use an advisory lock per role.
+- **Refs:** packages/db drafts; packages/schema/src/drafts.ts status saving; F6.4
+- **Status:** open
+
+## TBD-204 · Sync starts after the first scan and reads the Inbox only
+- **Kind:** decision
+- **Where:** MVP 2 · Plan
+- **Context:** Continuous sync and the first scan both read the mailbox.
+- **Options:**
+  1. Sync once the workspace's first scan has stopped, from the highest stored UID
+  2. Sync from connect
+- **Chosen:** After the first scan stops, INBOX UIDs above the highest stored UID. This avoids racing the first scan and analysing messages twice.
+- **If you decide otherwise:** The sync and the scan would need coordination over the same UIDs.
+- **Refs:** F1.1; apps/server/src/sync
+- **Status:** open
+
+## TBD-205 · The domain lookup cache is workspace-scoped in Postgres
+- **Kind:** decision
+- **Where:** MVP 2 · Plan
+- **Context:** F5 asks for cached RDAP and DNS lookups. A global table would be a fourth unscoped db exception.
+- **Options:**
+  1. domain_lookups with workspace_id
+  2. A global table
+  3. Memory per replica
+- **Chosen:** Workspace-scoped table. It keeps the workspace-scoping rule, and replicas share the cache.
+- **If you decide otherwise:** Add an exception to ARCHITECTURE.
+- **Refs:** docs/ARCHITECTURE.md › Workspaces; F5
+- **Status:** open
+
+## TBD-206 · Dependencies and knip: unpdf and mammoth up front, the e2e entry points registered by the foundation, and the integrator removes ignore entries
+- **Kind:** decision
+- **Where:** MVP 2 · Plan
+- **Context:** F2.1 reads PDF and DOCX. The ignore list in knip.jsonc may only hold dependencies a later MVP needs, and several slices would otherwise edit it. e2e-fixtures adds scripts that compose starts and nothing imports (e2e/rdap/main.ts, possibly e2e/dns/main.ts), which knip's e2e entry list didn't include.
+- **Options:**
+  1. The foundation adds unpdf and mammoth with knip ignores and the e2e entries rdap/main.ts and dns/main.ts; the slices never edit knip.jsonc; the integrator removes the unpdf, mammoth and nodemailer ignores as the importing slices merge, and dns/main.ts if unused
+  2. Each slice edits knip.jsonc
+- **Chosen:** The first option. With knip 6.40.0, an entry pattern with no file yet is only a configuration hint and exits 0 (checked). The fixture generator hand-writes the PDFs and a store-only DOCX zip, so e2e gets no new dependencies. pnpm-lock.yaml and knip.jsonc stay out of the parallel slices, and pnpm unused passes at integration.
+- **If you decide otherwise:** Swap the libraries in apps/server/src/cvs, or let e2e-fixtures edit the e2e entry list.
+- **Refs:** apps/server/package.json; knip.jsonc; pnpm-workspace.yaml minimumReleaseAge
+- **Status:** open
+
+## TBD-207 · Policy keys and the new profile sources
+- **Kind:** decision
+- **Where:** MVP 2 · Plan
+- **Context:** F6 names reply_threshold and reply_window_days, and F7.4 and F8.3 need the sources decision and assistant.
+- **Options:**
+  1. Valid keys outside CORE_PROFILE_KEYS with POLICY_DEFAULTS; extend ProfileSource
+  2. Add them to the intake form
+- **Chosen:** Valid keys outside the intake form, with POLICY_DEFAULTS, and ProfileSource gains decision and assistant. The validated intake form stays unchanged.
+- **If you decide otherwise:** The intake form and its fixtures would change.
+- **Refs:** packages/schema/src/profile.ts
+- **Status:** open
+
+## TBD-208 · Proposals in their own assistant_proposals table
+- **Kind:** decision
+- **Where:** MVP 2 · Plan
+- **Context:** Apply, discard and editing before Apply address /proposals/:id.
+- **Options:**
+  1. A separate table
+  2. A JSON column on assistant_messages
+- **Chosen:** A separate table. A proposal needs its own id and status.
+- **If you decide otherwise:** Look proposals up by message id.
+- **Refs:** F8.2; F8.3
+- **Status:** open
+
+## TBD-209 · Existing AI settings get the new per-task models from their extract model
+- **Kind:** decision
+- **Where:** MVP 2 · Plan
+- **Context:** AI_TASKS gains cv, match, draft and assistant, but saved settings hold only four models.
+- **Options:**
+  1. A backfill in the migration
+  2. Optional keys with a fallback at runtime
+- **Chosen:** The migration backfill; the schema requires every task. Every task always has a model.
+- **If you decide otherwise:** Optional keys, with a fallback in packages/ai.
+- **Refs:** packages/schema/src/ai.ts; ai_settings.models
+- **Status:** open
+
+## TBD-210 · Build plan accepted with known problems
+- **Kind:** open item
+- **Where:** MVP 2 · Plan
+- **Context:** After two revisions the plan still had: Every criterion F1.1–F8.10 is assigned exactly once, S1–S12 are all covered, slice paths don't overlap except for the planned foundation-then-slice handovers (db/queries/cvs.ts, senders.ts, sync.ts, ai/tasks/*.ts, mail/src, sync/, cvs/, drafts/, senders/lookup.ts, e2e/fixtures/format.ts), and the step-0 facts check out: the intake branch is 30 ahead with 54 files and +6578 lines, the other two are 3 ahead each, and all three are 1 behind. The problems below are in the pinned contracts, which no slice may change afterwards.
+  1. A failed draft.v1 call has no defined handling. Drafts.failureKind is only mailbox|content, and listDraftsToRetry retries only kind mailbox and saving rows older than 5 minutes. Nothing says what draft.create does when draft.v1 fails: provider 500, timeout, invalid output after the AI client's retries, or no AI configured. If the row is marked failed (any kind), draftHistory.hadDraft becomes true and replyEligibility holds that role's automatic draft forever. If it is left in saving, that breaks 'a row is never left in saving' and only gets picked up by the 5-minute reclaim. Fix: pin an 'ai' failure kind that the sweep retries with the same attempt cap (or delete the claim on an AI error, the way releaseDraftClaim does), and add it to the foundation's draft-claims and sweep tests.
+  2. Drafts are per role, but the pinned draft.v1 key line is only `Message-ID` + `Attempt`, with no Role/position. Maria's MVP 1 fixtures already have 40 multi-role messages. Two eligible roles in one message would then get two drafts replying to the same thread, and the fake AI can't tell their draft.v1 answers apart (the same key for both). F6.1 says 'a message gets a reply draft' and S3 checks 'exactly one draft in reply to the Berlin message'. Whether that means one automatic draft per message or one per role is a choice users would notice, and the plan doesn't record it as a decision. Either pin at most one automatic draft per message (for example the best-scoring eligible role; on_demand stays per role for F6.5), or add `Role: <position>` to the draft.v1 key lines and the fixture key (Message-ID#position#attempt) before the foundation freezes them.
+  3. The score formula isn't pinned anywhere, but e2e-fixtures is built in parallel with rules-match and has to produce fixtures that land on exact thresholds: Berlin, the remote-EU role and one APAC role ≥ 70; data engineering < 70; Amsterdam and Singapore ≤ 40. It must also make sure no backlog role inside the 14-day window reaches 70, or the role gets a draft.v1 call with no fixture answer, a fake-AI 500 and a failed draft. With rules-match free to choose weights, the fixtures and the scorer will disagree, and that only shows up in validation. Fix: pin the scoring weights (or a pure scoreFor() contract with reference cases) in the foundation, or make e2e-fixtures depend on rules-match. In either case, add a post-integration consistency test that runs the real scorer over every fixture role and checks the threshold side expected.json records.
+  4. F1.5 usage is recorded by hand at each call site (recordAiUsage in jobs/scan/run.ts, routes/ai.ts and the merged intake.ts), and the plan pins no shared recording point for the four new tasks. cv.read (cvs-senders), match (rules-match), draft.create (replies), assistant (assistant) and sync's classify/extract (mailbox) each have to remember to record it, and nothing tests that they do, so 'model calls and tokens per day' can silently under-count. Fix: the foundation adds one server-side wrapper over deps.ai (or a recordUsage helper that every AI call goes through) that records each call's usage with at=clock.now(), and a test that each new task's calls show up in usagePerDay.
+  5. Pin which origin draft.create checks when it retries. DraftCreatePayload.origin has 'retry', but replyEligibility only knows auto|decision|on_demand. Say whether a retry (after a mailbox or AI failure) re-checks eligibility, for example when a hide/no_draft rule or a high-risk mark was added while IMAP was down, or drafts anyway. Without this, replies and the foundation's sweep can make opposite assumptions.
+  6. The foundation is still very large for one agent at high effort: the three reviewed merges (+6.9k lines), 12 schema modules, one migration with about 18 tables and tricky partial indexes and foreign keys, 8 tested query modules, core changes and policy, 4 AI tasks with 16 wire files, the mail contract, a fake mailbox with 6 failure switches plus a fake DomainPort and fake-AI extensions, the dedupe queue, the orchestrator, reevaluate, the sweep, the profile change service, 7 stub routes, web components and 8 slot directories, and ARCHITECTURE. cvs-senders (F2 + F5, 10 criteria, two unrelated features) and replies (12 criteria) are also near the limit. If the cap of 6 slices stays, cut the foundation's own scope instead: write ARCHITECTURE prose only for boundaries, and keep the fake-mailbox switches minimal, adding only what the foundation's own tests use. Otherwise expect the foundation verifiers to find it incomplete.
+- **Options:** —
+- **Chosen:** —
+- **If you decide otherwise:** —
+- **Refs:** —
+- **Status:** open
