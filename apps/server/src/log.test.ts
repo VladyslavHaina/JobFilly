@@ -100,3 +100,71 @@ describe("the logger", () => {
     });
   });
 });
+
+// The shape of drizzle-orm's DrizzleQueryError: the default name "Error", the full SQL and every
+// bound value in the message, and the driver's error as the cause.
+class DrizzleQueryError extends Error {
+  constructor(
+    readonly query: string,
+    readonly params: unknown[],
+    cause?: unknown,
+  ) {
+    super(`Failed query: ${query}\nparams: ${params}`);
+    this.cause = cause;
+  }
+}
+
+// pg's DatabaseError: the server's message and the SQLSTATE code, plus detail that can quote values.
+function pgError(message: string, code: string, detail: string) {
+  return Object.assign(new Error(message), { name: "error", code, detail, severity: "ERROR" });
+}
+
+const SQL = 'insert into "messages" ("subject", "snippet") values ($1, $2)';
+const PARAMS = ["PARAMSENTINEL-subject", "PARAMSENTINEL-snippet maria@inbox.example"];
+
+describe("database errors in the log", () => {
+  it("never logs the SQL or the bound values of a failed query", () => {
+    const { log, lines } = capture();
+    log.warn("db.connection_error", { error: new DrizzleQueryError(SQL, PARAMS) });
+    const line = JSON.stringify(lines[0]);
+    for (const leak of ["PARAMSENTINEL", "inbox.example", "insert into", "messages", "params"]) {
+      expect(line).not.toContain(leak);
+    }
+    expect(lines[0]?.error).toEqual({ name: "DrizzleQueryError", message: "Failed query" });
+  });
+
+  it("keeps the pg code and the cause's masked message, never the detail", () => {
+    const cause = pgError(
+      'duplicate key value violates unique constraint "users_email" for maria@inbox.example',
+      "23505",
+      "Key (email)=(PARAMSENTINEL-detail) already exists.",
+    );
+    const { log, lines } = capture();
+    log.warn("db.connection_error", { error: new DrizzleQueryError(SQL, PARAMS, cause) });
+    const line = JSON.stringify(lines[0]);
+    for (const leak of ["PARAMSENTINEL", "inbox.example", "insert into", "params"]) {
+      expect(line).not.toContain(leak);
+    }
+    expect(lines[0]?.error).toEqual({
+      name: "DrizzleQueryError",
+      code: "23505",
+      message: `duplicate key value violates unique constraint "users_email" for ${REDACTED}`,
+    });
+  });
+
+  it("logs a driver error by name, code and message", () => {
+    const connect = Object.assign(new Error("connect ECONNREFUSED 10.0.0.5:5432"), {
+      code: "ECONNREFUSED",
+    });
+    expect(redact({ error: connect })).toEqual({
+      error: { name: "Error", code: "ECONNREFUSED", message: "connect ECONNREFUSED 10.0.0.5:5432" },
+    });
+  });
+
+  it("drops a failed query quoted inside another error's message", () => {
+    const wrapped = new Error(`scan failed: Failed query: ${SQL}\nparams: ${PARAMS}`);
+    expect(redact({ error: wrapped })).toEqual({
+      error: { name: "Error", message: "scan failed: Failed query" },
+    });
+  });
+});
