@@ -1,8 +1,9 @@
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { parse } from "yaml";
+import { loadAnswers } from "./fake-ai/answers.ts";
 import { ACCOUNTS } from "./seed/accounts.ts";
 import {
   COMPOSE_FILE,
@@ -170,6 +171,42 @@ describe("docker/compose.e2e.yaml", () => {
       // biome-ignore lint/suspicious/noTemplateCurlyInString: compose interpolation, not JS.
       FAKE_AI_SLOW_TEST_MS: "${FAKE_AI_SLOW_TEST_MS:-0}",
     });
+  });
+});
+
+describe("the e2e image's entry points and fixtures", () => {
+  // The e2e image runs from /repo with e2e/ at /repo/e2e, as in the repository (e2e.Dockerfile),
+  // so the paths compose gives seed and fake-ai resolve against the repository root.
+  const dockerfile = readRepo("docker/e2e.Dockerfile");
+  const lastStage = dockerfile.slice(dockerfile.lastIndexOf("\nFROM "));
+  const starts: [string, string[] | undefined][] = [
+    ["seed", services.seed?.entrypoint],
+    ["fake-ai", services["fake-ai"]?.command],
+  ];
+
+  it("runs from /repo with e2e/ copied to /repo/e2e", () => {
+    expect(lastStage).toMatch(/^WORKDIR \/repo$/m);
+    expect(lastStage).toMatch(/^COPY --from=deps \/out \.\/e2e$/m);
+  });
+
+  it.each(starts)("starts %s from an entry point that exists", (_name, argv) => {
+    expect(argv?.[0]).toBe("node");
+    expect(existsSync(join(ROOT, argv?.[1] ?? "(none)")), argv?.[1]).toBe(true);
+  });
+
+  // The seed's FIXTURES_DIR: seed/load.test.ts loads every persona's mail from it.
+  it("lets the fake AI load every answer from its FIXTURES_DIR", () => {
+    const dir = join(ROOT, services["fake-ai"]?.environment.FIXTURES_DIR);
+    expect(() => loadAnswers(dir)).not.toThrow();
+  });
+});
+
+describe("e2e/specs/mvp-1", () => {
+  it("runs the F5.3 proof after every scenario spec", () => {
+    // Playwright runs a directory's entries in name order (localeCompare) on one worker, and the
+    // proof reads the state the MVP 1 scenarios leave behind.
+    const entries = readdirSync(join(E2E, "specs", "mvp-1")).sort((a, b) => a.localeCompare(b));
+    expect(entries.at(-1)).toBe("99-f5.3-stored-equals-expected.spec.ts");
   });
 });
 
