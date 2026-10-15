@@ -15,7 +15,6 @@ import {
   hasProfile,
   listIntakeAnswers,
   loadIntakeInput,
-  recordAiUsage,
   saveIntakeAnswer,
   takeOverIntakeExtras,
 } from "@jobfilly/db";
@@ -37,6 +36,7 @@ import {
 import { Hono } from "hono";
 import { z } from "zod";
 import { requireRole, validJson, validParam, type WorkspaceEnv } from "../access";
+import { aiClientFor } from "../ai-usage";
 import { MINUTE } from "../clock";
 import type { AppDeps } from "../deps";
 import type { Logger } from "../log";
@@ -131,7 +131,8 @@ async function askForExtras(
     let result: TaskResult<IntakeExtraOutput> | null = null;
     try {
       signal.throwIfAborted();
-      const client = deps.ai.client({
+      // Records the call's usage as soon as the answer is in (ai-usage.ts).
+      const client = aiClientFor(deps, workspaceId, {
         provider: settings.provider,
         baseUrl: settings.baseUrl,
         models: settings.models,
@@ -148,14 +149,6 @@ async function askForExtras(
       // The client failed outright (a provider failure comes back as a result, not a throw): the
       // form goes on without extra questions.
       log.warn("intake.extras_failed", { workspaceId, error: errorName(error) });
-    }
-    for (const usage of result?.usage ?? []) {
-      await recordAiUsage(deps.db, workspaceId, {
-        scanId: null,
-        task: usage.task,
-        inputTokens: usage.inputTokens,
-        outputTokens: usage.outputTokens,
-      });
     }
     if (result?.ok) {
       status = "done";

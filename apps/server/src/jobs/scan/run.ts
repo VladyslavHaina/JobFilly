@@ -8,7 +8,6 @@ import {
   listPendingOwnReplies,
   loadIntakeInput,
   markAnalysisFailed,
-  recordAiUsage,
   saveAnalysis,
   savePreferences,
   stopScan,
@@ -141,9 +140,9 @@ export async function runScan(input: RunInput): Promise<void> {
 
   const stopRequested = () => cancelled || ctx.signal.aborted;
 
-  async function spend(result: { usage: Usage[] }) {
+  // The client records each call's usage (ai-usage.ts, scoped to this run); this counts it.
+  function spend(result: { usage: Usage[] }) {
     for (const u of result.usage) {
-      await recordAiUsage(db, workspaceId, { scanId, ...u, at: deps.clock.now() });
       calls += 1;
       inputTokens += u.inputTokens;
       outputTokens += u.outputTokens;
@@ -167,7 +166,7 @@ export async function runScan(input: RunInput): Promise<void> {
       // is a fault in JobFilly itself, which no AI setting would fix.
       throw new RunFailed("internal", "ai_client_error");
     }
-    await spend(result);
+    spend(result);
     return result;
   }
 

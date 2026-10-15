@@ -1,3 +1,4 @@
+import type { AiClient } from "@jobfilly/ai";
 import { loadJobPlatforms, stageOne, stopMessage } from "@jobfilly/core";
 import {
   countNotAnalyzed,
@@ -19,6 +20,7 @@ import {
   type ScanRunPayload,
   type StopCause,
 } from "@jobfilly/schema";
+import { aiClientFor } from "../../ai-usage";
 import { DAY } from "../../clock";
 import type { AppDeps } from "../../deps";
 import type { Logger } from "../../log";
@@ -149,14 +151,19 @@ export function createScanRunHandler(
     } catch {
       return fail(deps, scan, log, "internal", "secret_error");
     }
-    let ai: ReturnType<AppDeps["ai"]["client"]>;
+    let ai: AiClient;
     try {
-      ai = deps.ai.client({
-        provider: settings.provider,
-        baseUrl: settings.baseUrl,
-        models: settings.models,
-        apiKey: secrets.apiKey,
-      });
+      ai = aiClientFor(
+        deps,
+        scan.workspaceId,
+        {
+          provider: settings.provider,
+          baseUrl: settings.baseUrl,
+          models: settings.models,
+          apiKey: secrets.apiKey,
+        },
+        { scanId: scan.id },
+      );
     } catch {
       return fail(deps, scan, log, "ai", "ai_setup_error");
     }

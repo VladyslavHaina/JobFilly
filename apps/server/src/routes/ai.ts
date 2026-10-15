@@ -1,5 +1,5 @@
 import { AI_PROVIDERS, aiProvider, aiReadBy } from "@jobfilly/ai";
-import { getAiSettings, recordAiUsage, type StoredAiSettings, saveAiSettings } from "@jobfilly/db";
+import { getAiSettings, type StoredAiSettings, saveAiSettings } from "@jobfilly/db";
 import {
   type AiClientSettings,
   type AiProviderList,
@@ -11,6 +11,7 @@ import {
 } from "@jobfilly/schema";
 import { type Context, Hono } from "hono";
 import { requireRole, validJson, type WorkspaceEnv } from "../access";
+import { aiClientFor } from "../ai-usage";
 import type { AppDeps } from "../deps";
 import { openAiKey, seal } from "../secrets";
 
@@ -111,10 +112,7 @@ export function aiRoutes(deps: AppDeps) {
         models: input.models,
         apiKey,
       };
-      const result = await deps.ai.client(settings).test();
-      for (const usage of result.usage) {
-        await recordAiUsage(deps.db, workspaceId, { scanId: null, ...usage, at: deps.clock.now() });
-      }
+      const result = await aiClientFor(deps, workspaceId, settings).test();
       let body: AiTestResult = { ok: true };
       if (!result.ok) {
         const reason = result.error.kind === "not_retried" ? "invalid_output" : result.error.kind;
