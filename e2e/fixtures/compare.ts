@@ -12,13 +12,14 @@ import {
 
 // F5.3: with the fake AI, the category and facts the app stores for every analysed message equal
 // expected.json. collectStored reads what the app serves for a workspace, compareWithExpected
-// lists every message where that differs from the ground truth. For F5.3 the MVP 1 spec must run
-// both for Maria and Tom against the integrated app and require an empty list.
+// lists every message where that differs from the ground truth. The F5.3 proof,
+// e2e/specs/mvp-1/99-f5.3-stored-equals-expected.spec.ts, runs both for Maria and Tom against the
+// test stack and requires an empty list.
 
 /**
  * One message as the app serves it: a row of GET /api/workspaces/:id/messages (MessageListItem
  * of packages/schema), with `roles` from its detail (MessageDetail) for job mail. `roles` is null
- * when no detail was read, as for not_job rows.
+ * when no detail was read, as for not_job rows nobody corrected.
  */
 export interface StoredMessage {
   id: string;
@@ -161,7 +162,10 @@ interface ListPage {
 
 /**
  * Everything compareWithExpected needs from the app: every page of the workspace's messages with
- * non-job mail shown, and the roles from the detail of every job-category message.
+ * non-job mail shown, and the roles from the detail of every job-category message and of every
+ * message a person corrected. A correction (F5.4) changes only the category, so a job message
+ * corrected to not_job keeps the roles its analysis found, and compareWithExpected still
+ * compares them.
  */
 export async function collectStored(get: GetJson, workspaceId: string): Promise<StoredMessage[]> {
   const base = `/api/workspaces/${encodeURIComponent(workspaceId)}/messages`;
@@ -171,7 +175,7 @@ export async function collectStored(get: GetJson, workspaceId: string): Promise<
     if (!Array.isArray(list?.items)) throw new Error(`${base} page ${page}: no items`);
     for (const { id, category, categorySource, analysisStatus } of list.items) {
       let roles: JobFacts[] | null = null;
-      if (category !== null && isJobCategory(category)) {
+      if (categorySource === "you" || (category !== null && isJobCategory(category))) {
         const detail = (await get(`${base}/${encodeURIComponent(id)}`)) as { roles?: unknown };
         if (!Array.isArray(detail?.roles)) throw new Error(`${base}/${id}: no roles`);
         roles = detail.roles as JobFacts[];

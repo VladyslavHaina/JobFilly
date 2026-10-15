@@ -255,7 +255,8 @@ export interface ExpectedMessage {
 
 /**
  * The messages whose stored category and facts F5.3 compares with `category` and `facts`
- * (compareWithExpected in compare.ts), and that the real-AI quality figures are counted over. Every other message is checked another way:
+ * (compareWithExpected in compare.ts), and that the real-AI quality figures are counted over.
+ * Every other message is checked another way:
  * - an own reply is never classified or extracted (TBD-37): its row ends with category null and
  *   preferences read, and F6.6 checks those through the profile answers;
  * - the invalid message ends "Couldn't analyze" with category null, which S5 checks.

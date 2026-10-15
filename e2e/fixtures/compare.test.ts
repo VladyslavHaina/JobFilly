@@ -252,6 +252,29 @@ describe("collectStored", () => {
     expect(compareWithExpected(persona, collected, { complete: true })).toEqual([]);
   });
 
+  it("reads and compares the roles of a job message a person corrected to not_job (F5.4)", async () => {
+    const stored = storedFromExpected("maria");
+    // The app keeps the roles its analysis found; a correction changes only the category.
+    const corrected = find(stored, MARIA_KEY_MESSAGES.germanRecruiter);
+    Object.assign(corrected, { category: "not_job", categorySource: "you" });
+    const workspaceId = "0b5f6c1e-6a4e-4a8e-9a43-3f1d2c7b9e10";
+    const { get, paths } = fakeApi(workspaceId, stored);
+    const collected = await collectStored(get, workspaceId);
+    expect(paths).toContain(
+      `/api/workspaces/${workspaceId}/messages/${encodeURIComponent(corrected.id)}`,
+    );
+    expect(find(collected, corrected.id).roles?.length).toBeGreaterThan(0);
+    expect(compareWithExpected("maria", collected, { complete: true })).toEqual([]);
+
+    // Its roles are still compared: a role lost along with the correction is reported.
+    const { get: lossy } = fakeApi(
+      workspaceId,
+      stored.map((s) => (s.id === corrected.id ? { ...s, roles: [] } : s)),
+    );
+    const diff = compareWithExpected("maria", await collectStored(lossy, workspaceId));
+    expect(diff.map((d) => [d.messageId, d.field])).toEqual([[corrected.id, "roles"]]);
+  });
+
   it("fails loudly on an answer that is no message list", async () => {
     await expect(collectStored(async () => ({ error: "forbidden" }), "w")).rejects.toThrow(
       "no items",
