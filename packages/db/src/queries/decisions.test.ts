@@ -208,16 +208,28 @@ describe("the decision inbox (F7)", () => {
     const { created } = await recordNeeds(conn.db, ws, [relocation([asMatch(dublin)])], t0);
     const id = created[0]?.id ?? "";
     expect(await dismissDecisionRole(conn.db, ws, id, dublin, later(1))).toBe(true);
-    const asDraft = relocation([{ ...dublin, source: "draft" }]);
+    const asDraft = relocation([{ ...dublin, source: "draft_on_demand" }]);
     expect((await recordNeeds(conn.db, ws, [asDraft], later(2))).added).toBe(0);
     expect(await roleDecisions(conn.db, ws, [dublin])).toMatchObject([{ state: "dismissed" }]);
     expect((await recordNeeds(conn.db, ws, [asDraft], later(3), { reopen: true })).added).toBe(1);
     expect(await roleDecisions(conn.db, ws, [dublin])).toMatchObject([
-      { decisionId: id, state: "waiting", source: "draft" },
+      { decisionId: id, state: "waiting", source: "draft_on_demand" },
     ]);
     expect((await draftHistory(conn.db, ws, [dublin])).get(roleKey(dublin))?.dismissed).toBe(false);
-    // A place already waiting stays as it is.
+    // A place already waiting isn't added again.
     expect((await recordNeeds(conn.db, ws, [asDraft], later(4), { reopen: true })).added).toBe(0);
+  });
+
+  it("makes a waiting place Draft a reply's when Draft a reply asks the same question", async () => {
+    await recordNeeds(conn.db, ws, [relocation([{ ...dublin, source: "draft" }])], t0);
+    const onDemand = relocation([{ ...dublin, source: "draft_on_demand" }]);
+    // Without reopen (the reply stage asking again) the place keeps what raised it first.
+    await recordNeeds(conn.db, ws, [onDemand], later(1));
+    expect(await roleDecisions(conn.db, ws, [dublin])).toMatchObject([{ source: "draft" }]);
+    expect((await recordNeeds(conn.db, ws, [onDemand], later(2), { reopen: true })).added).toBe(0);
+    expect(await roleDecisions(conn.db, ws, [dublin])).toMatchObject([
+      { state: "waiting", source: "draft_on_demand" },
+    ]);
   });
 
   it("lets a role stop waiting when its needs change, keeping dismissed and resolved places", async () => {

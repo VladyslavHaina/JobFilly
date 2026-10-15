@@ -907,7 +907,7 @@
         },
         "decision_messages_source_check": {
           "name": "decision_messages_source_check",
-          "value": "source in ('draft', 'match', 'rule')"
+          "value": "source in ('draft', 'draft_on_demand', 'match', 'rule')"
         }
       },
       "isRLSEnabled": false

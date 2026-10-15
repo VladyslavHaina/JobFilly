@@ -6,7 +6,7 @@ import type {
   ProfileItem,
   ProfileKey,
 } from "@jobfilly/schema";
-import { and, asc, eq, exists, inArray, notInArray, sql } from "drizzle-orm";
+import { and, asc, eq, exists, inArray, ne, notInArray, sql } from "drizzle-orm";
 import type { Database } from "../client";
 import { decisionMessages, decisions, messages } from "../tables";
 import { releaseDraftClaim } from "./draft-claims";
@@ -30,9 +30,9 @@ export interface NeedGroupInput {
 /**
  * Records needs: each group joins its open decision, or opens one, and its roles wait on it
  * (a role already listed keeps its state, so a dismissal stays). With `reopen` a role the user
- * dismissed waits on it again: Draft a reply asked for the reply, and it can't go without the
- * answer (F6.5, F7.5). Returns the decisions it opened, for decision.created, and how many roles
- * started waiting.
+ * dismissed waits on it again, and a role already waiting takes the new source: Draft a reply
+ * asked for the reply, and it can't go without the answer (F6.5, F7.5). Returns the decisions it
+ * opened, for decision.created, and how many roles started waiting.
  */
 export async function recordNeeds(
   db: Database,
@@ -77,6 +77,23 @@ export async function recordNeeds(
       id = open?.id;
     }
     if (!id || group.waiting.length === 0) continue;
+    if (options.reopen) {
+      for (const w of group.waiting) {
+        await db
+          .update(decisionMessages)
+          .set({ source: w.source, updatedAt: now })
+          .where(
+            and(
+              eq(decisionMessages.workspaceId, workspaceId),
+              eq(decisionMessages.decisionId, id),
+              eq(decisionMessages.messageId, w.messageId),
+              eq(decisionMessages.position, w.position),
+              eq(decisionMessages.state, "waiting"),
+              ne(decisionMessages.source, w.source),
+            ),
+          );
+      }
+    }
     const insert = db.insert(decisionMessages).values(
       group.waiting.map((w) => ({
         decisionId: id,

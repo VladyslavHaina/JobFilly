@@ -12,6 +12,7 @@ import type {
   CvReadStatus,
   CvTag,
   DecisionChoice,
+  DecisionNeed,
   DraftFailureKind,
   DraftOrigin,
   DraftStatus,
@@ -820,7 +821,7 @@ export const decisionMessages = pgTable(
     messageId: text("message_id").notNull(),
     position: integer("position").notNull(),
     state: text("state").$type<"waiting" | "dismissed" | "resolved">().notNull(),
-    source: text("source").$type<"draft" | "match" | "rule">().notNull(),
+    source: text("source").$type<DecisionNeed["source"]>().notNull(),
     createdAt: at("created_at").notNull(),
     updatedAt: at("updated_at").notNull(),
   },
@@ -833,7 +834,10 @@ export const decisionMessages = pgTable(
     }).onDelete("cascade"),
     index("decision_messages_role_idx").on(t.workspaceId, t.messageId, t.position),
     check("decision_messages_state_check", oneOf("state", ["waiting", "dismissed", "resolved"])),
-    check("decision_messages_source_check", oneOf("source", ["draft", "match", "rule"])),
+    check(
+      "decision_messages_source_check",
+      oneOf("source", ["draft", "draft_on_demand", "match", "rule"]),
+    ),
   ],
 );
 
