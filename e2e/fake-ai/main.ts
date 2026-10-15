@@ -1,9 +1,10 @@
+import type { AddressInfo } from "node:net";
 import { fixturesDir } from "../fixtures/format.ts";
 import { loadAnswers } from "./answers.ts";
 import { createFakeAi } from "./server.ts";
 
 // The fake AI of the test stack: node e2e/fake-ai/main.ts
-//   PORT                  listen port (8080)
+//   PORT                  listen port (8080; 0 takes any free port)
 //   FIXTURES_DIR          the fixtures (e2e/fixtures)
 //   FAKE_AI_DELAY_MS      wait before every answer (0; the test stack sets 300)
 //   FAKE_AI_SLOW_TEST_MS  extra wait on ai.test.v1 only (0)
@@ -36,8 +37,14 @@ const server = createFakeAi({
   slowTestMs: number("FAKE_AI_SLOW_TEST_MS", 0),
   log,
 });
+// The port actually bound, so PORT=0 (any free port) can be found from the log.
 server.listen(port, "0.0.0.0", () =>
-  log({ level: "info", event: "fake_ai.ready", port, fixturesDir: dir }),
+  log({
+    level: "info",
+    event: "fake_ai.ready",
+    port: (server.address() as AddressInfo).port,
+    fixturesDir: dir,
+  }),
 );
 
 for (const signal of ["SIGTERM", "SIGINT"] as const) {
