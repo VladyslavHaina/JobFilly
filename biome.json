@@ -10,6 +10,7 @@
     "includes": [
       "**",
       "!.claude/workflows",
+      "!.claude/worktrees",
       "!e2e/fixtures/maria",
       "!e2e/fixtures/tom",
       "!e2e/fixtures/ai",
