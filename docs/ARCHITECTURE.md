@@ -248,6 +248,23 @@ Rules:
   `{messageIds}`, or a sender scope (`{senderAddress}`, `{senderDomain}`), which alone also makes
   the sender checks stale. It enqueues `pipeline.reevaluate` and tells open inboxes.
 
+### The assistant
+
+- Each member has their own threads (`assistant_threads.user_id`); every read takes the user id
+  as well as the workspace id, and another member's thread or proposal answers 404.
+- A message gets one assistant.v1 call (`apps/server/src/assistant/service.ts`). A proposal is
+  kept only when it is a list of rule and entry Changes that apply to the profile, and with a
+  clarifying question no proposal is kept; otherwise the reply says why nothing was proposed.
+  Its card is stored with its impact preview and worded from its before and after
+  (`changeLines`, packages/core).
+- The impact preview (`previewImpact`, packages/core) runs `applyChanges`, the rules engine, the
+  match and `replyEligibility` over `listRoleStates` before and after, with each role's stored
+  match.v1 answer (`listStoredMatchAnswers`) picked by its input hash: no model call, no mailbox.
+- Apply marks the proposal applied and Undo marks the history entry undone in the transaction
+  that runs `applyAndReevaluate` on it (a savepoint), so each happens once; live events raised
+  inside are sent only after the commit. Undo restores the entry's `before` (`restoreChanges`)
+  by hand (source you), so the restore is in the history too. Neither writes a draft.
+
 ## AI
 
 - Every model call goes through `packages/ai`. Each workspace picks a provider; each task
