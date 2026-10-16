@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import {
   AiMailItemSchema,
+  AssistantAnswerSchema,
   AssistantTaskInputSchema,
   batchResultSchema,
   CategorySchema,
@@ -54,7 +55,8 @@ const OUTPUTS: Record<TaskId, z.ZodType> = {
   "cv.v1": taskResultSchema(TASK_OUTPUT_SCHEMAS["cv.v1"]),
   "match.v1": taskResultSchema(TASK_OUTPUT_SCHEMAS["match.v1"]),
   "draft.v1": taskResultSchema(TASK_OUTPUT_SCHEMAS["draft.v1"]),
-  "assistant.v1": taskResultSchema(TASK_OUTPUT_SCHEMAS["assistant.v1"]),
+  // The provider writes AssistantRequestSchema's flat changes; packages/ai returns Changes.
+  "assistant.v1": taskResultSchema(AssistantAnswerSchema),
 };
 
 /**
@@ -133,5 +135,35 @@ describe.each(TASK_IDS)("the %s wire sample", (taskId) => {
     expect(output.usage).toEqual([
       { task: taskId, inputTokens: usage.prompt_tokens, outputTokens: usage.completion_tokens },
     ]);
+  });
+});
+
+/**
+ * How big a JSON Schema is for a provider's grammar: its properties, union branches, enum and
+ * const values and patterns, counted through every level.
+ */
+function schemaSize(node: unknown): number {
+  if (Array.isArray(node)) return node.reduce((n: number, item) => n + schemaSize(item), 0);
+  if (typeof node !== "object" || node === null) return 0;
+  const s = node as Record<string, unknown>;
+  const own =
+    Object.keys((s.properties as object | undefined) ?? {}).length +
+    ((s.anyOf as unknown[] | undefined)?.length ?? 0) +
+    ((s.enum as unknown[] | undefined)?.length ?? 0) +
+    (s.const !== undefined ? 1 : 0) +
+    (s.pattern !== undefined ? 1 : 0);
+  return Object.values(s).reduce((n: number, value) => n + schemaSize(value), own);
+}
+
+// Anthropic refuses an output schema whose compiled grammar is too large (HTTP 400
+// invalid_request_error) before it generates anything. assistant.v1's nested Change union
+// (206 by this count) was refused; the largest it accepted, extract.v1's, is 60.
+const MAX_SCHEMA_SIZE = 100;
+
+describe.each(TASK_IDS)("the %s output schema", (taskId) => {
+  it(`is small enough for every provider's grammar (at most ${MAX_SCHEMA_SIZE})`, () => {
+    expect(schemaSize(sentSchema(TASK_OUTPUT_SCHEMAS[taskId]))).toBeLessThanOrEqual(
+      MAX_SCHEMA_SIZE,
+    );
   });
 });
