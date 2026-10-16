@@ -799,6 +799,33 @@
       }
     ]
   },
+  "<maria-0006@globalcareers-mail.example>": {
+    "roles": [
+      {
+        "title": "Remote Software Engineer",
+        "company": "Global Careers International",
+        "agency": null,
+        "places": [],
+        "workMode": "remote",
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": {
+          "min": 6500,
+          "max": 6500,
+          "currency": "USD",
+          "period": "month",
+          "asWritten": "USD 6,500 per month"
+        },
+        "contract": null,
+        "seniority": null,
+        "workPermit": null,
+        "skills": [],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
   "<maria-0011@talentbruecke.example>": {
     "roles": [
       {
@@ -1739,33 +1766,6 @@
         "remoteScope": null,
         "timeZones": null,
         "pay": null,
-        "contract": null,
-        "seniority": null,
-        "workPermit": null,
-        "skills": [],
-        "languages": [],
-        "applyUrl": null,
-        "extra": {}
-      }
-    ]
-  },
-  "<maria-0006@globalcareers-mail.example>": {
-    "roles": [
-      {
-        "title": "Remote Software Engineer",
-        "company": "Global Careers International",
-        "agency": null,
-        "places": [],
-        "workMode": "remote",
-        "remoteScope": null,
-        "timeZones": null,
-        "pay": {
-          "min": 6500,
-          "max": 6500,
-          "currency": "USD",
-          "period": "month",
-          "asWritten": "USD 6,500 per month"
-        },
         "contract": null,
         "seniority": null,
         "workPermit": null,

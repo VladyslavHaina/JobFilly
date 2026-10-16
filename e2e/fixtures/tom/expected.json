@@ -159,6 +159,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": false,
       "roles": [
         {
           "cv": "Nurse (EN)",
@@ -337,6 +338,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Nurse (EN)",
@@ -645,6 +647,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Nurse (EN)",
@@ -740,6 +743,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Nurse (EN)",

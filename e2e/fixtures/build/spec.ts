@@ -1,13 +1,14 @@
-import type {
-  Address,
-  Category,
-  Folder,
-  IntakeAnswer,
-  JobFacts,
-  Persona,
-  Preferences,
-  ProfileValues,
-  StageOneVerdict,
+import {
+  type Address,
+  type Category,
+  type Folder,
+  type IntakeAnswer,
+  isJobCategory,
+  type JobFacts,
+  type Persona,
+  type Preferences,
+  type ProfileValues,
+  type StageOneVerdict,
 } from "../format.ts";
 import type { Lang } from "./recruiters.ts";
 
@@ -39,7 +40,16 @@ export interface MessageSpec {
   /** Sent messages only: what the reply states (the prefs.v1 answer). */
   preferences: Preferences | null;
   invalid: boolean;
+  /**
+   * Job mail the app analyses (MVP 2): each role's hard conflicts (F4.2), in position order,
+   * written by hand from the persona's story, never worked out by a copy of the app's scorer.
+   * Null on any other message.
+   */
+  hardConflicts: HardConflict[][] | null;
 }
+
+/** A hard conflict, named by the profile entry it conflicts with (F4.2). */
+export type HardConflict = "places" | "min_pay";
 
 export interface PersonaSource {
   persona: Persona;
@@ -59,7 +69,8 @@ type OptionalHeaders =
   | "listId"
   | "listUnsubscribe"
   | "precedence"
-  | "language";
+  | "language"
+  | "hardConflicts";
 
 export type MessageInput = Omit<MessageSpec, "messageId" | OptionalHeaders> &
   Partial<Pick<MessageSpec, OptionalHeaders>>;
@@ -95,10 +106,71 @@ export class MessageBook {
       ...input,
       precedence: input.precedence ?? null,
       language: input.language ?? "en",
+      hardConflicts: input.hardConflicts ?? null,
       messageId: `<${this.#persona}-${seq}@${domain}>`,
       minutesAgo: this.time(input.minutesAgo),
     };
     this.messages.push(spec);
     return spec;
   }
+}
+
+/** Whether the app analyses a message in MVP 2: job mail, not an own reply, not always invalid. */
+export const isAnalysed = (m: MessageSpec): boolean =>
+  isJobCategory(m.category) && m.stageOne !== "own_reply" && !m.invalid;
+
+/**
+ * A role as a conflict table names it: its places, its work mode and the top of its pay, the
+ * facts a hard conflict comes from, e.g. "Munich hybrid ≤90000 EUR/year" or "remote".
+ */
+export function roleWhere(role: JobFacts): string {
+  const place = role.places.map((p) => p.city ?? p.country).join("/");
+  const pay = role.pay
+    ? ` ≤${role.pay.max ?? "?"} ${role.pay.currency ?? "?"}/${role.pay.period ?? "?"}`
+    : "";
+  return `${[place, role.workMode ?? "mode not stated"].filter(Boolean).join(" ")}${pay}`;
+}
+
+const CONFLICT_WORDS: Readonly<Record<string, HardConflict[]>> = {
+  none: [],
+  places: ["places"],
+  min_pay: ["min_pay"],
+  "places, min_pay": ["places", "min_pay"],
+};
+
+/**
+ * Gives every analysed message with no hard conflicts written at its role the ones `table`
+ * writes for it. The table is keyed by the number in the Message-ID ("0046" for <maria-0046@…>),
+ * one "<roleWhere>: <conflicts>" line per role in position order. A line whose role no longer
+ * reads as written, a message with no lines, or lines no message uses throw, so a change to the
+ * generator can't leave a role with stale ground truth.
+ */
+export function applyConflictTable(
+  messages: readonly MessageSpec[],
+  table: Readonly<Record<string, readonly string[]>>,
+): void {
+  const unused = new Set(Object.keys(table));
+  for (const m of messages) {
+    if (!isAnalysed(m) || m.hardConflicts !== null) continue;
+    const key = /^<[a-z]+-(\d+)@/.exec(m.messageId)?.[1] ?? "";
+    const lines = table[key];
+    const roles = m.facts ?? [];
+    if (lines === undefined) throw new Error(`no hard conflicts written for ${m.messageId}`);
+    if (lines.length !== roles.length) {
+      throw new Error(`${m.messageId} has ${roles.length} roles, ${lines.length} written`);
+    }
+    unused.delete(key);
+    m.hardConflicts = roles.map((role, i) => {
+      const line = lines[i] as string;
+      const at = line.lastIndexOf(": ");
+      const conflicts = CONFLICT_WORDS[line.slice(at + 2)];
+      if (at < 0 || conflicts === undefined)
+        throw new Error(`${m.messageId}: can't read "${line}"`);
+      if (line.slice(0, at) !== roleWhere(role)) {
+        throw new Error(`${m.messageId} role ${i} is "${roleWhere(role)}", written "${line}"`);
+      }
+      return conflicts;
+    });
+  }
+  if (unused.size > 0) throw new Error(`conflicts written for no message: ${[...unused]}`);
 }

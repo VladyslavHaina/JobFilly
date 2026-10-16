@@ -88,6 +88,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": false,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -272,6 +273,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": false,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -327,6 +329,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": false,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -387,6 +390,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": false,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -543,6 +547,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": false,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -635,6 +640,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": false,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -724,6 +730,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": false,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -900,6 +907,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": false,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -1049,6 +1057,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": false,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -1099,6 +1108,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": false,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -1179,6 +1189,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": false,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -1286,6 +1297,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": false,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -1456,6 +1468,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -1524,6 +1537,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -1579,6 +1593,50 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
+      "roles": [
+        {
+          "cv": "Backend (EN)",
+          "hardConflicts": [],
+          "draft": false
+        }
+      ]
+    },
+    "<maria-0006@globalcareers-mail.example>": {
+      "folder": "inbox",
+      "stageOne": "likely_job",
+      "category": "recruiter_outreach",
+      "facts": [
+        {
+          "title": "Remote Software Engineer",
+          "company": "Global Careers International",
+          "agency": null,
+          "places": [],
+          "workMode": "remote",
+          "remoteScope": null,
+          "timeZones": null,
+          "pay": {
+            "min": 6500,
+            "max": 6500,
+            "currency": "USD",
+            "period": "month",
+            "asWritten": "USD 6,500 per month"
+          },
+          "contract": null,
+          "seniority": null,
+          "workPermit": null,
+          "skills": [],
+          "languages": [],
+          "applyUrl": null,
+          "extra": {}
+        }
+      ],
+      "ownReply": false,
+      "invalid": false,
+      "sender": {
+        "verdict": "high_risk"
+      },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -1639,6 +1697,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -1747,6 +1806,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -1802,6 +1862,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -1848,6 +1909,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -1907,6 +1969,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -1958,6 +2021,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -2033,6 +2097,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -2149,6 +2214,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -2224,6 +2290,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -2271,6 +2338,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -2329,6 +2397,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -2387,6 +2456,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -2426,6 +2496,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -2488,6 +2559,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -2526,6 +2598,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -2572,6 +2645,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -2671,6 +2745,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -2727,6 +2802,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -2813,6 +2889,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -2944,6 +3021,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -2999,48 +3077,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
-      "roles": [
-        {
-          "cv": "Backend (EN)",
-          "hardConflicts": [],
-          "draft": false
-        }
-      ]
-    },
-    "<maria-0006@globalcareers-mail.example>": {
-      "folder": "inbox",
-      "stageOne": "likely_job",
-      "category": "recruiter_outreach",
-      "facts": [
-        {
-          "title": "Remote Software Engineer",
-          "company": "Global Careers International",
-          "agency": null,
-          "places": [],
-          "workMode": "remote",
-          "remoteScope": null,
-          "timeZones": null,
-          "pay": {
-            "min": 6500,
-            "max": 6500,
-            "currency": "USD",
-            "period": "month",
-            "asWritten": "USD 6,500 per month"
-          },
-          "contract": null,
-          "seniority": null,
-          "workPermit": null,
-          "skills": [],
-          "languages": [],
-          "applyUrl": null,
-          "extra": {}
-        }
-      ],
-      "ownReply": false,
-      "invalid": false,
-      "sender": {
-        "verdict": "high_risk"
-      },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -3093,6 +3130,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -3145,6 +3183,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -3218,6 +3257,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -3273,6 +3313,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -3335,6 +3376,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -3392,6 +3434,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -3457,6 +3500,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -3528,6 +3572,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -3610,6 +3655,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -3651,6 +3697,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -3696,6 +3743,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -3755,6 +3803,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -3823,6 +3872,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -3861,6 +3911,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -3909,6 +3960,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -3980,6 +4032,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -4032,6 +4085,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -4146,6 +4200,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -4242,6 +4297,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -4299,6 +4355,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -4384,6 +4441,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -4434,6 +4492,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -4478,6 +4537,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -4522,6 +4582,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -4627,6 +4688,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -4695,6 +4757,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -4733,6 +4796,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -4796,6 +4860,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -4835,6 +4900,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -4898,6 +4964,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -4948,6 +5015,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -5011,6 +5079,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -5100,6 +5169,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -5182,6 +5252,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -5252,6 +5323,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -5298,6 +5370,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -5368,6 +5441,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -5425,6 +5499,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -5445,6 +5520,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": []
     },
     "<maria-0377@linguapal.example>": {
@@ -5500,6 +5576,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Data engineering (EN)",
@@ -5566,6 +5643,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -5611,6 +5689,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -5686,6 +5765,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -5724,6 +5804,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -5776,6 +5857,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -5812,6 +5894,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -5856,6 +5939,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -5903,6 +5987,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -5954,6 +6039,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -6006,6 +6092,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -6068,6 +6155,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -6161,6 +6249,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -6246,6 +6335,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -6297,6 +6387,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -6365,6 +6456,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -6438,6 +6530,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -6496,6 +6589,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -6574,6 +6668,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -6675,6 +6770,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -6782,6 +6878,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -6833,6 +6930,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -6900,6 +6998,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -6966,6 +7065,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -7039,6 +7139,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -7127,6 +7228,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -7203,6 +7305,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -7257,6 +7360,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -7325,6 +7429,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -7446,6 +7551,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -7578,6 +7684,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -7645,6 +7752,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -7785,6 +7893,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -7896,6 +8005,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -7947,6 +8057,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -8043,6 +8154,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -8167,6 +8279,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Data engineering (EN)",
@@ -8221,6 +8334,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -8283,6 +8397,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -8343,6 +8458,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -8429,6 +8545,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -8538,6 +8655,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -8590,6 +8708,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -8687,6 +8806,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -8765,6 +8885,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -8877,6 +8998,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -8935,6 +9057,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -9025,6 +9148,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -9105,6 +9229,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -9157,6 +9282,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -9210,6 +9336,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -9268,6 +9395,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -9306,6 +9434,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -9373,6 +9502,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -9491,6 +9621,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -9550,6 +9681,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -9677,6 +9809,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -9732,6 +9865,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -9770,6 +9904,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -9814,6 +9949,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -9877,6 +10013,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -9955,6 +10092,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -10012,6 +10150,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -10072,6 +10211,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -10128,6 +10268,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -10191,6 +10332,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -10240,6 +10382,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -10306,6 +10449,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -10400,6 +10544,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -10471,6 +10616,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -10555,6 +10701,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -10615,6 +10762,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -10654,6 +10802,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -10714,6 +10863,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -10798,6 +10948,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -10890,6 +11041,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -10937,6 +11089,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -10979,6 +11132,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": []
     },
     "<maria-0553@inbox.example>": {
@@ -11070,6 +11224,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -11127,6 +11282,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -11173,6 +11329,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -11217,6 +11374,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -11336,6 +11494,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -11427,6 +11586,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -11481,6 +11641,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -11499,6 +11660,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": []
     },
     "<maria-0241@devweekly.example>": {
@@ -11586,6 +11748,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -11689,6 +11852,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -11725,6 +11889,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -11804,6 +11969,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -11878,6 +12044,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -11944,6 +12111,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -12001,6 +12169,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -12061,6 +12230,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -12097,6 +12267,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -12133,6 +12304,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -12169,6 +12341,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -12219,6 +12392,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": []
     },
     "<maria-0127@talentbruecke.example>": {
@@ -12261,6 +12435,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -12325,6 +12500,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -12387,6 +12563,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -12436,6 +12613,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -12491,6 +12669,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -12535,6 +12714,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -12627,6 +12807,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -12701,6 +12882,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -12748,6 +12930,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -12866,6 +13049,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -12937,6 +13121,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -12985,6 +13170,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -13071,6 +13257,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -13136,6 +13323,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -13205,6 +13393,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -13256,6 +13445,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -13308,6 +13498,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -13368,6 +13559,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -13467,6 +13659,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -13513,6 +13706,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -13567,6 +13761,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -13637,6 +13832,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -13698,6 +13894,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -13779,6 +13976,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -13807,6 +14005,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": []
     },
     "<maria-0429@skylusa.example>": {
@@ -13906,6 +14105,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -13994,6 +14194,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -14090,6 +14291,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -14163,6 +14365,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -14226,6 +14429,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -14343,6 +14547,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -14400,6 +14605,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -14444,6 +14650,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -14502,6 +14709,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -14587,6 +14795,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -14697,6 +14906,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -14800,6 +15010,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -14916,6 +15127,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -15003,6 +15215,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -15055,6 +15268,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -15109,6 +15323,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -15223,6 +15438,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -15275,6 +15491,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -15333,6 +15550,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -15405,6 +15623,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -15443,6 +15662,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -15479,6 +15699,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -15515,6 +15736,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -15578,6 +15800,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -15714,6 +15937,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": true,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -15985,6 +16209,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": false,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -16038,6 +16263,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": false,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -16089,6 +16315,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": false,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -16137,6 +16364,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": false,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -16190,6 +16418,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": false,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -16240,6 +16469,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": false,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -16292,6 +16522,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": false,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -16343,6 +16574,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": false,
       "roles": [
         {
           "cv": "Data engineering (EN)",
@@ -16394,6 +16626,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": false,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -16445,6 +16678,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": false,
       "roles": [
         {
           "cv": "Backend (DE)",
@@ -16496,6 +16730,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": false,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -16546,6 +16781,7 @@
       "sender": {
         "verdict": "looks_fine"
       },
+      "outsideReplyWindow": false,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -16584,6 +16820,7 @@
       "sender": {
         "verdict": "high_risk"
       },
+      "outsideReplyWindow": false,
       "roles": [
         {
           "cv": "Backend (EN)",
@@ -16636,6 +16873,7 @@
       "sender": {
         "verdict": "caution"
       },
+      "outsideReplyWindow": false,
       "roles": [
         {
           "cv": "Backend (EN)",

@@ -1872,6 +1872,33 @@
   },
   {
     "file": "inbox/0066.eml",
+    "messageId": "<maria-0006@globalcareers-mail.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 21471,
+    "from": {
+      "address": "hr.department@globalcareers-mail.example",
+      "name": "Global Careers HR Department"
+    },
+    "to": [
+      {
+        "address": "maria.santos@inbox.example",
+        "name": "Maria Santos"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Job Offer: Remote Software Engineer – Start Immediately",
+    "listId": null,
+    "listUnsubscribe": null,
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Dear Candidate, Congratulations! After reviewing your profile we are pleased to offer you the position of Remote Software Engineer with a salary of USD 6,500 per month. No interview is needed. To comp"
+  },
+  {
+    "file": "inbox/0067.eml",
     "messageId": "<maria-0316@lisboaguide.example>",
     "folder": "inbox",
     "folderPath": "INBOX",
@@ -1898,7 +1925,7 @@
     "snippet": "The best viewpoints for sunset. Our picks for the weekend, from rooftop concerts to flea markets. Read the full issue online: https://lisboaguide.example/issues/22262 You are receiving this email beca"
   },
   {
-    "file": "inbox/0067.eml",
+    "file": "inbox/0068.eml",
     "messageId": "<maria-0011@talentbruecke.example>",
     "folder": "inbox",
     "folderPath": "INBOX",
@@ -1925,7 +1952,7 @@
     "snippet": "Hallo Frau Santos, ich bin auf Ihr Profil gestoßen und hätte eine spannende Position für Sie. Ein Kunde von uns sucht eine:n Go-Entwickler (m/w/d). Die Stelle ist komplett remote innerhalb Deutschland"
   },
   {
-    "file": "inbox/0068.eml",
+    "file": "inbox/0069.eml",
     "messageId": "<maria-0039@indeed.com>",
     "folder": "inbox",
     "folderPath": "INBOX",
@@ -1952,7 +1979,7 @@
     "snippet": "Here are 4 new backend developer jobs for you. Backend Developer Brightwave Health · Amsterdam, Netherlands View job: https://www.indeed.com/viewjob?jk=ce2e3957 Go Developer Nordlicht Payments · Berli"
   },
   {
-    "file": "inbox/0069.eml",
+    "file": "inbox/0070.eml",
     "messageId": "<maria-0203@greenhouse-mail.io>",
     "folder": "inbox",
     "folderPath": "INBOX",
@@ -1979,7 +2006,7 @@
     "snippet": "Hi Maria, Your application for Senior Backend Engineer at Lumen Freight has moved to the next stage: our team is now reviewing it with the hiring manager. We'll be in touch about next steps soon. Than"
   },
   {
-    "file": "inbox/0070.eml",
+    "file": "inbox/0071.eml",
     "messageId": "<maria-0013@polder-talent.example>",
     "folder": "inbox",
     "folderPath": "INBOX",
@@ -2006,7 +2033,7 @@
     "snippet": "Hoi Maria, ik kwam je profiel tegen en denk dat je goed past bij een functie waar ik aan werk. Mijn opdrachtgever Kanaalstraat Labs zoekt een Platform Engineer. De functie is volledig remote binnen Ne"
   },
   {
-    "file": "inbox/0071.eml",
+    "file": "inbox/0072.eml",
     "messageId": "<maria-0500@booknest.example>",
     "folder": "inbox",
     "folderPath": "INBOX",
@@ -2033,7 +2060,7 @@
     "snippet": "Hi Maria, Thanks for your order! We'll email you again when it ships. Order total: €33.15 This is an automatically generated message about your account or order. Please keep it for your records. If yo"
   },
   {
-    "file": "inbox/0072.eml",
+    "file": "inbox/0073.eml",
     "messageId": "<maria-0135@atlantictech.example>",
     "folder": "inbox",
     "folderPath": "INBOX",
@@ -2060,7 +2087,7 @@
     "snippet": "Hi Maria, I hope you're well! I'm reaching out about a backend opportunity that might interest you. One of my clients is looking for a Software Engineer, Payments. The role is fully remote within the "
   },
   {
-    "file": "inbox/0073.eml",
+    "file": "inbox/0074.eml",
     "messageId": "<maria-0148@quaysidebank.example>",
     "folder": "inbox",
     "folderPath": "INBOX",
@@ -2087,7 +2114,7 @@
     "snippet": "Hi Maria, I came across your profile and think you'd be a great fit for a role I'm working on. At Quayside Bank, we are looking for a Software Engineer, Payments in Amsterdam. The role is hybrid, with"
   },
   {
-    "file": "inbox/0074.eml",
+    "file": "inbox/0075.eml",
     "messageId": "<maria-0502@mercadofresco.example>",
     "folder": "inbox",
     "folderPath": "INBOX",
@@ -2114,7 +2141,7 @@
     "snippet": "Olá Maria, O seu pedido com 17 artigos será entregue hoje entre as 18:00 e as 21:00. Bom apetite! This is an automatically generated message about your account or order. Please keep it for your record"
   },
   {
-    "file": "inbox/0075.eml",
+    "file": "inbox/0076.eml",
     "messageId": "<maria-0590@mail.example>",
     "folder": "inbox",
     "folderPath": "INBOX",
@@ -2141,7 +2168,7 @@
     "snippet": "Hi Maria, We're in Berlin the first weekend of November. Any chance you'll be around? Pedro Other news: the plants on the balcony survived the heatwave after all, and I finally fixed the wobbly table."
   },
   {
-    "file": "inbox/0076.eml",
+    "file": "inbox/0077.eml",
     "messageId": "<maria-0140@harbour-rec.example>",
     "folder": "inbox",
     "folderPath": "INBOX",
@@ -2168,7 +2195,7 @@
     "snippet": "Hi Maria, Your experience with distributed systems caught my eye, so I wanted to get in touch. My client, a Series B fintech, is looking for a Python Backend Developer in Munich. The role is on-site i"
   },
   {
-    "file": "inbox/0077.eml",
+    "file": "inbox/0078.eml",
     "messageId": "<maria-0070@xing.com>",
     "folder": "inbox",
     "folderPath": "INBOX",
@@ -2195,7 +2222,7 @@
     "snippet": "Wir haben 4 neue Jobs im Bereich Softwareentwicklung für Sie gefunden. Softwareentwickler Backend (m/w/d) Copperleaf Analytics · Wien, Österreich · Vor Ort 70.000–85.000 € pro Jahr Zur Stelle: https:/"
   },
   {
-    "file": "inbox/0078.eml",
+    "file": "inbox/0079.eml",
     "messageId": "<maria-0172@rheinpfad.example>",
     "folder": "inbox",
     "folderPath": "INBOX",
@@ -2222,7 +2249,7 @@
     "snippet": "Hallo Frau Santos, Ihre Erfahrung mit verteilten Systemen passt sehr gut zu einer Stelle, die ich gerade besetze. Die Rheinpfad Energie AG sucht eine:n Backend Engineer (m/w/d) in Berlin. Die Stelle i"
   },
   {
-    "file": "inbox/0079.eml",
+    "file": "inbox/0080.eml",
     "messageId": "<maria-0131@rheinpfad.example>",
     "folder": "inbox",
     "folderPath": "INBOX",
@@ -2278,7 +2305,7 @@
     "snippet": "Hi Inês, Sounds interesting. My minimum is 70k EUR per year on a permanent contract, or 450 EUR per day if it's B2B. Kind regards, Maria Inês Rocha wrote: > Olá Maria, > > a tua experiência com sistem"
   },
   {
-    "file": "inbox/0080.eml",
+    "file": "inbox/0081.eml",
     "messageId": "<maria-0125@alfamalabs.example>",
     "folder": "inbox",
     "folderPath": "INBOX",
@@ -2305,7 +2332,7 @@
     "snippet": "Olá Maria, encontrei o teu perfil e acho que serias uma ótima escolha para uma função em que estou a trabalhar. A Alfama Labs está à procura de um(a) Programador(a) Java. A posição é totalmente remota"
   },
   {
-    "file": "inbox/0081.eml",
+    "file": "inbox/0082.eml",
     "messageId": "<maria-0488@vodafino.example>",
     "folder": "inbox",
     "folderPath": "INBOX",
@@ -2332,7 +2359,7 @@
     "snippet": "Olá Maria, A sua fatura deste mês, no valor de 42,74 €, já está disponível na área de cliente. O pagamento será debitado automaticamente. This is an automatically generated message about your account "
   },
   {
-    "file": "inbox/0082.eml",
+    "file": "inbox/0083.eml",
     "messageId": "<maria-0015@dourofintech.example>",
     "folder": "inbox",
     "folderPath": "INBOX",
@@ -2359,7 +2386,7 @@
     "snippet": "Olá Maria, a tua experiência com sistemas distribuídos chamou-me a atenção. A Douro Fintech está à procura de um(a) Engenheiro(a) de Backend em Braga. O modelo de trabalho é híbrido, com dois dias por"
   },
   {
-    "file": "inbox/0083.eml",
+    "file": "inbox/0084.eml",
     "messageId": "<maria-0208@workablemail.com>",
     "folder": "inbox",
     "folderPath": "INBOX",
@@ -2386,7 +2413,7 @@
     "snippet": "Olá Maria, Obrigado pela tua candidatura para Backend Developer na Douro Fintech. Recebemos o teu CV e entraremos em contacto nas próximas duas semanas. Cumprimentos, Equipa de Recrutamento Douro Fint"
   },
   {
-    "file": "inbox/0084.eml",
+    "file": "inbox/0085.eml",
     "messageId": "<maria-0270@museudigital.example>",
     "folder": "inbox",
     "folderPath": "INBOX",
@@ -2413,7 +2440,7 @@
     "snippet": "Inscrições abertas para visitas guiadas. Ouça o novo episódio do nosso podcast. Read the full issue online: https://museudigital.example/issues/45291 You are receiving this email because you subscribe"
   },
   {
-    "file": "inbox/0085.eml",
+    "file": "inbox/0086.eml",
     "messageId": "<maria-0183@dijkstra-logistics.example>",
     "folder": "inbox",
     "folderPath": "INBOX",
@@ -2440,7 +2467,7 @@
     "snippet": "Hoi Maria, ik hoop dat alles goed met je gaat! Ik neem contact op over een mooie backendrol. Dijkstra Logistics zoekt een Java Developer in Eindhoven. De functie is hybride: twee dagen per week op kan"
   },
   {
-    "file": "inbox/0086.eml",
+    "file": "inbox/0087.eml",
     "messageId": "<maria-0228@teamtailor.com>",
     "folder": "inbox",
     "folderPath": "INBOX",
@@ -2467,7 +2494,7 @@
     "snippet": "Hi Maria, Thank you for applying for the Backend Engineer position at Lumen Freight. We've received your application and our team is reviewing it now. We aim to get back to everyone within two weeks. "
   },
   {
-    "file": "inbox/0087.eml",
+    "file": "inbox/0088.eml",
     "messageId": "<maria-0144@alfamalabs.example>",
     "folder": "inbox",
     "folderPath": "INBOX",
@@ -2494,7 +2521,7 @@
     "snippet": "Olá Maria, encontrei o teu perfil e acho que serias uma ótima escolha para uma função em que estou a trabalhar. A Alfama Labs está à procura de um(a) Programador(a) Backend. A posição é totalmente rem"
   },
   {
-    "file": "inbox/0088.eml",
+    "file": "inbox/0089.eml",
     "messageId": "<maria-0057@indeed.com>",
     "folder": "inbox",
     "folderPath": "INBOX",
@@ -2521,7 +2548,7 @@
     "snippet": "Here are 3 new backend developer jobs for you. Backend Developer Elbwerk Software GmbH · Madrid, Spain View job: https://www.indeed.com/viewjob?jk=dfd877a5 Go Developer Molenwijk Bank · Madrid, Spain "
   },
   {
-    "file": "inbox/0089.eml",
+    "file": "inbox/0090.eml",
     "messageId": "<maria-0395@linguapal.example>",
     "folder": "inbox",
     "folderPath": "INBOX",
@@ -2548,7 +2575,7 @@
     "snippet": "Review the words you found hardest. You practised four days this week. Nice work! Read the full issue online: https://linguapal.example/issues/79661 You are receiving this email because you subscribed"
   },
   {
-    "file": "inbox/0090.eml",
+    "file": "inbox/0091.eml",
     "messageId": "<maria-0209@personio.de>",
     "folder": "inbox",
     "folderPath": "INBOX",
@@ -2575,7 +2602,7 @@
     "snippet": "Hallo Frau Santos, vielen Dank für Ihre Bewerbung als Senior Backend Engineer (m/w/d) bei der Elbwerk Software GmbH. Wir haben Ihre Unterlagen erhalten und melden uns innerhalb von zwei Wochen bei Ihn"
   },
   {
-    "file": "inbox/0091.eml",
+    "file": "inbox/0092.eml",
     "messageId": "<maria-0055@stepstone.de>",
     "folder": "inbox",
     "folderPath": "INBOX",
@@ -2602,7 +2629,7 @@
     "snippet": "Ihr Jobagent \"Backend\" hat 3 neue passende Stellenangebote gefunden. Senior Backend Engineer (m/w/d) Lumen Freight · Hamburg, Deutschland Zur Stelle: https://www.stepstone.de/stellenangebote--38872842"
   },
   {
-    "file": "inbox/0092.eml",
+    "file": "inbox/0093.eml",
     "messageId": "<maria-0072@indeed.com>",
     "folder": "inbox",
     "folderPath": "INBOX",
@@ -2629,7 +2656,7 @@
     "snippet": "Here are 4 new backend developer jobs for you. Software Engineer – Backend Spreeblick Mobility GmbH · Berlin, Germany View job: https://www.indeed.com/viewjob?jk=c181267e Backend Engineer (Java) Lumen"
   },
   {
-    "file": "inbox/0093.eml",
+    "file": "inbox/0094.eml",
     "messageId": "<maria-0227@greenhouse-mail.io>",
     "folder": "inbox",
     "folderPath": "INBOX",
@@ -2654,33 +2681,6 @@
     "precedence": null,
     "autoSubmitted": null,
     "snippet": "Hi Maria, Thank you for applying for the Backend Developer position at Quayside Bank. We've received your application and our team is reviewing it now. We aim to get back to everyone within two weeks."
-  },
-  {
-    "file": "inbox/0094.eml",
-    "messageId": "<maria-0006@globalcareers-mail.example>",
-    "folder": "inbox",
-    "folderPath": "INBOX",
-    "minutesAgo": 25943,
-    "from": {
-      "address": "hr.department@globalcareers-mail.example",
-      "name": "Global Careers HR Department"
-    },
-    "to": [
-      {
-        "address": "maria.santos@inbox.example",
-        "name": "Maria Santos"
-      }
-    ],
-    "cc": [],
-    "replyTo": [],
-    "inReplyTo": null,
-    "references": [],
-    "subject": "Job Offer: Remote Software Engineer – Start Immediately",
-    "listId": null,
-    "listUnsubscribe": null,
-    "precedence": null,
-    "autoSubmitted": null,
-    "snippet": "Dear Candidate, Congratulations! After reviewing your profile we are pleased to offer you the position of Remote Software Engineer with a salary of USD 6,500 per month. No interview is needed. To comp"
   },
   {
     "file": "inbox/0095.eml",

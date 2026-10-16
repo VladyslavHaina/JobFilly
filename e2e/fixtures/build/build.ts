@@ -29,9 +29,9 @@ import {
   matchKey,
   NONE_INTAKE_PATH,
   type PrefsAnswer,
-  type ProfileValues,
   personaPaths,
   personaPathsMvp2,
+  REPLY_WINDOW_MINUTES,
   toJson,
 } from "../format.ts";
 import { assistantAnswers, assistantRequests } from "./assistant.ts";
@@ -39,14 +39,8 @@ import { CVS, type CvSource, checkedSkills, cvBytes, cvNamed, cvTags } from "./c
 import { DELIVERIES, type DeliverySource, deliverySpec } from "./deliveries.ts";
 import { domainsFile, zoneFiles } from "./domains.ts";
 import { buildEml, toHtml } from "./eml.ts";
+import { backendTitleFit, matchAnswer, nursingTitleFit, type PersonaJudge } from "./judge.ts";
 import { maria } from "./maria.ts";
-import {
-  backendTitleFit,
-  hardConflicts,
-  matchAnswer,
-  nursingTitleFit,
-  type PersonaJudge,
-} from "./matching.ts";
 import type { MessageSpec, PersonaSource } from "./spec.ts";
 import { tom } from "./tom.ts";
 
@@ -120,8 +114,9 @@ function personaFiles(source: PersonaSource, mvp2: PersonaMvp2): Map<string, Fil
   const draft: Record<string, DraftAnswer> = {};
 
   /**
-   * Every role's CV, hard conflicts and match.v1 answer; `draft` says if it gets a draft, `close`
-   * which skills the CV lacks that the fake AI still calls close.
+   * Every role's CV, hard conflicts (as the persona source writes them) and match.v1 answer;
+   * `draft` says if it gets a draft, `close` which skills the CV lacks that the fake AI still
+   * calls close.
    */
   const judgeRoles = (
     m: MessageSpec,
@@ -131,11 +126,11 @@ function personaFiles(source: PersonaSource, mvp2: PersonaMvp2): Map<string, Fil
     (m.facts ?? []).map((facts, position) => {
       const cv = mvp2.judge.cvFor(facts, m.language);
       match[matchKey(m.messageId, position)] = matchAnswer(mvp2.judge, facts, cv, close(position));
-      return {
-        cv: cv.name,
-        hardConflicts: hardConflicts(facts, mvp2.judge.profile),
-        draft: drafts(position),
-      };
+      const conflicts = m.hardConflicts?.[position];
+      if (conflicts === undefined) {
+        throw new Error(`no hard conflicts written for role ${position} of ${m.messageId}`);
+      }
+      return { cv: cv.name, hardConflicts: [...conflicts], draft: drafts(position) };
     });
 
   for (const m of sorted) {
@@ -181,6 +176,7 @@ function personaFiles(source: PersonaSource, mvp2: PersonaMvp2): Map<string, Fil
       truth.sender = {
         verdict: mvp2.highRisk.includes(m.messageId) ? "high_risk" : "looks_fine",
       };
+      truth.outsideReplyWindow = m.minutesAgo >= REPLY_WINDOW_MINUTES;
       truth.roles = judgeRoles(m, () => false);
     }
     messages[m.messageId] = truth;
@@ -226,6 +222,7 @@ function personaFiles(source: PersonaSource, mvp2: PersonaMvp2): Map<string, Fil
       ownReply: false,
       invalid: false,
       sender: { verdict: d.sender },
+      outsideReplyWindow: m.minutesAgo >= REPLY_WINDOW_MINUTES,
       roles,
     };
     classify[m.messageId] = { category: m.category };
@@ -291,19 +288,6 @@ const choice = (name: string) => {
   return { name: cv.name, skills: checkedSkills(cv) };
 };
 
-/** Maria's profile when MVP 2 starts: her confirmed intake with Amsterdam removed (MVP 1 S4). */
-function mariaMvp2Profile(source: PersonaSource): ProfileValues {
-  return {
-    ...source.profile,
-    places: source.profile.places.filter((p) => p.city !== "Amsterdam"),
-  };
-}
-
-/** Tom confirms an intake with nothing his mail could answer (MVP 1 S7). */
-const EMPTY_PROFILE: ProfileValues = Object.fromEntries(
-  CORE_KEYS.map((k) => [k, []]),
-) as unknown as ProfileValues;
-
 function sources(): { source: PersonaSource; mvp2: PersonaMvp2 }[] {
   const m = maria();
   const t = tom();
@@ -313,7 +297,6 @@ function sources(): { source: PersonaSource; mvp2: PersonaMvp2 }[] {
       mvp2: {
         judge: {
           persona: "maria",
-          profile: mariaMvp2Profile(m),
           cvFor: (role, language) =>
             choice(
               /data engineer/i.test(role.title ?? "")
@@ -334,7 +317,6 @@ function sources(): { source: PersonaSource; mvp2: PersonaMvp2 }[] {
       mvp2: {
         judge: {
           persona: "tom",
-          profile: EMPTY_PROFILE,
           cvFor: () => choice("Nurse (EN)"),
           titleFit: nursingTitleFit,
         },

@@ -206,6 +206,9 @@
   "<maria-0004@hirewave.example>": {
     "category": "recruiter_outreach"
   },
+  "<maria-0006@globalcareers-mail.example>": {
+    "category": "recruiter_outreach"
+  },
   "<maria-0316@lisboaguide.example>": {
     "category": "not_job"
   },
@@ -292,9 +295,6 @@
   },
   "<maria-0227@greenhouse-mail.io>": {
     "category": "application_update"
-  },
-  "<maria-0006@globalcareers-mail.example>": {
-    "category": "recruiter_outreach"
   },
   "<maria-0451@oceancharity.example>": {
     "category": "not_job"

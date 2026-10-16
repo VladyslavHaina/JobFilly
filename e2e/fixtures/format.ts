@@ -91,6 +91,12 @@ export const FIXTURE_REFERENCE_TIME = "2026-10-01T12:00:00.000Z";
 /** The first scan's window (F4.1). Every fixture message is younger than this. */
 export const WINDOW_MINUTES = 90 * 24 * 60;
 
+/**
+ * MVP 2's reply window (F1.6: profile entry reply_window_days, default 14): only mail received
+ * within it gets an automatic draft.
+ */
+export const REPLY_WINDOW_MINUTES = 14 * 24 * 60;
+
 /** The nine categories of F5, as packages/schema names them. */
 export const CATEGORIES = [
   "recruiter_outreach",
@@ -515,7 +521,8 @@ export interface ExpectedRole {
   /**
    * The profile entries the role conflicts with hard (F4.2): "places" (a place or work mode not
    * accepted) and "min_pay" (the whole pay range below the minimum in the same currency and
-   * period), against the profile the persona has when MVP 2 starts.
+   * period), against the profile the persona has when MVP 2 starts. Written by hand in the
+   * persona sources (e2e/fixtures/build), never worked out by a copy of the app's scorer.
    */
   hardConflicts: string[];
   /** Whether the role ends up with an automatic draft during the run. */
@@ -530,6 +537,12 @@ export interface ExpectedRole {
 interface ExpectedMessageMvp2 {
   /** Every job message's sender (own replies and the always-invalid message have none). */
   sender?: { verdict: SenderVerdict };
+  /**
+   * Job mail with a sender verdict: whether it arrived before the reply window
+   * (REPLY_WINDOW_MINUTES), so it never gets an automatic draft however well it matches (F1.6).
+   * Every delivered message is inside it; the first scan's backlog holds both kinds.
+   */
+  outsideReplyWindow?: boolean;
   /** Per role, in position order; job mail only. */
   roles?: ExpectedRole[];
 }

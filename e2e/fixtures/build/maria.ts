@@ -16,9 +16,10 @@ import {
   RECRUITER_FOOTER_EN,
   RECRUITER_FOOTER_PT,
 } from "./footers.ts";
+import { GENERATED_ROLE_CONFLICTS } from "./maria-conflicts.ts";
 import { createRandom, type Random } from "./random.ts";
 import { type Lang, recruiterMail } from "./recruiters.ts";
-import { MessageBook, type MessageSpec, type PersonaSource } from "./spec.ts";
+import { applyConflictTable, MessageBook, type MessageSpec, type PersonaSource } from "./spec.ts";
 
 // Maria Santos, backend engineer in Lisbon: about 600 messages over 90 days. Her 15 replies to
 // recruiters state every preference she has, each in at least two replies, so the intake
@@ -339,6 +340,8 @@ export function maria(): PersonaSource {
         languages: ["Englisch"],
       }),
     ],
+    // Hybrid in Berlin, as she wants; €85,000 at the top is over her €70,000.
+    { hardConflicts: [[]] },
   );
 
   const keyAlertRoles: AlertRole[] = [
@@ -362,6 +365,8 @@ export function maria(): PersonaSource {
   inbox(keyAlert, days(0.4), "job_alert", keyAlert.facts, {
     stageOne: "job_alert",
     listUnsubscribe: keyAlert.listUnsubscribe,
+    // Berlin hybrid over her minimum: none. Amsterdam: she removed it (MVP 1 S4). Remote: none.
+    hardConflicts: [[], ["places"], []],
   });
 
   inbox(
@@ -383,6 +388,8 @@ export function maria(): PersonaSource {
         languages: ["English"],
       }),
     ],
+    // Remote within the EU, as she wants.
+    { hardConflicts: [[]] },
   );
 
   inbox(
@@ -401,6 +408,8 @@ export function maria(): PersonaSource {
         workMode: "remote",
       }),
     ],
+    // Remote and no pay stated: nothing to conflict with.
+    { hardConflicts: [[]] },
   );
 
   const invalid = recruiterMail(rnd, "nl", "Polder Talent");
@@ -416,7 +425,10 @@ export function maria(): PersonaSource {
       body: "Dear Candidate,\n\nCongratulations! After reviewing your profile we are pleased to offer you the position of Remote Software Engineer with a salary of USD 6,500 per month. No interview is needed.\n\nTo complete your hiring, please pay a one-time processing fee of €150 for your work visa and equipment, and send a clear scan of your passport (both sides) to this email address within 24 hours.\n\nAfter payment we will send your contract and start date.\n\nRegards,\nHR Department\nGlobal Careers International",
       footer: RECRUITER_FOOTER_EN,
     },
-    rnd.int(days(15), days(20)),
+    // Among the newest 40 likely job mails, which the first scan analyses before it stops as
+    // confident (MVP 1 S3), so it is in MVP 2's backlog for the sender check (F5.5, S6). One
+    // draw, as before, so every later message keeps its draws and its date.
+    rnd.int(days(14.85), days(14.95)),
     "recruiter_outreach",
     [
       role({
@@ -426,6 +438,8 @@ export function maria(): PersonaSource {
         pay: pay(6500, 6500, "USD", "month", "USD 6,500 per month"),
       }),
     ],
+    // Remote; pay in USD a month, where she has no minimum: unknown, never a conflict (F4.3).
+    { hardConflicts: [[]] },
   );
 
   inbox(
@@ -448,6 +462,8 @@ export function maria(): PersonaSource {
         extra: { "start date": "1 December" },
       }),
     ],
+    // Hybrid in Amsterdam, which she removed from her places in MVP 1 S4.
+    { hardConflicts: [["places"]] },
   );
 
   inbox(
@@ -460,6 +476,8 @@ export function maria(): PersonaSource {
     rnd.int(days(10), days(13)),
     "rejection",
     [role({ title: "Senior Backend Engineer", company: "Tejo Cloud", seniority: "Senior" })],
+    // No place, work mode or pay stated.
+    { hardConflicts: [[]] },
   );
 
   // Her 15 replies, each to a recruiter mail, newest first.
@@ -503,6 +521,8 @@ export function maria(): PersonaSource {
     pastReplyWindow(anyTime()),
     "assessment",
     [role({ title: "Backend Engineer", company: "Copperleaf Analytics" })],
+    // No place, work mode or pay stated.
+    { hardConflicts: [[]] },
   );
   inbox(
     {
@@ -514,6 +534,8 @@ export function maria(): PersonaSource {
     pastReplyWindow(anyTime()),
     "assessment",
     [role({ title: "Backend Developer", company: "Dijkstra Logistics" })],
+    // No place, work mode or pay stated.
+    { hardConflicts: [[]] },
   );
 
   // Other job mail: no role of its own.
@@ -550,7 +572,9 @@ export function maria(): PersonaSource {
       footer: PERSONAL_FOOTER,
     },
   ];
-  for (const m of other) inbox(m, pastReplyWindow(anyTime()), "other_job", []);
+  for (const m of other) {
+    inbox(m, pastReplyWindow(anyTime()), "other_job", [], { hardConflicts: [] });
+  }
 
   // Non-job mail: newsletters (bulk headers), receipts and friends (none).
   for (const m of newsletters(rnd, "maria", 235)) {
@@ -567,6 +591,8 @@ export function maria(): PersonaSource {
     if (i < 5)
       reply(original, `${m.reply}\n\nMaria`, original.minutesAgo - rnd.int(20, 600), "not_job", {});
   });
+
+  applyConflictTable(book.messages, GENERATED_ROLE_CONFLICTS);
 
   const replies = book.messages.filter((m) => m.folder === "sent" && m.category === "other_job");
   const byText = (needle: string) =>

@@ -10,7 +10,7 @@ import {
 import { pay, role } from "./facts.ts";
 import { RECRUITER_FOOTER_DE, RECRUITER_FOOTER_EN } from "./footers.ts";
 import type { Lang } from "./recruiters.ts";
-import type { MessageSpec } from "./spec.ts";
+import type { HardConflict, MessageSpec } from "./spec.ts";
 
 // The mail `seed deliver <id>` brings into Maria's Inbox during an MVP 2 run (MVP-2 › Fixtures
 // added), all dated within the 14-day reply window. Each message has its ground truth: the
@@ -22,6 +22,8 @@ import type { MessageSpec } from "./spec.ts";
 
 interface DeliveryRole {
   facts: JobFacts;
+  /** Its hard conflicts (F4.2), written by hand against her profile above. */
+  hardConflicts: HardConflict[];
   /** Where the role's score lands: at or above the reply threshold, below it, or capped. */
   fit: ExpectedRoleFit;
   /** The decisions (group keys) the role waits on before its draft. */
@@ -80,6 +82,7 @@ export function deliverySpec(d: DeliverySource): MessageSpec {
     facts: d.roles.map((r) => r.facts),
     preferences: null,
     invalid: false,
+    hardConflicts: d.roles.map((r) => r.hardConflicts),
   };
 }
 
@@ -99,8 +102,10 @@ const reply = (
   ...extra,
 });
 
-const capped = (facts: JobFacts): DeliveryRole => ({
+/** A role a hard conflict caps (F4.2), with no draft. */
+const capped = (hardConflicts: HardConflict[], facts: JobFacts): DeliveryRole => ({
   facts,
+  hardConflicts,
   fit: "capped",
   needs: [],
   draft: false,
@@ -143,6 +148,7 @@ export const DELIVERIES: readonly DeliverySource[] = [
           seniority: "Senior",
           skills: ["Go", "PostgreSQL", "Kubernetes", "Redis"],
         }),
+        hardConflicts: [],
         fit: "good",
         needs: [],
         draft: true,
@@ -187,6 +193,7 @@ export const DELIVERIES: readonly DeliverySource[] = [
           skills: ["Go", "Kafka", "PostgreSQL"],
           languages: ["English"],
         }),
+        hardConflicts: [],
         fit: "good",
         needs: [],
         draft: true,
@@ -221,6 +228,8 @@ export const DELIVERIES: readonly DeliverySource[] = [
     sender: "looks_fine",
     roles: [
       capped(
+        // Hybrid in Amsterdam, which she removed from her places in MVP 1 S4.
+        ["places"],
         role({
           title: "Backend Engineer",
           company: "Grachten Bank",
@@ -245,6 +254,8 @@ export const DELIVERIES: readonly DeliverySource[] = [
     sender: "looks_fine",
     roles: [
       capped(
+        // Onsite: she takes onsite work nowhere.
+        ["places"],
         role({
           title: "Senior Backend Engineer",
           company: "Merlion Pay",
@@ -279,6 +290,7 @@ export const DELIVERIES: readonly DeliverySource[] = [
           seniority: "Senior",
           skills: ["Go", "PostgreSQL", "Kubernetes"],
         }),
+        hardConflicts: [],
         fit: "good",
         needs: [],
         draft: true,
@@ -305,6 +317,8 @@ export const DELIVERIES: readonly DeliverySource[] = [
     sender: "looks_fine",
     roles: [
       capped(
+        // Remote, but €60,000 at the top is below her €70,000 a year.
+        ["min_pay"],
         role({
           title: "Backend Developer",
           company: "Harborline Logistics",
@@ -329,6 +343,8 @@ export const DELIVERIES: readonly DeliverySource[] = [
     sender: "looks_fine",
     roles: [
       capped(
+        // Remote, but €65,000 at the top is below her €70,000 a year.
+        ["min_pay"],
         role({
           title: "Backend Engineer",
           company: "Wattle Data",
@@ -353,6 +369,8 @@ export const DELIVERIES: readonly DeliverySource[] = [
     roles: [
       {
         ...capped(
+          // Remote in the EU, but €65,000 at the top is below her €70,000 a year.
+          ["min_pay"],
           role({
             title: "Data Engineer",
             company: "Nordkap Data",
@@ -397,6 +415,7 @@ export const DELIVERIES: readonly DeliverySource[] = [
           skills: ["Go", "PostgreSQL"],
           extra: { office: "Zurich" },
         }),
+        hardConflicts: [],
         fit: "good",
         needs: [CHF_PAY_GROUP],
         draft: true,
@@ -436,6 +455,7 @@ export const DELIVERIES: readonly DeliverySource[] = [
           skills: ["Go", "Kubernetes"],
           extra: { office: "Basel" },
         }),
+        hardConflicts: [],
         fit: "good",
         needs: [CHF_PAY_GROUP],
         draft: true,
@@ -473,6 +493,7 @@ export const DELIVERIES: readonly DeliverySource[] = [
           skills: ["Go", "PostgreSQL"],
           extra: { office: "Dublin" },
         }),
+        hardConflicts: [],
         fit: "good",
         needs: [RELOCATION_GROUP],
         // S5 closes the relocation decision with "Don't ask for this message": no draft.
@@ -520,6 +541,7 @@ export const DELIVERIES: readonly DeliverySource[] = [
           skills: ["Go"],
           extra: { office: "Zurich" },
         }),
+        hardConflicts: [],
         fit: "good",
         // Delivered after the CHF question is answered: it uses that answer (F7.6).
         needs: [],
@@ -552,6 +574,7 @@ export const DELIVERIES: readonly DeliverySource[] = [
           company: "QuickHire Global",
           workMode: "remote",
         }),
+        hardConflicts: [],
         fit: "below",
         needs: [],
         draft: false,
@@ -574,6 +597,8 @@ export const DELIVERIES: readonly DeliverySource[] = [
     sender: "caution",
     roles: [
       capped(
+        // Onsite in Hamburg: she takes onsite work nowhere.
+        ["places"],
         role({
           title: "Backend Engineer",
           company: "Hanseatic Freight Group",

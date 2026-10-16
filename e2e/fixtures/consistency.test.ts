@@ -52,6 +52,7 @@ import {
   personaPaths,
   personaPathsMvp2,
   REPLY_ONLY_KEYS,
+  REPLY_WINDOW_MINUTES,
   readJson,
   STAGE_ONE_VERDICTS,
   type StageOneVerdict,
@@ -660,11 +661,11 @@ describe.each(PERSONAS)("%s's fixtures", (persona) => {
       ...Object.values(d.extract).flatMap((a) => (isInvalid(a) ? [] : a.roles)),
     ];
     for (const [id, m] of Object.entries(all)) {
-      // MVP 2 adds the sender verdict and the roles' expectations to analysed job mail.
+      // MVP 2 adds the sender verdict, the reply window and the roles' expectations to analysed
+      // job mail.
       const analysed = isJobCategory(m.category) && !m.ownReply && !m.invalid;
-      expect(keys(m), id).toEqual(
-        [...EXPECTED_MESSAGE_KEYS, ...(analysed ? (["roles", "sender"] as const) : [])].sort(),
-      );
+      const mvp2Keys = ["outsideReplyWindow", "roles", "sender"] as const;
+      expect(keys(m), id).toEqual([...EXPECTED_MESSAGE_KEYS, ...(analysed ? mvp2Keys : [])].sort());
       for (const r of m.roles ?? []) {
         const delivered = id in d.expected.deliveries;
         expect(keys(r), id).toEqual(
@@ -926,8 +927,6 @@ describe("the shared fake-AI answers", () => {
 // The CVs, the delivered mail, the backlog's matches, the sender ground truth and the assistant
 // requests, checked from the files alone like everything above.
 
-const DAY_MINUTES = 24 * 60;
-const REPLY_WINDOW_MINUTES = 14 * DAY_MINUTES;
 /** A template placeholder the draft check rejects (F6.2): "[Name]", "{company}". */
 const PLACEHOLDER = /\[[^\]\n]+\]|\{[^}\n]+\}/;
 
@@ -1430,6 +1429,56 @@ describe("the first scan's backlog (MVP 2)", () => {
       }
     },
   );
+
+  it.each(PERSONAS)(
+    "records which of %s's analysed messages arrived before the reply window, by their dates",
+    (persona) => {
+      const d = data[persona];
+      const ids = new Set(analysed(persona).map(([id]) => id));
+      for (const [id, t] of Object.entries(d.expected.messages)) {
+        const minutesAgo = (d.byId.get(id) as EnvelopeEntry).minutesAgo;
+        expect(t.outsideReplyWindow, id).toBe(
+          ids.has(id) ? minutesAgo >= REPLY_WINDOW_MINUTES : undefined,
+        );
+      }
+      for (const [id, t] of Object.entries(d.expected.deliveries)) {
+        expect(t.outsideReplyWindow, id).toBe(false);
+      }
+    },
+  );
+
+  it("holds analysed mail of Maria's on both sides of the reply window", () => {
+    const sides = analysed("maria").map(([, t]) => t.outsideReplyWindow);
+    expect(sides.filter((s) => s === true).length).toBeGreaterThan(100);
+    expect(sides.filter((s) => s === false).length).toBeGreaterThan(10);
+  });
+
+  // The first scan analyses the newest likely job mail and stops as confident after two batches
+  // of 20 (MVP 1 S3), so the backlog MVP 2 sees is the newest 40: what S6 and S7 open in it must
+  // be there.
+  it("puts the backlog scam and a good match past the reply window among the newest 40 likely job mails", () => {
+    const d = data.maria;
+    const newest40 = d.likely.slice(0, 40).map((e) => e.messageId);
+    expect(newest40).toContain(MARIA_KEY_MESSAGES.scam);
+    expect(d.truth(MARIA_KEY_MESSAGES.scam)).toMatchObject({
+      sender: { verdict: "high_risk" },
+      outsideReplyWindow: true,
+    });
+    const good = newest40.filter((id) => {
+      const t = d.expected.messages[id] as ExpectedMessageAll;
+      return (
+        t.category === "recruiter_outreach" &&
+        t.sender?.verdict === "looks_fine" &&
+        t.outsideReplyWindow === true &&
+        (t.roles ?? []).some(
+          (r, i) =>
+            r.hardConflicts.length === 0 &&
+            mvp2.maria.match[matchKey(id, i)]?.titleFit.verdict === "fits",
+        )
+      );
+    });
+    expect(good).toContain(MARIA_KEY_MESSAGES.germanRecruiter);
+  });
 
   it("chooses Backend (DE) for German mail, Data engineering (EN) for data roles, else Backend (EN)", () => {
     const de = analysed("maria").filter(([, t]) =>
