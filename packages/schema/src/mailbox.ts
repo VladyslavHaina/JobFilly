@@ -159,6 +159,16 @@ export function syntheticMessageId(folder: MailFolder, uidValidity: number, uid:
   return `<${folder}.${uidValidity}.${uid}@jobfilly.invalid>`;
 }
 
+const SYNTHETIC_MESSAGE_ID = /^<(inbox|sent)\.\d+\.\d+@jobfilly\.invalid>$/;
+
+/**
+ * Whether a Message-ID is one syntheticMessageId made up: no message in any mailbox has it, so
+ * a reply has nothing to thread to.
+ */
+export function isSyntheticMessageId(messageId: string): boolean {
+  return SYNTHETIC_MESSAGE_ID.test(messageId);
+}
+
 // --- MVP 2: continuous sync and drafts in the mailbox (packages/mail's MailClient) -------------
 
 /**
