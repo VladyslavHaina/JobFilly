@@ -42,7 +42,8 @@ export type TaskId = z.infer<typeof TaskIdSchema>;
 export const AiEventSchema = z.object({
   event: z.literal("ai.output_invalid"),
   taskId: TaskIdSchema,
-  reason: z.enum(["schema", "missing", "parse"]),
+  /** message_id: the answer fits its schema but names a Message-ID the call didn't send. */
+  reason: z.enum(["schema", "missing", "parse", "message_id"]),
   /** How many items were invalid. */
   items: z.number().int().nonnegative(),
   /** 1 for the first answer, 2 for the retry. */
