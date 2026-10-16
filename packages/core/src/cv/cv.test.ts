@@ -243,6 +243,39 @@ describe("the CV choice per role (F2.3)", () => {
   });
 
   it.each([
+    ["pt", "Backend Developer"],
+    [null, "Backend Developer"],
+    ["nl", "Senior Backend Engineer"],
+  ])(
+    "lets neither CV's tag wording decide a %s role %s: the preferred CV wins",
+    (language, title) => {
+      // The real AI's tags of two otherwise identical CVs (MVP 2 real-AI run): one family, worded
+      // two ways. Neither CV is in the message's language, so the Preferred CV switch decides.
+      const en = { ...backendEn, preferred: true, tags: [tag("en"), tag("Backend Engineering")] };
+      const de = { ...backendDe, tags: [tag("de"), tag("Backend Development")] };
+      const input = { role: role(title, ["Go"]), language, override: null };
+      expect(chooseCv({ ...input, cvs: [en, de] })).toMatchObject({
+        cv: { id: backendEn.id },
+        reason: "Backend role → Backend (EN), your preferred CV",
+      });
+      expect(chooseCv({ ...input, cvs: [de, en] }).cv?.id).toBe(backendEn.id);
+    },
+  );
+
+  it("lets the language decide between one family worded two ways", () => {
+    const en = { ...backendEn, preferred: true, tags: [tag("en"), tag("Backend Engineering")] };
+    const de = { ...backendDe, tags: [tag("de"), tag("Backend Development")] };
+    const choice = chooseCv({
+      role: role("Senior Backend Engineer (m/w/d)", ["Go"]),
+      language: "de",
+      cvs: [en, de],
+      override: null,
+    });
+    expect(choice.cv?.id).toBe(backendDe.id);
+    expect(choice.reason).toBe("German backend role → Backend (DE)");
+  });
+
+  it.each([
     ["API Engineer", ["Python", "Kafka", "AWS", "Kotlin"]],
     ["Site Reliability Engineer", ["TypeScript", "Python", "PostgreSQL", "Kotlin"]],
     ["Software Engineer, Payments", ["TypeScript", "Python", "PostgreSQL", "AWS"]],
