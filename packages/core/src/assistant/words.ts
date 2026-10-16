@@ -128,6 +128,21 @@ function sameRule(a: Pick<RuleDraft, "when" | "then">, b: Pick<RuleDraft, "when"
 }
 
 /**
+ * The model's changes as a proposal is first stored (F3.1, F8.2): each rule it adds or changes
+ * described in plain words from its conditions and action, as an edit rewords them, so the card
+ * never shows words that say something else than the rule does. An update that keeps a rule's
+ * conditions and action (switching it on or off) keeps its words.
+ */
+export function rewordProposed(changes: readonly Change[], rules: readonly Rule[]): Change[] {
+  return changes.map((change) => {
+    if (change.target !== "rule" || change.op === "remove") return change;
+    const current = change.op === "update" ? rules.find((r) => r.id === change.ruleId) : undefined;
+    if (current && sameRule(current, change.rule)) return change;
+    return { ...change, rule: { ...change.rule, description: describeRule(change.rule) } };
+  });
+}
+
+/**
  * The edited changes of a proposal card (F8.2), with each rule's description reworded when the
  * edit changed its conditions or action but kept the old words: "UTC+5 or later" edited to
  * UTC+4 must not keep saying UTC+5. A description the user rewrote is kept.

@@ -1,6 +1,6 @@
 import type { Change, Rule, RuleDraft } from "@jobfilly/schema";
 import { describe, expect, it } from "vitest";
-import { changeLines, changeSummary, editedSummary, rewordEdited } from "./words";
+import { changeLines, changeSummary, editedSummary, rewordEdited, rewordProposed } from "./words";
 
 // A proposal and the profile history in plain words (F8.2, F8.4): the summary of edited changes,
 // rule descriptions that follow an edit of their conditions, and before and after lines.
@@ -44,6 +44,30 @@ describe("rewordEdited", () => {
       { op: "add", target: "rule", rule: rewritten },
     ]);
     expect(rewordEdited(original, original)).toEqual(original);
+  });
+});
+
+describe("rewordProposed", () => {
+  it("words a proposed rule from its conditions, not the model's words (F3.1)", () => {
+    const misworded = { ...withRange("UTC+04:00"), description: "Hide roles on UTC+5 or later" };
+    const switched = { ...asia, enabled: false };
+    expect(
+      rewordProposed(
+        [
+          { op: "add", target: "rule", rule: misworded },
+          { op: "update", target: "rule", ruleId: stored.id, rule: switched },
+        ],
+        [stored],
+      ),
+    ).toEqual([
+      {
+        op: "add",
+        target: "rule",
+        rule: { ...misworded, description: "Hide roles whose hours are within UTC+4 to UTC+14" },
+      },
+      // Only switched off: the rule keeps its words.
+      { op: "update", target: "rule", ruleId: stored.id, rule: switched },
+    ]);
   });
 });
 
