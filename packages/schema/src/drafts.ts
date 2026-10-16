@@ -19,8 +19,10 @@ export type DraftStatus = z.infer<typeof DraftStatusSchema>;
  * Why a draft failed: `mailbox` when the mail server couldn't be reached or refused the append;
  * `ai` when the draft.v1 call gave no draft (the provider failed or timed out, its answer didn't
  * fit even after the client's retry, or no AI is set up). Both are retried by the sweep, up to 5
- * attempts in all. `content` when draft.v1 wrote a placeholder twice (F6.2), never retried
- * automatically. Draft a reply takes any failed row back (F6.5).
+ * attempts in all, each retry checked against the reply policy first. `content` is never retried
+ * automatically: draft.v1 wrote a placeholder twice (F6.2), or the reply policy held the retry
+ * (the message left the reply window, the sender is high risk, a rule holds it; the reason says
+ * which, "Not tried again: …"). Draft a reply takes any failed row back (F6.5).
  */
 export const DraftFailureKindSchema = z.enum(["mailbox", "ai", "content"]);
 export type DraftFailureKind = z.infer<typeof DraftFailureKindSchema>;
