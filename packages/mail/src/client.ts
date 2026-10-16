@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import {
   type Address,
+  type DraftAttachment,
   type DraftMailInput,
   type DraftRef,
   DraftRefSchema,
@@ -21,6 +22,7 @@ import { usableDate } from "./dates";
 import { buildDraftMime } from "./drafts/index";
 import { FAILURE_MESSAGES, failureReason, isMailFailure, MailError } from "./errors";
 import {
+  attachmentFromSource,
   bodyText,
   conformed,
   ENVELOPE_SOURCE_BYTES,
@@ -114,6 +116,13 @@ export interface MailClient {
    * Message-ID chosen as for saveDraft.
    */
   replaceDraft(ref: DraftRef, input: DraftMailInput): Promise<DraftRef>;
+  /**
+   * The file attached to a saved draft (its CV), read from the copy in the Drafts folder, found
+   * by its Message-ID when the folder's UIDVALIDITY changed; null when the copy is gone or has
+   * none. An edit made after the CV was deleted (F2.5) attaches the file again from here, so the
+   * attachment the draft was made with stays.
+   */
+  draftAttachment(ref: DraftRef): Promise<DraftAttachment | null>;
   /**
    * Deletes a saved draft (discard, F6.4), found by its Message-ID when the Drafts folder's
    * UIDVALIDITY changed; a draft already gone is not an error.
@@ -431,6 +440,20 @@ export function mailClientWith(
         // delete then finds nothing) leaves exactly one, never two.
         await remove(s, ref);
         return append(s, input);
+      }),
+
+    draftAttachment: (ref) =>
+      available(async (s) => {
+        const { uidValidity } = await s.open(ref.path);
+        const [uid] =
+          uidValidity === ref.uidValidity
+            ? [ref.uid]
+            : await findByMessageId(s, ref.path, uidValidity, ref.draftMessageId);
+        if (uid === undefined) return null;
+        for await (const message of s.fetch([uid], {})) {
+          if (message.uid === uid) return attachmentFromSource(message.source);
+        }
+        return null;
       }),
 
     deleteDraft: (ref) => available((s) => remove(s, ref)),

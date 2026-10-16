@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
 import {
   type Address,
+  type DraftAttachment,
+  DraftAttachmentSchema,
   type Envelope,
   isMsgId,
   type MailFolder,
@@ -240,6 +242,21 @@ export async function originalFromSource(
     date: envelope.date,
     text: sanitiseText(mail.text ?? ""),
   };
+}
+
+/**
+ * The file attached to a draft the app saved (its CV, F6.3), read back from the copy's source;
+ * null when it has none. What the server sent is checked as it enters.
+ */
+export async function attachmentFromSource(source: Buffer): Promise<DraftAttachment | null> {
+  const mail = await simpleParser(source, PARSE_OPTIONS);
+  const file = mail.attachments.find((a) => !a.related);
+  if (!file) return null;
+  return DraftAttachmentSchema.parse({
+    fileName: file.filename || "attachment",
+    contentType: file.contentType || "application/octet-stream",
+    bytes: new Uint8Array(file.content),
+  });
 }
 
 /** The message as sanitised plain text (F5.2): from its text part, or derived from its HTML. */
