@@ -4,14 +4,14 @@ import { ApiError, api } from "../../api";
 import { queryKeys } from "../../hooks";
 import { apiPaths } from "../../paths";
 
-// The scan requests the scan page and the inbox banner share. The key sits in the "scan" area,
-// which the app shell's live updates refetch on every scan.progress and scan.stopped event
-// (F4.6); while a run is going, a slow poll covers a dropped stream until it reconnects.
+// The scan requests the scan page and the inbox banner share. The key sits in the "scan" area:
+// the app shell's live updates show each scan.progress and scan.stopped event's counts at once
+// and refetch it (F4.6); while a run is going, a slow poll covers a dropped stream until it
+// reconnects.
 
 const POLL_WHILE_RUNNING_MS = 5000;
 
-const currentScanKey = (workspaceId: string) =>
-  [...queryKeys.area(workspaceId, "scan"), "current"] as const;
+const currentScanKey = queryKeys.currentScan;
 
 const scansApi = (workspaceId: string) => `${apiPaths.workspace(workspaceId)}/scans`;
 

@@ -1,4 +1,4 @@
-import type { LiveEvent } from "@jobfilly/schema";
+import type { CurrentScan, LiveEvent } from "@jobfilly/schema";
 import { QueryClient, QueryClientProvider, QueryObserver } from "@tanstack/react-query";
 import { act, cleanup, renderHook } from "@testing-library/react";
 import type { ReactNode } from "react";
@@ -183,55 +183,91 @@ describe("useLiveInvalidation", () => {
     expect(spy).toHaveBeenCalledTimes(2);
   });
 
-  it("refetches the scan screen within 2 seconds of a batch's progress and of the stop, also amid a stream of other events (F4.6)", async () => {
+  it("shows a scan event's counts on the scan screen at once, ahead of a slow refetch, and never an older event's (F4.6)", async () => {
     const client = new QueryClient();
-    const scan = vi.fn(async () => ({ analyzed: 0 }));
-    // The key useCurrentScan reads.
-    const observer = new QueryObserver(client, {
-      queryKey: [...queryKeys.area(W, "scan"), "current"],
-      queryFn: scan,
-    });
-    const off = observer.subscribe(() => {});
-    await act(() => vi.advanceTimersByTimeAsync(0));
-    const { emit } = mount(client);
+    const scanId = "00000000-0000-4000-8000-0000000000c1";
     const progress = {
-      scanId: "00000000-0000-4000-8000-0000000000c1",
+      scanId,
       kind: "first",
       status: "running",
       stopReason: null,
       handledWithoutAi: 275,
       likely: 345,
-      analyzed: 20,
-      jobFound: 16,
-      answersFirm: 8,
-      notAnalyzed: 325,
-      calls: 18,
-      tokens: 9000,
+      analyzed: 0,
+      jobFound: 0,
+      answersFirm: 0,
+      notAnalyzed: 345,
+      calls: 1,
+      tokens: 500,
+    } as const;
+    const stored: CurrentScan = {
+      progress,
+      stopMessage: null,
+      stoppedAt: null,
+      totalTokens: 500,
     };
-    const data = {
-      "scan.progress": progress,
-      "scan.stopped": {
-        ...progress,
-        status: "stopped",
-        stopReason: "confident",
-        stopMessage: "Stopped: confident after 20 of 345 likely job emails",
-      },
-    };
-    // Within 2 s of `type`, while messages.updated keeps coming every 50 ms.
-    const refetchedWithin2s = async (type: keyof typeof data) => {
-      const before = scan.mock.calls.length;
-      act(() => emit(type, JSON.stringify(data[type])));
-      for (let t = 0; t < 2000 && scan.mock.calls.length === before; t += 50) {
-        await act(() => vi.advanceTimersByTimeAsync(50));
-        act(() => emit("messages.updated"));
+    // GET /scans/current answers what was stored when it was asked, and takes 3 s doing so (a
+    // busy database): longer than the screen may wait.
+    const scan = vi.fn(() => {
+      const answer = structuredClone(stored);
+      return new Promise<CurrentScan>((resolve) => setTimeout(() => resolve(answer), 3000));
+    });
+    const key = queryKeys.currentScan(W);
+    const observer = new QueryObserver(client, { queryKey: key, queryFn: scan });
+    const off = observer.subscribe(() => {});
+    await act(() => vi.advanceTimersByTimeAsync(3000));
+    const { emit } = mount(client);
+    const shown = () => client.getQueryData<CurrentScan>(key);
+    // The run stores, then sends the event.
+    const send = (type: "scan.progress" | "scan.stopped", data: Record<string, unknown>) => {
+      const { stopMessage, ...counts } = data;
+      stored.progress = { ...progress, ...counts } as CurrentScan["progress"];
+      if (type === "scan.stopped") {
+        stored.stopMessage = String(stopMessage);
+        stored.stoppedAt = "2026-10-01T10:05:00.000Z";
       }
-      return scan.mock.calls.length > before;
+      act(() => emit(type, JSON.stringify({ ...progress, ...data })));
     };
-    act(() => emit("messages.updated"));
-    await act(() => vi.advanceTimersByTimeAsync(LIVE_MAX_WAIT_MS - 100));
-    expect(await refetchedWithin2s("scan.progress")).toBe(true);
-    expect(await refetchedWithin2s("scan.progress")).toBe(true);
-    expect(await refetchedWithin2s("scan.stopped")).toBe(true);
+
+    // A refetch asked before the batch finished is still under way when its event comes in.
+    void observer.refetch();
+    send("scan.progress", { analyzed: 20, jobFound: 16, calls: 18 });
+    expect(shown()?.progress).toMatchObject({ status: "running", analyzed: 20, calls: 18 });
+    await act(() => vi.advanceTimersByTimeAsync(3000));
+    expect(shown()?.progress?.analyzed).toBe(20);
+    // The refetch still follows the event, and brings what the event has not.
+    expect(scan.mock.calls.length).toBeGreaterThanOrEqual(3);
+
+    // An older event, and another scan's, change nothing.
+    act(() => emit("scan.progress", JSON.stringify({ ...progress, analyzed: 10, calls: 9 })));
+    act(() =>
+      emit(
+        "scan.progress",
+        JSON.stringify({ ...progress, scanId: "00000000-0000-4000-8000-0000000000c2" }),
+      ),
+    );
+    expect(shown()?.progress).toMatchObject({ scanId, analyzed: 20 });
+
+    const message = "Stopped: confident after 25 of 345 likely job emails";
+    send("scan.stopped", {
+      status: "stopped",
+      stopReason: "confident",
+      analyzed: 25,
+      calls: 23,
+      stopMessage: message,
+    });
+    expect(shown()).toMatchObject({
+      progress: { status: "stopped", stopReason: "confident", analyzed: 25 },
+      stopMessage: message,
+    });
+    // A late progress event never takes the stop back.
+    act(() => emit("scan.progress", JSON.stringify({ ...progress, analyzed: 25, calls: 23 })));
+    expect(shown()?.progress?.status).toBe("stopped");
+    await act(() => vi.advanceTimersByTimeAsync(LIVE_SETTLE_MS + 3000));
+    expect(shown()).toMatchObject({
+      progress: { status: "stopped" },
+      stoppedAt: "2026-10-01T10:05:00.000Z",
+    });
     off();
   });
 

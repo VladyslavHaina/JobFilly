@@ -1,4 +1,10 @@
-import { LIVE_EVENT_TYPES, type LiveEvent, LiveEventSchema } from "@jobfilly/schema";
+import {
+  type CurrentScan,
+  LIVE_EVENT_TYPES,
+  type LiveEvent,
+  LiveEventSchema,
+  type ScanProgress,
+} from "@jobfilly/schema";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { type LiveArea, queryKeys } from "./queryKeys";
@@ -79,6 +85,32 @@ const AREA: Record<LiveEvent["type"], LiveArea[]> = {
   "mailbox.updated": ["mailbox"],
 };
 
+const STATUS_ORDER: Record<ScanProgress["status"], number> = { queued: 0, running: 1, stopped: 2 };
+
+/**
+ * The current scan as a scan event says, or `current` as it is when the event is older than what
+ * is shown: another scan's, or behind it (a refetch may have answered first). What is stored is
+ * what an event says (the run stores before it sends), so the screen shows it without waiting
+ * for the refetch, which follows as for any event and brings what the event has not (when the
+ * run stopped, the workspace's tokens).
+ */
+function withScanEvent(
+  current: CurrentScan | undefined,
+  event: Extract<LiveEvent, { type: "scan.progress" | "scan.stopped" }>,
+): CurrentScan | undefined {
+  const shown = current?.progress;
+  if (!current || !shown || shown.scanId !== event.data.scanId) return current;
+  const { stopMessage, ...progress } =
+    event.type === "scan.stopped" ? event.data : { ...event.data, stopMessage: null };
+  const behind =
+    STATUS_ORDER[progress.status] < STATUS_ORDER[shown.status] ||
+    shown.status === "stopped" ||
+    progress.analyzed < shown.analyzed ||
+    progress.calls < shown.calls;
+  if (behind) return current;
+  return { ...current, progress, stopMessage, stoppedAt: null };
+}
+
 /** A burst of events settles into one refetch: it waits this long after the last event... */
 export const LIVE_SETTLE_MS = 150;
 /** ...but no longer than this after the first, so a steady stream still shows progress. */
@@ -111,6 +143,18 @@ export function useLiveInvalidation(workspaceId: string): { connected: boolean }
       }
     };
     collect.current = (event) => {
+      if (event.type === "scan.progress" || event.type === "scan.stopped") {
+        // Shown at once, not after the refetch: the screen's GET waits for the database like any
+        // request, which takes long while the pipeline keeps it busy (F4.6). A request already
+        // under way may hold older counts, so it is dropped; the refetch below asks again.
+        const key = queryKeys.currentScan(workspaceId);
+        const current = client.getQueryData<CurrentScan>(key);
+        const next = withScanEvent(current, event);
+        if (next !== current) {
+          void client.cancelQueries({ queryKey: key });
+          client.setQueryData(key, next);
+        }
+      }
       for (const area of AREA[event.type]) pending.add(area);
       if (event.type === "workspace.updated") pending.add("workspaces");
       const now = Date.now();
