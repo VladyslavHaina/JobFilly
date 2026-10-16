@@ -30,7 +30,7 @@ const INSTRUCTIONS: Record<MailTaskId, string> = {
   "extract.v1":
     "List every job role the email describes with its facts. For anything the email does not state, use null, or an empty string where the schema allows no null; never guess.",
   "prefs.v1":
-    "These are emails the user wrote. For each, list the job-search preferences the user states in it; leave out anything not stated.",
+    "These are emails the user wrote. For each, list the job-search preferences the user states in it; leave out anything not stated. A statement that only restates another answer from the opposite side (wanting X, so not-X is not for them) is evidence for that answer, not a separate deal breaker. A deal breaker is something the user rules out that no other answer covers.",
   "intake.v1":
     "Propose up to five extra questions, worded for the user, that the email evidence raises and the summary of current answers does not cover.",
   "ai.test.v1": 'Answer with {"ok": true}.',
