@@ -10,8 +10,8 @@ import {
   type SenderVerdict,
 } from "@jobfilly/schema";
 import { fold, languageName, wordIndices, words } from "../cv/text";
-import { loadFreeMailDomains, loadMessageSignals } from "./data";
-import { loadLanguageWords, tokens } from "./language";
+import { loadFreeMailDomains, loadLanguageWords, loadMessageSignals } from "./data";
+import { tokens } from "./language";
 
 // The sender check (F5): signals from the message (asks for a fee, for ID documents before an
 // offer, hiring over chat only, a free-mail address for a company recruiter, a sender that
@@ -89,7 +89,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 let negations: Set<string> | null = null;
 function allNegations(): Set<string> {
-  negations ??= new Set(Object.values(loadLanguageWords()).flatMap((l) => l.negations));
+  negations ??= new Set(Object.values(loadLanguageWords().languages).flatMap((l) => l.negations));
   return negations;
 }
 

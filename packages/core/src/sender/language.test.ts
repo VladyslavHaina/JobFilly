@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { detectLanguage, loadLanguageWords, tokens } from "./language";
+import { loadLanguageWords } from "./data";
+import { detectLanguage, tokens } from "./language";
 
 // The body's language from data/language-words.json (F2.3, F5.3).
 
@@ -66,7 +67,7 @@ describe("detectLanguage", () => {
   });
 
   it("has common words and negations for each language, lower case", () => {
-    const languages = loadLanguageWords();
+    const { languages } = loadLanguageWords();
     expect(Object.keys(languages).sort()).toEqual(["de", "en", "es", "fr", "it", "nl", "pt"]);
     for (const l of Object.values(languages)) {
       expect(l.common.length).toBeGreaterThan(10);

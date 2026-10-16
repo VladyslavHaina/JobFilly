@@ -1,44 +1,8 @@
-import words from "./data/language-words.json";
+import { loadLanguageWords } from "./data";
 
 // The language of a message body (ISO 639-1), for the phrase lists of the sender check (F5) and
-// the CV choice (F2.3). data/language-words.json lists, per language, common function words (to
-// tell the language) and negations (so "never pay a fee" in a job board's footer isn't read as
-// asking for one). Data, not code: a language is added without a code change.
-//
-//   {"version": 1, "languages": {"en": {"common": ["the", …], "negations": ["never", …]}, …}}
-
-export interface LanguageWords {
-  common: string[];
-  negations: string[];
-}
-
-type LanguageWordsFile = { version: 1; languages: Record<string, LanguageWords> };
-
-const isWordList = (v: unknown): v is string[] =>
-  Array.isArray(v) && v.every((w) => typeof w === "string" && w === w.toLowerCase() && w !== "");
-
-/** Checks the file's shape once; it never crosses a package boundary, so no shared schema. */
-function parse(file: unknown): LanguageWordsFile {
-  const f = file as { version?: unknown; languages?: unknown };
-  if (f?.version !== 1 || typeof f.languages !== "object" || f.languages === null) {
-    throw new Error("language-words.json: expected version 1 with languages");
-  }
-  for (const [code, lists] of Object.entries(f.languages)) {
-    const l = lists as Partial<LanguageWords>;
-    if (!/^[a-z]{2}$/.test(code) || !isWordList(l?.common) || !isWordList(l?.negations)) {
-      throw new Error(`language-words.json: ${code} needs lower-case common and negations lists`);
-    }
-  }
-  return f as LanguageWordsFile;
-}
-
-let cache: LanguageWordsFile | null = null;
-
-/** The word lists of data/language-words.json. */
-export function loadLanguageWords(): Record<string, LanguageWords> {
-  cache ??= parse(words);
-  return cache.languages;
-}
+// the CV choice (F2.3), told by the common words of data/language-words.json (see ./data.ts).
+// Data, not code: a language is added without a code change.
 
 /** The words of a text for language detection: lower case, apostrophes kept ("don't"). */
 export function tokens(text: string): string[] {
@@ -73,7 +37,7 @@ function leader(counts: ReadonlyMap<string, number>): string | null {
  */
 export function detectLanguage(text: string): string | null {
   const counts = new Map<string, number>();
-  const lists = Object.entries(loadLanguageWords()).map(
+  const lists = Object.entries(loadLanguageWords().languages).map(
     ([code, l]) => [code, new Set(l.common)] as const,
   );
   for (const paragraph of text.split(/\n\s*\n/u)) {
