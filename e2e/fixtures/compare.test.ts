@@ -3,6 +3,7 @@ import { collectStored, compareWithExpected, type GetJson, type StoredMessage } 
 import {
   comparedForF53,
   type ExpectedFile,
+  type ExpectedFileMvp2,
   fixturesDir,
   isJobCategory,
   type JobFacts,
@@ -177,6 +178,29 @@ describe("compareWithExpected (F5.3)", () => {
         expected: null,
         stored: "<mangled@id.example>",
       },
+    ]);
+  });
+
+  it("compares delivered mail (MVP 2) with its ground truth, and never requires it", () => {
+    const { deliveries } = readJson<ExpectedFileMvp2>(
+      `${fixturesDir()}${personaPaths("maria").expected}`,
+    );
+    const [id, truth] = Object.entries(deliveries)[0] as [
+      string,
+      ExpectedFileMvp2["messages"][string],
+    ];
+    const delivered: StoredMessage = {
+      id,
+      category: truth.category,
+      categorySource: "scan",
+      analysisStatus: "done",
+      roles: structuredClone(truth.facts ?? []),
+    };
+    const stored = [...storedFromExpected("maria"), delivered];
+    expect(compareWithExpected("maria", stored, { complete: true })).toEqual([]);
+    delivered.category = "job_alert";
+    expect(compareWithExpected("maria", stored)).toEqual([
+      { messageId: id, field: "category", expected: "recruiter_outreach", stored: "job_alert" },
     ]);
   });
 

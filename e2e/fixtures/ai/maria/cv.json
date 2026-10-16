@@ -1,0 +1,71 @@
+{
+  "b21d559f3c827b7627d7a03c310acab03de1cf86413d8366d14230928465d4cf": {
+    "language": "en",
+    "skills": [
+      "Go",
+      "PostgreSQL",
+      "Kubernetes",
+      "Kafka",
+      "gRPC",
+      "Docker",
+      "Terraform"
+    ],
+    "roleFamilies": [
+      "Backend engineering"
+    ],
+    "seniority": "Senior",
+    "countryHints": [
+      "PT"
+    ],
+    "formatHints": [
+      "one page",
+      "no photo"
+    ]
+  },
+  "20abfe9b14d16b6b2aafdfb250161e60a6b83a657a0ac0f9b1cf3b23ec252d75": {
+    "language": "de",
+    "skills": [
+      "Go",
+      "PostgreSQL",
+      "Kubernetes",
+      "Kafka",
+      "gRPC",
+      "Docker",
+      "Terraform"
+    ],
+    "roleFamilies": [
+      "Backend engineering"
+    ],
+    "seniority": "Senior",
+    "countryHints": [
+      "PT"
+    ],
+    "formatHints": [
+      "one page",
+      "no photo"
+    ]
+  },
+  "50c3e2b2d0588c41edabeb53cd09ec4ac6c8506e4f0cdebe282ac73ce9b4eb56": {
+    "language": "en",
+    "skills": [
+      "Python",
+      "SQL",
+      "Apache Airflow",
+      "dbt",
+      "PostgreSQL",
+      "Kafka",
+      "Snowflake"
+    ],
+    "roleFamilies": [
+      "Data engineering"
+    ],
+    "seniority": "Senior",
+    "countryHints": [
+      "PT"
+    ],
+    "formatHints": [
+      "one page",
+      "no photo"
+    ]
+  }
+}

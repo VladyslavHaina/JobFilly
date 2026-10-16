@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-# The test stack's own services, seed and fake-ai (docker/compose.e2e.yaml): e2e/ and its
+# The test stack's own services, seed, fake-ai and rdap (docker/compose.e2e.yaml): e2e/ and its
 # production dependencies only, never app or package code. Node runs the TypeScript entry points
 # directly (type stripping), so there is no build step. Build context: the repository root.
 
@@ -18,4 +18,5 @@ FROM node:24-slim
 WORKDIR /repo
 COPY --from=deps /out ./e2e
 USER node
-# Each service sets its command: `node e2e/seed/main.ts …` or `node e2e/fake-ai/main.ts`.
+# Each service sets its command: `node e2e/seed/main.ts …`, `node e2e/fake-ai/main.ts` or
+# `node e2e/rdap/main.ts`.

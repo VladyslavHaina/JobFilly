@@ -1,10 +1,9 @@
-Message-ID: <maria-0355@pgdigest.example>
-Date: Sun, 06 Sep 2026 06:02:00 +0000
-From: "Postgres Digest" <digest@pgdigest.example>
+Message-ID: <maria-0397@oceancharity.example>
+Date: Sat, 05 Sep 2026 06:39:00 +0000
+From: "Ocean Care" <news@oceancharity.example>
 To: "Maria Santos" <maria.santos@inbox.example>
-Subject: Postgres Digest: vacuum tuning
-List-Id: Postgres Digest <news.pgdigest.example>
-List-Unsubscribe: <https://pgdigest.example/unsubscribe?u=56549>, <mailto:unsubscribe@pgdigest.example>
+Subject: How your donation helped this year
+List-Unsubscribe: <https://oceancharity.example/unsubscribe?u=37293>, <mailto:unsubscribe@oceancharity.example>
 MIME-Version: 1.0
 Content-Type: multipart/alternative; boundary="=_jf_maria_inbox_0169"
 
@@ -12,11 +11,11 @@ Content-Type: multipart/alternative; boundary="=_jf_maria_inbox_0169"
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: quoted-printable
 
-How autovacuum decides what to clean.
+Simple swaps to cut plastic at home.
 
-Reader tip: use EXPLAIN (ANALYZE, BUFFERS).
+Volunteers collected 2 tonnes of litter last month.
 
-Read the full issue online: https://pgdigest.example/issues/56549
+Read the full issue online: https://oceancharity.example/issues/37293
 
 You are receiving this email because you subscribed to our newsletter or bo=
 ught something from us. If you no longer want to receive these emails, you =
@@ -44,9 +43,10 @@ Content-Transfer-Encoding: quoted-printable
 <!DOCTYPE html>
 <html><head><meta charset=3D"utf-8"></head>
 <body style=3D"font-family: sans-serif">
-<p>How autovacuum decides what to clean.</p>
-<p>Reader tip: use EXPLAIN (ANALYZE, BUFFERS).</p>
-<p>Read the full issue online: https://pgdigest.example/issues/56549</p>
+<p>Simple swaps to cut plastic at home.</p>
+<p>Volunteers collected 2 tonnes of litter last month.</p>
+<p>Read the full issue online: https://oceancharity.example/issues/37293</p=
+>
 <p>You are receiving this email because you subscribed to our newsletter or=
  bought something from us. If you no longer want to receive these emails, y=
 ou can unsubscribe at any time using the link in the header of this message=

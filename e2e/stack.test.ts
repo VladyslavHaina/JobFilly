@@ -4,14 +4,17 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { parse } from "yaml";
 import { loadAnswers } from "./fake-ai/answers.ts";
+import { F53_PROOF_NEEDS, F53_PROOF_SPEC } from "./fixtures/f53-proof.ts";
 import {
-  F53_PROOF_NEEDS,
-  F53_PROOF_SKIP_REASON,
-  F53_PROOF_SPEC,
-  f53ProofSkipReason,
-  missingF53ProofNeeds,
-} from "./fixtures/f53-proof.ts";
-import { PERSONAS } from "./fixtures/format.ts";
+  type EnvelopeEntry,
+  type ExpectedFile,
+  fixturesDir,
+  MARIA_KEY_MESSAGES,
+  PERSONAS,
+  personaPaths,
+  readJson,
+} from "./fixtures/format.ts";
+import { readDomains } from "./rdap/domains.ts";
 import { ACCOUNTS } from "./seed/accounts.ts";
 import {
   COMPOSE_FILE,
@@ -23,7 +26,12 @@ import {
   READY_TIMEOUT_MS,
   READY_URLS,
   type Result,
+  STACK_SUBNET,
   type StackDeps,
+  subnetsOverlap,
+  WIRING_PROBES,
+  WIRING_SCRIPT,
+  wiringProblems,
 } from "./stack.ts";
 
 // The test stack is never started by tests (TBD-24): these check the compose file and the proxy
@@ -37,6 +45,7 @@ const readRepo = (path: string) => readFileSync(join(ROOT, path), "utf8");
 type Service = Record<string, any>;
 const compose = parse(readRepo(COMPOSE_FILE), { merge: true }) as {
   services: Record<string, Service>;
+  networks?: Record<string, Service>;
   volumes?: Record<string, unknown>;
 };
 const services = compose.services;
@@ -44,7 +53,7 @@ const services = compose.services;
 describe("docker/compose.e2e.yaml", () => {
   it("has the services of the test stack", () => {
     expect(Object.keys(services).sort()).toEqual(
-      ["app-a", "app-b", "fake-ai", "imap", "postgres", "proxy", "seed"].sort(),
+      ["app-a", "app-b", "dns", "fake-ai", "imap", "postgres", "proxy", "rdap", "seed"].sort(),
     );
   });
 
@@ -98,8 +107,22 @@ describe("docker/compose.e2e.yaml", () => {
       expect(key.toString("base64")).toBe(env.JOBFILLY_SECRET_KEY);
     });
 
-    it("starts once the database is healthy", () => {
-      expect(app.depends_on).toEqual({ postgres: { condition: "service_healthy" } });
+    it("starts once the database is healthy and the DNS and RDAP services have started", () => {
+      expect(app.depends_on).toEqual({
+        postgres: { condition: "service_healthy" },
+        dns: { condition: "service_started" },
+        rdap: { condition: "service_started" },
+      });
+    });
+
+    it("syncs every 15 seconds and reads domain ages from the fake RDAP service (MVP 2)", () => {
+      expect(app.environment.JOBFILLY_SYNC_INTERVAL_SECONDS).toBe("15");
+      expect(app.environment.JOBFILLY_RDAP_URL).toBe("http://rdap:8080");
+      expect(services.rdap?.environment.PORT).toBe("8080");
+    });
+
+    it("resolves through the dns service, at its fixed address", () => {
+      expect(app.dns).toEqual([services.dns?.networks.default.ipv4_address]);
     });
   });
 
@@ -128,6 +151,9 @@ describe("docker/compose.e2e.yaml", () => {
     expect(opts).toContain("-Dgreenmail.setup.test.imap");
     expect(opts).toContain("-Dgreenmail.hostname=0.0.0.0");
     expect(opts).toContain("-Dgreenmail.users.login=email");
+    // The REST API the seed's inspect smtp and reset-uidvalidity use, on every address.
+    expect(opts).toContain("-Dgreenmail.api.hostname=0.0.0.0");
+    expect(opts).toContain("-Dgreenmail.api.port=8080");
     expect(opts).not.toContain("-Dgreenmail.auth.disabled");
     const users = opts
       .find((o) => o.startsWith("-Dgreenmail.users="))
@@ -144,8 +170,8 @@ describe("docker/compose.e2e.yaml", () => {
     for (const u of users ?? []) expect(u.password).toMatch(/^E2E-SECRET-/);
   });
 
-  it("builds seed and fake-ai from docker/e2e.Dockerfile", () => {
-    for (const name of ["seed", "fake-ai"]) {
+  it("builds seed, fake-ai and rdap from docker/e2e.Dockerfile", () => {
+    for (const name of ["seed", "fake-ai", "rdap"]) {
       const service = services[name] ?? {};
       expect(service.build, name).toEqual({ context: "..", dockerfile: "docker/e2e.Dockerfile" });
       expect(service.user, name).toBe("node");
@@ -160,6 +186,7 @@ describe("docker/compose.e2e.yaml", () => {
       IMAP_HOST: "imap",
       IMAP_PORT: "3143",
       FIXTURES_DIR: "e2e/fixtures",
+      GREENMAIL_API_URL: "http://imap:8080",
     });
     expect(seed.depends_on).toEqual(["imap"]);
   });
@@ -178,6 +205,46 @@ describe("docker/compose.e2e.yaml", () => {
   });
 });
 
+describe("the dns service (MVP 2)", () => {
+  const dns = services.dns ?? {};
+  const subnet = compose.networks?.default?.ipam?.config?.[0]?.subnet as string;
+
+  it("runs a pinned CoreDNS with the Corefile and the fixture zones, read-only", () => {
+    expect(dns.image).toMatch(/^coredns\/coredns:\d+\.\d+\.\d+$/);
+    expect(dns.command).toEqual(["-conf", "/etc/coredns/Corefile"]);
+    expect(dns.read_only).toBe(true);
+    expect(dns.volumes).toEqual([
+      "../e2e/dns/Corefile:/etc/coredns/Corefile:ro",
+      "../e2e/dns/zones:/zones:ro",
+    ]);
+    expect(existsSync(join(E2E, "dns", "Corefile"))).toBe(true);
+    expect(readdirSync(join(E2E, "dns", "zones")).length).toBeGreaterThan(0);
+  });
+
+  it("serves the zones from the directory the Corefile names and forwards everything else", () => {
+    const corefile = readFileSync(join(E2E, "dns", "Corefile"), "utf8");
+    expect(corefile).toContain("directory /zones");
+    expect(corefile).toMatch(/forward \. \/etc\/resolv\.conf/);
+  });
+
+  it("has a fixed address inside the stack network's own subnet", () => {
+    const ip = dns.networks?.default?.ipv4_address as string;
+    expect(subnet).toMatch(/^\d+\.\d+\.\d+\.0\/24$/);
+    expect(ip.split(".").slice(0, 3)).toEqual(subnet.split(".").slice(0, 3));
+    expect(ip.endsWith(".0") || ip.endsWith(".255") || ip.endsWith(".1")).toBe(false);
+  });
+});
+
+describe("the rdap service (MVP 2)", () => {
+  it("starts the fake RDAP service from e2e/rdap/main.ts on port 8080, unpublished", () => {
+    const rdap = services.rdap ?? {};
+    expect(rdap.command).toEqual(["node", "e2e/rdap/main.ts"]);
+    expect(rdap.environment).toEqual({ PORT: "8080" });
+    expect(rdap.read_only).toBe(true);
+    expect(rdap.ports).toBeUndefined();
+  });
+});
+
 describe("the e2e image's entry points and fixtures", () => {
   // The e2e image runs from /repo with e2e/ at /repo/e2e, as in the repository (e2e.Dockerfile),
   // so the paths compose gives seed and fake-ai resolve against the repository root.
@@ -186,6 +253,7 @@ describe("the e2e image's entry points and fixtures", () => {
   const starts: [string, string[] | undefined][] = [
     ["seed", services.seed?.entrypoint],
     ["fake-ai", services["fake-ai"]?.command],
+    ["rdap", services.rdap?.command],
   ];
 
   it("runs from /repo with e2e/ copied to /repo/e2e", () => {
@@ -206,11 +274,93 @@ describe("the e2e image's entry points and fixtures", () => {
 });
 
 describe("e2e/specs/mvp-1", () => {
+  // The specs run only against a live stack (pnpm e2e), but what they are can be read here, so
+  // pnpm check fails a run that would play only part of MVP 1 (and leave MVP 2 without the state
+  // it starts from), a spec that skips, or one that moves around the app by typed addresses.
   const PROOF = F53_PROOF_SPEC;
-  const entries = readdirSync(join(E2E, "specs", "mvp-1"));
+  const SPECS = join(E2E, "specs", "mvp-1");
+  const entries = readdirSync(SPECS);
+  const specs = entries.filter((name) => name.endsWith(".spec.ts"));
+  const source = (name: string) => readFileSync(join(SPECS, name), "utf8");
   const byName = (names: readonly string[]) => [...names].sort((a, b) => a.localeCompare(b));
   /** A codified scenario spec: NN-sN-<slug>.spec.ts, NN the scenario number. */
   const SCENARIO_SPEC = /^(\d{2})-s(\d+)-[a-z0-9-]+\.spec\.ts$/;
+
+  it("codifies every scenario of docs/mvp/MVP-1.md as a spec of its own, and no other", () => {
+    const doc = readRepo("docs/mvp/MVP-1.md");
+    const scenarios = [...doc.matchAll(/^\| S(\d+) \| \*\*/gm)].map((m) => Number(m[1]));
+    expect(scenarios.length).toBeGreaterThan(0);
+    const codified = entries.flatMap((name) => {
+      const scenario = SCENARIO_SPEC.exec(name)?.[2];
+      return scenario ? [Number(scenario)] : [];
+    });
+    expect(scenarios.filter((n) => !codified.includes(n)).map((n) => `S${n}`)).toEqual([]);
+    expect(codified.filter((n) => !scenarios.includes(n)).map((n) => `S${n}`)).toEqual([]);
+    expect(new Set(codified).size).toBe(codified.length);
+  });
+
+  it("holds only the stack check, the scenario specs, the proof and nothing that skips", () => {
+    // A skipped spec is not a passed one (docs/mvp/README.md › Sign-off): no spec here skips,
+    // is marked fixme, or runs alone.
+    for (const name of specs) {
+      expect(name === "00-stack.spec.ts" || name === PROOF || SCENARIO_SPEC.test(name), name).toBe(
+        true,
+      );
+      expect(source(name).match(/\.(skip|fixme|only)\(/g), name).toBeNull();
+    }
+    expect(entries.filter((name) => !name.endsWith(".spec.ts"))).toEqual([]);
+  });
+
+  it("types no address but the start URL, besides the direct-port view S3 asks for", () => {
+    // docs/mvp/README.md › Walk it like a person: the only URLs typed by hand are the start URL
+    // and invite links. S3 opens the scan screen a second time through the other replica's
+    // direct port, as its scenario says.
+    const typed = (text: string) =>
+      [...text.matchAll(/\.goto\(([^)]*)\)/g)].map((m) => m[1]).filter((url) => url !== '"/"');
+    expect(typed(readFileSync(join(E2E, "specs", "shared.ts"), "utf8"))).toEqual([]);
+    const elsewhere = Object.fromEntries(
+      specs.map((name) => [name, typed(source(name))] as const).filter(([, urls]) => urls.length),
+    );
+    expect(elsewhere).toEqual({
+      "03-s3-first-scan.spec.ts": [expect.stringMatching(/^`http:\/\/127\.0\.0\.1:\$\{DIRECT_/)],
+    });
+  });
+
+  it("takes the stack, log and sign-in helpers from specs/shared.ts instead of copying them", () => {
+    const copies = [
+      "E2E-SECRET-maria-login",
+      "E2E-SECRET-tom-login",
+      "E2E-SECRET-ai-key",
+      "--no-log-prefix",
+      "fileState(",
+      '"app-a": 8081',
+      "Roles you're looking for",
+      'getByRole("button", { name: "Sign in" })',
+    ];
+    for (const name of specs) {
+      expect(
+        copies.filter((copy) => source(name).includes(copy)),
+        name,
+      ).toEqual([]);
+    }
+  });
+
+  it("gives S5's Offer filter a row: the offer is among what a confident first scan reads", () => {
+    // A first scan stops as confident after two batches of 20 in a row change no answer, so it
+    // has read at least the newest 40 likely job candidates (alerts included) when S5 runs.
+    const dir = fixturesDir();
+    const envelopes = readJson<EnvelopeEntry[]>(`${dir}${personaPaths("maria").envelopes}`);
+    const expected = readJson<ExpectedFile>(`${dir}${personaPaths("maria").expected}`);
+    const newest40 = envelopes
+      .filter((e) =>
+        ["likely_job", "job_alert"].includes(expected.messages[e.messageId]?.stageOne ?? ""),
+      )
+      .sort((a, b) => a.minutesAgo - b.minutesAgo)
+      .slice(0, 40)
+      .map((e) => e.messageId);
+    expect(expected.messages[MARIA_KEY_MESSAGES.offer]?.category).toBe("offer");
+    expect(newest40).toContain(MARIA_KEY_MESSAGES.offer);
+  });
 
   it("runs the F5.3 proof after every scenario spec", () => {
     // Playwright runs a directory's entries in name order (localeCompare) on one worker, and the
@@ -238,7 +388,7 @@ describe("e2e/specs/mvp-1", () => {
   });
 
   it("names every scenario spec NN-sN-<slug>, and the ones the proof needs as it lists them", () => {
-    // Otherwise a scenario spec codified under another name would leave the proof skipped for good.
+    // So the specs run in the scenarios' order, and the proof's list names the files there are.
     const needed = new Map(F53_PROOF_NEEDS.map((name) => [SCENARIO_SPEC.exec(name)?.[2], name]));
     for (const entry of entries) {
       if (entry === "00-stack.spec.ts" || entry === PROOF) continue;
@@ -247,68 +397,11 @@ describe("e2e/specs/mvp-1", () => {
       expect(Number(order), entry).toBe(Number(scenario));
       if (needed.has(scenario)) expect(entry).toBe(needed.get(scenario));
     }
+    for (const name of F53_PROOF_NEEDS) expect(entries, name).toContain(name);
   });
 
-  it("skips the proof, with the reason, only while no scenario spec is codified", () => {
-    expect(f53ProofSkipReason(["00-stack.spec.ts", PROOF])).toBe(F53_PROOF_SKIP_REASON);
-    expect(f53ProofSkipReason([PROOF])).toBe(F53_PROOF_SKIP_REASON);
-  });
-
-  it("never skips the proof once any scenario spec exists, so a missing one fails it", () => {
-    // One codified scenario is enough to run the proof: one the proof needs, one it does not
-    // read, or one under a name the list does not know. The proof then requires every spec it
-    // needs, so the missing ones fail it by name instead of silencing it.
-    for (const scenario of [
-      F53_PROOF_NEEDS[0],
-      F53_PROOF_NEEDS.at(-1) ?? "",
-      "02-s2-maria-picks-the-ai.spec.ts",
-      "03-s3-maria-scans.spec.ts",
-    ]) {
-      const some = ["00-stack.spec.ts", scenario, PROOF];
-      expect(f53ProofSkipReason(some), scenario).toBeUndefined();
-      expect(missingF53ProofNeeds(some), scenario).toEqual(
-        F53_PROOF_NEEDS.filter((name) => name !== scenario),
-      );
-    }
-    const all = [
-      "00-stack.spec.ts",
-      ...F53_PROOF_NEEDS,
-      "02-s2-maria-picks-the-ai.spec.ts",
-      "10-s10-sign-out.spec.ts",
-      PROOF,
-    ];
-    expect(f53ProofSkipReason(all)).toBeUndefined();
-    expect(missingF53ProofNeeds(all)).toEqual([]);
-  });
-
-  it("is either before codification or holds every spec the proof needs", () => {
-    // The real directory, now: with no scenario spec the proof may skip; once one is codified
-    // the proof runs, so all of the specs it needs must be here.
-    const scenarios = entries.filter((name) => name !== "00-stack.spec.ts" && name !== PROOF);
-    if (scenarios.length === 0) {
-      expect(f53ProofSkipReason(entries)).toBe(F53_PROOF_SKIP_REASON);
-    } else {
-      expect(
-        missingF53ProofNeeds(entries),
-        "codified, so every spec the proof needs must be present",
-      ).toEqual([]);
-      expect(f53ProofSkipReason(entries)).toBeUndefined();
-    }
-  });
-
-  it("guards the proof's tests with that reason and nothing else", () => {
-    const source = readFileSync(join(E2E, "specs", "mvp-1", PROOF), "utf8");
-    expect(source).toContain(
-      "const entries = readdirSync(import.meta.dirname);\n" +
-        "const skipReason = f53ProofSkipReason(entries);\n" +
-        'test.skip(skipReason !== undefined, skipReason ?? "");\n',
-    );
-    expect(source).toContain(
-      "missingF53ProofNeeds(entries),\n" +
-        '      "codified, so every spec the proof needs must be present",\n',
-    );
-    expect(source.match(/\.(skip|fixme)\(/g)).toHaveLength(1);
-    expect(source).toContain("compareWithExpected(persona, stored, { complete: true })");
+  it("has the proof require every compared message to be stored and analysed", () => {
+    expect(source(PROOF)).toContain("compareWithExpected(persona, stored, { complete: true })");
   });
 });
 
@@ -332,6 +425,23 @@ describe("docker/e2e.Dockerfile", () => {
         .split("\n")
         .filter((l) => l.startsWith("USER ")),
     ).toEqual(["USER node"]);
+  });
+});
+
+describe("e2e's own code", () => {
+  // e2e imports no app or package code (e2e/package.json), and reads none of their files either:
+  // a check that needs both, such as the sender data against the fixtures, lives in the package
+  // and reads e2e/fixtures from there (packages/core/src/sender/fixtures.test.ts).
+  const sources = readdirSync(E2E, { recursive: true, encoding: "utf8" })
+    .filter((f) => f.endsWith(".ts") && !/^(node_modules|\.stack|reports)\//.test(f))
+    .map((f) => [f, readFileSync(join(E2E, f), "utf8")] as const);
+
+  it("imports nothing from @jobfilly/ and names no path into packages/ or apps/", () => {
+    expect(sources.length).toBeGreaterThan(20);
+    for (const [file, text] of sources) {
+      expect(text, file).not.toMatch(/from\s+["']@jobfilly\//);
+      expect(text, file).not.toMatch(/["'`](?:\.\.\/)+(?:packages|apps)\//);
+    }
   });
 });
 
@@ -430,11 +540,37 @@ const CHECKS = [
   ["docker", "network", "ls", "--quiet", "--filter", LABEL],
   ["docker", "volume", "ls", "--quiet", "--filter", LABEL],
 ];
-const UP = [
-  ["docker", ...C, "up", "--build", "--detach"],
-  // Every persona of fixtures/format.ts, in its order.
-  ...PERSONAS.map((p) => ["docker", ...C, "run", "--rm", "seed", "load", p]),
+const NETWORKS = ["docker", "network", "ls", "--quiet"];
+const COMPOSE_UP = ["docker", ...C, "up", "--build", "--detach"];
+const WIRING = [
+  "docker",
+  ...C,
+  "exec",
+  "-T",
+  "app-a",
+  "node",
+  "-e",
+  WIRING_SCRIPT,
+  "kiezwerk.example",
+  "gmail.com",
 ];
+// Every persona of fixtures/format.ts, in its order.
+const SEEDS = PERSONAS.map((p) => ["docker", ...C, "run", "--rm", "seed", "load", p]);
+const FIRST_SEED = SEEDS[0] as string[];
+const LAST_SEED = SEEDS.at(-1) as string[];
+const UP = [NETWORKS, COMPOSE_UP, WIRING, ...SEEDS];
+const LOGS = ["docker", ...C, "logs", "--no-color", "--tail", "100"];
+/** What app-a answers when the fixture zones and the fake RDAP service are wired up. */
+const wired = (over: Record<string, unknown> = {}) =>
+  JSON.stringify(
+    WIRING_PROBES.map((p) => ({
+      domain: p.domain,
+      mx: [p.mx],
+      rdap: { status: 200, ldhName: p.domain },
+      error: [],
+      ...over,
+    })),
+  );
 const PW_INSTALL = ["pnpm", "exec", "playwright", "install", "chromium"];
 const PW_TEST = ["pnpm", "exec", "playwright", "test", "--config", "playwright.config.ts"];
 
@@ -460,7 +596,10 @@ function fake(options: FakeOptions = {}) {
   let project = options.project ?? null;
   let clock = NOW.getTime();
   let interrupt = false;
-  const stdoutQueues = new Map(Object.entries(options.stdout ?? {}));
+  // app-a reaches the fixture DNS and RDAP unless a test says otherwise.
+  const stdoutQueues = new Map(
+    Object.entries({ [WIRING.join(" ")]: [wired()], ...options.stdout }),
+  );
   const deps: StackDeps = {
     async run(command): Promise<Result> {
       commands.push(command);
@@ -521,11 +660,10 @@ describe("stack up", () => {
     expect(await main(["stack", "up"], f.deps)).toBe(0);
 
     expect(f.lines()).toEqual(UP);
-    for (const c of f.commands) {
-      expect(c.cwd).toBe(ROOT);
-      expect(c.capture).toBeUndefined();
-    }
-    // The seed runs only after everything answered ready.
+    for (const c of f.commands) expect(c.cwd).toBe(ROOT);
+    // The network listing and the wiring check are read; compose's own output passes through.
+    expect(f.commands.map((c) => c.capture ?? false)).toEqual([true, false, true, false, false]);
+    // The wiring check and the seed run only after everything answered ready.
     expect(f.polls).toEqual([
       "http://127.0.0.1:8080/api/health/ready",
       "http://127.0.0.1:8080/api/health/ready",
@@ -555,12 +693,7 @@ describe("stack up", () => {
     const f = fake({ readyAfter: { [READY_URLS[0] as string]: Infinity } });
     expect(await main(["stack", "up"], f.deps)).toBe(1);
 
-    expect(f.lines()).toEqual([
-      ["docker", ...C, "up", "--build", "--detach"],
-      ["docker", ...C, "logs", "--no-color", "--tail", "100"],
-      DOWN,
-      ...CHECKS,
-    ]);
+    expect(f.lines()).toEqual([NETWORKS, COMPOSE_UP, LOGS, DOWN, ...CHECKS]);
     expect(f.elapsed()).toBe(READY_TIMEOUT_MS);
     expect(f.err[0]).toBe(
       "The test stack did not come up: http://127.0.0.1:8080/api/health/ready did not answer 200 within 180 s",
@@ -569,29 +702,79 @@ describe("stack up", () => {
   });
 
   it("takes the stack down again when compose up fails", async () => {
-    const f = fake({ codes: { [["docker", ...C, "up", "--build", "--detach"].join(" ")]: 1 } });
+    const f = fake({ codes: { [COMPOSE_UP.join(" ")]: 1 } });
     expect(await main(["stack", "up"], f.deps)).toBe(1);
-    expect(f.lines()).toEqual([
-      ["docker", ...C, "up", "--build", "--detach"],
-      ["docker", ...C, "logs", "--no-color", "--tail", "100"],
-      DOWN,
-      ...CHECKS,
-    ]);
+    expect(f.lines()).toEqual([NETWORKS, COMPOSE_UP, LOGS, DOWN, ...CHECKS]);
     expect(f.polls).toEqual([]);
     expect(f.project()).toBeNull();
   });
 
   it("takes the stack down again when loading a persona's mail fails", async () => {
-    const f = fake({ codes: { [UP[1]?.join(" ") as string]: 1 } });
+    const f = fake({ codes: { [FIRST_SEED.join(" ")]: 1 } });
     expect(await main(["stack", "up"], f.deps)).toBe(1);
-    expect(f.lines()).toEqual([
-      UP[0],
-      UP[1],
-      ["docker", ...C, "logs", "--no-color", "--tail", "100"],
-      DOWN,
-      ...CHECKS,
-    ]);
+    expect(f.lines()).toEqual([NETWORKS, COMPOSE_UP, WIRING, FIRST_SEED, LOGS, DOWN, ...CHECKS]);
     expect(f.err[0]).toBe("The test stack did not come up: loading maria's mail failed");
+    expect(f.project()).toBeNull();
+  });
+
+  it("checks from inside app-a, with the app's resolver and RDAP URL, before loading any mail", async () => {
+    const f = fake({
+      stdout: { [WIRING.join(" ")]: [wired({ mx: ["gmail-smtp-in.l.google.com"] })] },
+    });
+    expect(await main(["stack", "up"], f.deps)).toBe(1);
+    expect(f.lines()).toEqual([NETWORKS, COMPOSE_UP, WIRING, LOGS, DOWN, ...CHECKS]);
+    expect(f.err[0]).toBe(
+      "The test stack did not come up: app-a doesn't reach the fixture DNS zones and RDAP: " +
+        "kiezwerk.example: MX gmail-smtp-in.l.google.com, not the fixture zone's mx.kiezwerk.example; " +
+        "gmail.com: MX gmail-smtp-in.l.google.com, not the fixture zone's mx.gmail.com",
+    );
+    expect(f.project()).toBeNull();
+  });
+
+  it("takes the stack down again when the wiring check itself fails", async () => {
+    const f = fake({ codes: { [WIRING.join(" ")]: 1 } });
+    expect(await main(["stack", "up"], f.deps)).toBe(1);
+    expect(f.lines()).toEqual([NETWORKS, COMPOSE_UP, WIRING, LOGS, DOWN, ...CHECKS]);
+    expect(f.err[0]).toBe(
+      "The test stack did not come up: app-a doesn't reach the fixture DNS zones and RDAP: the check exited 1",
+    );
+  });
+
+  it("starts nothing while another Docker network overlaps the stack's subnet", async () => {
+    const format = "{{.Name}}{{range .IPAM.Config}} {{.Subnet}}{{end}}";
+    const inspect = ["docker", "network", "inspect", "--format", format, "n1", "n2"];
+    const f = fake({
+      stdout: {
+        [NETWORKS.join(" ")]: ["n1\nn2\n"],
+        [inspect.join(" ")]: ["bridge 172.17.0.0/16\nold-e2e_default fd00::/64 10.253.0.0/16\n"],
+      },
+    });
+    expect(await main(["stack", "up"], f.deps)).toBe(1);
+    expect(f.lines()).toEqual([NETWORKS, inspect]);
+    expect(f.err).toEqual([
+      `The test stack can't start: Docker network old-e2e_default uses 10.253.0.0/16, which overlaps the stack's fixed ${STACK_SUBNET}. Take down the stack that owns it, or remove it with "docker network rm old-e2e_default".`,
+    ]);
+    expect(f.project()).toBeNull();
+  });
+
+  it("starts beside networks that don't overlap the stack's subnet", async () => {
+    const format = "{{.Name}}{{range .IPAM.Config}} {{.Subnet}}{{end}}";
+    const inspect = ["docker", "network", "inspect", "--format", format, "n1", "n2"];
+    const f = fake({
+      stdout: {
+        [NETWORKS.join(" ")]: ["n1 n2"],
+        [inspect.join(" ")]: ["bridge 172.17.0.0/16\nnear 10.253.54.0/24\n"],
+      },
+    });
+    expect(await main(["stack", "up"], f.deps)).toBe(0);
+    expect(f.lines()).toEqual([NETWORKS, inspect, ...UP.slice(1)]);
+  });
+
+  it("starts nothing when Docker can't list its networks", async () => {
+    const f = fake({ codes: { [NETWORKS.join(" ")]: 1 } });
+    expect(await main(["stack", "up"], f.deps)).toBe(1);
+    expect(f.lines()).toEqual([NETWORKS]);
+    expect(f.err[0]).toMatch(/^The test stack can't start: could not list Docker's networks/);
     expect(f.project()).toBeNull();
   });
 
@@ -602,7 +785,7 @@ describe("stack up", () => {
     });
     expect(await main(["stack", "up"], f.deps)).toBe(INTERRUPTED);
     // Stopped at the poll after Ctrl-C, long before the 180-second timeout; no logs dumped.
-    expect(f.lines()).toEqual([UP[0], DOWN, ...CHECKS]);
+    expect(f.lines()).toEqual([NETWORKS, COMPOSE_UP, DOWN, ...CHECKS]);
     expect(f.polls).toHaveLength(6);
     expect(f.elapsed()).toBe(4_000);
     expect(f.err).toEqual(["Interrupted: the test stack did not come up"]);
@@ -611,19 +794,94 @@ describe("stack up", () => {
   });
 
   it("stops on Ctrl-C during compose up without waiting for readiness", async () => {
-    const f = fake({ interruptOn: UP[0]?.join(" ") });
+    const f = fake({ interruptOn: COMPOSE_UP.join(" ") });
     expect(await main(["stack", "up"], f.deps)).toBe(INTERRUPTED);
-    expect(f.lines()).toEqual([UP[0], DOWN, ...CHECKS]);
+    expect(f.lines()).toEqual([NETWORKS, COMPOSE_UP, DOWN, ...CHECKS]);
     expect(f.polls).toEqual([]);
     expect(f.err).toEqual(["Interrupted: the test stack did not come up"]);
     expect(f.project()).toBeNull();
   });
 
-  it("stops on Ctrl-C during a seed run before the next persona's", async () => {
-    const f = fake({ interruptOn: UP[1]?.join(" ") });
+  it("stops on Ctrl-C during the wiring check: no mail, no logs dumped", async () => {
+    const f = fake({ interruptOn: WIRING.join(" ") });
     expect(await main(["stack", "up"], f.deps)).toBe(INTERRUPTED);
-    expect(f.lines()).toEqual([UP[0], UP[1], DOWN, ...CHECKS]);
+    expect(f.lines()).toEqual([NETWORKS, COMPOSE_UP, WIRING, DOWN, ...CHECKS]);
+    expect(f.err).toEqual(["Interrupted: the test stack did not come up"]);
+  });
+
+  it("stops on Ctrl-C during a seed run before the next persona's", async () => {
+    const f = fake({ interruptOn: FIRST_SEED.join(" ") });
+    expect(await main(["stack", "up"], f.deps)).toBe(INTERRUPTED);
+    expect(f.lines()).toEqual([NETWORKS, COMPOSE_UP, WIRING, FIRST_SEED, DOWN, ...CHECKS]);
     expect(f.project()).toBeNull();
+  });
+});
+
+describe("wiringProblems", () => {
+  it("finds nothing wrong when every probe has its zone's MX and its RDAP registration", () => {
+    expect(wiringProblems(wired())).toEqual([]);
+    // Resolvers may answer with the root's dot and in upper case; the last line is the result.
+    const dotted = JSON.stringify(
+      WIRING_PROBES.map((p) => ({
+        domain: p.domain,
+        mx: [`${p.mx.toUpperCase()}.`],
+        rdap: { status: 200, ldhName: p.domain },
+        error: [],
+      })),
+    );
+    expect(wiringProblems(`a warning\n${dotted}\n`)).toEqual([]);
+  });
+
+  it("names a failed lookup, a 404 and a probe that is missing", () => {
+    const rows = [
+      {
+        domain: "kiezwerk.example",
+        mx: null,
+        rdap: { status: 404, ldhName: null },
+        error: ["MX lookup: ENOTFOUND"],
+      },
+    ];
+    expect(wiringProblems(JSON.stringify(rows))).toEqual([
+      "kiezwerk.example: RDAP answered 404, not its registration",
+      "kiezwerk.example: MX lookup: ENOTFOUND",
+      "gmail.com: not checked",
+    ]);
+  });
+
+  it("says so when the check prints no result", () => {
+    expect(wiringProblems("")).toEqual(['the check printed no result ("")']);
+  });
+
+  it("probes fixture domains whose zone and RDAP entry the generator writes", () => {
+    const zones = readdirSync(join(E2E, "dns", "zones"));
+    const domains = readDomains().domains;
+    for (const probe of WIRING_PROBES) {
+      const zone = zones.find((z) => {
+        const origin = z.replace(/^db\./, "");
+        return probe.domain === origin || probe.domain.endsWith(`.${origin}`);
+      });
+      expect(zone, probe.domain).toBeDefined();
+      const text = readFileSync(join(E2E, "dns", "zones", zone as string), "utf8");
+      const origin = (zone as string).replace(/^db\./, "");
+      const label = probe.domain === origin ? "@" : probe.domain.slice(0, -origin.length - 1);
+      expect(text.split("\n"), probe.domain).toContain(`${label} IN MX 10 ${probe.mx}.`);
+      expect(domains[probe.domain], probe.domain).toBeDefined();
+    }
+  });
+});
+
+describe("subnetsOverlap", () => {
+  it("compares IPv4 ranges and never matches IPv6", () => {
+    expect(subnetsOverlap("10.253.53.0/24", STACK_SUBNET)).toBe(true);
+    expect(subnetsOverlap("10.0.0.0/8", STACK_SUBNET)).toBe(true);
+    expect(subnetsOverlap("10.253.53.128/25", STACK_SUBNET)).toBe(true);
+    expect(subnetsOverlap("10.253.52.0/24", STACK_SUBNET)).toBe(false);
+    expect(subnetsOverlap("172.17.0.0/16", STACK_SUBNET)).toBe(false);
+    expect(subnetsOverlap("fd00::/64", STACK_SUBNET)).toBe(false);
+  });
+
+  it("is the subnet of the compose file's network", () => {
+    expect(compose.networks?.default?.ipam?.config?.[0]?.subnet).toBe(STACK_SUBNET);
   });
 });
 
@@ -729,7 +987,10 @@ describe("run (pnpm e2e)", () => {
     const f = fake();
     expect(await main(["run", "--mvp", "1"], f.deps)).toBe(0);
     expect(f.lines()).toEqual([...UP, PW_INSTALL, PW_TEST, DOWN, ...CHECKS]);
-    expect(f.commands[4]?.env).toEqual({ JOBFILLY_E2E_PROJECT: PROJECT, JOBFILLY_E2E_MVP: "1" });
+    expect(f.commands.find((c) => c.args.includes("test"))?.env).toEqual({
+      JOBFILLY_E2E_PROJECT: PROJECT,
+      JOBFILLY_E2E_MVP: "1",
+    });
     expect(f.project()).toBeNull();
   });
 
@@ -758,7 +1019,7 @@ describe("run (pnpm e2e)", () => {
   });
 
   it("runs no specs when the stack did not come up", async () => {
-    const f = fake({ codes: { [UP[0]?.join(" ") as string]: 1 } });
+    const f = fake({ codes: { [COMPOSE_UP.join(" ")]: 1 } });
     expect(await main(["run"], f.deps)).toBe(1);
     expect(f.lines().some((l) => l[0] === "pnpm")).toBe(false);
     expect(f.project()).toBeNull();
@@ -767,13 +1028,13 @@ describe("run (pnpm e2e)", () => {
   it("stops on Ctrl-C during the readiness wait: no mail, no specs, the stack down", async () => {
     const f = fake({ readyAfter: { [READY_URLS[0] as string]: Infinity }, interruptAfterPolls: 3 });
     expect(await main(["run"], f.deps)).toBe(INTERRUPTED);
-    expect(f.lines()).toEqual([UP[0], DOWN, ...CHECKS]);
+    expect(f.lines()).toEqual([NETWORKS, COMPOSE_UP, DOWN, ...CHECKS]);
     expect(f.polls).toHaveLength(3);
     expect(f.project()).toBeNull();
   });
 
   it("stops on Ctrl-C during the last seed run: no specs, the stack down", async () => {
-    const f = fake({ interruptOn: UP[2]?.join(" ") });
+    const f = fake({ interruptOn: LAST_SEED.join(" ") });
     expect(await main(["run"], f.deps)).toBe(INTERRUPTED);
     expect(f.lines()).toEqual([...UP, DOWN, ...CHECKS]);
     expect(f.project()).toBeNull();

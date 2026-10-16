@@ -1,10 +1,10 @@
-Message-ID: <maria-0391@pgdigest.example>
-Date: Sat, 19 Sep 2026 04:48:00 +0000
-From: "Postgres Digest" <digest@pgdigest.example>
+Message-ID: <maria-0270@museudigital.example>
+Date: Mon, 14 Sep 2026 09:33:00 +0000
+From: "Museu Digital" <newsletter@museudigital.example>
 To: "Maria Santos" <maria.santos@inbox.example>
-Subject: Postgres Digest: JSONB patterns
-List-Id: Postgres Digest <news.pgdigest.example>
-List-Unsubscribe: <https://pgdigest.example/unsubscribe?u=13204>, <mailto:unsubscribe@pgdigest.example>
+Subject: Oficinas para adultos
+List-Id: Museu Digital <news.museudigital.example>
+List-Unsubscribe: <https://museudigital.example/unsubscribe?u=45291>, <mailto:unsubscribe@museudigital.example>
 MIME-Version: 1.0
 Content-Type: multipart/alternative; boundary="=_jf_maria_inbox_0085"
 
@@ -12,11 +12,11 @@ Content-Type: multipart/alternative; boundary="=_jf_maria_inbox_0085"
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: quoted-printable
 
-How autovacuum decides what to clean.
+Inscri=C3=A7=C3=B5es abertas para visitas guiadas.
 
-Reader tip: use EXPLAIN (ANALYZE, BUFFERS).
+Ou=C3=A7a o novo epis=C3=B3dio do nosso podcast.
 
-Read the full issue online: https://pgdigest.example/issues/13204
+Read the full issue online: https://museudigital.example/issues/45291
 
 You are receiving this email because you subscribed to our newsletter or bo=
 ught something from us. If you no longer want to receive these emails, you =
@@ -44,9 +44,10 @@ Content-Transfer-Encoding: quoted-printable
 <!DOCTYPE html>
 <html><head><meta charset=3D"utf-8"></head>
 <body style=3D"font-family: sans-serif">
-<p>How autovacuum decides what to clean.</p>
-<p>Reader tip: use EXPLAIN (ANALYZE, BUFFERS).</p>
-<p>Read the full issue online: https://pgdigest.example/issues/13204</p>
+<p>Inscri=C3=A7=C3=B5es abertas para visitas guiadas.</p>
+<p>Ou=C3=A7a o novo epis=C3=B3dio do nosso podcast.</p>
+<p>Read the full issue online: https://museudigital.example/issues/45291</p=
+>
 <p>You are receiving this email because you subscribed to our newsletter or=
  bought something from us. If you no longer want to receive these emails, y=
 ou can unsubscribe at any time using the link in the header of this message=

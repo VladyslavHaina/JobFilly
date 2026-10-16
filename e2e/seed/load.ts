@@ -166,7 +166,12 @@ export function rfc5322Date(date: Date): string {
  * The message as it is appended: CRLF line ends (IMAP wants them) and a Date header for this
  * run, replacing any Date header the file has. Checks the file's Message-ID against envelopes.json.
  */
-function prepareMessage(raw: Buffer, envelope: Envelope, date: Date, persona: string): Buffer {
+export function prepareMessage(
+  raw: Buffer,
+  envelope: Pick<Envelope, "file" | "messageId">,
+  date: Date,
+  persona: string,
+): Buffer {
   // latin1 maps every byte to one character and back, so 8-bit bodies pass through untouched.
   const text = raw.toString("latin1").replace(/\r?\n/g, "\r\n");
   const end = text.indexOf("\r\n\r\n");
