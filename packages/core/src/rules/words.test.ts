@@ -34,29 +34,48 @@ describe("mentions", () => {
 
 describe("saysPlainly", () => {
   it.each([
-    ["Permanent, full-time", "permanent"],
-    ["within the EU", "EU"],
-    ["Weekly On-Call rotation", "on-call"],
-    ["No relocation; permanent", "permanent"],
-    ["Not remote. Senior role", "senior"],
+    // The same wording once normalised.
+    ["Permanent", "permanent"],
+    ["  Senior   engineer ", "senior engineer"],
     ["No sponsorship needed", "No sponsorship needed"],
+    ["Weekly On-Call rotation", "weekly on call rotation"],
+    ["Festanstellung", "Festanstellung"],
+    // One clause is exactly the phrase.
+    ["Permanent, full-time", "permanent"],
+    ["Full-time; permanent", "permanent"],
+    ["No relocation; permanent", "permanent"],
+    ["Not remote. Senior", "senior"],
     ["Non-permanent, 6 months", "non-permanent"],
+    ["EU\nUS", "EU"],
+    ["Senior / Lead", "lead"],
   ])("says it in %j: %j", (haystack, needle) => {
     expect(saysPlainly(haystack, needle)).toBe(true);
   });
 
+  // No negation words are kept, in any language: anything more than the phrase in its clause is
+  // unknown, whether it negates the phrase or not (F4.1).
   it.each([
-    // Part of a longer joined word.
-    ["Non-permanent, 6 months", "permanent"],
-    ["Non-EU", "EU"],
-    ["Node.js", "Node"],
-    ["Cryptography", "crypto"],
-    // After a negation in its clause.
+    // Negated, in English.
     ["Not permanent, 6 months", "permanent"],
+    ["Non-permanent, 6 months", "permanent"],
     ["Non permanent", "permanent"],
+    ["This isn't a permanent role", "permanent"],
+    ["Permanent: no", "permanent"],
+    ["Permanent — no", "permanent"],
+    ["Permanent? No", "permanent"],
     ["Not a senior role", "senior"],
+    ["Non-EU", "EU"],
     ["No UK work permit", "UK work permit"],
     ["Without visa sponsorship", "visa sponsorship"],
+    // Negated, in another language.
+    ["Keine Festanstellung", "Festanstellung"],
+    ["Pas de CDI", "CDI"],
+    // Not negated, but more than the phrase: not plain enough to claim a fit.
+    ["within the EU", "EU"],
+    ["Weekly On-Call rotation", "on-call"],
+    ["Not remote. Senior role", "senior"],
+    ["Node.js", "Node"],
+    ["Cryptography", "crypto"],
     // The needle's words must all be there, in order.
     ["US", "Needs sponsorship for US"],
     ["anything", ""],
