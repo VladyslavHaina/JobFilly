@@ -202,7 +202,9 @@ export function createFakeMailbox(
       return {
         uidValidity: current,
         changed,
-        messages: stored[folder].filter((m) => m.uid > from).map((m) => m.envelope),
+        messages: stored[folder]
+          .filter((m) => m.uid > from)
+          .map((m) => ({ ...m.envelope, receivedAt: m.envelope.date })),
       };
     },
     async fetchOriginal(ref) {

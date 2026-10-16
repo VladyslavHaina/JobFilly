@@ -339,7 +339,9 @@ export function mailClientWith(
           folderPath: path,
           uidValidity: current,
         });
-        return { uidValidity: current, changed, messages };
+        // Arrival by the envelope's date until the INTERNALDATE is read here.
+        const received = messages.map((m) => ({ ...m, receivedAt: m.date }));
+        return { uidValidity: current, changed, messages: received };
       }),
 
     fetchOriginal: (ref) =>
