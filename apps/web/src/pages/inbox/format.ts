@@ -1,4 +1,12 @@
-import type { Category, JobFacts, Pay, PayPeriod, Place, TimeZoneRange } from "@jobfilly/schema";
+import type {
+  Address,
+  Category,
+  JobFacts,
+  Pay,
+  PayPeriod,
+  Place,
+  TimeZoneRange,
+} from "@jobfilly/schema";
 
 // How the job inbox words categories and job facts. Values come from the mail as the model
 // extracted them; only international standards are interpreted here: ISO 3166-1 country codes
@@ -180,6 +188,14 @@ export function formatAgency(agency: NonNullable<JobFacts["agency"]>): string | 
   if (agency.client) return `An agency, for ${agency.client}`;
   return null;
 }
+
+/**
+ * The sender as the list shows it: the display name, unless it has an "@" in it, which could pass
+ * for an address the mail didn't come from ("hr@bigcorp.example" sent from anywhere): then the
+ * real address.
+ */
+export const senderLabel = (from: Address) =>
+  from.name && !from.name.includes("@") ? from.name : from.address;
 
 /** The URL when it is a web link safe to open; null for anything else (javascript:, data:…). */
 export function safeLink(url: string): string | null {

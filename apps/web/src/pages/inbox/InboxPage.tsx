@@ -16,7 +16,7 @@ import { likelyJobEmails, useCurrentScan } from "../scan/queries";
 import { SenderBadge } from "../senders";
 import { MailboxStatus } from "../sync";
 import { CategoryChip, CouldNotAnalyze, CouldNotAnalyzeReason } from "./badges";
-import { CATEGORY_LABELS, formatListDate } from "./format";
+import { CATEGORY_LABELS, formatListDate, senderLabel } from "./format";
 import { MessageDetailView } from "./MessageDetail";
 
 // The job inbox (F5): job mail newest first with category chips, filters, search and pages of
@@ -136,9 +136,7 @@ function MessageRow(props: { workspaceId: string; message: MessageListItem; open
         }`}
       >
         <span className="flex items-baseline justify-between gap-3">
-          <span className="truncate text-sm font-medium text-stone-900">
-            {m.from.name ?? m.from.address}
-          </span>
+          <span className="truncate text-sm font-medium text-stone-900">{senderLabel(m.from)}</span>
           <time dateTime={m.date} className="shrink-0 text-xs text-stone-500">
             {formatListDate(m.date)}
           </time>

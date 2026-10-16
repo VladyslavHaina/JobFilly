@@ -9,6 +9,7 @@ import {
   formatTimeZones,
   parseAmount,
   safeLink,
+  senderLabel,
 } from "./format";
 
 const pay = (p: Partial<Pay>): Pay => ({
@@ -83,6 +84,16 @@ describe("other facts", () => {
     expect(safeLink("https://jobs.example/apply?id=1")).toBe("https://jobs.example/apply?id=1");
     expect(safeLink("javascript:alert(1)")).toBeNull();
     expect(safeLink("not a url")).toBeNull();
+  });
+
+  it("never shows a display name that could pass for another address", () => {
+    expect(senderLabel({ address: "anna@nordlicht.example", name: "Anna Weber" })).toBe(
+      "Anna Weber",
+    );
+    expect(senderLabel({ address: "evil@spoof.example", name: "hr@bigcorp.example" })).toBe(
+      "evil@spoof.example",
+    );
+    expect(senderLabel({ address: "evil@spoof.example", name: null })).toBe("evil@spoof.example");
   });
 });
 
