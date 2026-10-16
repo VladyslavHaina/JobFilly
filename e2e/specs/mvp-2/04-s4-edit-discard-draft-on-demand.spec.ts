@@ -112,7 +112,9 @@ test("S4: edit, discard, draft on demand", async ({ page }) => {
     await choice.selectOption({ label: BACKEND_DE });
     await expect(cv).toContainText(`You chose ${BACKEND_DE} for this role`);
     await choice.selectOption({ label: "Choose automatically" });
-    await expect(cv).toContainText(`→ ${DATA_CV}`);
+    // The automatic choice comes back with the role's re-evaluation, which waits its turn in the
+    // workspace's queue like the delete below.
+    await expect(cv).toContainText(`→ ${DATA_CV}`, { timeout: 60_000 });
   });
 
   await test.step("the Drafts page shows each draft's status", async () => {
