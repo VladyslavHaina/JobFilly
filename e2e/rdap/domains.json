@@ -48,6 +48,9 @@
     "dijkstra-logistics.example": {
       "registeredDaysAgo": 7211
     },
+    "donaukanal.example": {
+      "registeredDaysAgo": 5206
+    },
     "dourofintech.example": {
       "registeredDaysAgo": 3453
     },
@@ -107,6 +110,9 @@
     },
     "isar-personal.example": {
       "registeredDaysAgo": 5602
+    },
+    "isarwerk.example": {
+      "registeredDaysAgo": 2831
     },
     "jobs.nhs.uk": {
       "registeredDaysAgo": 1564

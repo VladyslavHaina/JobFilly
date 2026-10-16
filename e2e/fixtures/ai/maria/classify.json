@@ -1840,5 +1840,11 @@
   },
   "<maria-deliver-freemail@gmail.com>": {
     "category": "recruiter_outreach"
+  },
+  "<maria-deliver-s11-failover@isarwerk.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-deliver-s11-recovery@donaukanal.example>": {
+    "category": "recruiter_outreach"
   }
 }

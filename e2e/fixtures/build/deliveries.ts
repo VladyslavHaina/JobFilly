@@ -39,8 +39,11 @@ interface DeliveryRole {
 export interface DeliverySource {
   /** The id `seed deliver` takes. */
   id: string;
-  /** The scenario step that delivers it: S2 delivers the batch, S5 the second Zurich role. */
-  step: "S2" | "S5";
+  /**
+   * The scenario step that delivers it: S2 delivers the batch, S5 the second Zurich role, S11
+   * one message before a replica is killed and one after the mail server is back.
+   */
+  step: "S2" | "S5" | "S11";
   minutesAgo: number;
   from: Address;
   subject: string;
@@ -611,6 +614,62 @@ export const DELIVERIES: readonly DeliverySource[] = [
           workMode: "onsite",
           pay: pay(75000, 85000, "EUR", "year", "€75,000–85,000 a year"),
           skills: ["Java", "PostgreSQL"],
+        }),
+      ),
+    ],
+  },
+  // S11 (resilience) delivers these two one at a time, by id: one before a replica is killed,
+  // one after `docker compose unpause imap` to show new mail flows again. Both are plain onsite
+  // roles a hard conflict caps, like the Singapore one: no draft, no decision, nothing beyond
+  // the classify, extract and match answers every delivery has.
+  {
+    id: "s11-failover",
+    step: "S11",
+    minutesAgo: 10,
+    from: { address: "sophie.wagner@isarwerk.example", name: "Sophie Wagner" },
+    subject: "Backend Engineer – onsite in Munich",
+    body: "Hi Maria,\n\nIsarwerk Mobility is hiring a Backend Engineer for its routing team. The role is onsite in our Munich office, five days a week, at €75,000–85,000 a year on a permanent contract. We build in Go on PostgreSQL.\n\nWould you be interested in a short call?\n\nBest regards,\nSophie Wagner\nTalent Acquisition, Isarwerk Mobility",
+    footer: RECRUITER_FOOTER_EN,
+    language: "en",
+    sender: "looks_fine",
+    roles: [
+      capped(
+        // Onsite in Munich: she takes onsite work nowhere.
+        ["places"],
+        role({
+          title: "Backend Engineer",
+          company: "Isarwerk Mobility",
+          places: [{ country: "DE", city: "Munich" }],
+          workMode: "onsite",
+          pay: pay(75000, 85000, "EUR", "year", "€75,000–85,000 a year"),
+          contract: "permanent",
+          skills: ["Go", "PostgreSQL"],
+        }),
+      ),
+    ],
+  },
+  {
+    id: "s11-recovery",
+    step: "S11",
+    minutesAgo: 5,
+    from: { address: "lukas.gruber@donaukanal.example", name: "Lukas Gruber" },
+    subject: "Backend Engineer – onsite in Vienna",
+    body: "Hi Maria,\n\nDonaukanal Software is looking for a Backend Engineer to join our team in Vienna. The role is onsite, four days a week in the office, at €70,000–80,000 a year on a permanent contract. Our services are written in Go.\n\nLet me know if you'd like to hear more.\n\nKind regards,\nLukas Gruber\nRecruiting, Donaukanal Software",
+    footer: RECRUITER_FOOTER_EN,
+    language: "en",
+    sender: "looks_fine",
+    roles: [
+      capped(
+        // Onsite in Vienna: she takes onsite work nowhere.
+        ["places"],
+        role({
+          title: "Backend Engineer",
+          company: "Donaukanal Software",
+          places: [{ country: "AT", city: "Vienna" }],
+          workMode: "onsite",
+          pay: pay(70000, 80000, "EUR", "year", "€70,000–80,000 a year"),
+          contract: "permanent",
+          skills: ["Go"],
         }),
       ),
     ],
