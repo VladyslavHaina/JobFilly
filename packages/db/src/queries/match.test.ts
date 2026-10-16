@@ -5,7 +5,13 @@ import type { DatabaseConnection } from "../client";
 import { openTestDatabase } from "../testing";
 import { registerAccount } from "./accounts";
 import { insertCv } from "./cvs";
-import { getMatchAnswer, type MatchAnswerKey, matchInputHash, saveMatchAnswer } from "./match";
+import {
+  getMatchAnswer,
+  listStoredMatchAnswers,
+  type MatchAnswerKey,
+  matchInputHash,
+  saveMatchAnswer,
+} from "./match";
 import { saveAnalysis, saveEnvelopes } from "./messages";
 
 // Stored match.v1 answers (match_ai_answers): stored and looked up by message, position, CV and
@@ -165,5 +171,23 @@ describe("stored match.v1 answers", () => {
     await saveMatchAnswer(conn.db, ws, key, answer("first"), at);
     await saveMatchAnswer(conn.db, ws, key, answer("second"), at);
     expect(await getMatchAnswer(conn.db, ws, key)).toEqual(answer("first"));
+  });
+});
+
+describe("listStoredMatchAnswers", () => {
+  it("lists the messages' stored answers with their keys, only in the workspace", async () => {
+    const key: MatchAnswerKey = {
+      messageId: MESSAGE,
+      position: 0,
+      cvId: null,
+      inputHash: "a".repeat(64),
+    };
+    await saveMatchAnswer(conn.db, ws, key, answer("first"), at);
+    await saveMatchAnswer(conn.db, other, { ...key, inputHash: "b".repeat(64) }, answer("x"), at);
+    expect(await listStoredMatchAnswers(conn.db, ws, [MESSAGE])).toEqual([
+      { ...key, answer: answer("first") },
+    ]);
+    expect(await listStoredMatchAnswers(conn.db, ws, ["<nope@x.example>"])).toEqual([]);
+    expect(await listStoredMatchAnswers(conn.db, ws, [])).toEqual([]);
   });
 });

@@ -2,13 +2,12 @@ import type {
   AssistantClarify,
   Change,
   Impact,
-  MatchAiOutput,
   ProfileSnapshot,
   ProposalStatus,
 } from "@jobfilly/schema";
-import { and, asc, desc, eq, inArray, max } from "drizzle-orm";
+import { and, asc, desc, eq, max } from "drizzle-orm";
 import type { Database } from "../client";
-import { assistantMessages, assistantProposals, assistantThreads, matchAiAnswers } from "../tables";
+import { assistantMessages, assistantProposals, assistantThreads } from "../tables";
 
 // The assistant's storage (F8): each member's threads, their messages and the proposals in them.
 // Messages and proposals are stored for the history and never logged (F8.10). A thread belongs to
@@ -333,41 +332,4 @@ export async function decideProposal(
     .where(isOpen(workspaceId, proposalId))
     .returning({ id: assistantProposals.id });
   return rows.length > 0;
-}
-
-/** A stored match.v1 answer with its key (packages/db's match_ai_answers). */
-export interface StoredMatchAnswer {
-  messageId: string;
-  position: number;
-  cvId: string | null;
-  inputHash: string;
-  answer: MatchAiOutput;
-}
-
-/**
- * Every stored match.v1 answer of these messages' roles, for the impact preview, which scores the
- * current roles without the model: it picks each role's answer by its CV and input hash
- * (matchInputHash) in memory, as the match stage does, so a preview over every role is one query.
- */
-export async function listStoredMatchAnswers(
-  db: Database,
-  workspaceId: string,
-  messageIds: readonly string[],
-): Promise<StoredMatchAnswer[]> {
-  if (messageIds.length === 0) return [];
-  return db
-    .select({
-      messageId: matchAiAnswers.messageId,
-      position: matchAiAnswers.position,
-      cvId: matchAiAnswers.cvId,
-      inputHash: matchAiAnswers.inputHash,
-      answer: matchAiAnswers.answer,
-    })
-    .from(matchAiAnswers)
-    .where(
-      and(
-        eq(matchAiAnswers.workspaceId, workspaceId),
-        inArray(matchAiAnswers.messageId, [...messageIds]),
-      ),
-    );
 }

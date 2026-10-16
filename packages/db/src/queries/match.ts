@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import type { MatchAiOutput, MatchTaskInput } from "@jobfilly/schema";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import type { Database } from "../client";
 import { matchAiAnswers } from "../tables";
 
@@ -16,6 +16,11 @@ export interface MatchAnswerKey {
   position: number;
   cvId: string | null;
   inputHash: string;
+}
+
+/** A stored answer with its key. */
+export interface StoredMatchAnswer extends MatchAnswerKey {
+  answer: MatchAiOutput;
 }
 
 /**
@@ -72,4 +77,32 @@ export async function saveMatchAnswer(
     .insert(matchAiAnswers)
     .values({ workspaceId, ...key, answer, createdAt: at })
     .onConflictDoNothing();
+}
+
+/**
+ * Every stored answer of these messages' roles, for the assistant's impact preview, which scores
+ * the current roles without the model: it picks each role's answer by its CV and input hash
+ * (matchInputHash) in memory, as the match stage does, so a preview over every role is one query.
+ */
+export async function listStoredMatchAnswers(
+  db: Database,
+  workspaceId: string,
+  messageIds: readonly string[],
+): Promise<StoredMatchAnswer[]> {
+  if (messageIds.length === 0) return [];
+  return db
+    .select({
+      messageId: matchAiAnswers.messageId,
+      position: matchAiAnswers.position,
+      cvId: matchAiAnswers.cvId,
+      inputHash: matchAiAnswers.inputHash,
+      answer: matchAiAnswers.answer,
+    })
+    .from(matchAiAnswers)
+    .where(
+      and(
+        eq(matchAiAnswers.workspaceId, workspaceId),
+        inArray(matchAiAnswers.messageId, [...messageIds]),
+      ),
+    );
 }

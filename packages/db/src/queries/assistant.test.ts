@@ -1,4 +1,4 @@
-import type { Change, Envelope, Impact, JobFacts, MatchAiOutput } from "@jobfilly/schema";
+import type { Change, Impact } from "@jobfilly/schema";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { DatabaseConnection } from "../client";
 import { openTestDatabase } from "../testing";
@@ -10,15 +10,12 @@ import {
   getProposal,
   getThread,
   insertProposal,
-  listStoredMatchAnswers,
   listThreadMessages,
   listThreadProposals,
   nextTurn,
   saveTurn,
   updateOpenProposal,
 } from "./assistant";
-import { saveMatchAnswer } from "./match";
-import { saveAnalysis, saveEnvelopes } from "./messages";
 import { createConfirmedProfile } from "./profiles";
 import { addMember } from "./workspaces";
 
@@ -215,67 +212,5 @@ describe("assistant proposals", () => {
       decidedAt: at,
       impact: edited,
     });
-  });
-});
-
-describe("listStoredMatchAnswers", () => {
-  const MESSAGE = "<m1@agency.example>";
-  const envelope: Envelope = {
-    messageId: MESSAGE,
-    folder: "inbox",
-    folderPath: "INBOX",
-    uidValidity: 1,
-    uid: 1,
-    date: at.toISOString(),
-    from: { address: "r@agency.example", name: null },
-    to: [],
-    cc: [],
-    replyTo: [],
-    inReplyTo: null,
-    references: [],
-    subject: "A role",
-    listId: null,
-    listUnsubscribe: null,
-    precedence: null,
-    autoSubmitted: null,
-    snippet: "",
-  };
-  const facts: JobFacts = {
-    title: "Backend Engineer",
-    company: null,
-    agency: null,
-    places: [],
-    workMode: null,
-    remoteScope: null,
-    timeZones: null,
-    pay: null,
-    contract: null,
-    seniority: null,
-    workPermit: null,
-    skills: ["Go"],
-    languages: [],
-    applyUrl: null,
-    extra: {},
-  };
-  const answer: MatchAiOutput = {
-    titleFit: { verdict: "fits", reason: "a backend role" },
-    skillCloseness: [],
-  };
-
-  it("lists the messages' stored answers with their keys, only in the workspace", async () => {
-    for (const w of [ws, other]) {
-      await saveEnvelopes(conn.db, w, [{ envelope, verdict: "likely_job", reason: null }]);
-      await saveAnalysis(conn.db, w, {
-        messageId: MESSAGE,
-        scanId: null,
-        category: "recruiter_outreach",
-        roles: [facts],
-      });
-    }
-    const key = { messageId: MESSAGE, position: 0, cvId: null, inputHash: "a".repeat(64) };
-    await saveMatchAnswer(conn.db, ws, key, answer, at);
-    await saveMatchAnswer(conn.db, other, { ...key, inputHash: "b".repeat(64) }, answer, at);
-    expect(await listStoredMatchAnswers(conn.db, ws, [MESSAGE])).toEqual([{ ...key, answer }]);
-    expect(await listStoredMatchAnswers(conn.db, ws, [])).toEqual([]);
   });
 });
