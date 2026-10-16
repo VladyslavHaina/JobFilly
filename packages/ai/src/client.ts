@@ -7,9 +7,9 @@ import {
   type AiTestOutput,
   AiTestOutputSchema,
   type AssistantAnswer,
-  AssistantAnswerSchema,
   AssistantRequestSchema,
   type AssistantTaskInput,
+  AssistantWireAnswerSchema,
   type BatchItemResult,
   type BatchResult,
   type Category,
@@ -352,13 +352,14 @@ export function clientFromModels(modelFor: ModelFor, options: AiClientOptions = 
       ),
     // The model is asked for rule and entry changes only, but a proposal with a change outside
     // them (a mailbox, a member…) is still an answer: its reply reaches the user, and the server
-    // refuses the proposal in words (F8.7) instead of failing the whole turn.
+    // refuses the proposal in words (F8.7) instead of failing the whole turn. The model writes
+    // flat changes (AssistantRequestSchema), which are read back into Changes and checked.
     assistant: (input, opts) =>
       single(
         "assistant",
         "assistant.v1",
         promptFor("assistant.v1", input),
-        AssistantAnswerSchema,
+        AssistantWireAnswerSchema,
         opts?.maxCalls ?? 2,
         undefined,
         AssistantRequestSchema,

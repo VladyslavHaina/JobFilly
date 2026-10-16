@@ -1,5 +1,12 @@
 import {
   type AssistantTaskInput,
+  CATEGORIES,
+  CORE_PROFILE_KEYS,
+  type CoreProfileKey,
+  entryLabel,
+  PayPeriodSchema,
+  POLICY_KEYS,
+  type PolicyKey,
   RULE_ACTIONS,
   RULE_FACTS,
   RULE_OPS,
@@ -48,6 +55,33 @@ function opWords(): string {
   return `${parts.slice(0, -1).join(", ")}, or ${parts.at(-1)}`;
 }
 
+const WORDS = "a list of words";
+const COUNTRY = "an ISO 3166-1 alpha-2 code";
+
+/** What each profile key's value is, as JSON; a new key in packages/schema fails typecheck here. */
+const KEY_VALUES: Record<CoreProfileKey | PolicyKey, string> = {
+  target_roles: WORDS,
+  seniority: WORDS,
+  places: `[{ country, city, mode }] with country ${COUNTRY}, city a name or null, mode onsite or hybrid`,
+  remote: "[{ scope, timeZones }] with scope in words, timeZones { from, to } or null",
+  contracts: WORDS,
+  min_pay: `[{ amount, currency, period, asWritten }] with currency an ISO 4217 code, period ${either(PayPeriodSchema.options)}, asWritten as the user wrote it`,
+  languages: WORDS,
+  work_permits: `[{ country, text }] with country ${COUNTRY} or null`,
+  reply_to: `a list of categories: ${either(CATEGORIES)}`,
+  deal_breakers: WORDS,
+  reply_threshold: "one whole number in a list, [n]",
+  reply_window_days: "one whole number in a list, [n]",
+};
+
+/** "places (Places you'd work onsite or hybrid): […]; …", every key the profile can hold. */
+function keyWords(): string {
+  const keys = [...CORE_PROFILE_KEYS, ...POLICY_KEYS].map(
+    (key) => `${key} (${entryLabel(key)}): ${KEY_VALUES[key]}`,
+  );
+  return [...keys, `extra.<key>: ${WORDS}`].join("; ");
+}
+
 // The rule vocabulary (facts, ops, actions) comes from packages/schema, so the instruction never
 // falls out of step with what the answer check accepts.
 //
@@ -58,11 +92,15 @@ function opWords(): string {
 const INSTRUCTION = [
   "You help the user steer their job search automation: the rules and profile entries listed below. Write `reply` in the language of the user's message.",
   [
-    "When the user asks to change their preferences or what the app does with matching mail, set `proposal` to a short `summary` in the user's language and the `changes` that do it, and `clarify` to null. A change adds, updates or removes a rule (by its id) or a profile entry (by its key). `add` on an entry appends the given items to its list; `update` replaces its value; `remove` with a value removes those items, and with null the whole entry. A rule is { description, when, then, enabled }: `description` says in plain words what it does; it holds when every condition in `when` holds;",
+    "When the user asks to change their preferences or what the app does with matching mail, set `proposal` to a short `summary` in the user's language and the `changes` that do it, and `clarify` to null. A change adds, updates or removes a rule (by its id) or a profile entry (by its key). `add` on an entry appends the given items to its list; `update` replaces its value; `remove` with a value removes those items, and with null the whole entry.",
+    "Each change sets `op`, `target` (rule or entry), `ruleId` for a rule it updates or removes, `key` for an entry, `rule` to the rule as JSON text for add and update, and `value` to the entry's value as JSON text; every field a change doesn't use is null.",
+    "A rule is { description, when, then, enabled }: `description` says in plain words what it does; it holds when every condition in `when` holds;",
     `\`then\` is ${either(RULE_ACTIONS)}. A condition is { fact, op, value } with fact one of ${either([...RULE_FACTS, "extra.<key>"])}; op ${opWords()}.`,
+    `An entry's value, by key: ${keyWords()}.`,
     "Use only values the user stated or the profile holds; never invent one.",
   ].join(" "),
   "When the request is unclear, set `clarify` to one question with two to four short answers to pick in `choices`, and `proposal` to null: never guess.",
+  "It is unclear only when you can't tell what the user wants changed. When that is clear but a value could be read more widely or narrowly, such as the UTC offsets a region spans, propose the likeliest reading: the user can edit a proposal before applying it.",
   "A proposal changes nothing until the user applies it themselves, so never say a change is made.",
   "You can't send mail, invite people, change mailboxes or AI settings, or delete data. When asked to, set `clarify` and `proposal` to null and say you can't and where it is done: replies wait as drafts on the Drafts page and in the mailbox's Drafts folder, and are sent from the user's own mail app; people are invited on the Members page; the mailbox and the AI settings are under Settings; CVs are deleted on the CVs page.",
 ].join("\n");
