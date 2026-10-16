@@ -273,6 +273,34 @@ describe("the e2e image's entry points and fixtures", () => {
   });
 });
 
+/** A codified scenario spec: NN-sN-<slug>.spec.ts, NN the scenario number. */
+const SCENARIO_SPEC = /^(\d{2})-s(\d+)-[a-z0-9-]+\.spec\.ts$/;
+
+/** The scenario numbers the specs of one MVP's directory codify. */
+const codifiedScenarios = (entries: readonly string[]) =>
+  entries.flatMap((name) => {
+    const scenario = SCENARIO_SPEC.exec(name)?.[2];
+    return scenario ? [Number(scenario)] : [];
+  });
+
+/** What a spec takes from specs/shared.ts instead of copying it. */
+const SHARED_HELPERS = [
+  "E2E-SECRET-maria-login",
+  "E2E-SECRET-tom-login",
+  "E2E-SECRET-ai-key",
+  "--no-log-prefix",
+  "fileState(",
+  '"app-a": 8081',
+  "Roles you're looking for",
+  'getByRole("button", { name: "Sign in", exact: true })',
+];
+
+/** The addresses a spec's source types with page.goto, besides the start URL "/". */
+const typedAddresses = (text: string) =>
+  [...text.matchAll(/\.goto\(([^)]*)\)/g)].map((m) => m[1]).filter((url) => url !== '"/"');
+
+const byName = (names: readonly string[]) => [...names].sort((a, b) => a.localeCompare(b));
+
 describe("e2e/specs/mvp-1", () => {
   // The specs run only against a live stack (pnpm e2e), but what they are can be read here, so
   // pnpm check fails a run that would play only part of MVP 1 (and leave MVP 2 without the state
@@ -282,18 +310,12 @@ describe("e2e/specs/mvp-1", () => {
   const entries = readdirSync(SPECS);
   const specs = entries.filter((name) => name.endsWith(".spec.ts"));
   const source = (name: string) => readFileSync(join(SPECS, name), "utf8");
-  const byName = (names: readonly string[]) => [...names].sort((a, b) => a.localeCompare(b));
-  /** A codified scenario spec: NN-sN-<slug>.spec.ts, NN the scenario number. */
-  const SCENARIO_SPEC = /^(\d{2})-s(\d+)-[a-z0-9-]+\.spec\.ts$/;
 
   it("codifies every scenario of docs/mvp/MVP-1.md as a spec of its own, and no other", () => {
     const doc = readRepo("docs/mvp/MVP-1.md");
     const scenarios = [...doc.matchAll(/^\| S(\d+) \| \*\*/gm)].map((m) => Number(m[1]));
     expect(scenarios.length).toBeGreaterThan(0);
-    const codified = entries.flatMap((name) => {
-      const scenario = SCENARIO_SPEC.exec(name)?.[2];
-      return scenario ? [Number(scenario)] : [];
-    });
+    const codified = codifiedScenarios(entries);
     expect(scenarios.filter((n) => !codified.includes(n)).map((n) => `S${n}`)).toEqual([]);
     expect(codified.filter((n) => !scenarios.includes(n)).map((n) => `S${n}`)).toEqual([]);
     expect(new Set(codified).size).toBe(codified.length);
@@ -315,11 +337,11 @@ describe("e2e/specs/mvp-1", () => {
     // docs/mvp/README.md › Walk it like a person: the only URLs typed by hand are the start URL
     // and invite links. S3 opens the scan screen a second time through the other replica's
     // direct port, as its scenario says.
-    const typed = (text: string) =>
-      [...text.matchAll(/\.goto\(([^)]*)\)/g)].map((m) => m[1]).filter((url) => url !== '"/"');
-    expect(typed(readFileSync(join(E2E, "specs", "shared.ts"), "utf8"))).toEqual([]);
+    expect(typedAddresses(readFileSync(join(E2E, "specs", "shared.ts"), "utf8"))).toEqual([]);
     const elsewhere = Object.fromEntries(
-      specs.map((name) => [name, typed(source(name))] as const).filter(([, urls]) => urls.length),
+      specs
+        .map((name) => [name, typedAddresses(source(name))] as const)
+        .filter(([, urls]) => urls.length),
     );
     expect(elsewhere).toEqual({
       "03-s3-first-scan.spec.ts": [expect.stringMatching(/^`http:\/\/127\.0\.0\.1:\$\{DIRECT_/)],
@@ -327,19 +349,9 @@ describe("e2e/specs/mvp-1", () => {
   });
 
   it("takes the stack, log and sign-in helpers from specs/shared.ts instead of copying them", () => {
-    const copies = [
-      "E2E-SECRET-maria-login",
-      "E2E-SECRET-tom-login",
-      "E2E-SECRET-ai-key",
-      "--no-log-prefix",
-      "fileState(",
-      '"app-a": 8081',
-      "Roles you're looking for",
-      'getByRole("button", { name: "Sign in", exact: true })',
-    ];
     for (const name of specs) {
       expect(
-        copies.filter((copy) => source(name).includes(copy)),
+        SHARED_HELPERS.filter((copy) => source(name).includes(copy)),
         name,
       ).toEqual([]);
     }
@@ -402,6 +414,59 @@ describe("e2e/specs/mvp-1", () => {
 
   it("has the proof require every compared message to be stored and analysed", () => {
     expect(source(PROOF)).toContain("compareWithExpected(persona, stored, { complete: true })");
+  });
+});
+
+describe("e2e/specs/mvp-2", () => {
+  // MVP 2's scenarios start from the state MVP 1's leave behind (docs/mvp/README.md › The test
+  // stack) and from each other's: S2 delivers the mail S3 to S11 open. So they run after every
+  // MVP 1 spec, in the scenarios' order, and none skips.
+  const SPECS = join(E2E, "specs", "mvp-2");
+  const entries = readdirSync(SPECS);
+  const source = (name: string) => readFileSync(join(SPECS, name), "utf8");
+
+  it("codifies every scenario of docs/mvp/MVP-2.md as a spec of its own, but the regression", () => {
+    // The regression scenario is MVP 1's own specs, which run first on the same stack.
+    const doc = readRepo("docs/mvp/MVP-2.md");
+    const rows = [...doc.matchAll(/^\| S(\d+) \| \*\*([^*]+)\*\*/gm)];
+    expect(rows.filter((m) => m[2] === "Regression")).toHaveLength(1);
+    const scenarios = rows.filter((m) => m[2] !== "Regression").map((m) => Number(m[1]));
+    expect(scenarios.length).toBeGreaterThan(0);
+    const codified = codifiedScenarios(entries);
+    expect(scenarios.filter((n) => !codified.includes(n)).map((n) => `S${n}`)).toEqual([]);
+    expect(codified.filter((n) => !scenarios.includes(n)).map((n) => `S${n}`)).toEqual([]);
+    expect(new Set(codified).size).toBe(codified.length);
+  });
+
+  it("holds only scenario specs named NN-sN-<slug>, NN the scenario, and nothing that skips", () => {
+    for (const name of entries) {
+      const [, order, scenario] = SCENARIO_SPEC.exec(name) ?? [];
+      expect(scenario, `${name} is named NN-sN-<slug>.spec.ts`).toBeDefined();
+      expect(Number(order), name).toBe(Number(scenario));
+      expect(source(name).match(/\.(skip|fixme|only)\(/g), name).toBeNull();
+    }
+  });
+
+  it("runs after every MVP 1 spec, in the scenarios' order", () => {
+    // Playwright runs files in path order on one worker (playwright.config.ts).
+    const dirs = readdirSync(join(E2E, "specs")).filter((name) => /^mvp-\d+$/.test(name));
+    expect(byName(dirs).indexOf("mvp-1")).toBeLessThan(byName(dirs).indexOf("mvp-2"));
+    const scenarios = byName(entries).map((name) => Number(SCENARIO_SPEC.exec(name)?.[2]));
+    expect(scenarios).toEqual([...scenarios].sort((a, b) => a - b));
+  });
+
+  it("types no address but the start URL", () => {
+    const typed = entries.filter((name) => typedAddresses(source(name)).length > 0);
+    expect(typed).toEqual([]);
+  });
+
+  it("takes the stack, log and sign-in helpers from specs/shared.ts instead of copying them", () => {
+    for (const name of entries) {
+      expect(
+        SHARED_HELPERS.filter((copy) => source(name).includes(copy)),
+        name,
+      ).toEqual([]);
+    }
   });
 });
 
