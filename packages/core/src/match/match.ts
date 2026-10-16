@@ -199,7 +199,7 @@ function skillsPart(input: MatchRoleInput): {
       matched,
       missing,
       credit: NO_SKILLS_CREDIT,
-      verdict: verdict(null, "unknown", "skills not stated"),
+      verdict: verdict(PROFILE_SKILLS_KEY, "unknown", "skills not stated"),
     };
   }
   const share = matched.length / total;
@@ -218,7 +218,7 @@ function skillsPart(input: MatchRoleInput): {
     matched,
     missing,
     credit: share,
-    verdict: verdict(null, share >= 0.5 ? "fits" : "conflicts", reason),
+    verdict: verdict(PROFILE_SKILLS_KEY, share >= 0.5 ? "fits" : "conflicts", reason),
   };
 }
 

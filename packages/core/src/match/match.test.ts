@@ -97,7 +97,7 @@ describe("matchRole (F4.1)", () => {
     expect(match.verdicts.map((v) => [v.entryKey, v.verdict, v.reason])).toEqual([
       ["target_roles", "fits", '"Senior Backend Engineer" — a backend engineer role'],
       [
-        null,
+        "extra.skills",
         "fits",
         "2 of 3 skills in your CV or profile; matched: Go, PostgreSQL; missing: Kafka. Close to your skills, but not listed in your CV or profile: Kafka",
       ],
@@ -122,7 +122,7 @@ describe("matchRole (F4.1)", () => {
     );
     expect(match.verdicts.map((v) => [v.entryKey, v.verdict, v.reason])).toEqual([
       ["target_roles", "unknown", "title not stated"],
-      [null, "unknown", "skills not stated"],
+      ["extra.skills", "unknown", "skills not stated"],
       ["places", "unknown", "Hybrid — place not stated"],
       ["min_pay", "unknown", "pay not stated"],
       ["contracts", "unknown", "contract not stated"],
@@ -841,9 +841,7 @@ describe("skills from the chosen CV and the profile (F4.4)", () => {
     for (const [cv, role] of cases) {
       const match = skills([cv], [role]);
       expect(match.skills, `${cv} against ${role}`).toEqual({ matched: [], missing: [role] });
-      expect(match.verdicts.find((v) => v.entryKey === null && v.ruleId === null)?.verdict).toBe(
-        "conflicts",
-      );
+      expect(match.verdicts.find((v) => v.entryKey === "extra.skills")?.verdict).toBe("conflicts");
     }
     // A missing skill earns no credit: the score is the same as with no CV skills at all.
     expect(skills(["Go"], ["Go-to-market strategy"]).score).toBe(
