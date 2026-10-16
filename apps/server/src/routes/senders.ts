@@ -1,12 +1,11 @@
-import { clearSenderMark, findSenderMark, setSenderMark } from "@jobfilly/db";
+import { clearSenderMark, findMessageSenderMark, setSenderMark } from "@jobfilly/db";
 import {
   type AppliedSenderMark,
   type SenderMarkInput,
   SenderMarkInputSchema,
-  SenderMarkQuerySchema,
 } from "@jobfilly/schema";
 import { Hono } from "hono";
-import { requireRole, validJson, validQuery, type WorkspaceEnv } from "../access";
+import { NOT_FOUND, requireRole, validJson, type WorkspaceEnv } from "../access";
 import type { AppDeps } from "../deps";
 import { requestReevaluation } from "../profile/changes";
 
@@ -14,9 +13,11 @@ import { requestReevaluation } from "../profile/changes";
 // the mark (null). Marks are keyed by the sender, so they survive syncs and re-evaluations, and
 // the check names them. Changing one re-does that sender's checks and evaluations (a sender
 // scope), so a newly blocked sender loses its automatic drafts and a trusted one is no longer held
-// back by its verdict. GET tells the mark that applies to an address now, its own or its domain's,
-// so the UI clears that one; clearing a mark that isn't there is a 404, never a quiet success.
-// Mounted once at /api/workspaces/:workspaceId/senders.
+// back by its verdict. GET tells the mark that applies to a message's sender now, its address's
+// own or its domain's, so the UI clears that one; clearing a mark that isn't there is a 404, never
+// a quiet success. The GET is keyed by the message, not the address: request lines end up in
+// proxy and ingress logs, and an email address is never logged. :messageId is the URL-encoded RFC
+// Message-ID, as in the messages routes. Mounted once at /api/workspaces/:workspaceId/senders.
 
 const NO_MARK = { error: "not_found", message: "There is no such mark to clear" } as const;
 
@@ -29,13 +30,11 @@ function validTarget(input: SenderMarkInput): boolean {
 
 export function sendersRoutes(deps: AppDeps) {
   return new Hono<WorkspaceEnv>()
-    .get("/marks", requireRole("viewer"), validQuery(SenderMarkQuerySchema), async (c) => {
-      const applied = await findSenderMark(
-        deps.db,
-        c.get("workspaceId"),
-        c.req.valid("query").address,
-      );
-      return c.json({ applied } satisfies AppliedSenderMark);
+    .get("/messages/:messageId/mark", requireRole("viewer"), async (c) => {
+      const messageId = c.req.param("messageId");
+      const found = await findMessageSenderMark(deps.db, c.get("workspaceId"), messageId);
+      if (!found) return c.json(NOT_FOUND, 404);
+      return c.json(found satisfies AppliedSenderMark);
     })
     .put("/marks", requireRole("editor"), validJson(SenderMarkInputSchema), async (c) => {
       const workspaceId = c.get("workspaceId");

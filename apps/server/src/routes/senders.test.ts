@@ -43,6 +43,7 @@ let deps: TestDeps;
 let app: App;
 let mailbox: FakeMailbox;
 let maria: SeededUser;
+let tom: SeededUser;
 let ws: string;
 let editor: TestClient;
 let viewer: TestClient;
@@ -54,7 +55,7 @@ beforeEach(async () => {
   deps.mail = mailbox.port;
   app = createApp(deps);
   maria = await seedUser(deps, { name: "Maria Santos" });
-  const tom = await seedUser(deps, { name: "Tom Okafor" });
+  tom = await seedUser(deps, { name: "Tom Okafor" });
   const vera = await seedUser(deps, { name: "Vera Viewer" });
   ws = (await seedWorkspace(deps, { owner: maria, members: [{ user: vera, role: "viewer" }] }))
     .workspaceId;
@@ -168,32 +169,52 @@ describe("PUT /senders/marks", () => {
   });
 });
 
-describe("GET /senders/marks", () => {
-  const applied = async (client: TestClient, address: string) => {
-    const res = await client.get(`${marks()}?address=${encodeURIComponent(address)}`);
+describe("GET /senders/messages/:messageId/mark", () => {
+  // A Message-ID with a '/' in it, URL-encoded as one path segment as in the messages routes.
+  const GRACE_MAIL = "<offer/1@tidewater.example>";
+  const GRACE = "grace@tidewater.example";
+  const markOf = (workspaceId: string, messageId: string) =>
+    `/api/workspaces/${workspaceId}/senders/messages/${encodeURIComponent(messageId)}/mark`;
+  const applied = async (client: TestClient, messageId: string, workspaceId = ws) => {
+    const res = await client.get(markOf(workspaceId, messageId));
     return { status: res.status, body: res.status === 200 ? await res.json() : null };
   };
-
-  it("tells the mark that applies to an address: its own first, else its domain's", async () => {
-    const grace = "Grace@Tidewater.example";
-    expect(await applied(editor, grace)).toEqual({ status: 200, body: { applied: null } });
-
-    await editor.put(marks(), { scope: "domain", value: "tidewater.example", mark: "blocked" });
-    const domain = { scope: "domain", value: "tidewater.example", mark: "blocked" };
-    expect(await applied(editor, grace)).toEqual({ status: 200, body: { applied: domain } });
-    // A viewer sees the mark too; only editors change it.
-    expect(await applied(viewer, grace)).toEqual({ status: 200, body: { applied: domain } });
-
-    await editor.put(marks(), { scope: "address", value: grace, mark: "trusted" });
-    expect((await applied(editor, grace)).body).toEqual({
-      applied: { scope: "address", value: "grace@tidewater.example", mark: "trusted" },
+  beforeEach(async () => {
+    await seedJobMail(deps, ws, mailbox, {
+      messageId: GRACE_MAIL,
+      receivedAt: NOW,
+      from: "Grace@Tidewater.example",
+      text: TEXT,
     });
   });
 
-  it("is for members only and needs an address", async () => {
-    await editor.put(marks(), { scope: "address", value: RECRUITER, mark: "trusted" });
-    expect((await applied(outsider, RECRUITER)).status).toBe(404);
-    expect((await editor.get(marks())).status).toBe(400);
+  it("tells the mark that applies to the message's sender: its own, else its domain's", async () => {
+    expect(await applied(editor, GRACE_MAIL)).toEqual({ status: 200, body: { applied: null } });
+
+    await editor.put(marks(), { scope: "domain", value: "tidewater.example", mark: "blocked" });
+    const domain = { scope: "domain", value: "tidewater.example", mark: "blocked" };
+    expect(await applied(editor, GRACE_MAIL)).toEqual({ status: 200, body: { applied: domain } });
+    // A viewer sees the mark too; only editors change it.
+    expect(await applied(viewer, GRACE_MAIL)).toEqual({ status: 200, body: { applied: domain } });
+
+    await editor.put(marks(), { scope: "address", value: GRACE, mark: "trusted" });
+    expect((await applied(editor, GRACE_MAIL)).body).toEqual({
+      applied: { scope: "address", value: GRACE, mark: "trusted" },
+    });
+  });
+
+  it("never has the sender's address in its URL, which proxies log", () => {
+    expect(markOf(ws, GRACE_MAIL)).not.toMatch(/grace/i);
+  });
+
+  it("is for members only, and a message outside the workspace is a 404", async () => {
+    await editor.put(marks(), { scope: "domain", value: "tidewater.example", mark: "blocked" });
+    expect((await applied(outsider, GRACE_MAIL)).status).toBe(404);
+    expect((await applied(editor, "<unknown@tidewater.example>")).status).toBe(404);
+
+    // Tom's own workspace doesn't have Maria's message, so its mark isn't Tom's to read.
+    const tomWs = (await seedWorkspace(deps, { owner: tom })).workspaceId;
+    expect((await applied(outsider, GRACE_MAIL, tomWs)).status).toBe(404);
   });
 });
 
