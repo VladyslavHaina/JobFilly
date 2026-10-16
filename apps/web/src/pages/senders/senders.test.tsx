@@ -93,7 +93,11 @@ describe("SenderBadge", () => {
     expect(screen.getByRole("img", { name: "Sender check: High risk" }).textContent).toBe(
       "High risk",
     );
-    expect(screen.getAllByRole("img")).toHaveLength(3);
+    // A row without a stored check says so, never nothing.
+    expect(screen.getByRole("img", { name: "Sender check: Not checked yet" }).textContent).toBe(
+      "Not checked yet",
+    );
+    expect(screen.getAllByRole("img")).toHaveLength(4);
   });
 });
 
@@ -248,6 +252,9 @@ describe("SenderPanel", () => {
     renderInWorkspace(
       <SenderPanel workspaceId={ws.id} messageId="<m@x>" from={from} check={null} />,
     );
-    expect(screen.getByText("Not checked yet.")).toBeTruthy();
+    expect(screen.getByRole("img", { name: "Sender check: Not checked yet" })).toBeTruthy();
+    expect(screen.getByText(/Couldn't check this sender yet/).textContent).toContain(
+      "don't pay a fee or send ID documents",
+    );
   });
 });

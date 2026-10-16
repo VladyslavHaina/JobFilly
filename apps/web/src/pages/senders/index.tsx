@@ -18,7 +18,8 @@ import { apiPaths } from "../../paths";
 // The sender check in the UI (F5): a badge on each inbox row (looks fine, caution, high risk),
 // and in the message detail the reasons, worded as estimates, a warning for a high-risk sender
 // (no reply is drafted for it automatically, F5.2), and the Trusted and Blocked marks, which
-// only editors set (F5.4).
+// only editors set (F5.4). A message without a stored check says so in both places, never
+// nothing: a missing badge would read as nothing to worry about.
 
 const VERDICT: Record<SenderVerdict, { text: string; tone: "success" | "warning" | "danger" }> = {
   looks_fine: { text: "Looks fine", tone: "success" },
@@ -29,8 +30,18 @@ const VERDICT: Record<SenderVerdict, { text: string; tone: "success" | "warning"
 const verdictLabel = (verdict: SenderVerdict, complete: boolean) =>
   `Sender check: ${VERDICT[verdict].text}${complete ? "" : ", incomplete"}`;
 
+const NOT_CHECKED = "Not checked yet";
+
+function NotCheckedBadge() {
+  return (
+    <Badge tone="neutral" label={`Sender check: ${NOT_CHECKED}`}>
+      {NOT_CHECKED}
+    </Badge>
+  );
+}
+
 export function SenderBadge({ sender }: { sender: MessageListItem["sender"] }) {
-  if (!sender) return null;
+  if (!sender) return <NotCheckedBadge />;
   const { text, tone } = VERDICT[sender.verdict];
   return (
     <Badge tone={tone} label={verdictLabel(sender.verdict, sender.complete)}>
@@ -135,16 +146,14 @@ export function SenderPanel(props: {
     >
       <div className="flex flex-wrap items-center gap-2">
         <h3 className="text-sm font-semibold text-stone-700">Sender check</h3>
-        {check && (
-          <Badge
-            tone={VERDICT[check.verdict].tone}
-            label={verdictLabel(check.verdict, check.complete)}
-          >
-            {VERDICT[check.verdict].text}
-          </Badge>
-        )}
+        <SenderBadge sender={check} />
       </div>
-      {!check && <p className="text-sm text-stone-500">Not checked yet.</p>}
+      {!check && (
+        <p className="text-sm text-stone-500">
+          Couldn't check this sender yet; it is checked when the email is analyzed. Until then,
+          don't pay a fee or send ID documents to apply.
+        </p>
+      )}
       {check?.verdict === "high_risk" && (
         <Alert tone="error" title="This sender looks high risk">
           No reply is drafted for it automatically. Don't pay a fee or send ID documents to apply.
