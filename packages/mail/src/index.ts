@@ -9,5 +9,5 @@ export {
   MailUnavailableError,
   UNAVAILABLE_MESSAGES,
 } from "./client";
-export { FAILURE_MESSAGES } from "./errors";
+export { FAILURE_MESSAGES, MailError } from "./errors";
 export { MAIL_PRESETS } from "./presets";

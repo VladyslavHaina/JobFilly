@@ -26,6 +26,7 @@ import {
   isConnectionDropped,
   isMailFailure,
   MailError,
+  mailErrorCode,
 } from "./errors";
 import {
   attachmentFromSource,
@@ -232,7 +233,7 @@ export function mailClientWith(
     return alone(work).catch((error: unknown) => {
       throw error instanceof MailError || error instanceof MailUnavailableError
         ? error
-        : new MailError(failureReason(error));
+        : new MailError(failureReason(error), mailErrorCode(error));
     });
   }
 

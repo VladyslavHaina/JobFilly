@@ -286,7 +286,7 @@ describe("fetchEnvelopes", () => {
     const error = await mailClientWith(conn, secure, server.factory)
       .fetchEnvelopes({ folder: "inbox", since })
       .catch((e: Error) => e);
-    expect(error).toMatchObject({ name: "MailError", reason: "unreachable" });
+    expect(error).toMatchObject({ name: "MailError", reason: "unreachable", code: "ECONNRESET" });
     expect(String((error as Error).message)).not.toContain(PASSWORD);
   });
 });

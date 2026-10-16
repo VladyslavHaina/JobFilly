@@ -12,9 +12,16 @@ export const FAILURE_MESSAGES: Record<MailTestFailureReason, string> = {
     "Plain-text IMAP is turned off on this server. Choose TLS or STARTTLS to protect your password.",
 };
 
-/** A mailbox failure with its reason; the message is one of FAILURE_MESSAGES. */
+/**
+ * A mailbox failure with its reason; the message is one of FAILURE_MESSAGES. `code` is the
+ * failure's own code ("NoConnection", "ECONNRESET") when it is one isMailFailure knows, for the
+ * logs; never the server's words.
+ */
 export class MailError extends Error {
-  constructor(readonly reason: MailTestFailureReason) {
+  constructor(
+    readonly reason: MailTestFailureReason,
+    readonly code?: string,
+  ) {
     super(FAILURE_MESSAGES[reason]);
     this.name = "MailError";
   }
@@ -111,6 +118,18 @@ const DROPPED_CODE = /^(NoConnection|EConnectionClosed)$/;
 export function isConnectionDropped(error: unknown): boolean {
   const code = asImapLike(error).code;
   return typeof code === "string" && DROPPED_CODE.test(code);
+}
+
+/** The code of a mail server failure, when it is one of the known codes above. */
+export function mailErrorCode(error: unknown): string | undefined {
+  const code = asImapLike(error).code;
+  if (typeof code !== "string") return undefined;
+  const known =
+    IMAPFLOW_CODE.test(code) ||
+    SOCKET_CODES.has(code) ||
+    NODE_SOCKET_CODE.test(code) ||
+    TLS_CODE.test(code);
+  return known ? code : undefined;
 }
 
 /** Maps an error from the IMAP library, the socket or TLS to a reason the user can act on. */
