@@ -1,5 +1,6 @@
 import { createConfirmedProfile, getEvaluations, getHistory, listRules } from "@jobfilly/db";
 import {
+  type MessageListItem,
   MessageListSchema,
   PIPELINE_REEVALUATE_JOB,
   PipelineReevaluatePayloadSchema,
@@ -186,6 +187,9 @@ const list = async (client: TestClient, query = "") => {
   return MessageListSchema.parse(await res.json());
 };
 
+/** Whether the row shows a score that is out of date: false for a current one, null for none. */
+const staleScore = (m: MessageListItem) => (m.fit?.score != null ? m.fit.stale : null);
+
 describe("the rules list", () => {
   it("lists each rule with its plain words and source, for viewers too", async () => {
     const rule = await addRule("Hide roles whose hours are outside UTC−1 to UTC+3");
@@ -273,7 +277,7 @@ describe("switching a rule on or off, and removing it (F3.5)", () => {
     expect(stale.every((e) => e.stale)).toBe(true);
     const during = [...(await list(viewer)).items, ...(await list(viewer, "?hidden=true")).items];
     expect(during).toHaveLength(2);
-    expect(during.every((m) => m.fit?.stale === true)).toBe(true);
+    expect(during.every((m) => staleScore(m) === true)).toBe(true);
 
     deps.clock.advance(5_000);
     await drain();
@@ -288,7 +292,7 @@ describe("switching a rule on or off, and removing it (F3.5)", () => {
     }
     const shown = await list(viewer);
     expect(shown.items.map((m) => m.id)).toEqual(ids);
-    expect(shown.items.every((m) => m.fit?.stale === false && m.hidden === null)).toBe(true);
+    expect(shown.items.every((m) => staleScore(m) === false && m.hidden === null)).toBe(true);
     expect((await list(viewer, "?hidden=true")).items).toEqual([]);
     expect(ai.calls).toEqual(aiCalls);
     expect(mailbox.calls).toEqual(mailCalls);
@@ -338,7 +342,7 @@ describe("switching a rule on or off, and removing it (F3.5)", () => {
       expect(stale.every((e) => e.stale)).toBe(true);
       const during = [...(await list(viewer)).items, ...(await list(viewer, "?hidden=true")).items];
       expect(during).toHaveLength(100);
-      expect(during.every((m) => m.fit?.stale === true)).toBe(true);
+      expect(during.every((m) => staleScore(m) === true)).toBe(true);
 
       deps.clock.advance(5_000);
       started = Date.now();
@@ -361,7 +365,7 @@ describe("switching a rule on or off, and removing it (F3.5)", () => {
 
       const shown = await list(viewer);
       expect(shown.items).toHaveLength(100);
-      expect(shown.items.every((m) => m.fit?.stale === false && m.hidden === null)).toBe(true);
+      expect(shown.items.every((m) => staleScore(m) === false && m.hidden === null)).toBe(true);
       expect((await list(viewer, "?hidden=true")).items).toEqual([]);
     },
     5 * MINUTE,
