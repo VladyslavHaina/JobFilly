@@ -8,7 +8,7 @@ import {
   AiTestOutputSchema,
   type AssistantAnswer,
   AssistantAnswerSchema,
-  AssistantOutputSchema,
+  AssistantRequestSchema,
   type AssistantTaskInput,
   type BatchItemResult,
   type BatchResult,
@@ -324,7 +324,7 @@ export function clientFromModels(modelFor: ModelFor, options: AiClientOptions = 
         AssistantAnswerSchema,
         opts?.maxCalls ?? 2,
         undefined,
-        AssistantOutputSchema,
+        AssistantRequestSchema,
       ),
   };
 }

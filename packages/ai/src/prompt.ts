@@ -28,7 +28,7 @@ const INSTRUCTIONS: Record<MailTaskId, string> = {
   "classify.v1":
     "Sort each email by what it is for a person looking for a job. Answer with one category per item, naming each item by its Message-ID.",
   "extract.v1":
-    "List every job role the email describes with its facts. Use null for anything the email does not state; never guess.",
+    "List every job role the email describes with its facts. For anything the email does not state, use null, or an empty string where the schema allows no null; never guess.",
   "prefs.v1":
     "These are emails the user wrote. For each, list the job-search preferences the user states in it; leave out anything not stated.",
   "intake.v1":

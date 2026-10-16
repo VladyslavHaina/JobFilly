@@ -278,8 +278,17 @@ describe("single tasks", () => {
     applyUrl: null,
     extra: {},
   };
-  /** The same facts as the model writes them: `extra` as a list of {key, value}. */
-  const answered = { ...facts, extra: [{ key: "start", value: "November" }] };
+  /** The same facts as the model writes them: unstated text as "", `extra` as a list. */
+  const answered = {
+    ...facts,
+    company: "",
+    remoteScope: "",
+    contract: "",
+    seniority: "",
+    workPermit: "",
+    applyUrl: "",
+    extra: [{ key: "start", value: "November" }],
+  };
 
   it("retries an invalid extraction once and reports it without the model's output", async () => {
     const { client, prompts, events } = clientWith([
