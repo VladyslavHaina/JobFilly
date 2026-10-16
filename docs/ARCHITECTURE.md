@@ -94,7 +94,8 @@ Rules:
   `jobs.dedupe_key`, `messages.language` (the body's language as the sender stage detected it)
   and `messages.sync_analysis_failures` (how many syncs failed to have the model sort the
   message). The migration also gives saved AI settings a model for each new task, from their
-  extract model.
+  extract model. Migration `0002_cv_preferred` adds `cvs.preferred`, the user's flag for the CV
+  to use when nothing else in a role tells the CVs apart.
 - A reference from one workspace-owned row to another includes `workspace_id`: `cvs`,
   `profiles` and `assistant_threads` have a unique `(workspace_id, id)`, and every foreign key to
   them is composite, as those to `messages` and `roles` are. The database itself refuses a link,
