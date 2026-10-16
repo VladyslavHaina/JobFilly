@@ -28,6 +28,7 @@ import {
   ENVELOPE_SOURCE_BYTES,
   envelopeFromSource,
   fallbackEnvelope,
+  MESSAGE_SOURCE_BYTES,
   originalFromSource,
   type SourceInfo,
 } from "./parse";
@@ -374,7 +375,7 @@ export function mailClientWith(
         const { uidValidity } = await s.open(ref.folderPath);
         // The folder was rebuilt: its UIDs now name other messages, or none.
         if (uidValidity !== ref.uidValidity) return null;
-        for await (const message of s.fetch([ref.uid], {})) {
+        for await (const message of s.fetch([ref.uid], { maxBytes: MESSAGE_SOURCE_BYTES })) {
           if (message.uid === ref.uid) return { text: await bodyText(message.source) };
         }
         return null;
@@ -404,7 +405,7 @@ export function mailClientWith(
       available(async (s) => {
         const { uidValidity } = await s.open(ref.folderPath);
         if (uidValidity !== ref.uidValidity) return null;
-        for await (const message of s.fetch([ref.uid], {})) {
+        for await (const message of s.fetch([ref.uid], { maxBytes: MESSAGE_SOURCE_BYTES })) {
           if (message.uid !== ref.uid) continue;
           const info: SourceInfo = {
             folder: "inbox",
@@ -450,7 +451,7 @@ export function mailClientWith(
             ? [ref.uid]
             : await findByMessageId(s, ref.path, uidValidity, ref.draftMessageId);
         if (uid === undefined) return null;
-        for await (const message of s.fetch([uid], {})) {
+        for await (const message of s.fetch([uid], { maxBytes: MESSAGE_SOURCE_BYTES })) {
           if (message.uid === uid) return attachmentFromSource(message.source);
         }
         return null;

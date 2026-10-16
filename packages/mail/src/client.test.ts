@@ -2,6 +2,7 @@ import { EnvelopeSchema, type MailConnection } from "@jobfilly/schema";
 import { describe, expect, it } from "vitest";
 import { mailClientWith } from "./client";
 import { type FakeMailbox, fakeServer } from "./fake-session";
+import { MESSAGE_SOURCE_BYTES } from "./parse";
 import { MAIL_PRESETS } from "./presets";
 
 // The mail client against a hand-written double of the IMAP session: no mailbox is reached.
@@ -300,7 +301,8 @@ describe("fetchBody", () => {
     });
     expect(body?.text).toMatch(/^Hi Maria,\n\nI'm hiring/);
     expect(body?.text).toContain("BODYSENTINEL-1");
-    expect(server.calls).toContain("fetch 1");
+    // Bounded, so one huge message can't exhaust the memory.
+    expect(server.calls).toContain(`fetch 1 max ${MESSAGE_SOURCE_BYTES}`);
   });
 
   it("returns sanitised text derived from an HTML-only message", async () => {

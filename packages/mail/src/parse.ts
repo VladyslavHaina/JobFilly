@@ -22,6 +22,14 @@ const PARSE_OPTIONS = { skipImageLinks: true, skipTextToHtml: true, skipTextLink
 /** Only the start of each message is read for its envelope: the headers and the snippet. */
 export const ENVELOPE_SOURCE_BYTES = 64 * 1024;
 
+/**
+ * At most this much of a message is read for its text, the original a draft quotes, or a draft's
+ * CV (at most 5 MiB, so about 7 MiB in base64), so one huge message can't exhaust the memory. A
+ * longer one is cut there: its text comes first in the MIME, and its tail (big attachments) is
+ * never needed.
+ */
+export const MESSAGE_SOURCE_BYTES = 16 * 1024 * 1024;
+
 /** SHA-256 of the parts, each ended by NUL, as the 32 hex digits a synthetic Message-ID takes. */
 function digest(parts: readonly (string | Uint8Array)[]): string {
   const hash = createHash("sha256");

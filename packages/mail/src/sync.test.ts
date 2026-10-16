@@ -6,6 +6,7 @@ import {
 import { describe, expect, it } from "vitest";
 import { MailUnavailableError, mailClientWith } from "./client";
 import { type FakeMailbox, fakeServer } from "./fake-session";
+import { MESSAGE_SOURCE_BYTES } from "./parse";
 
 // Continuous sync's reads (F1.1, F1.3) and the original a draft replies to (F6.3), against the
 // hand-written double of the IMAP session: no mailbox is reached.
@@ -384,8 +385,8 @@ describe("fetchOriginal (F6.3)", () => {
       date: "2026-10-12T08:04:00.000Z",
       text: "Hi Maria,\n\nrole 4 is a backend role in Berlin.\nBODYSENTINEL-4",
     });
-    // The whole message is read, not just its start.
-    expect(server.calls).toContain("fetch 4");
+    // The whole message is read, not just its start, up to the cap for a huge one.
+    expect(server.calls).toContain(`fetch 4 max ${MESSAGE_SOURCE_BYTES}`);
   });
 
   it("reads the original when the server sends an INTERNALDATE that isn't a date", async () => {
