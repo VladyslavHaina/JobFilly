@@ -67,8 +67,9 @@ export interface MailClient {
   fetchBody(ref: MessageRef): Promise<{ text: string } | null>;
   /**
    * Continuous sync (F1): the envelopes of one folder after `afterUid` under `uidValidity` (null
-   * before the first sync), in UID order, each with its arrival time (`receivedAt`). When the folder's UIDVALIDITY changed, every message
-   * comes back with `changed` set (FetchSinceResult). Reads only; never changes a flag.
+   * before the first sync), in UID order, each with its arrival time (`receivedAt`). When the
+   * folder's UIDVALIDITY changed, every message comes back with `changed` set
+   * (FetchSinceResult). Reads only; never changes a flag.
    */
   fetchSince(query: {
     folder: MailFolder;
@@ -84,11 +85,17 @@ export interface MailClient {
   ensureDraftsFolder(): Promise<{ path: string }>;
   /**
    * Saves a reply to the Drafts folder with the \Draft flag (F6.3): threaded to the original
-   * (In-Reply-To, References), quoting it, with the attachment if any. Throws
-   * MailUnavailableError when the server can't be reached or refuses the append.
+   * (In-Reply-To, References), quoting it, with the attachment if any. The copy's Message-ID is
+   * `input.draftMessageId` when the caller chose one, else a new one on the mailbox's domain; the
+   * ref returned carries it. A retry of draft.create relies on it to find the copy an earlier
+   * attempt left. Throws MailUnavailableError when the server can't be reached or refuses the
+   * append.
    */
   saveDraft(input: DraftMailInput): Promise<DraftRef>;
-  /** Replaces a saved draft so exactly one copy remains (F6.4): the new one's ref. */
+  /**
+   * Replaces a saved draft so exactly one copy remains (F6.4): the new one's ref, with its
+   * Message-ID chosen as for saveDraft.
+   */
   replaceDraft(ref: DraftRef, input: DraftMailInput): Promise<DraftRef>;
   /**
    * Deletes a saved draft (discard, F6.4), found by its Message-ID when the Drafts folder's
@@ -132,9 +139,15 @@ function locateDrafts(folders: ImapFolder[]): string | null {
   );
 }
 
-/** A new draft's Message-ID, on the mailbox's own domain. */
+const ADDRESS_DOMAIN = /^[^\s@<>]+@([^\s@<>]+\.[^\s@<>]+)$/;
+
+/**
+ * A new draft's Message-ID, on the mailbox's own domain. An address without one gets a domain
+ * under the reserved .invalid that no synthetic Message-ID uses (isSyntheticMessageId), so the
+ * draft's own id is never taken for a made-up one.
+ */
 function draftMessageId(from: Address): string {
-  const domain = from.address.split("@").at(-1) || "jobfilly.invalid";
+  const domain = ADDRESS_DOMAIN.exec(from.address.trim())?.[1] ?? "drafts.jobfilly.invalid";
   return `<${randomUUID()}@${domain}>`;
 }
 
@@ -250,7 +263,7 @@ export function mailClientWith(
   async function append(s: ImapSession, input: DraftMailInput): Promise<DraftRef> {
     const path = await draftsFolder(s);
     const date = new Date();
-    const messageId = draftMessageId(from);
+    const messageId = input.draftMessageId ?? draftMessageId(from);
     const mime = await buildDraftMime({ ...input, from, messageId, date });
     const appended = await s.append(path, mime, ["\\Draft"], date);
     // The server was reached but didn't take the draft: retried as when it can't be reached.

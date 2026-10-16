@@ -1,6 +1,11 @@
 import net from "node:net";
 import tls from "node:tls";
-import type { DraftMailInput, MailConnection, OriginalMessage } from "@jobfilly/schema";
+import {
+  type DraftMailInput,
+  isSyntheticMessageId,
+  type MailConnection,
+  type OriginalMessage,
+} from "@jobfilly/schema";
 import { simpleParser } from "mailparser";
 import nodemailer from "nodemailer";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -198,6 +203,40 @@ describe("saveDraft (F6.3)", () => {
     const [saved] = box.contents["[Gmail]/Entwürfe"]?.messages ?? [];
     const mail = await parse(saved?.source ?? "");
     expect(mail.from?.value).toEqual([{ address: "maria.santos@inbox.example", name: "" }]);
+  });
+
+  it("keeps the Message-ID the caller chose, so a retry can find the copy it left", async () => {
+    const box = mailbox({ noUidPlus: true });
+    const client = mailClientWith(conn, secure, fakeServer(box).factory);
+    const chosen = "<4f1c2b9e-0d1a-4c55-9a77-2f3e8b6c1d00@inbox.example>";
+    const ref = await client.saveDraft(input({ draftMessageId: chosen }));
+    // Found by that Message-ID too, on a server that doesn't tell the UID.
+    expect(ref).toEqual({
+      path: "[Gmail]/Entwürfe",
+      uid: 1,
+      uidValidity: 30,
+      draftMessageId: chosen,
+    });
+    const [saved] = box.contents["[Gmail]/Entwürfe"]?.messages ?? [];
+    expect((await parse(saved?.source ?? "")).messageId).toBe(chosen);
+
+    const next = "<0b8e5f3a-7c21-4d0e-b1f4-6a9d2c3e4f55@inbox.example>";
+    const replaced = await client.replaceDraft(ref, input({ draftMessageId: next }));
+    expect(replaced.draftMessageId).toBe(next);
+    const copies = box.contents["[Gmail]/Entwürfe"]?.messages ?? [];
+    expect(await Promise.all(copies.map(async (m) => (await parse(m.source)).messageId))).toEqual([
+      next,
+    ]);
+  });
+
+  it("makes up a Message-ID no one could take for a synthetic one when the address has no domain", async () => {
+    for (const address of ["maria", "maria@localhost", ""]) {
+      const box = mailbox();
+      const client = mailClientWith(conn, { ...secure, address }, fakeServer(box).factory);
+      const ref = await client.saveDraft(input());
+      expect(ref.draftMessageId).toMatch(/^<[0-9a-f-]{36}@drafts\.jobfilly\.invalid>$/);
+      expect(isSyntheticMessageId(ref.draftMessageId)).toBe(false);
+    }
   });
 
   it("finds the UID by the draft's Message-ID when the server has no UIDPLUS", async () => {

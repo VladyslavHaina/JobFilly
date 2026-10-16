@@ -1,4 +1,9 @@
-import type { Address, DraftMailInput, OriginalMessage } from "@jobfilly/schema";
+import {
+  type Address,
+  type DraftMailInput,
+  isSyntheticMessageId,
+  type OriginalMessage,
+} from "@jobfilly/schema";
 import MailComposer from "nodemailer/lib/mail-composer";
 
 // Building a draft's MIME message (F6.3) with nodemailer's MailComposer, which only composes:
@@ -15,12 +20,11 @@ export interface DraftMimeInput extends DraftMailInput {
   date: Date;
 }
 
-/** A Message-ID packages/mail made up for a message without one: nothing to thread to. */
-const isSynthetic = (messageId: string) => messageId.endsWith("@jobfilly.invalid>");
-
 /** The original's References plus its own Message-ID, each once, in order (RFC 5322 3.6.4). */
 export function threadReferences(original: OriginalMessage): string[] {
-  const ids = [...original.references, original.messageId].filter((id) => !isSynthetic(id));
+  const ids = [...original.references, original.messageId].filter(
+    (id) => !isSyntheticMessageId(id),
+  );
   return [...new Set(ids)];
 }
 
@@ -60,7 +64,7 @@ function replySubject(subject: string, original: OriginalMessage): string {
 /** The draft as an RFC 5322 message with CRLF line ends, ready to append to the Drafts folder. */
 export async function buildDraftMime(input: DraftMimeInput): Promise<Buffer> {
   const { original } = input;
-  const thread = isSynthetic(original.messageId) ? null : original.messageId;
+  const thread = isSyntheticMessageId(original.messageId) ? null : original.messageId;
   const address = (a: Address) => ({ address: a.address, name: a.name ?? "" });
   const composer = new MailComposer({
     from: address(input.from),
