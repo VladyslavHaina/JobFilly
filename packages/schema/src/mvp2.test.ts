@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  AppliedSenderMarkSchema,
   AssistantOutputSchema,
   ChangeSchema,
   CORE_PROFILE_KEYS,
   ConditionSchema,
   CvChoiceOverrideSchema,
   CvSchema,
+  CvUpdateSchema,
   DecisionAnswerSchema,
   DraftCreatePayloadSchema,
   DraftOutputSchema,
@@ -13,6 +15,7 @@ import {
   groupKeyFor,
   isListProfileKey,
   jobDedupeKey,
+  LanguageWordsFileSchema,
   LIST_PROFILE_KEYS,
   LIVE_EVENT_TYPES,
   LiveEventSchema,
@@ -22,12 +25,15 @@ import {
   MessageDetailSchema,
   MessageListItemSchema,
   MessageListQuerySchema,
+  MxLookupResultSchema,
   NEVER_SYNCED,
   POLICY_DEFAULTS,
   ProfileEntrySchema,
   ProfilePatchSchema,
   parseGroupKey,
   profileItemSchema,
+  RdapDomainAnswerSchema,
+  RdapLookupResultSchema,
   RoleEvaluationSchema,
   RuleSchema,
   SenderCheckSchema,
@@ -222,6 +228,41 @@ describe("evaluations, senders, drafts and decisions", () => {
     );
   });
 
+  it("reads an RDAP answer's events and keeps what the lookup cache stores in shape", () => {
+    const answer = {
+      objectClassName: "domain",
+      ldhName: "quickhire.example",
+      events: [{ eventAction: "registration", eventDate: "2026-10-03T08:00:00Z", extra: 1 }],
+    };
+    expect(RdapDomainAnswerSchema.parse(answer)).toEqual(answer);
+    expect(RdapDomainAnswerSchema.safeParse({ ldhName: "x.example" }).success).toBe(true);
+    expect(RdapDomainAnswerSchema.safeParse({ events: { eventAction: "x" } }).success).toBe(false);
+    expect(RdapDomainAnswerSchema.safeParse({ events: [{ eventAction: 1 }] }).success).toBe(false);
+    expect(RdapLookupResultSchema.safeParse({ registeredAt: null }).success).toBe(true);
+    expect(RdapLookupResultSchema.safeParse({ registeredAt: "yesterday" }).success).toBe(false);
+    expect(MxLookupResultSchema.safeParse(["mx.example"]).success).toBe(true);
+    expect(MxLookupResultSchema.safeParse({ hosts: [] }).success).toBe(false);
+  });
+
+  it("checks the language word lists: version 1, ISO 639-1 keys, lower-case words", () => {
+    const lists = { common: ["the", "and"], negations: ["never", "don't"] };
+    const file = { version: 1, languages: { en: lists } };
+    expect(LanguageWordsFileSchema.parse(file)).toEqual(file);
+    expect(LanguageWordsFileSchema.safeParse({ ...file, version: 2 }).success).toBe(false);
+    expect(
+      LanguageWordsFileSchema.safeParse({ version: 1, languages: { eng: lists } }).success,
+    ).toBe(false);
+    expect(
+      LanguageWordsFileSchema.safeParse({ version: 1, languages: { EN: lists } }).success,
+    ).toBe(false);
+    const upper = { version: 1, languages: { en: { ...lists, common: ["The"] } } };
+    expect(LanguageWordsFileSchema.safeParse(upper).success).toBe(false);
+    const empty = { version: 1, languages: { en: { ...lists, negations: [""] } } };
+    expect(LanguageWordsFileSchema.safeParse(empty).success).toBe(false);
+    const missing = { version: 1, languages: { en: { common: ["the"] } } };
+    expect(LanguageWordsFileSchema.safeParse(missing).success).toBe(false);
+  });
+
   it("describes a sender check, a mark and a draft", () => {
     expect(
       SenderCheckSchema.safeParse({
@@ -234,6 +275,12 @@ describe("evaluations, senders, drafts and decisions", () => {
     expect(
       SenderMarkInputSchema.parse({ scope: "address", value: " Ann@X.Example ", mark: "trusted" }),
     ).toEqual({ scope: "address", value: "ann@x.example", mark: "trusted" });
+    const domainMark = { scope: "domain", value: "x.example", mark: "blocked" };
+    expect(AppliedSenderMarkSchema.parse({ applied: domainMark })).toEqual({ applied: domainMark });
+    expect(AppliedSenderMarkSchema.safeParse({ applied: null }).success).toBe(true);
+    expect(
+      AppliedSenderMarkSchema.safeParse({ applied: { ...domainMark, scope: "company" } }).success,
+    ).toBe(false);
     const draft = {
       id,
       messageId: "<a@x>",
@@ -294,6 +341,18 @@ describe("evaluations, senders, drafts and decisions", () => {
     expect(CvSchema.safeParse(cv).success).toBe(false);
     expect(CvSchema.safeParse({ ...cv, sizeBytes: 1000 }).success).toBe(true);
     expect(CvChoiceOverrideSchema.safeParse({ cvId: null }).success).toBe(true);
+  });
+
+  it("edits a CV's tags, skills and format hints, each on its own (F2.1)", () => {
+    expect(CvUpdateSchema.safeParse({ skills: ["Go", " Kafka "] }).data).toEqual({
+      skills: ["Go", "Kafka"],
+    });
+    expect(CvUpdateSchema.safeParse({ formatHints: [] }).success).toBe(true);
+    expect(
+      CvUpdateSchema.safeParse({ tags: [{ label: "preferred", source: "you" }] }).success,
+    ).toBe(true);
+    expect(CvUpdateSchema.safeParse({}).success).toBe(false);
+    expect(CvUpdateSchema.safeParse({ skills: ["  "] }).success).toBe(false);
   });
 });
 

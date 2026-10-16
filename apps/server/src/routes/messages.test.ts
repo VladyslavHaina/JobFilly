@@ -586,7 +586,9 @@ describe("the inbox of MVP 2 (F3.4, F2.3)", () => {
         (await editor.put(`${path(ws.workspaceId, id(2))}/roles/${bad}/cv`, { cvId: null })).status,
       ).toBe(404);
     }
-    // cvs-senders writes the choice itself (cvs/override.ts).
-    expect((await editor.put(cvPath, { cvId: null })).status).toBe(501);
+    // The choice itself (cvs/override.ts) is tested in routes/cvs.test.ts; null goes back to auto.
+    const back = await editor.put(cvPath, { cvId: null });
+    expect(back.status).toBe(200);
+    expect(await back.json()).toBeNull();
   });
 });

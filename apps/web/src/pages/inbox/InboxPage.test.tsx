@@ -8,7 +8,7 @@ import {
   type MessageListItem,
   type ScanProgress,
 } from "@jobfilly/schema";
-import { cleanup, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, configure, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
@@ -23,6 +23,8 @@ import { queryKeys } from "../../hooks";
 import { paths } from "../../paths";
 
 // The job inbox inside the app's own routes, against a fake API (F5.1, F5.2, F5.4, F5.5).
+// The whole app renders before the list does, so waits get more than the default on a busy machine.
+configure({ asyncUtilTimeout: 4000 });
 
 afterEach(() => {
   cleanup();
@@ -308,6 +310,23 @@ describe("the list (F5.1)", () => {
     expect(listRequests(requests).at(-1)?.search.get("showNonJob")).toBe("true");
     await user.click(screen.getByRole("button", { name: "Hide" }));
     await waitFor(() => expect(screen.queryByText("Weekly deals")).toBeNull());
+  });
+
+  it("says 'Not checked yet' only on job mail, whose sender is checked once analyzed (F5.1)", async () => {
+    const { ws } = inboxApi();
+    renderApp(paths.inbox(ws.id));
+    await userEvent.setup().click(await screen.findByRole("button", { name: "Show" }));
+    const list = await messageList();
+    const rowOf = async (subject: string) =>
+      (await within(list).findByText(subject)).closest("a") as HTMLElement;
+    const notChecked = { name: "Sender check: Not checked yet" };
+    // Job mail without a stored check: done (recruiter) and still pending (alert).
+    for (const subject of ["Senior Backend Engineer in Berlin", "3 new jobs for you"]) {
+      expect(within(await rowOf(subject)).getByRole("img", notChecked)).toBeTruthy();
+    }
+    // Never checked: non-job mail, and mail the model failed on. No badge, no promise.
+    expect(within(await rowOf("Weekly deals")).queryByRole("img", notChecked)).toBeNull();
+    expect(within(await rowOf("Quick question")).queryByRole("img", notChecked)).toBeNull();
   });
 
   it("filters by category with the chips (F5.5)", async () => {
@@ -602,6 +621,20 @@ describe("the detail (F5.2)", () => {
     const card = heading.closest("section") as HTMLElement;
     expect(within(card).getByText(/an editor or admin can set its category/)).toBeTruthy();
     expect(within(card).queryByRole("button", { name: "Set the category" })).toBeNull();
+  });
+
+  it("promises a sender check for job mail only (F5.1)", async () => {
+    const { ws } = inboxApi({ role: "viewer" });
+    const promise = /Not checked yet|checked when the email is analyzed/;
+    const senderCheck = () => screen.findByRole("region", { name: "Sender check" });
+    const { unmount } = renderApp(paths.message(ws.id, RECRUITER.id));
+    expect((await senderCheck()).textContent).toMatch(promise);
+    unmount();
+    renderApp(paths.message(ws.id, NEWSLETTER.id));
+    await screen.findByRole("heading", { name: "Weekly deals" });
+    const panel = await senderCheck();
+    expect(panel.textContent).toContain("Sender checks are for job mail only.");
+    expect(panel.textContent).not.toMatch(promise);
   });
 });
 

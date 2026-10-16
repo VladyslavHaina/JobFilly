@@ -13,6 +13,7 @@ import { and, asc, eq, inArray, isNotNull, ne, or, type SQL, sql } from "drizzle
 import { type Database, queryRows } from "../client";
 import { messages, profiles, roleEvaluations, roles, senderChecks } from "../tables";
 import { type DraftHistory, draftHistory, listDraftsToRetry, roleKey } from "./draft-claims";
+import { fromDomain } from "./sender-domain";
 import { roleHeldSql, senderHeldSql } from "./stage-failures";
 
 // The pipeline's view of the job mail (ARCHITECTURE › Background work, "The analysis pipeline").
@@ -95,9 +96,6 @@ export async function saveSenderCheck(
     .values({ workspaceId, messageId, ...set })
     .onConflictDoUpdate({ target: [senderChecks.workspaceId, senderChecks.messageId], set });
 }
-
-/** The lower-case domain of the message's From address, in SQL. */
-const fromDomain = sql`lower(split_part(${messages.fromAddress}, '@', 2))`;
 
 function messagesOfScope(workspaceId: string, scope: StaleScope): SQL | undefined {
   if ("senderAddress" in scope) {

@@ -150,7 +150,7 @@ function MessageRow(props: { workspaceId: string; message: MessageListItem; open
           {m.category && <CategoryChip category={m.category} />}
           {m.analysisStatus === "failed" && <CouldNotAnalyze />}
           <FitScore fit={m.fit} />
-          <SenderBadge sender={m.sender} />
+          <SenderBadge sender={m.sender} category={m.category} analysisStatus={m.analysisStatus} />
           <HiddenReason hidden={m.hidden} />
         </span>
         {m.analysisStatus === "failed" && <CouldNotAnalyzeReason canEdit={can.edit} />}

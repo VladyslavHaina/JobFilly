@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { IsoDateTimeSchema } from "./common";
 
 // The sender check (F5): a verdict with its reasons, worded as an estimate. A lookup that failed
 // leaves the check incomplete, never "looks fine" (F5.3); an editor's mark is named in it (F5.4).
@@ -47,15 +48,82 @@ export const SenderCheckSchema = z.object({
 export type SenderCheck = z.infer<typeof SenderCheckSchema>;
 
 /**
- * PUT /senders/marks: mark an address or a whole domain trusted or blocked, or clear the mark
- * (null). Kept across syncs; the affected senders' checks are re-done.
+ * The signal of a check whose domain lookup (RDAP or DNS) failed. Such a check is incomplete; it
+ * is checked again once the failure has left the lookup cache (apps/server senders/retry).
  */
-export const SenderMarkInputSchema = z.object({
-  scope: z.enum(["address", "domain"]),
-  value: z.string().trim().toLowerCase().min(1).max(320),
-  mark: SenderMarkSchema.nullable(),
+export const LOOKUP_FAILED_SIGNAL = "lookup_failed";
+
+/**
+ * An RDAP domain answer (RFC 9083) as JOBFILLY_RDAP_URL returns it over HTTP: only its events
+ * are read, for the registration date; everything else in it passes through unread.
+ */
+export const RdapDomainAnswerSchema = z.looseObject({
+  events: z.array(z.looseObject({ eventAction: z.string(), eventDate: z.string() })).optional(),
 });
+export type RdapDomainAnswer = z.infer<typeof RdapDomainAnswerSchema>;
+
+/** A domain's RDAP lookup as the workspace's lookup cache keeps it: its registration date. */
+export const RdapLookupResultSchema = z.object({ registeredAt: IsoDateTimeSchema.nullable() });
+export type RdapLookupResult = z.infer<typeof RdapLookupResultSchema>;
+
+/** A domain's MX lookup as the cache keeps it: the mail servers' host names ([] for none). */
+export const MxLookupResultSchema = z.array(z.string());
+export type MxLookupResult = z.infer<typeof MxLookupResultSchema>;
+
+/** What a mark is on: one address, or every address of a domain. */
+export const SenderMarkScopeSchema = z.enum(["address", "domain"]);
+export type SenderMarkScope = z.infer<typeof SenderMarkScopeSchema>;
+
+/** An address or a domain as a mark keys it: trimmed, lower case. */
+const MarkValueSchema = z.string().trim().toLowerCase().min(1).max(320);
+
+/**
+ * A mark as it applies to a sender: trusted or blocked, on one address or a whole domain, with
+ * the address or domain it is on. The sender check names it (packages/core) and packages/db reads
+ * it back by the sender.
+ */
+export const AppliedMarkSchema = z.object({
+  scope: SenderMarkScopeSchema,
+  value: MarkValueSchema,
+  mark: SenderMarkSchema,
+});
+export type AppliedMark = z.infer<typeof AppliedMarkSchema>;
+
+/**
+ * PUT /senders/marks: mark an address or a whole domain trusted or blocked, or clear the mark
+ * (null). Kept across syncs; the affected senders' checks are re-done. Clearing a mark that
+ * isn't there is a 404, so a clear never looks done while another mark still applies. An address
+ * has an '@' with a dotted domain after it; a domain has no '@' and a dot.
+ */
+export const SenderMarkInputSchema = z
+  .object({
+    scope: SenderMarkScopeSchema,
+    value: MarkValueSchema,
+    mark: SenderMarkSchema.nullable(),
+  })
+  .superRefine(({ scope, value }, ctx) => {
+    const at = value.lastIndexOf("@");
+    if (scope === "address" && !(at > 0 && value.slice(at + 1).includes("."))) {
+      ctx.addIssue({ code: "custom", path: ["value"], message: "Give an email address" });
+    }
+    if (scope === "domain" && !(at < 0 && value.includes("."))) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["value"],
+        message: "Give a domain such as example.com",
+      });
+    }
+  });
 export type SenderMarkInput = z.infer<typeof SenderMarkInputSchema>;
+
+/**
+ * The answer of GET /senders/messages/:messageId/mark: the mark that applies to that message's
+ * sender now (its address's own, or else its whole domain's) with what it is on, or null. Keyed by
+ * the message, so no address is ever in a URL. A check names the mark it was made with; this
+ * is the mark as it stands, so the UI clears the one that applies (F5.4).
+ */
+export const AppliedSenderMarkSchema = z.object({ applied: AppliedMarkSchema.nullable() });
+export type AppliedSenderMark = z.infer<typeof AppliedSenderMarkSchema>;
 
 /** A lowercase hostname, as the sender data files list them. */
 const HostnameSchema = z
@@ -95,3 +163,24 @@ export const MessageSignalsFileSchema = z.object({
   ),
 });
 export type MessageSignalsFile = z.infer<typeof MessageSignalsFileSchema>;
+
+/** A lower-case word, as the language word lists hold them. */
+const LowerCaseWordSchema = z
+  .string()
+  .min(1)
+  .refine((w) => w === w.toLowerCase(), "a lower-case word");
+
+/**
+ * packages/core/src/sender/data/language-words.json: per language (ISO 639-1), common function
+ * words (to tell a message's language) and negations (so "never pay a fee" in a job board's
+ * footer isn't read as asking for one), lower case. Data, not code: a language is added without
+ * a code change.
+ */
+export const LanguageWordsFileSchema = z.object({
+  version: z.literal(1),
+  languages: z.record(
+    z.string().regex(/^[a-z]{2}$/, "an ISO 639-1 code"),
+    z.object({ common: z.array(LowerCaseWordSchema), negations: z.array(LowerCaseWordSchema) }),
+  ),
+});
+export type LanguageWordsFile = z.infer<typeof LanguageWordsFileSchema>;
