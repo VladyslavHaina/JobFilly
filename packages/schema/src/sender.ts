@@ -110,3 +110,24 @@ export const MessageSignalsFileSchema = z.object({
   ),
 });
 export type MessageSignalsFile = z.infer<typeof MessageSignalsFileSchema>;
+
+/** A lower-case word, as the language word lists hold them. */
+const LowerCaseWordSchema = z
+  .string()
+  .min(1)
+  .refine((w) => w === w.toLowerCase(), "a lower-case word");
+
+/**
+ * packages/core/src/sender/data/language-words.json: per language (ISO 639-1), common function
+ * words (to tell a message's language) and negations (so "never pay a fee" in a job board's
+ * footer isn't read as asking for one), lower case. Data, not code: a language is added without
+ * a code change.
+ */
+export const LanguageWordsFileSchema = z.object({
+  version: z.literal(1),
+  languages: z.record(
+    z.string().regex(/^[a-z]{2}$/, "an ISO 639-1 code"),
+    z.object({ common: z.array(LowerCaseWordSchema), negations: z.array(LowerCaseWordSchema) }),
+  ),
+});
+export type LanguageWordsFile = z.infer<typeof LanguageWordsFileSchema>;

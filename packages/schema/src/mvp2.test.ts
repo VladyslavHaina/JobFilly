@@ -14,6 +14,7 @@ import {
   groupKeyFor,
   isListProfileKey,
   jobDedupeKey,
+  LanguageWordsFileSchema,
   LIST_PROFILE_KEYS,
   LIVE_EVENT_TYPES,
   LiveEventSchema,
@@ -238,6 +239,25 @@ describe("evaluations, senders, drafts and decisions", () => {
     expect(RdapLookupResultSchema.safeParse({ registeredAt: "yesterday" }).success).toBe(false);
     expect(MxLookupResultSchema.safeParse(["mx.example"]).success).toBe(true);
     expect(MxLookupResultSchema.safeParse({ hosts: [] }).success).toBe(false);
+  });
+
+  it("checks the language word lists: version 1, ISO 639-1 keys, lower-case words", () => {
+    const lists = { common: ["the", "and"], negations: ["never", "don't"] };
+    const file = { version: 1, languages: { en: lists } };
+    expect(LanguageWordsFileSchema.parse(file)).toEqual(file);
+    expect(LanguageWordsFileSchema.safeParse({ ...file, version: 2 }).success).toBe(false);
+    expect(
+      LanguageWordsFileSchema.safeParse({ version: 1, languages: { eng: lists } }).success,
+    ).toBe(false);
+    expect(
+      LanguageWordsFileSchema.safeParse({ version: 1, languages: { EN: lists } }).success,
+    ).toBe(false);
+    const upper = { version: 1, languages: { en: { ...lists, common: ["The"] } } };
+    expect(LanguageWordsFileSchema.safeParse(upper).success).toBe(false);
+    const empty = { version: 1, languages: { en: { ...lists, negations: [""] } } };
+    expect(LanguageWordsFileSchema.safeParse(empty).success).toBe(false);
+    const missing = { version: 1, languages: { en: { common: ["the"] } } };
+    expect(LanguageWordsFileSchema.safeParse(missing).success).toBe(false);
   });
 
   it("describes a sender check, a mark and a draft", () => {
