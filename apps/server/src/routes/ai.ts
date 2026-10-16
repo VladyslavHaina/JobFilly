@@ -9,6 +9,7 @@ import {
   type AiSettingsResponse,
   type AiTestResult,
   type AiUsageList,
+  baseUrlHost,
 } from "@jobfilly/schema";
 import { type Context, Hono } from "hono";
 import { requireRole, validJson, type WorkspaceEnv } from "../access";
@@ -43,10 +44,34 @@ function toPublic(s: StoredAiSettings, key: string | null): AiSettingsPublic {
 const sameEndpoint = (a: { provider: string; baseUrl: string | null }, b: AiSettingsInput) =>
   a.provider === b.provider && (a.baseUrl ?? null) === (b.baseUrl ?? null);
 
+/**
+ * True when the WHATWG URL parser reads the base URL's scheme, user part or host differently from
+ * the schema's own check (TBD-79): "https://ex%41mple.com" or "foo://a\\@b/" pass the schema but
+ * would send requests, or a user part, somewhere the privacy line doesn't show. The port is left
+ * out, as the parser drops a default one.
+ */
+function urlsDisagree(baseUrl: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(baseUrl);
+  } catch {
+    return true;
+  }
+  return (
+    !baseUrl.trim().toLowerCase().startsWith(`${url.protocol}//`) ||
+    url.username !== "" ||
+    url.password !== "" ||
+    baseUrlHost(baseUrl).replace(/:\d*$/, "") !== url.hostname
+  );
+}
+
 /** The form's problem in plain words, or null when it can be saved or tested. */
 function problem(input: Parsed, keyKnown: boolean): string | null {
   const info = aiProvider(input.provider);
   if (info.baseUrlRequired && !input.baseUrl) return "Enter the base URL of the endpoint";
+  if (input.baseUrl && urlsDisagree(input.baseUrl)) {
+    return "Retype the base URL as scheme://host/path, with the host written out plainly";
+  }
   if (info.keyRequired && !input.apiKey && !keyKnown) return `Enter the API key for ${info.label}`;
   return null;
 }

@@ -276,6 +276,20 @@ describe("the key (F3.3)", () => {
     expect(deps.rawLogs.join("\n")).not.toContain("E2E-SECRET-in-url");
   });
 
+  it("refuses a base URL the WHATWG URL parser reads differently (TBD-79)", async () => {
+    const message = "Retype the base URL as scheme://host/path, with the host written out plainly";
+    for (const baseUrl of ["foo://a\\@b/v1", "https://ex%41mple.com/v1", "https://0x7f.1/v1"]) {
+      const saved = await admin.put(url, { ...form, baseUrl });
+      expect(saved.status, baseUrl).toBe(400);
+      expect(await saved.json()).toEqual({ error: "invalid", message });
+    }
+    expect(await getAiSettings(deps.db, owner.workspaceId)).toBeNull();
+    // A default port, or upper case, is read the same by both.
+    expect(
+      (await admin.put(url, { ...form, baseUrl: "HTTPS://Proxy.Example:443/v1" })).status,
+    ).toBe(200);
+  });
+
   it("is sealed with AES-256-GCM: never stored in clear, different each time, bound to the key", async () => {
     await admin.put(url, form);
     const first = await getAiSettings(deps.db, owner.workspaceId);
