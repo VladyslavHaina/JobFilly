@@ -13,6 +13,7 @@ import {
   type ExtractAnswer,
   type IntakeAnswer,
   isInvalid,
+  type JobFacts,
   type MatchAnswer,
   matchKey,
   NONE_INTAKE_PATH,
@@ -119,6 +120,26 @@ function withExtraAsList<T extends { extra?: Record<string, string> }>(
   };
 }
 
+/**
+ * A role as a model writes it (JobFactsAnswerSchema in packages/schema): the text facts the mail
+ * doesn't state as "", where the fixtures hold null as the app stores them, and `extra` as a list.
+ */
+function roleAsWritten(role: JobFacts) {
+  const text = (value: string | null) => value ?? "";
+  return withExtraAsList({
+    ...role,
+    title: text(role.title),
+    company: text(role.company),
+    agency: role.agency && { name: text(role.agency.name), client: text(role.agency.client) },
+    places: role.places.map((place) => ({ ...place, city: text(place.city) })),
+    remoteScope: text(role.remoteScope),
+    contract: text(role.contract),
+    seniority: text(role.seniority),
+    workPermit: text(role.workPermit),
+    applyUrl: text(role.applyUrl),
+  });
+}
+
 function lookup<T>(
   store: AnswerStore,
   id: string,
@@ -209,7 +230,7 @@ export function answerFor(store: AnswerStore, prompt: Prompt): Answer {
         ok: true,
         content: {
           messageId: id,
-          roles: a === "invalid" ? INVALID_VALUE : a.roles.map(withExtraAsList),
+          roles: a === "invalid" ? INVALID_VALUE : a.roles.map(roleAsWritten),
         },
       };
     }

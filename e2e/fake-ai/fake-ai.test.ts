@@ -331,9 +331,20 @@ describe.each(PERSONAS)("the fake AI on %s's mailbox", (persona) => {
       if (!truth || !isJobCategory(truth.category)) continue;
       const content = contentOf("extract.v1", [e.messageId]);
       expect(content.messageId).toBe(e.messageId);
-      // A model writes `extra` as a list of { key, value }; the facts hold it as a record.
+      // A model writes `extra` as a list of { key, value }, and the text facts the mail doesn't
+      // state as ""; the facts hold a record and null.
+      const text = (value: string | null) => value ?? "";
       const roles = truth.facts?.map((f) => ({
         ...f,
+        title: text(f.title),
+        company: text(f.company),
+        agency: f.agency && { name: text(f.agency.name), client: text(f.agency.client) },
+        places: f.places.map((p) => ({ ...p, city: text(p.city) })),
+        remoteScope: text(f.remoteScope),
+        contract: text(f.contract),
+        seniority: text(f.seniority),
+        workPermit: text(f.workPermit),
+        applyUrl: text(f.applyUrl),
         extra: Object.entries(f.extra).map(([key, value]) => ({ key, value })),
       }));
       expect(content.roles).toEqual(truth.invalid ? INVALID_VALUE : roles);
