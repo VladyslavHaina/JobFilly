@@ -119,6 +119,19 @@ describe("PUT /senders/marks", () => {
     expect(await findSenderMark(deps.db, ws, RECRUITER)).toBeNull();
   });
 
+  it("answers 404 for a clear that removes nothing, never a quiet success", async () => {
+    await editor.put(marks(), { scope: "domain", value: "tidewater.example", mark: "blocked" });
+    const grace = "grace@tidewater.example";
+    const res = await editor.put(marks(), { scope: "address", value: grace, mark: null });
+    expect(res.status).toBe(404);
+    expect(await findSenderMark(deps.db, ws, grace)).toMatchObject({ mark: "blocked" });
+
+    const cleared = { scope: "domain", value: "tidewater.example", mark: null };
+    expect((await editor.put(marks(), cleared)).status).toBe(200);
+    expect(await findSenderMark(deps.db, ws, grace)).toBeNull();
+    expect((await editor.put(marks(), cleared)).status).toBe(404);
+  });
+
   it("refuses an address without a domain, or a domain given as an address", async () => {
     expect((await editor.put(marks(), {})).status).toBe(400);
     expect(
@@ -152,6 +165,35 @@ describe("PUT /senders/marks", () => {
     await editor.put(marks(), { scope: "domain", value: "tidewater.example", mark: "blocked" });
     expect((await staleness(ids)).at(3)).toEqual(["<c1@tidewater.example>", true, true]);
     expect((await staleness(ids)).at(2)).toEqual(["<b1@gmail.com>", false, false]);
+  });
+});
+
+describe("GET /senders/marks", () => {
+  const applied = async (client: TestClient, address: string) => {
+    const res = await client.get(`${marks()}?address=${encodeURIComponent(address)}`);
+    return { status: res.status, body: res.status === 200 ? await res.json() : null };
+  };
+
+  it("tells the mark that applies to an address: its own first, else its domain's", async () => {
+    const grace = "Grace@Tidewater.example";
+    expect(await applied(editor, grace)).toEqual({ status: 200, body: { applied: null } });
+
+    await editor.put(marks(), { scope: "domain", value: "tidewater.example", mark: "blocked" });
+    const domain = { scope: "domain", value: "tidewater.example", mark: "blocked" };
+    expect(await applied(editor, grace)).toEqual({ status: 200, body: { applied: domain } });
+    // A viewer sees the mark too; only editors change it.
+    expect(await applied(viewer, grace)).toEqual({ status: 200, body: { applied: domain } });
+
+    await editor.put(marks(), { scope: "address", value: grace, mark: "trusted" });
+    expect((await applied(editor, grace)).body).toEqual({
+      applied: { scope: "address", value: "grace@tidewater.example", mark: "trusted" },
+    });
+  });
+
+  it("is for members only and needs an address", async () => {
+    await editor.put(marks(), { scope: "address", value: RECRUITER, mark: "trusted" });
+    expect((await applied(outsider, RECRUITER)).status).toBe(404);
+    expect((await editor.get(marks())).status).toBe(400);
   });
 });
 

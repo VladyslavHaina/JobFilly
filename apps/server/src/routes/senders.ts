@@ -1,7 +1,12 @@
-import { clearSenderMark, setSenderMark } from "@jobfilly/db";
-import { type SenderMarkInput, SenderMarkInputSchema } from "@jobfilly/schema";
+import { clearSenderMark, findSenderMark, setSenderMark } from "@jobfilly/db";
+import {
+  type AppliedSenderMark,
+  type SenderMarkInput,
+  SenderMarkInputSchema,
+  SenderMarkQuerySchema,
+} from "@jobfilly/schema";
 import { Hono } from "hono";
-import { requireRole, validJson, type WorkspaceEnv } from "../access";
+import { requireRole, validJson, validQuery, type WorkspaceEnv } from "../access";
 import type { AppDeps } from "../deps";
 import { requestReevaluation } from "../profile/changes";
 
@@ -9,7 +14,11 @@ import { requestReevaluation } from "../profile/changes";
 // the mark (null). Marks are keyed by the sender, so they survive syncs and re-evaluations, and
 // the check names them. Changing one re-does that sender's checks and evaluations (a sender
 // scope), so a newly blocked sender loses its automatic drafts and a trusted one is no longer held
-// back by its verdict. Mounted once at /api/workspaces/:workspaceId/senders.
+// back by its verdict. GET tells the mark that applies to an address now, its own or its domain's,
+// so the UI clears that one; clearing a mark that isn't there is a 404, never a quiet success.
+// Mounted once at /api/workspaces/:workspaceId/senders.
+
+const NO_MARK = { error: "not_found", message: "There is no such mark to clear" } as const;
 
 /** An address has an @, a domain doesn't; both have a dot after it. */
 function validTarget(input: SenderMarkInput): boolean {
@@ -19,11 +28,16 @@ function validTarget(input: SenderMarkInput): boolean {
 }
 
 export function sendersRoutes(deps: AppDeps) {
-  return new Hono<WorkspaceEnv>().put(
-    "/marks",
-    requireRole("editor"),
-    validJson(SenderMarkInputSchema),
-    async (c) => {
+  return new Hono<WorkspaceEnv>()
+    .get("/marks", requireRole("viewer"), validQuery(SenderMarkQuerySchema), async (c) => {
+      const applied = await findSenderMark(
+        deps.db,
+        c.get("workspaceId"),
+        c.req.valid("query").address,
+      );
+      return c.json({ applied } satisfies AppliedSenderMark);
+    })
+    .put("/marks", requireRole("editor"), validJson(SenderMarkInputSchema), async (c) => {
       const workspaceId = c.get("workspaceId");
       const input = c.req.valid("json");
       if (!validTarget(input)) {
@@ -32,7 +46,7 @@ export function sendersRoutes(deps: AppDeps) {
         return c.json({ error: "invalid", message }, 400);
       }
       if (input.mark === null) {
-        await clearSenderMark(deps.db, workspaceId, input);
+        if (!(await clearSenderMark(deps.db, workspaceId, input))) return c.json(NO_MARK, 404);
       } else {
         await setSenderMark(deps.db, workspaceId, {
           scope: input.scope,
@@ -49,6 +63,5 @@ export function sendersRoutes(deps: AppDeps) {
         "sender.marked",
       );
       return c.json(input satisfies SenderMarkInput);
-    },
-  );
+    });
 }
