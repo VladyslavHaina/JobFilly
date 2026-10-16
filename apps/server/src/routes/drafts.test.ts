@@ -96,6 +96,71 @@ describe("editing and discarding (F6.4)", () => {
     expect(h.mailbox.drafts().map((d) => d.reply.body)).toEqual(["Second"]);
   });
 
+  it("keeps the CV attached through edits after the CV is deleted, and says so (F2.5)", async () => {
+    const cv = await h.cv("Backend (DE)", "de");
+    await h.deliver(BERLIN, { roles: [{ cvId: cv.id }] });
+    h.ai.answers.draft[key(BERLIN)] = draftAnswer({ attachCv: true });
+    await h.evaluate(BERLIN);
+    await h.drain();
+    const draft = await h.live(BERLIN);
+    if (!draft) throw new Error("expected a draft");
+    const file = h.mailbox.drafts()[0]?.attachment;
+    expect(file?.fileName).toBe("Backend (DE).pdf");
+    const one = async () =>
+      DraftSchema.parse(await (await maria.get(`${base}/${draft.id}`)).json());
+    expect(await one()).toMatchObject({ cvId: cv.id, cvAttached: true });
+
+    // The CV is deleted: the draft forgets it, but its copy keeps the file, and so does an edit.
+    expect((await maria.delete(`/api/workspaces/${h.ws}/cvs/${cv.id}`)).status).toBe(204);
+    // The role's CV choice is made again without it.
+    h.roles.set(`${BERLIN}#0`, { cvId: null });
+    expect(await one()).toMatchObject({ cvId: null, cvAttached: true });
+    for (const body of ["Edited once", "Edited twice"]) {
+      const res = await maria.patch(`${base}/${draft.id}`, { subject: "Re: A role", body });
+      expect(res.status).toBe(200);
+      expect(DraftSchema.parse(await res.json())).toMatchObject({ cvId: null, cvAttached: true });
+      const copies = h.mailbox.drafts();
+      expect(copies.map((c) => c.reply.body)).toEqual([body]);
+      expect(copies[0]?.attachment).toEqual(file);
+    }
+    expect(events("draft.attachment_lost")).toEqual([]);
+
+    // A draft made without the CV says it has none.
+    await h.deliver(DATA);
+    h.ai.answers.draft[key(DATA)] = draftAnswer();
+    await h.evaluate(DATA);
+    await h.drain();
+    const bare = await h.live(DATA);
+    expect(bare && (await maria.get(`${base}/${bare.id}`)).status).toBe(200);
+    const listed = DraftListSchema.parse(await (await maria.get(base)).json()).items;
+    expect(listed.find((d) => d.messageId === DATA)?.cvAttached).toBe(false);
+  });
+
+  it("edits a draft whose CV is gone and whose copy is gone too, without the file", async () => {
+    const cv = await h.cv("Backend (DE)", "de");
+    await h.deliver(BERLIN, { roles: [{ cvId: cv.id }] });
+    h.ai.answers.draft[key(BERLIN)] = draftAnswer({ attachCv: true });
+    await h.evaluate(BERLIN);
+    await h.drain();
+    const draft = await h.live(BERLIN);
+    if (!draft?.mailbox) throw new Error("expected a draft in the mailbox");
+    expect((await maria.delete(`/api/workspaces/${h.ws}/cvs/${cv.id}`)).status).toBe(204);
+    h.roles.set(`${BERLIN}#0`, { cvId: null });
+    // The user deleted the copy in their mail program.
+    const client = h.deps.mail.connect(
+      { host: "imap", port: 993, tlsMode: "tls", username: "m", password: "p" },
+      { allowInsecure: false, address: "maria.santos@inbox.example" },
+    );
+    await client.deleteDraft(draft.mailbox);
+    const res = await maria.patch(`${base}/${draft.id}`, { subject: "Re: A role", body: "Edited" });
+    expect(res.status).toBe(200);
+    expect(DraftSchema.parse(await res.json())).toMatchObject({ cvAttached: false });
+    expect(h.mailbox.drafts().map((c) => c.attachment)).toEqual([null]);
+    expect(events("draft.attachment_lost")).toEqual([
+      expect.objectContaining({ level: "warn", draftId: draft.id }),
+    ]);
+  });
+
   it("leaves exactly one copy when two edits are saved at once", async () => {
     const draft = await drafted(BERLIN);
     const [a, b] = await Promise.all([

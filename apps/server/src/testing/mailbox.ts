@@ -39,6 +39,7 @@ const FAKE_MAIL_OPS = [
   "ensureDraftsFolder",
   "saveDraft",
   "replaceDraft",
+  "draftAttachment",
   "deleteDraft",
 ] as const;
 type FakeMailOp = (typeof FAKE_MAIL_OPS)[number];
@@ -175,6 +176,12 @@ export function createFakeMailbox(
     };
   };
 
+  /** The copy a ref names: by UID under its UIDVALIDITY, else by its Message-ID. */
+  const copyOf = (ref: DraftRef): FakeDraft | undefined =>
+    ref.uidValidity === folders.drafts.uidValidity
+      ? drafts.find((d) => d.uid === ref.uid)
+      : drafts.find((d) => d.draftMessageId === ref.draftMessageId);
+
   // By UID under the UIDVALIDITY it was saved with, else by its Message-ID (the folder was
   // rebuilt, or the ref has UIDVALIDITY 0: a copy whose UID was never known), as the client does.
   const remove = (ref: DraftRef) => {
@@ -235,6 +242,10 @@ export function createFakeMailbox(
       enter("replaceDraft", broken);
       remove(ref);
       return save(input);
+    },
+    async draftAttachment(ref) {
+      enter("draftAttachment", broken);
+      return copyOf(ref)?.attachment ?? null;
     },
     async deleteDraft(ref) {
       enter("deleteDraft", broken);
