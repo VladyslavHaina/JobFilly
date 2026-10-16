@@ -5557,3 +5557,16 @@ These make sign-off possible; without them the build goes on and records an open
 - **If you decide otherwise:** Merge abd3b4d from branch orch2-core and accept the negation cases as fits.
 - **Refs:** F4.1, TBD-247, TBD-435, packages/core/src/match/match.ts
 - **Status:** accepted
+
+## TBD-444 · A reply may ask whether the user can work the role's hours
+- **Kind:** decision
+- **Where:** MVP 2 · Real-AI run (draft.v1, apac-1)
+- **Context:** With a real model, draft.v1 for the UTC+8 remote role asks "Are you able to work these hours?" (key `remote:UTC+08:00`). That becomes a decision and holds the reply, while expected.json expects a draft with no needs. Maria's profile states no working hours, so the answer is unknown.
+- **Options:**
+  1. Tell draft.v1 not to ask about hours
+  2. Keep asking; "unknown means ask"
+- **Chosen:** Option 2. The hard rule wins over the fixture's expectation; the fake AI keeps answering without the question. Scheduling (availability for a call) is no longer asked (0ab2569).
+- **If you decide otherwise:** Add a sentence to draft.v1's instruction that working hours are left to the user's reading of the role.
+- **Refs:** F6.1, F7.1, CLAUDE.md "Unknown means ask"
+- **Status:** accepted
+
