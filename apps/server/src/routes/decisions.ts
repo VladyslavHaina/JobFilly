@@ -33,12 +33,15 @@ import { afterProfileChanges, requestReevaluation, writeProfileChanges } from ".
 // it the answer is kept on the decision for the roles waiting now only: they are re-evaluated
 // with it, and the profile doesn't change. A decision without a profile key (an ask_first rule)
 // is answered for its roles only: the rule asks for each message, so the UI says so instead of
-// offering "Use this answer for similar mail", and the flag is ignored for it. So is a no to a
-// question whose items are objects ("No" to "Hybrid in Dublin?", answerOf): it turns the
-// question down for the waiting roles, nothing is written to the profile, and their drafts are
-// told the answer. Free text that says no, or contradicts the question's group key ("Cork" for
-// Dublin, "EUR 95,000 a month" for CHF per year), doesn't fit and is refused: nothing the user
-// turned down is ever written (F6.2, F7.6).
+// offering "Use this answer for similar mail", and the flag is ignored for it. So is every
+// answer that makes no item (answerOf, which reads no yes or no from words in any language): a
+// choice the model said declines ("No" to "Hybrid in Dublin?"), a choice whose words can't
+// complete the item, and typed words that don't state it in a form every language shares
+// ("Dublin doesn't work for me", "120k euros" for CHF per year, "Ні"). Those answer the waiting
+// roles only: nothing is written to the profile or its history, their drafts are told the
+// words, and later mail is asked again, so nothing the user turned down is ever written and
+// such words are never used for similar mail (F6.2, F7.6). Words that make no item of a key
+// whose items are words or numbers are refused.
 
 const DecisionParamsSchema = z.object({ decisionId: IdSchema });
 
@@ -122,7 +125,8 @@ export function decisionsRoutes(deps: AppDeps) {
           userId,
           decisionId,
           useForSimilar: remember,
-          declined: answer.kind === "declined",
+          declined: answer.kind === "words" && answer.declines,
+          waitingOnly: answer.kind === "words",
           roles: answered.roles.length,
         });
         await deps.live.publish(ws, { type: "decisions.updated", data: {} });

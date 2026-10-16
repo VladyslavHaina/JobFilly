@@ -31,7 +31,10 @@ const RELOCATE_QUESTION = {
   profileKey: "extra.relocate",
   groupKey: "extra.relocate",
   question: "Would you relocate to Ireland?",
-  choices: ["Yes", "No"],
+  choices: [
+    { label: "Yes", declines: false },
+    { label: "No", declines: true },
+  ],
 };
 
 const WINNER = { subject: "Re: A role for you", body: "Hello Jonas,\n\nMonday works.\n\nMaria" };
@@ -391,7 +394,13 @@ describe("viewers (F6.7)", () => {
 
   it("are not shown to a non-member, who gets 404 on a real draft", async () => {
     const draft = await drafted(BERLIN);
-    const eve = await h.client(await seedUser(h.deps, { name: "Eve Outsider" }));
+    const outsider = await seedUser(h.deps, { name: "Eve Outsider" });
+    const eve = await h.client(outsider);
+    // From her own workspace, where she is an admin, Maria's draft isn't there either.
+    const own = `/api/workspaces/${outsider.workspaceId}/drafts`;
+    expect((await eve.get(`${own}/${draft.id}`)).status).toBe(404);
+    expect((await eve.patch(`${own}/${draft.id}`, { subject: "s", body: "b" })).status).toBe(404);
+    expect((await eve.post(`${own}/${draft.id}/discard`)).status).toBe(404);
     expect((await eve.get(base)).status).toBe(404);
     expect((await eve.get(`${base}/${draft.id}`)).status).toBe(404);
     expect((await eve.post(base, { messageId: BERLIN, position: 0 })).status).toBe(404);

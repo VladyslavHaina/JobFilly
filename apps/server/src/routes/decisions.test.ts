@@ -31,7 +31,29 @@ const HYBRID_DUBLIN = {
   profileKey: "places",
   groupKey: "places:IE:Dublin:hybrid",
   question: "Hybrid in Dublin?",
-  choices: ["Yes", "No"],
+  choices: [
+    { label: "Yes", declines: false },
+    { label: "No", declines: true },
+  ],
+};
+/** Questions draft.v1 asks under a key whose items are objects, as the model offers them. */
+const REMOTE_EU = {
+  profileKey: "remote",
+  groupKey: "remote:EU",
+  question: "Open to remote in the EU?",
+  choices: [
+    { label: "Yes", declines: false },
+    { label: "No", declines: true },
+  ],
+};
+const PERMIT_IE = {
+  profileKey: "work_permits",
+  groupKey: "work_permits:IE",
+  question: "Can you work in Ireland?",
+  choices: [
+    { label: "Stamp 4", declines: false },
+    { label: "Ні", declines: true },
+  ],
 };
 const key = (id: string) => `${id}#0#1`;
 const CHF_120 = { amount: 120000, currency: "CHF", period: "year", asWritten: "CHF 120,000" };
@@ -202,7 +224,10 @@ describe("answering (F7.4, F7.6)", () => {
       profileKey: "extra.relocate",
       groupKey: "extra.relocate:IE",
       question: "Would you relocate to Ireland?",
-      choices: ["Yes", "No"],
+      choices: [
+        { label: "Yes", declines: false },
+        { label: "No", declines: true },
+      ],
     };
     await h.deliver(DUBLIN);
     h.ai.answers.draft[key(DUBLIN)] = draftAnswer({ questions: [question] });
@@ -241,24 +266,21 @@ describe("answering (F7.4, F7.6)", () => {
     );
   });
 
-  it("takes free text made into an item of the key, and refuses one that doesn't fit", async () => {
+  it("takes free text that states an item of the key, and refuses an empty answer", async () => {
     await seedThree();
     const chf = await decisionOf("min_pay:CHF:year");
-    const bad = await maria.post(`${base}/${chf.id}/answer`, {
-      value: "as much as possible",
-      useForSimilar: true,
-    });
+    const bad = await maria.post(`${base}/${chf.id}/answer`, { value: " ", useForSimilar: true });
     expect(bad.status).toBe(400);
     expect((await decisionOf("min_pay:CHF:year")).status).toBe("open");
     const ok = await maria.post(`${base}/${chf.id}/answer`, {
-      value: "115,000",
+      value: "CHF 115,000",
       useForSimilar: true,
     });
     expect(ok.status).toBe(200);
     const [profile] = await listProfiles(h.deps.db, h.ws);
     expect(profile?.entries.find((e) => e.key === "min_pay")?.value).toEqual([
       EUR_MIN,
-      { amount: 115000, currency: "CHF", period: "year", asWritten: "115,000" },
+      { amount: 115000, currency: "CHF", period: "year", asWritten: "CHF 115,000" },
     ]);
     // Answered already.
     const again = await maria.post(`${base}/${chf.id}/answer`, {
@@ -268,30 +290,162 @@ describe("answering (F7.4, F7.6)", () => {
     expect(again.status).toBe(409);
   });
 
-  it("refuses free text that says no or contradicts the question, and writes nothing", async () => {
-    await seedThree();
-    const chf = await decisionOf("min_pay:CHF:year");
-    for (const value of ["No", "EUR 95,000 a month", "95,000 a month", "None"]) {
-      const res = await maria.post(`${base}/${chf.id}/answer`, { value, useForSimilar: true });
-      expect(res.status, value).toBe(400);
+  /**
+   * Answers each of `typed` on a decision of its own, on a message of its own, with "Use this
+   * answer for similar mail" on, and checks that none is a profile item: each answers its
+   * waiting role only, and nothing reaches the profile or its history. `question` is a draft.v1
+   * question; without one the role needs "Minimum pay in CHF per year?" from its match.
+   */
+  async function answerWaitingOnly(question: typeof HYBRID_DUBLIN | null, typed: string[]) {
+    const ids: string[] = [];
+    for (const value of typed) {
+      const id = `<typed-${ids.length + 1}@x.example>`;
+      ids.push(id);
+      if (question) {
+        await h.deliver(id);
+        h.ai.answers.draft[key(id)] = draftAnswer({ questions: [question] });
+        await h.evaluate(id);
+        await h.drain();
+      } else {
+        await h.deliver(id, { roles: [{ needs: [CHF_NEED] }] });
+        await h.evaluate(id);
+      }
+      const decision = await decisionOf(question?.groupKey ?? CHF_NEED.groupKey);
+      expect(
+        decision.waiting.map((w) => w.messageId),
+        value,
+      ).toEqual([id]);
+      h.ai.answers.draft[key(id)] = draftAnswer();
+      const res = await maria.post(`${base}/${decision.id}/answer`, { value, useForSimilar: true });
+      expect(res.status, value).toBe(200);
+      expect(DecisionSchema.parse(await res.json()).status, value).toBe("answered");
+      expect(events("decision.answered").at(-1), value).toMatchObject({
+        decisionId: decision.id,
+        useForSimilar: false,
+        declined: false,
+        waitingOnly: true,
+      });
     }
-    await h.deliver(BERLIN);
-    h.ai.answers.draft[key(BERLIN)] = draftAnswer({ questions: [HYBRID_DUBLIN] });
-    await h.evaluate(BERLIN);
-    await h.drain();
-    const dublin = await decisionOf(HYBRID_DUBLIN.groupKey);
-    for (const value of ["No, only Cork", "Cork", "Onsite", "Nope"]) {
-      const res = await maria.post(`${base}/${dublin.id}/answer`, { value, useForSimilar: true });
-      expect(res.status, value).toBe(400);
-    }
-    expect((await decisionOf("min_pay:CHF:year")).status).toBe("open");
-    expect((await decisionOf(HYBRID_DUBLIN.groupKey)).status).toBe("open");
+    // Nothing was written: the profile is as it was, and its history is empty.
     const [profile] = await listProfiles(h.deps.db, h.ws);
     expect(profile?.entries.find((e) => e.key === "min_pay")?.value).toEqual([EUR_MIN]);
-    expect(profile?.entries.find((e) => e.key === "places")?.value ?? []).toEqual([]);
+    for (const k of ["places", "remote", "work_permits"]) {
+      expect(profile?.entries.find((e) => e.key === k)?.value ?? [], k).toEqual([]);
+    }
     expect(await getHistory(h.deps.db, h.ws, h.profileId)).toEqual([]);
+    // Each waiting role's reply is told its words.
+    await h.drain();
+    const groupKey = question?.groupKey ?? CHF_NEED.groupKey;
+    const told = `extra.answer_${groupKey.toLowerCase().replace(/[^a-z0-9_-]+/g, "_")}`;
+    for (const [i, id] of ids.entries()) {
+      expect(await h.live(id), id).toMatchObject({ status: "in_mailbox", origin: "decision" });
+      const input = h.draftInputs.find(
+        (d) => d.mail.messageId === id && d.entries.some((e) => e.key === told),
+      );
+      expect(input?.entries.find((e) => e.key === told)?.value, typed[i]).toEqual([typed[i]]);
+    }
+  }
+
+  it("keeps words that turn a place down for the waiting role only, in any language", async () => {
+    await answerWaitingOnly(HYBRID_DUBLIN, [
+      "Dublin doesn't work for me",
+      "Dublin is not an option",
+      "Hybrid in Dublin is a no",
+      "I would prefer Cork over Dublin",
+      "Dublin, but remote only",
+      "Так",
+      "Unfortunately not",
+      "いいえ",
+    ]);
   });
 
+  it("keeps words that turn a remote scope down for the waiting role only", async () => {
+    await answerWaitingOnly(REMOTE_EU, ["EU is not ok", "Only outside the EU", "Nem"]);
+  });
+
+  it("never takes typed words as a work permit", async () => {
+    await answerWaitingOnly(PERMIT_IE, [
+      "Absolutely not",
+      "Negative",
+      "I need a visa",
+      "I need sponsorship",
+      "Unfortunately not",
+      "いいえ",
+      "Ei",
+      "Hayır",
+      "Stamp 4 for DE",
+    ]);
+  });
+
+  it("keeps a minimum pay in another currency or period, or with no currency, for the waiting role only", async () => {
+    await answerWaitingOnly(null, [
+      "120k euros",
+      "120k dollars",
+      "usd 120k",
+      "10k/mo",
+      "10k p.m.",
+      "as much as possible",
+      "120,000",
+    ]);
+    // Words are never used for similar mail: the next message is asked again.
+    await h.deliver(ZURICH_2, { roles: [{ needs: [CHF_NEED] }] });
+    await h.evaluate(ZURICH_2);
+    expect((await decisionOf(CHF_NEED.groupKey)).waiting.map((w) => w.messageId)).toEqual([
+      ZURICH_2,
+    ]);
+  });
+
+  it("keeps every answer the model offers clickable; one it says declines writes nothing", async () => {
+    // A question whose group key leaves the work mode out, in Ukrainian, plus a permit question.
+    const dublin = {
+      profileKey: "places",
+      groupKey: "places:IE:Dublin",
+      question: "Дублін?",
+      choices: [
+        { label: "Так", declines: false },
+        { label: "Ні", declines: true },
+      ],
+    };
+    await h.deliver(BERLIN);
+    h.ai.answers.draft[key(BERLIN)] = draftAnswer({ questions: [dublin, PERMIT_IE] });
+    await h.evaluate(BERLIN);
+    await h.drain();
+    const place = await decisionOf(dublin.groupKey);
+    const permit = await decisionOf(PERMIT_IE.groupKey);
+    // "Так" can't complete a place (no work mode): offered, for the waiting role only.
+    expect(place.choices).toEqual([
+      { label: "Так", value: "Так" },
+      { label: "Ні", value: "Ні", declines: true },
+    ]);
+    expect(permit.choices).toEqual([
+      { label: "Stamp 4", value: { country: "IE", text: "Stamp 4" } },
+      { label: "Ні", value: "Ні", declines: true },
+    ]);
+    h.ai.answers.draft[key(BERLIN)] = draftAnswer();
+    for (const [decision, value, declined] of [
+      [place, "Так", false],
+      [permit, "Ні", true],
+    ] as const) {
+      const res = await maria.post(`${base}/${decision.id}/answer`, {
+        value,
+        useForSimilar: true,
+      });
+      expect(res.status, value).toBe(200);
+      expect(events("decision.answered").at(-1)).toMatchObject({
+        decisionId: decision.id,
+        useForSimilar: false,
+        declined,
+        waitingOnly: true,
+      });
+    }
+    await h.drain();
+    const [profile] = await listProfiles(h.deps.db, h.ws);
+    expect(profile?.entries.find((e) => e.key === "places")?.value ?? []).toEqual([]);
+    expect(profile?.entries.find((e) => e.key === "work_permits")?.value ?? []).toEqual([]);
+    expect(await getHistory(h.deps.db, h.ws, h.profileId)).toEqual([]);
+    expect(await h.live(BERLIN)).toMatchObject({ status: "in_mailbox", origin: "decision" });
+    expect(await inbox()).toEqual([]);
+  });
   it("offers a yes and a no to click; the no answers the waiting role and writes nothing (F7.2)", async () => {
     await h.deliver(BERLIN);
     h.ai.answers.draft[key(BERLIN)] = draftAnswer({ questions: [HYBRID_DUBLIN] });
@@ -300,7 +454,7 @@ describe("answering (F7.4, F7.6)", () => {
     const decision = await decisionOf(HYBRID_DUBLIN.groupKey);
     expect(decision.choices).toEqual([
       { label: "Yes", value: { country: "IE", city: "Dublin", mode: "hybrid" } },
-      { label: "No", value: "No" },
+      { label: "No", value: "No", declines: true },
     ]);
 
     h.ai.answers.draft[key(BERLIN)] = draftAnswer();
@@ -354,7 +508,7 @@ describe("answering (F7.4, F7.6)", () => {
     const chf = await decisionOf("min_pay:CHF:year");
     const answer = (value: unknown) =>
       maria.post(`${base}/${chf.id}/answer`, { value, useForSimilar: true });
-    const results = await Promise.all([answer(CHF_120), answer("115,000")]);
+    const results = await Promise.all([answer(CHF_120), answer("CHF 115,000")]);
     expect(results.map((r) => r.status).sort()).toEqual([200, 409]);
     const [profile] = await listProfiles(h.deps.db, h.ws);
     const minPay = profile?.entries.find((e) => e.key === "min_pay")?.value as unknown[];
@@ -439,17 +593,34 @@ describe("viewers (F7.7)", () => {
     expect(
       (await viewer.post(`${base}/${id}/answer`, { value: CHF_120, useForSimilar: true })).status,
     ).toBe(403);
+    expect(
+      (await viewer.post(`${base}/${id}/answer`, { value: "CHF 99,000", useForSimilar: false }))
+        .status,
+    ).toBe(403);
     expect((await viewer.post(`${base}/${id}/not-now`)).status).toBe(403);
     expect(
       (await viewer.post(`${base}/${id}/dismiss`, { messageId: ZURICH, position: 0 })).status,
     ).toBe(403);
     expect(await inbox()).toHaveLength(2);
+    expect(events("decision.answered")).toEqual([]);
+    expect(await getHistory(h.deps.db, h.ws, h.profileId)).toEqual([]);
   });
 
   it("are not shown to a non-member, who gets 404 on a real decision", async () => {
     await seedThree();
     const id = (await decisionOf(CHF_NEED.groupKey)).id;
-    const eve = await h.client(await seedUser(h.deps, { name: "Eve Outsider" }));
+    const outsider = await seedUser(h.deps, { name: "Eve Outsider" });
+    const eve = await h.client(outsider);
+    // From her own workspace, where she is an admin, Maria's decision isn't there either.
+    const own = `/api/workspaces/${outsider.workspaceId}/decisions`;
+    expect((await eve.get(own)).status).toBe(200);
+    expect(
+      (await eve.post(`${own}/${id}/answer`, { value: CHF_120, useForSimilar: true })).status,
+    ).toBe(404);
+    expect((await eve.post(`${own}/${id}/not-now`)).status).toBe(404);
+    expect(
+      (await eve.post(`${own}/${id}/dismiss`, { messageId: ZURICH, position: 0 })).status,
+    ).toBe(404);
     expect((await eve.get(base)).status).toBe(404);
     expect((await eve.get(`${base}/count`)).status).toBe(404);
     expect(
