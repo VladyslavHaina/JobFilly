@@ -3,14 +3,12 @@ import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-// Nothing is sent in MVP 2 (F6.6): no code in packages/mail or apps/server can make an SMTP
-// connection. nodemailer is used only for its MailComposer (packages/mail/src/drafts), which
-// composes a message and never opens a socket; no source creates a transport or names SMTP.
-// packages/mail's drafts.test.ts shows the same at run time with spies on createTransport and
-// the socket functions.
+// Nothing is sent in MVP 2 (F6.6): no code in apps/server can make an SMTP connection. The
+// server never imports nodemailer, creates a transport or names SMTP; it reaches the mailbox only
+// through packages/mail's MailClient, which guards its own sources the same way
+// (packages/mail/src/no-smtp.test.ts).
 
-const ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
-const SOURCES = ["packages/mail/src", "apps/server/src"];
+const SRC = fileURLToPath(new URL("../", import.meta.url));
 
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -21,22 +19,19 @@ function sourceFiles(dir: string): string[] {
 }
 
 describe("no SMTP (F6.6)", () => {
-  const files = SOURCES.flatMap((dir) => sourceFiles(join(ROOT, dir)));
+  const files = sourceFiles(SRC);
 
   it("reads the sources it guards", () => {
-    const names = files.map((f) => relative(ROOT, f));
-    expect(names).toContain("packages/mail/src/drafts/index.ts");
-    expect(names).toContain("apps/server/src/sync/run.ts");
+    const names = files.map((f) => relative(SRC, f));
+    expect(names).toContain(join("sync", "run.ts"));
+    expect(names).toContain("deps.ts");
   });
 
-  it("imports nodemailer only for its MailComposer, and never creates a transport", () => {
+  it("never imports nodemailer or creates a transport", () => {
     const offending: string[] = [];
     for (const file of files) {
       const text = readFileSync(file, "utf8");
-      const imports = [...text.matchAll(/from\s+["'](nodemailer[^"']*)["']/g)].map((m) => m[1]);
-      for (const name of imports) {
-        if (name !== "nodemailer/lib/mail-composer") offending.push(`${file}: ${name}`);
-      }
+      if (/from\s+["']nodemailer[^"']*["']/.test(text)) offending.push(`${file}: nodemailer`);
       if (
         /createTransport|smtp-(transport|connection|pool)|\bnet\.connect\b|\btls\.connect\b/.test(
           text,
