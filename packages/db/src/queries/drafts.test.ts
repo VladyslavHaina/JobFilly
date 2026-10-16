@@ -4,6 +4,7 @@ import type { DatabaseConnection } from "../client";
 import { drafts } from "../tables";
 import { openTestDatabase } from "../testing";
 import { registerAccount } from "./accounts";
+import { deleteCv, insertCv } from "./cvs";
 import { claimDraft, markDraftFailed } from "./draft-claims";
 import {
   getDraft,
@@ -96,11 +97,21 @@ describe("a draft's content (F6)", () => {
     const a = await claim(role(0));
     expect(await saveDraftText(conn.db, ws, a, { ...text, cvId: null, now: later(1) })).toBe(true);
     expect(
-      await markDraftSaved(conn.db, ws, a, { ref: ref(1), contentHash: "h1", now: later(2) }),
+      await markDraftSaved(conn.db, ws, a, {
+        ref: ref(1),
+        contentHash: "h1",
+        attachmentName: null,
+        now: later(2),
+      }),
     ).toBe(true);
     // Saved once: the claim is over, a second save of the same claim does nothing.
     expect(
-      await markDraftSaved(conn.db, ws, a, { ref: ref(9), contentHash: "h9", now: later(3) }),
+      await markDraftSaved(conn.db, ws, a, {
+        ref: ref(9),
+        contentHash: "h9",
+        attachmentName: null,
+        now: later(3),
+      }),
     ).toBe(false);
     const edited = await saveDraftEdit(conn.db, ws, a, {
       replaces: ref(1).draftMessageId,
@@ -108,6 +119,7 @@ describe("a draft's content (F6)", () => {
       body: "Edited text",
       ref: ref(2),
       contentHash: "h2",
+      attachmentName: null,
       now: later(4),
     });
     expect(edited).toMatchObject({ status: "edited", body: "Edited text", mailbox: ref(2) });
@@ -120,7 +132,12 @@ describe("a draft's content (F6)", () => {
     });
     const c = await claim(role(2));
     await saveDraftText(conn.db, ws, c, { ...text, cvId: null, now: later(6) });
-    await markDraftSaved(conn.db, ws, c, { ref: ref(3), contentHash: "h3", now: later(6) });
+    await markDraftSaved(conn.db, ws, c, {
+      ref: ref(3),
+      contentHash: "h3",
+      attachmentName: null,
+      now: later(6),
+    });
     const discard = { copy: ref(3).draftMessageId, now: later(7) };
     expect(await markDraftDiscarded(conn.db, ws, c, discard)).toMatchObject({
       status: "discarded",
@@ -152,6 +169,7 @@ describe("a draft's content (F6)", () => {
       body: "Edited text",
       language: "en",
       cvId: null,
+      cvAttached: false,
       auto: true,
       updatedAt: later(4).toISOString(),
     });
@@ -177,6 +195,7 @@ describe("a draft's content (F6)", () => {
         "body",
         "language",
         "cvId",
+        "attachmentName",
         "mailboxFolder",
         "uid",
         "uidValidity",
@@ -190,6 +209,62 @@ describe("a draft's content (F6)", () => {
     expect(row?.body).toBe(text.body);
   });
 
+  it("keeps whether its copy has the CV attached, after edits and once the CV is deleted (F2.5)", async () => {
+    const cv = await insertCv(conn.db, ws, {
+      name: "Backend (DE)",
+      fileName: "backend-de.pdf",
+      mediaType: "pdf",
+      bytes: new Uint8Array([37, 80, 68, 70]),
+      contentHash: "a".repeat(64),
+      createdBy: null,
+      at: t0,
+    });
+    const a = await claim(role(0));
+    await saveDraftText(conn.db, ws, a, { ...text, cvId: cv.id, now: later(1) });
+    const saved = { ref: ref(1), contentHash: "h1", attachmentName: "backend-de.pdf" };
+    await markDraftSaved(conn.db, ws, a, { ...saved, now: later(2) });
+    const stored = await getDraft(conn.db, ws, a);
+    expect(stored).toMatchObject({
+      cvId: cv.id,
+      cvAttached: true,
+      attachmentName: "backend-de.pdf",
+    });
+    expect(stored && publicDraft(stored)).toMatchObject({ cvId: cv.id, cvAttached: true });
+    expect(stored && "attachmentName" in publicDraft(stored)).toBe(false);
+
+    // The CV goes; the draft forgets it but still says its copy has the file.
+    expect(await deleteCv(conn.db, ws, cv.id)).toBe(true);
+    expect(await getDraft(conn.db, ws, a)).toMatchObject({
+      cvId: null,
+      cvAttached: true,
+      attachmentName: "backend-de.pdf",
+    });
+    const edited = await saveDraftEdit(conn.db, ws, a, {
+      replaces: ref(1).draftMessageId,
+      subject: "s",
+      body: "b",
+      ref: ref(2),
+      contentHash: "h2",
+      attachmentName: "backend-de.pdf",
+      now: later(3),
+    });
+    expect(edited).toMatchObject({ cvId: null, cvAttached: true });
+
+    // A draft saved without an attachment says so.
+    const b = await claim(role(1));
+    await saveDraftText(conn.db, ws, b, { ...text, cvId: null, now: later(4) });
+    await markDraftSaved(conn.db, ws, b, {
+      ref: ref(3),
+      contentHash: "h3",
+      attachmentName: null,
+      now: later(4),
+    });
+    expect(await getDraft(conn.db, ws, b)).toMatchObject({
+      cvAttached: false,
+      attachmentName: null,
+    });
+  });
+
   it("changes only in the states each step allows", async () => {
     const a = await claim(role(0));
     // Not in the mailbox yet: nothing to edit or discard.
@@ -199,6 +274,7 @@ describe("a draft's content (F6)", () => {
       body: "b",
       ref: ref(1),
       contentHash: "h",
+      attachmentName: null,
       now: later(1),
     };
     expect(await saveDraftEdit(conn.db, ws, a, edit)).toBeNull();
@@ -224,14 +300,24 @@ describe("a draft's content (F6)", () => {
       mailbox: null,
       draftMessageId: "<pending@jobfilly.test>",
     });
-    await markDraftSaved(conn.db, ws, a, { ref: ref(1), contentHash: "h", now: later(2) });
+    await markDraftSaved(conn.db, ws, a, {
+      ref: ref(1),
+      contentHash: "h",
+      attachmentName: null,
+      now: later(2),
+    });
     expect((await getDraft(conn.db, ws, a))?.draftMessageId).toBe(ref(1).draftMessageId);
   });
 
   it("changes nothing for an edit or a discard that read an older copy (F6.4)", async () => {
     const a = await claim(role(0));
     await saveDraftText(conn.db, ws, a, { ...text, cvId: null, now: later(1) });
-    await markDraftSaved(conn.db, ws, a, { ref: ref(1), contentHash: "h1", now: later(1) });
+    await markDraftSaved(conn.db, ws, a, {
+      ref: ref(1),
+      contentHash: "h1",
+      attachmentName: null,
+      now: later(1),
+    });
     const edit = (replaces: string, to: DraftRef, minute: number) =>
       saveDraftEdit(conn.db, ws, a, {
         replaces,
@@ -239,6 +325,7 @@ describe("a draft's content (F6)", () => {
         body: `copy ${to.uid}`,
         ref: to,
         contentHash: `h${to.uid}`,
+        attachmentName: null,
         now: later(minute),
       });
     // Two edits that both read copy 1: the first one wins, the second changes nothing.
@@ -263,7 +350,12 @@ describe("a draft's content (F6)", () => {
   it("rejects two live drafts for one role, and allows a new one after a discard", async () => {
     const a = await claim(role(0));
     await saveDraftText(conn.db, ws, a, { ...text, cvId: null, now: later(1) });
-    await markDraftSaved(conn.db, ws, a, { ref: ref(1), contentHash: "h", now: later(1) });
+    await markDraftSaved(conn.db, ws, a, {
+      ref: ref(1),
+      contentHash: "h",
+      attachmentName: null,
+      now: later(1),
+    });
     expect(
       await claimDraft(conn.db, ws, role(0), { origin: "on_demand", now: later(2) }),
     ).toBeNull();

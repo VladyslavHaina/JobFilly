@@ -34,6 +34,11 @@ export interface StoredDraft extends Draft {
    */
   draftMessageId: string | null;
   contentHash: string | null;
+  /**
+   * The file name of the attachment the mailbox copy carries, null when it has none. An edit
+   * after the CV was deleted (F2.5) takes the file from the copy.
+   */
+  attachmentName: string | null;
 }
 
 function toDraft(row: DraftRow): StoredDraft {
@@ -60,6 +65,7 @@ function toDraft(row: DraftRow): StoredDraft {
     body: row.body,
     language: row.language,
     cvId: row.cvId,
+    cvAttached: row.attachmentName !== null,
     auto: row.origin !== "on_demand",
     updatedAt: row.updatedAt.toISOString(),
     origin: row.origin,
@@ -67,6 +73,7 @@ function toDraft(row: DraftRow): StoredDraft {
     mailbox,
     draftMessageId: row.draftMessageId,
     contentHash: row.contentHash,
+    attachmentName: row.attachmentName,
   };
 }
 
@@ -78,6 +85,7 @@ export function publicDraft(draft: StoredDraft): Draft {
     mailbox: _m,
     draftMessageId: _d,
     contentHash: _c,
+    attachmentName: _n,
     ...view
   } = draft;
   return view;
@@ -174,12 +182,15 @@ export async function saveDraftText(
   return rows.length > 0;
 }
 
-/** A claimed draft is in the mailbox now: its copy's reference, and the claim ends. */
+/**
+ * A claimed draft is in the mailbox now: its copy's reference and the name of the file attached
+ * to it (null: none), and the claim ends.
+ */
 export async function markDraftSaved(
   db: Database,
   workspaceId: string,
   draftId: string,
-  input: { ref: DraftRef; contentHash: string; now: Date },
+  input: { ref: DraftRef; contentHash: string; attachmentName: string | null; now: Date },
 ): Promise<boolean> {
   const rows = await db
     .update(drafts)
@@ -187,6 +198,7 @@ export async function markDraftSaved(
       status: "in_mailbox",
       ...refColumns(input.ref),
       contentHash: input.contentHash,
+      attachmentName: input.attachmentName,
       claimedAt: null,
       failureKind: null,
       failureReason: null,
@@ -211,9 +223,10 @@ const namesCopy = (draftMessageId: string | null) =>
     : eq(drafts.draftMessageId, draftMessageId);
 
 /**
- * An editor's saved edit (F6.4), with the reference of the copy that replaced the old one.
- * `replaces` is the Message-ID of the copy the edit replaced. Null when the row names another
- * copy by now (another edit or a discard won), so the caller deletes the copy it made.
+ * An editor's saved edit (F6.4), with the reference of the copy that replaced the old one and
+ * the name of the file attached to it. `replaces` is the Message-ID of the copy the edit
+ * replaced. Null when the row names another copy by now (another edit or a discard won), so the
+ * caller deletes the copy it made.
  */
 export async function saveDraftEdit(
   db: Database,
@@ -225,6 +238,7 @@ export async function saveDraftEdit(
     body: string;
     ref: DraftRef;
     contentHash: string;
+    attachmentName: string | null;
     now: Date;
   },
 ): Promise<StoredDraft | null> {
@@ -236,6 +250,7 @@ export async function saveDraftEdit(
       body: input.body,
       ...refColumns(input.ref),
       contentHash: input.contentHash,
+      attachmentName: input.attachmentName,
       updatedAt: input.now,
     })
     .where(

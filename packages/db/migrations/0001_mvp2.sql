@@ -117,6 +117,7 @@ CREATE TABLE "drafts" (
 	"body" text,
 	"language" text,
 	"cv_id" uuid,
+	"attachment_name" text,
 	"mailbox_folder" text,
 	"uid" bigint,
 	"uid_validity" bigint,

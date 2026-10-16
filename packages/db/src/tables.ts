@@ -792,6 +792,12 @@ export const drafts = pgTable(
     body: text("body"),
     language: text("language"),
     cvId: uuid("cv_id"),
+    /**
+     * The file name of the CV attached to the mailbox copy, null when it has none. It stays when
+     * the CV is deleted (cv_id goes null, F2.5): the copy keeps the file, and an edit takes it
+     * from there.
+     */
+    attachmentName: text("attachment_name"),
     /** Where the mailbox copy is. */
     mailboxFolder: text("mailbox_folder"),
     uid: bigint("uid", { mode: "number" }),

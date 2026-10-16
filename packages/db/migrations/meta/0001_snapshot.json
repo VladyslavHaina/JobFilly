@@ -1221,6 +1221,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "attachment_name": {
+          "name": "attachment_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "mailbox_folder": {
           "name": "mailbox_folder",
           "type": "text",
