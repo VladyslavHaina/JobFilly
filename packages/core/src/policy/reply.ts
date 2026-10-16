@@ -27,8 +27,11 @@ export type HeldKind =
   | "dismissed";
 
 export interface ReplyEligibilityInput {
-  /** auto: the pipeline; decision: after a decision answer; on_demand: Draft a reply (F6.5). */
-  origin: Exclude<DraftOrigin, "retry">;
+  /**
+   * auto: the pipeline; decision: after a decision answer; on_demand: Draft a reply (F6.5);
+   * retry: the sweep trying an automatic draft again (a failed one, or a claim whose job died).
+   */
+  origin: DraftOrigin;
   category: Category | null;
   receivedAt: Date | string;
   now: Date;
@@ -72,6 +75,11 @@ const RULE_HOLDS: Partial<Record<RuleEffect["action"], HeldKind>> = {
  * a high-risk sender, a hide, no_draft or ask_first rule, open needs, and a role that had a draft
  * (in the mailbox, discarded or failed) or was dismissed — so a re-evaluation never recreates a
  * draft the user discarded.
+ *
+ * retry is held by all of those but already_drafted: the draft it tries again is the role's own
+ * row, which is what makes hadDraft true. So a failed draft whose message left the reply window,
+ * whose sender turned high risk or that a rule now holds is not saved after all (F1.6, F6.1). A
+ * Draft a reply that failed is retried as on_demand.
  */
 export function replyEligibility(input: ReplyEligibilityInput): ReplyEligibility {
   if (input.origin === "on_demand") return { eligible: true, heldBy: [] };
@@ -107,7 +115,8 @@ export function replyEligibility(input: ReplyEligibilityInput): ReplyEligibility
       `Waiting for your answer: ${input.openNeeds.map((n) => n.question).join("; ")}`,
     );
   }
-  if (input.draftHistory.hadDraft) hold("already_drafted", "This role already had a draft");
+  if (input.draftHistory.hadDraft && input.origin !== "retry")
+    hold("already_drafted", "This role already had a draft");
   if (input.draftHistory.dismissed) hold("dismissed", "You chose not to be asked for this message");
   return { eligible: heldBy.length === 0, heldBy };
 }

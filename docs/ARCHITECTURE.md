@@ -241,6 +241,13 @@ Rules:
 - Decision needs are carried on match verdicts (`MatchVerdict.need`) and rule effects; the reply
   stage reads them and never works facts out again. Similar needs share a group key
   (`groupKeyFor`, e.g. `min_pay:CHF:year`).
+- A draft's questions are recorded with what raised them (`decision_messages.source`): `draft`
+  for an automatic draft's, `draft_on_demand` for Draft a reply's. Once the policy holds a role
+  (its score dropped, a rule, a risky sender), it stops waiting on the match's, the rules' and
+  an automatic draft's needs alike; only Draft a reply's questions wait whatever the policy says,
+  and a "Don't ask for this message" on them is reopened by the next Draft a reply. Once those
+  are answered, the reply stage claims the role's draft with origin `on_demand` even when the
+  policy holds it; an answer to an automatic draft's question on a held role makes no draft.
 
 ### The draft lifecycle
 
@@ -254,8 +261,36 @@ Rules:
   set up) marks it `failed` with kind `ai` and a plain reason. The sweep re-claims both
   (`reclaimDraft`) and retries them, up to 5 attempts in all; a `saving` row older than 5 minutes
   (its job died) is retried the same way. Kind `content` (a placeholder twice, F6.2) is never
-  retried automatically. No row is left in `saving`, and a draft that used up its attempts stays
-  `failed` with its reason on the Drafts page, where Draft a reply takes it back.
+  retried automatically. Only a failure before or in the append is the mailbox's: once the copy
+  is there, a failure (recording it, a live event) leaves the row in `saving` for that same
+  retry, and a draft that used up its attempts stays `failed` with its reason on the Drafts page,
+  where Draft a reply takes it back.
+- A retry is checked against the reply policy before the sweep re-claims it
+  (`apps/server/src/pipeline/reply.ts` `retryPlan`, `replyEligibility` with origin `retry`):
+  every hold applies but `already_drafted`, which the role's own row causes. A held retry (the
+  message left the reply window, F1.6; a high-risk sender, F5.2; a rule; open needs) is marked
+  `failed` with kind `content` and the hold's reason ("Not tried again: …");
+  a role without a current evaluation or sender check waits for the next sweep. A failed Draft a
+  reply is retried as `on_demand`, which nothing holds (F6.5).
+- The append is idempotent. The server chooses the copy's Message-ID before the append
+  (`apps/server/src/drafts/mailbox.ts` `draftMessageIdFor`, on the mailbox address's domain),
+  keeps it with the text (`saveDraftText`) and passes it as `DraftMailInput.draftMessageId`. A
+  retry first deletes any copy with that Message-ID (`deleteDraft` with UIDVALIDITY 0, which no
+  folder has, finds it by Message-ID), so an attempt that died after the append leaves no second
+  copy; discarding a failed draft deletes such a copy the same way. The contract: the IMAP client
+  (`MailClient.saveDraft`, `replaceDraft`) gives the copy the caller's `draftMessageId` when it is
+  set; the mailbox slice owns that client and its contract test
+  (`packages/mail/src/drafts.test.ts`, TBD-331), and the server's test double keeps it the same
+  way.
+- A run that lost its claim to another run of it deletes its own copy only by a ref that knows
+  the copy's UID: both copies carry the kept Message-ID, so a ref with UIDVALIDITY 0 (a server
+  without UIDPLUS) is left alone. When a superfluous copy can't be deleted (that case, or a
+  failed delete after a losing edit) `draft.copy_left` (warn, the draft id and a reason code, no
+  content) says so.
+- Edits and discards compare and set on the copy's Message-ID (`saveDraftEdit`,
+  `markDraftDiscarded`): each copy has its own, so a change made from a copy the row no longer
+  names writes nothing. A losing edit deletes the copy it appended and answers 409; a losing
+  discard deletes the newer copy and tries again. Exactly one copy remains (F6.4).
 
 ### The profile change service
 
@@ -273,6 +308,10 @@ Rules:
   without plain words: one added with a blank description, or updated with new conditions or
   action under its old description, is stored with the words built from its conditions
   (`describeRule`), so the Rules list and every outcome naming the rule show what it does (F3.1).
+- A decision answer writes its entry (`writeProfileChanges`) inside the transaction that claims
+  the decision (`answerDecision`), then re-evaluates (`afterProfileChanges`) once it is
+  committed: of two answers racing for one decision only the one that claims it reaches the
+  profile, and a refused entry leaves the decision open.
 - `requestReevaluation(scope)` is the one way evaluations go stale: `{all}`, `{roles}`,
   `{messageIds}`, or a sender scope (`{senderAddress}`, `{senderDomain}`), which alone also makes
   the sender checks stale. It enqueues `pipeline.reevaluate` and tells open inboxes. Its triggers:

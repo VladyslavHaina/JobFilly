@@ -160,7 +160,7 @@ export function createFakeMailbox(
     draftCounter += 1;
     const draft: FakeDraft = {
       uid: folder.nextUid++,
-      draftMessageId: `<draft-${draftCounter}@jobfilly.test>`,
+      draftMessageId: input.draftMessageId ?? `<draft-${draftCounter}@jobfilly.test>`,
       flags: ["\\Draft"],
       original: input.original,
       reply: input.reply,
@@ -175,9 +175,13 @@ export function createFakeMailbox(
     };
   };
 
+  // By UID under the UIDVALIDITY it was saved with, else by its Message-ID (the folder was
+  // rebuilt, or the ref has UIDVALIDITY 0: a copy whose UID was never known), as the client does.
   const remove = (ref: DraftRef) => {
-    if (ref.uidValidity !== folders.drafts.uidValidity) return;
-    drafts = drafts.filter((d) => d.uid !== ref.uid);
+    drafts =
+      ref.uidValidity === folders.drafts.uidValidity
+        ? drafts.filter((d) => d.uid !== ref.uid)
+        : drafts.filter((d) => d.draftMessageId !== ref.draftMessageId);
   };
 
   const client = (broken: boolean): MailClient => ({

@@ -1,6 +1,13 @@
 import { z } from "zod";
 import { IsoDateTimeSchema, TextSchema } from "./common";
-import { ProfileItemSchema, ProfileKeySchema } from "./profile";
+import {
+  CoreProfileKeySchema,
+  PROFILE_ITEM_SCHEMAS,
+  type ProfileItem,
+  ProfileItemSchema,
+  type ProfileKey,
+  ProfileKeySchema,
+} from "./profile";
 
 // The decision inbox (F7). A need is a question a reply can't go without; the stage that knows
 // why something is unknown states it (a match verdict, a rule effect, a draft's questions). Needs
@@ -8,9 +15,38 @@ import { ProfileItemSchema, ProfileKeySchema } from "./profile";
 // group key is "already answered" once the profile holds an answering item (F7.6, answeredFor in
 // packages/core/src/profile/changes.ts).
 
-/** One answer to click: its words, and the profile item it adds when chosen. */
-export const DecisionChoiceSchema = z.object({ label: TextSchema, value: ProfileItemSchema });
+/**
+ * One answer to click: its words, and the profile item it adds when chosen. Every answer offered
+ * stays clickable, but not every one writes: `declines` marks one that turns the question down
+ * (draft.v1 says so of "No" to "Hybrid in Dublin?"), and words where the key's items are objects
+ * (turnsDown) are an answer no item can be made of ("Yes" to "places:IE:Dublin" names no work
+ * mode). Either answers the messages waiting on the decision only: their replies are told the
+ * words, and nothing is written to the profile (answersWaitingOnly).
+ */
+export const DecisionChoiceSchema = z.object({
+  label: TextSchema,
+  value: ProfileItemSchema,
+  declines: z.boolean().optional(),
+});
 export type DecisionChoice = z.infer<typeof DecisionChoiceSchema>;
+
+/**
+ * Whether an answer of `profileKey` is words kept for the waiting messages instead of an item:
+ * words where the key's items are objects (a place, a minimum pay), which words alone never are.
+ * Such an answer is for the messages waiting on the decision only, and nothing is written to the
+ * profile, whatever "Use this answer for similar mail" says (packages/core decisions/answers.ts
+ * answerOf).
+ */
+export function turnsDown(profileKey: ProfileKey | null, value: ProfileItem): boolean {
+  if (profileKey === null || typeof value !== "string") return false;
+  const core = CoreProfileKeySchema.safeParse(profileKey);
+  return core.success && PROFILE_ITEM_SCHEMAS[core.data] instanceof z.ZodObject;
+}
+
+/** Whether choosing `choice` answers the waiting messages only and writes nothing. */
+export function answersWaitingOnly(profileKey: ProfileKey | null, choice: DecisionChoice): boolean {
+  return choice.declines === true || turnsDown(profileKey, choice.value);
+}
 
 /**
  * What a reply needs answered. `groupKey` groups similar questions ("min_pay:CHF:year");
@@ -24,9 +60,14 @@ export const NeedSpecSchema = z.object({
 });
 export type NeedSpec = z.infer<typeof NeedSpecSchema>;
 
-/** A need with the role waiting on it and what raised it. */
+/**
+ * A need with the role waiting on it and what raised it: a match verdict, a rule effect, or a
+ * draft's questions. `draft` is an automatic draft's (one the policy let through), and
+ * `draft_on_demand` one Draft a reply asked for: when the policy holds the role, only those keep
+ * waiting and get their draft once answered (F6.1, F6.5, F7.1).
+ */
 export const DecisionNeedSchema = NeedSpecSchema.extend({
-  source: z.enum(["draft", "match", "rule"]),
+  source: z.enum(["draft", "draft_on_demand", "match", "rule"]),
   messageId: z.string(),
   position: z.number().int().nonnegative(),
 });
@@ -81,8 +122,12 @@ export type DecisionCount = z.infer<typeof DecisionCountSchema>;
 /**
  * POST /decisions/:id/answer. For a list-valued key `value` is one item of the list (a MinPay
  * for min_pay), never the whole list: it is added with a Change `add` (source: decision), so the
- * items already there stay (TBD-195). A free-text answer is words. `useForSimilar` answers every
- * waiting message and later ones with the same group key (F7.2, F7.6).
+ * items already there stay (TBD-195). A choice is sent as its value, free text as the words.
+ * `useForSimilar` answers every waiting message and later ones with the same group key (F7.2,
+ * F7.6), but only for an answer that makes an item: a choice that answers the waiting messages
+ * only (answersWaitingOnly), and words that don't state the item in a form every language
+ * shares (digits and the currency's own code or sign, the group key's own parts), are for the
+ * waiting messages only, whatever it says, and write nothing.
  */
 export const DecisionAnswerSchema = z.object({
   value: ProfileItemSchema,

@@ -1365,7 +1365,12 @@ describe("the delivered mail (MVP 2)", () => {
         profileKey: "extra.relocation-ireland",
         groupKey: "extra.relocation-ireland",
         question: "Would you relocate to Ireland?",
-        choices: ["Yes", "No", "Maybe later"],
+        // Each answer says whether it turns the question down: S5's answers to click.
+        choices: [
+          { label: "Yes", declines: false },
+          { label: "No", declines: true },
+          { label: "Maybe later", declines: true },
+        ],
       },
     ]);
   });

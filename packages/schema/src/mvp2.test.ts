@@ -3,6 +3,7 @@ import {
   AppliedSenderMarkSchema,
   AssistantAnswerSchema,
   AssistantOutputSchema,
+  answersWaitingOnly,
   ChangeSchema,
   CORE_PROFILE_KEYS,
   ConditionSchema,
@@ -10,6 +11,7 @@ import {
   CvSchema,
   CvUpdateSchema,
   DecisionAnswerSchema,
+  DecisionChoiceSchema,
   DraftCreatePayloadSchema,
   DraftOutputSchema,
   DraftSchema,
@@ -392,11 +394,30 @@ describe("evaluations, senders, drafts and decisions", () => {
           profileKey: "extra.relocate",
           groupKey: "extra.relocate",
           question: "Would you relocate to Ireland?",
-          choices: ["Yes", "No"],
+          // The model says which answers turn the question down: no word list reads it.
+          choices: [
+            { label: "Yes", declines: false },
+            { label: "Ні", declines: true },
+          ],
         },
       ],
     };
     expect(DraftOutputSchema.safeParse(answer).success).toBe(true);
+    // An answer whose meaning the model didn't state is no answer to offer.
+    const words = { ...answer.questions[0], choices: ["Yes", "No"] };
+    expect(DraftOutputSchema.safeParse({ ...answer, questions: [words] }).success).toBe(false);
+    const unsaid = { ...answer.questions[0], choices: [{ label: "Yes" }] };
+    expect(DraftOutputSchema.safeParse({ ...answer, questions: [unsaid] }).success).toBe(false);
+    // A decision's choice may say it declines; one that doesn't say adds its value.
+    expect(
+      DecisionChoiceSchema.safeParse({ label: "No", value: "No", declines: true }).success,
+    ).toBe(true);
+    expect(DecisionChoiceSchema.safeParse({ label: "Yes", value: "Yes" }).success).toBe(true);
+    expect(answersWaitingOnly("places", { label: "No", value: "No", declines: true })).toBe(true);
+    expect(answersWaitingOnly("places", { label: "Yes", value: "Yes" })).toBe(true);
+    const dublin = { country: "IE", city: "Dublin", mode: "hybrid" as const };
+    expect(answersWaitingOnly("places", { label: "Yes", value: dublin })).toBe(false);
+    expect(answersWaitingOnly("extra.relocate", { label: "No", value: "No" })).toBe(false);
   });
 
   it("limits a CV to 5 MB and takes null to go back to the automatic choice", () => {

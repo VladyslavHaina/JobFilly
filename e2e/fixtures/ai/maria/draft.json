@@ -103,9 +103,18 @@
         "groupKey": "extra.relocation-ireland",
         "question": "Would you relocate to Ireland?",
         "choices": [
-          "Yes",
-          "No",
-          "Maybe later"
+          {
+            "label": "Yes",
+            "declines": false
+          },
+          {
+            "label": "No",
+            "declines": true
+          },
+          {
+            "label": "Maybe later",
+            "declines": true
+          }
         ]
       }
     ]

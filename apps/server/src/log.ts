@@ -70,7 +70,11 @@ export type LogEvent =
   | "pipeline.stage_failed"
   | "pipeline.sweep_failed"
   | "pipeline.message_gone"
-  | "sender.lookup_retry";
+  | "sender.lookup_retry"
+  // Operational: a mailbox copy a change made, which should have gone again (it lost a race),
+  // couldn't be deleted safely (reason delete_failed or uid_unknown), so it may still be in the
+  // Drafts folder beside the draft's own copy.
+  | "draft.copy_left";
 
 export type LogFields = Record<string, unknown>;
 

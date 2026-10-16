@@ -246,9 +246,10 @@ export function restoreChanges(
 /**
  * The fields of an item that a group key's parts name, per list key: "min_pay:CHF:year" is
  * answered by a min_pay item with currency CHF and period year. A key not listed here compares
- * its items (words) with the first part.
+ * its items (words) with the first part. A decision's answer fills these fields from the parts
+ * (decisions/answers.ts itemFromText), so what it adds answers the group key it was asked under.
  */
-const GROUP_PARTS: Partial<Record<CoreProfileKey, readonly string[]>> = {
+export const GROUP_PARTS: Readonly<Partial<Record<CoreProfileKey, readonly string[]>>> = {
   min_pay: ["currency", "period"],
   places: ["country", "city", "mode"],
   remote: ["scope"],

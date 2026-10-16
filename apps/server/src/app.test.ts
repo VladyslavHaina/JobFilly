@@ -135,16 +135,17 @@ describe("the workspace route modules", () => {
     // A profile's history: no such profile, no such entry.
     ["GET", `profiles/${ID}/history`, "viewer", 404],
     ["POST", `profiles/${ID}/history/${ID}/undo`, "editor", 404],
-    ["GET", "drafts", "viewer", 501],
-    ["POST", "drafts", "editor", 501],
-    ["GET", `drafts/${ID}`, "viewer", 501],
-    ["PATCH", `drafts/${ID}`, "editor", 501],
-    ["POST", `drafts/${ID}/discard`, "editor", 501],
-    ["GET", "decisions", "viewer", 501],
-    ["GET", "decisions/count", "viewer", 501],
-    ["POST", `decisions/${ID}/answer`, "editor", 501],
-    ["POST", `decisions/${ID}/not-now`, "editor", 501],
-    ["POST", `decisions/${ID}/dismiss`, "editor", 501],
+    // Drafts and decisions: an empty body is a 400, and there is no such draft or decision.
+    ["GET", "drafts", "viewer", 200],
+    ["POST", "drafts", "editor", 400],
+    ["GET", `drafts/${ID}`, "viewer", 404],
+    ["PATCH", `drafts/${ID}`, "editor", 400],
+    ["POST", `drafts/${ID}/discard`, "editor", 404],
+    ["GET", "decisions", "viewer", 200],
+    ["GET", "decisions/count", "viewer", 200],
+    ["POST", `decisions/${ID}/answer`, "editor", 400],
+    ["POST", `decisions/${ID}/not-now`, "editor", 404],
+    ["POST", `decisions/${ID}/dismiss`, "editor", 400],
     // Viewers chat and discard; applying and editing a proposal take an editor (F8.8). The
     // thread reads, an empty message and an empty edit, and no such proposal.
     ["GET", "assistant", "viewer", 200],

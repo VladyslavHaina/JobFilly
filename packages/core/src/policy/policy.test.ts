@@ -117,6 +117,32 @@ describe("replyEligibility (F6.1, F6.5, TBD-193)", () => {
     expect(replyEligibility({ ...base, ...everything })).toEqual({ eligible: true, heldBy: [] });
   });
 
+  it("lets a retry of the role's own draft through inside the window, and keeps every other hold", () => {
+    const retry = { ...base, origin: "retry" as const, draftHistory: discarded };
+    expect(replyEligibility(retry)).toEqual({ eligible: true, heldBy: [] });
+    const held: [Partial<ReplyEligibilityInput>, HeldKind][] = [
+      [{ receivedAt: daysAgo(20) }, "outside_window"],
+      [{ senderVerdict: "high_risk" }, "high_risk"],
+      [{ ruleEffects: [{ ruleId: RULE, action: "no_draft", reason: "r" }] }, "rule_no_draft"],
+      [{ ruleEffects: [{ ruleId: RULE, action: "hide", reason: "r" }] }, "rule_hide"],
+      [{ ruleEffects: [{ ruleId: RULE, action: "ask_first", reason: "r" }] }, "rule_ask_first"],
+      [{ openNeeds: [{ question: "q" }] }, "open_needs"],
+      [{ draftHistory: { hadDraft: true, dismissed: true } }, "dismissed"],
+      [{ score: 55 }, "below_threshold"],
+      [{ category: "job_alert" }, "not_reply_to"],
+      [{ senderVerdict: null }, "sender_check_pending"],
+    ];
+    for (const [overrides, kind] of held) {
+      expect(replyEligibility({ ...retry, ...overrides }), kind).toMatchObject({
+        eligible: false,
+        heldBy: [expect.objectContaining({ kind })],
+      });
+    }
+    expect(replyEligibility({ ...retry, receivedAt: daysAgo(20) }).heldBy).toEqual([
+      { kind: "outside_window", reason: "Older than 14 days" },
+    ]);
+  });
+
   it("says why in plain words", () => {
     expect(replyEligibility({ ...base, score: 55 }).heldBy).toEqual([
       { kind: "below_threshold", reason: "Fit score 55 is below 70" },

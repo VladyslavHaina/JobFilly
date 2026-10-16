@@ -1,3 +1,3 @@
-// Pure logic for the placeholder check and what a draft may use (F6). Created by the foundation and
-// exported from ../index.ts; the replies slice writes it.
-export {};
+// Pure logic for drafts (F6.2): the placeholder check, and the profile entries a draft may use.
+export { type DraftAnswer, draftEntries } from "./entries";
+export { findPlaceholders } from "./placeholders";

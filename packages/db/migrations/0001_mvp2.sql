@@ -72,7 +72,7 @@ CREATE TABLE "decision_messages" (
 	"updated_at" timestamp with time zone NOT NULL,
 	CONSTRAINT "decision_messages_decision_id_message_id_position_pk" PRIMARY KEY("decision_id","message_id","position"),
 	CONSTRAINT "decision_messages_state_check" CHECK (state in ('waiting', 'dismissed', 'resolved')),
-	CONSTRAINT "decision_messages_source_check" CHECK (source in ('draft', 'match', 'rule'))
+	CONSTRAINT "decision_messages_source_check" CHECK (source in ('draft', 'draft_on_demand', 'match', 'rule'))
 );
 --> statement-breakpoint
 CREATE TABLE "decisions" (
