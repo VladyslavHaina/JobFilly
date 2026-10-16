@@ -507,7 +507,8 @@ async function liveDrafts(db: Database, workspaceId: string, messageIds: string[
 
 /**
  * The workspaces with pipeline work: a confirmed profile, and something to evaluate at `now`
- * (what waits out a stage's back-off doesn't count) or a draft to retry. Like the job claim, it reads across workspaces (ARCHITECTURE › Workspaces): the sweep
+ * (what waits out a stage's back-off doesn't count) or a draft to retry. Like the job claim, it
+ * reads across workspaces (ARCHITECTURE › Workspaces): the sweep
  * (apps/server/src/pipeline/sweep.ts) serves them all and enqueues one re-evaluation for each.
  */
 export async function listWorkspacesWithWork(db: Database, now: Date): Promise<string[]> {

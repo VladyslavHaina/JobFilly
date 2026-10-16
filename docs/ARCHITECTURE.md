@@ -88,9 +88,12 @@ Rules:
   (with `stale`), `sender_marks`, `domain_lookups` (the RDAP and MX cache, workspace-scoped),
   `drafts`, `decisions` and `decision_messages`, `assistant_threads`, `assistant_messages`,
   `assistant_proposals`, `profile_history`, `mailbox_sync` (per mailbox and folder: UIDVALIDITY,
-  last UID, last success, failing since, the back-off's next attempt), `jobs.dedupe_key` and
-  `messages.language` (the body's language as the sender stage detected it). The migration also
-  gives saved AI settings a model for each new task, from their extract model.
+  last UID, last success, failing since, the back-off's next attempt), `stage_failures` (per
+  message and pipeline stage: the failure count, the last failure, the back-off's `retry_at` and
+  the evaluation's `stale_since` when it failed; a sender check is stored under position -1),
+  `jobs.dedupe_key` and `messages.language` (the body's language as the sender stage detected
+  it). The migration also gives saved AI settings a model for each new task, from their extract
+  model.
 - A reference from one workspace-owned row to another includes `workspace_id`: `cvs`,
   `profiles` and `assistant_threads` have a unique `(workspace_id, id)`, and every foreign key to
   them is composite, as those to `messages` and `roles` are. The database itself refuses a link,
