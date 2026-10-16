@@ -7,10 +7,10 @@ import {
   MessageDetailSchema,
 } from "@jobfilly/schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { type ReactNode, useEffect, useRef } from "react";
+import { type ReactNode, type RefObject, useEffect, useRef } from "react";
 import { Link } from "react-router";
 import { ApiError, api } from "../../api";
-import { Alert, Card, Loading, SelectField } from "../../components";
+import { Alert, Button, Card, Loading, SelectField } from "../../components";
 import { queryKeys, useWorkspace } from "../../hooks";
 import { apiPaths, paths } from "../../paths";
 import { CvChoice } from "../cvs";
@@ -118,7 +118,11 @@ function RoleFacts({ role, heading }: { role: JobFacts; heading: string }) {
   );
 }
 
-function CategoryCorrection({ message }: { message: MessageDetail }) {
+function CategoryCorrection(props: {
+  message: MessageDetail;
+  box: RefObject<HTMLDivElement | null>;
+}) {
+  const { message } = props;
   const { workspaceId, can } = useWorkspace();
   const client = useQueryClient();
   const correct = useMutation({
@@ -139,7 +143,7 @@ function CategoryCorrection({ message }: { message: MessageDetail }) {
   else if (message.categorySource === "you") hint = "Corrected by hand: later analysis keeps it.";
   else hint = "Wrong? Pick the right one; later analysis keeps your choice.";
   return (
-    <div className="max-w-xs">
+    <div ref={props.box} className="max-w-xs">
       <SelectField
         label="Category"
         value={message.category ?? ""}
@@ -188,7 +192,9 @@ function Body({ workspaceId, messageId }: { workspaceId: string; messageId: stri
   );
 }
 
-function Status({ message }: { message: MessageDetail }) {
+function Status(props: { message: MessageDetail; onSetCategory: () => void }) {
+  const { message } = props;
+  const { can } = useWorkspace();
   if (message.ownReply) {
     return (
       <Alert tone="info" title="Your reply">
@@ -200,8 +206,18 @@ function Status({ message }: { message: MessageDetail }) {
   if (message.analysisStatus === "failed") {
     return (
       <Alert tone="warning" title="Couldn't analyze">
-        The AI's answer for this email didn't fit, so nothing was guessed. Read it below and set the
-        category if you know it.
+        <p>
+          The AI's answer for this email didn't fit, so nothing was guessed.{" "}
+          {can.edit
+            ? "Read it below and set the category if you know it."
+            : "Read it below; an editor or admin can set its category."}
+        </p>
+        {/* Nothing analyzes a failed message again: setting the category is the way on. */}
+        {can.edit && (
+          <Button variant="secondary" className="mt-2" onClick={props.onSetCategory}>
+            Set the category
+          </Button>
+        )}
       </Alert>
     );
   }
@@ -250,6 +266,7 @@ function Facts({ workspaceId, message }: { workspaceId: string; message: Message
 export function MessageDetailView(props: { workspaceId: string; messageId: string }) {
   const { workspaceId, messageId } = props;
   const heading = useRef<HTMLHeadingElement>(null);
+  const correction = useRef<HTMLDivElement>(null);
   const detail = useQuery({
     queryKey: detailKey(workspaceId, messageId),
     queryFn: () => api(apiPaths.message(workspaceId, messageId), MessageDetailSchema),
@@ -315,7 +332,10 @@ export function MessageDetailView(props: { workspaceId: string; messageId: strin
         </div>
         {close}
       </header>
-      <Status message={message} />
+      <Status
+        message={message}
+        onSetCategory={() => correction.current?.querySelector("select")?.focus()}
+      />
       {!message.ownReply && (
         <SenderPanel
           workspaceId={workspaceId}
@@ -324,7 +344,7 @@ export function MessageDetailView(props: { workspaceId: string; messageId: strin
           check={message.senderCheck}
         />
       )}
-      {!message.ownReply && <CategoryCorrection message={message} />}
+      {!message.ownReply && <CategoryCorrection message={message} box={correction} />}
       <Facts workspaceId={workspaceId} message={message} />
       <section aria-label="Message" className="border-t border-stone-200 pt-4">
         <Body workspaceId={workspaceId} messageId={messageId} />
