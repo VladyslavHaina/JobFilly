@@ -322,6 +322,8 @@ export function MessageDetailView(props: { workspaceId: string; messageId: strin
           messageId={message.id}
           from={message.from}
           check={message.senderCheck}
+          category={message.category}
+          analysisStatus={message.analysisStatus}
         />
       )}
       {!message.ownReply && <CategoryCorrection message={message} />}

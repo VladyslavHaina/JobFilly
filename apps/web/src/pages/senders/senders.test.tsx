@@ -20,6 +20,8 @@ const marksUrl = `/api/workspaces/${ws.id}/senders/marks`;
 // The mark is asked by the message (encoded as one path segment), never by the address.
 const markOfMessageUrl = `/api/workspaces/${ws.id}/senders/messages/%3Cm%40x%3E/mark`;
 const from = { address: "hr.department@globalcareers-mail.example", name: "Global Careers HR" };
+/** Analysed job mail: the mail whose sender is checked. */
+const JOB = { category: "recruiter_outreach", analysisStatus: "done" } as const;
 
 const scam: SenderCheck = {
   verdict: "high_risk",
@@ -80,10 +82,10 @@ describe("SenderBadge", () => {
   it("shows each verdict, and says when a check is incomplete", () => {
     renderInWorkspace(
       <>
-        <SenderBadge sender={{ verdict: "looks_fine", complete: true }} />
-        <SenderBadge sender={{ verdict: "caution", complete: false }} />
-        <SenderBadge sender={{ verdict: "high_risk", complete: true }} />
-        <SenderBadge sender={null} />
+        <SenderBadge {...JOB} sender={{ verdict: "looks_fine", complete: true }} />
+        <SenderBadge {...JOB} sender={{ verdict: "caution", complete: false }} />
+        <SenderBadge {...JOB} sender={{ verdict: "high_risk", complete: true }} />
+        <SenderBadge {...JOB} sender={null} />
       </>,
     );
     expect(screen.getByRole("img", { name: "Sender check: Looks fine" }).textContent).toBe(
@@ -93,11 +95,39 @@ describe("SenderBadge", () => {
     expect(screen.getByRole("img", { name: "Sender check: High risk" }).textContent).toBe(
       "High risk",
     );
-    // A row without a stored check says so, never nothing.
+    // A job row without a stored check says so, never nothing.
     expect(screen.getByRole("img", { name: "Sender check: Not checked yet" }).textContent).toBe(
       "Not checked yet",
     );
     expect(screen.getAllByRole("img")).toHaveLength(4);
+  });
+
+  it("says 'Not checked yet' for job mail still to be analyzed, too", () => {
+    renderInWorkspace(<SenderBadge category="job_alert" analysisStatus="pending" sender={null} />);
+    expect(screen.getByRole("img", { name: "Sender check: Not checked yet" })).toBeTruthy();
+  });
+
+  it("shows nothing for mail that is never checked: not job mail, or not analyzed", () => {
+    renderInWorkspace(
+      <>
+        <SenderBadge category="not_job" analysisStatus="done" sender={null} />
+        <SenderBadge category={null} analysisStatus="failed" sender={null} />
+        <SenderBadge category="recruiter_outreach" analysisStatus="failed" sender={null} />
+      </>,
+    );
+    expect(screen.queryAllByRole("img")).toHaveLength(0);
+    expect(screen.queryByText(/Not checked/)).toBeNull();
+  });
+
+  it("still shows a stored verdict on mail that is no longer job mail", () => {
+    renderInWorkspace(
+      <SenderBadge
+        category="not_job"
+        analysisStatus="done"
+        sender={{ verdict: "caution", complete: true }}
+      />,
+    );
+    expect(screen.getByRole("img", { name: "Sender check: Caution" })).toBeTruthy();
   });
 });
 
@@ -105,7 +135,7 @@ describe("SenderPanel", () => {
   it("shows the reasons and the high-risk warning, with Trusted and Blocked for editors", async () => {
     const seen = markServer(null);
     renderInWorkspace(
-      <SenderPanel workspaceId={ws.id} messageId="<m@x>" from={from} check={scam} />,
+      <SenderPanel workspaceId={ws.id} messageId="<m@x>" {...JOB} from={from} check={scam} />,
       {
         role: "editor",
       },
@@ -148,7 +178,7 @@ describe("SenderPanel", () => {
       mark: "trusted",
     };
     renderInWorkspace(
-      <SenderPanel workspaceId={ws.id} messageId="<m@x>" from={from} check={trusted} />,
+      <SenderPanel workspaceId={ws.id} messageId="<m@x>" {...JOB} from={from} check={trusted} />,
       { role: "editor" },
     );
     expect(screen.getByText(/is marked trusted in this workspace/)).toBeTruthy();
@@ -178,7 +208,7 @@ describe("SenderPanel", () => {
       mark: "blocked",
     };
     renderInWorkspace(
-      <SenderPanel workspaceId={ws.id} messageId="<m@x>" from={from} check={blocked} />,
+      <SenderPanel workspaceId={ws.id} messageId="<m@x>" {...JOB} from={from} check={blocked} />,
       { role: "editor" },
     );
     await waitFor(() => expect(pressed("Blocked")).toBe("true"));
@@ -205,7 +235,7 @@ describe("SenderPanel", () => {
       { keep: true },
     );
     renderInWorkspace(
-      <SenderPanel workspaceId={ws.id} messageId="<m@x>" from={from} check={scam} />,
+      <SenderPanel workspaceId={ws.id} messageId="<m@x>" {...JOB} from={from} check={scam} />,
       { role: "editor" },
     );
     await waitFor(() => expect(pressed("Blocked")).toBe("true"));
@@ -216,7 +246,7 @@ describe("SenderPanel", () => {
 
   it("shows viewers the reasons and the warning, but no Trusted or Blocked", () => {
     renderInWorkspace(
-      <SenderPanel workspaceId={ws.id} messageId="<m@x>" from={from} check={scam} />,
+      <SenderPanel workspaceId={ws.id} messageId="<m@x>" {...JOB} from={from} check={scam} />,
       {
         role: "viewer",
       },
@@ -243,18 +273,48 @@ describe("SenderPanel", () => {
       mark: null,
     };
     const { unmount } = renderInWorkspace(
-      <SenderPanel workspaceId={ws.id} messageId="<m@x>" from={from} check={incomplete} />,
+      <SenderPanel workspaceId={ws.id} messageId="<m@x>" {...JOB} from={from} check={incomplete} />,
     );
     expect(screen.getByRole("img", { name: "Sender check: Caution, incomplete" })).toBeTruthy();
     expect(screen.getByText(/some checks couldn't be done/)).toBeTruthy();
     expect(screen.queryByText("This sender looks high risk")).toBeNull();
     unmount();
     renderInWorkspace(
-      <SenderPanel workspaceId={ws.id} messageId="<m@x>" from={from} check={null} />,
+      <SenderPanel workspaceId={ws.id} messageId="<m@x>" {...JOB} from={from} check={null} />,
     );
     expect(screen.getByRole("img", { name: "Sender check: Not checked yet" })).toBeTruthy();
     expect(screen.getByText(/Couldn't check this sender yet/).textContent).toContain(
       "don't pay a fee or send ID documents",
     );
+  });
+
+  it("never promises a check for mail that isn't job mail, or couldn't be analyzed", () => {
+    const { unmount } = renderInWorkspace(
+      <SenderPanel
+        workspaceId={ws.id}
+        messageId="<m@x>"
+        category="not_job"
+        analysisStatus="done"
+        from={from}
+        check={null}
+      />,
+    );
+    const panel = () => screen.getByRole("region", { name: "Sender check" });
+    expect(panel().textContent).toContain("Sender checks are for job mail only.");
+    expect(panel().textContent).not.toMatch(/Not checked yet|checked when the email is analyzed/);
+    expect(screen.queryAllByRole("img")).toHaveLength(0);
+    unmount();
+    renderInWorkspace(
+      <SenderPanel
+        workspaceId={ws.id}
+        messageId="<m@x>"
+        category={null}
+        analysisStatus="failed"
+        from={from}
+        check={null}
+      />,
+    );
+    expect(panel().textContent).toContain("the email couldn't be analyzed");
+    expect(panel().textContent).not.toMatch(/Not checked yet|checked when the email is analyzed/);
   });
 });

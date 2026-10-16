@@ -1,7 +1,10 @@
 import {
   type Address,
+  type AnalysisStatus,
   type AppliedSenderMark,
   AppliedSenderMarkSchema,
+  type Category,
+  JOB_CATEGORIES,
   type MessageListItem,
   type SenderCheck,
   type SenderMark,
@@ -18,8 +21,10 @@ import { apiPaths } from "../../paths";
 // The sender check in the UI (F5): a badge on each inbox row (looks fine, caution, high risk),
 // and in the message detail the reasons, worded as estimates, a warning for a high-risk sender
 // (no reply is drafted for it automatically, F5.2), and the Trusted and Blocked marks, which
-// only editors set (F5.4). A message without a stored check says so in both places, never
-// nothing: a missing badge would read as nothing to worry about.
+// only editors set (F5.4). Only job mail is checked, once its analysis is done (packages/db,
+// isJobMessage). Job mail without a stored check says "Not checked yet" in both places, never
+// nothing, as a missing badge would read as nothing to worry about. Other mail (not job mail, or
+// mail that couldn't be analyzed) is never checked, so it gets no badge and no promise of one.
 
 const VERDICT: Record<SenderVerdict, { text: string; tone: "success" | "warning" | "danger" }> = {
   looks_fine: { text: "Looks fine", tone: "success" },
@@ -40,14 +45,48 @@ function NotCheckedBadge() {
   );
 }
 
-export function SenderBadge({ sender }: { sender: MessageListItem["sender"] }) {
-  if (!sender) return <NotCheckedBadge />;
+/** What the badge and the panel know about a message: its category and its analysis. */
+interface Mail {
+  category: Category | null;
+  analysisStatus: AnalysisStatus;
+}
+
+/** Job mail whose analysis is done or still to come: its sender is checked, or will be. */
+const isCheckedMail = (m: Mail) =>
+  m.analysisStatus !== "failed" &&
+  m.category !== null &&
+  (JOB_CATEGORIES as readonly Category[]).includes(m.category);
+
+function VerdictBadge({ sender }: { sender: NonNullable<MessageListItem["sender"]> }) {
   const { text, tone } = VERDICT[sender.verdict];
   return (
     <Badge tone={tone} label={verdictLabel(sender.verdict, sender.complete)}>
       {text}
     </Badge>
   );
+}
+
+/**
+ * The sender badge of an inbox row: the stored verdict, "Not checked yet" for job mail not
+ * checked so far, and nothing for mail that is never checked.
+ */
+export function SenderBadge(props: Mail & { sender: MessageListItem["sender"] }) {
+  if (props.sender) return <VerdictBadge sender={props.sender} />;
+  return isCheckedMail(props) ? <NotCheckedBadge /> : null;
+}
+
+/** Why a message has no stored check: not yet (with the advice that holds until then), or never. */
+function NoCheck(mail: Mail) {
+  let text: string;
+  if (isCheckedMail(mail)) {
+    text =
+      "Couldn't check this sender yet; it is checked when the email is analyzed. Until then, don't pay a fee or send ID documents to apply.";
+  } else if (mail.analysisStatus === "failed") {
+    text = "This sender isn't checked, as the email couldn't be analyzed.";
+  } else {
+    text = "Sender checks are for job mail only.";
+  }
+  return <p className="text-sm text-stone-500">{text}</p>;
 }
 
 type AppliedMark = NonNullable<AppliedSenderMark["applied"]>;
@@ -131,12 +170,14 @@ function MarkButtons({ messageId, from }: { messageId: string; from: Address }) 
   );
 }
 
-export function SenderPanel(props: {
-  workspaceId: string;
-  messageId: string;
-  from: Address;
-  check: SenderCheck | null;
-}) {
+export function SenderPanel(
+  props: Mail & {
+    workspaceId: string;
+    messageId: string;
+    from: Address;
+    check: SenderCheck | null;
+  },
+) {
   const { from, check } = props;
   const { can } = useWorkspace();
   return (
@@ -146,14 +187,13 @@ export function SenderPanel(props: {
     >
       <div className="flex flex-wrap items-center gap-2">
         <h3 className="text-sm font-semibold text-stone-700">Sender check</h3>
-        <SenderBadge sender={check} />
+        <SenderBadge
+          sender={check}
+          category={props.category}
+          analysisStatus={props.analysisStatus}
+        />
       </div>
-      {!check && (
-        <p className="text-sm text-stone-500">
-          Couldn't check this sender yet; it is checked when the email is analyzed. Until then,
-          don't pay a fee or send ID documents to apply.
-        </p>
-      )}
+      {!check && <NoCheck category={props.category} analysisStatus={props.analysisStatus} />}
       {check?.verdict === "high_risk" && (
         <Alert tone="error" title="This sender looks high risk">
           No reply is drafted for it automatically. Don't pay a fee or send ID documents to apply.
