@@ -448,6 +448,12 @@ export interface MatchAnswer {
   skillCloseness: { skill: string; verdict: FitVerdict; reason: string }[];
 }
 
+/** An answer draft.v1 offers to a question, and whether choosing it turns the question down. */
+interface DraftChoice {
+  label: string;
+  declines: boolean;
+}
+
 /** draft.v1's answer (DraftOutput). */
 export interface DraftAnswer {
   subject: string;
@@ -455,7 +461,12 @@ export interface DraftAnswer {
   language: string;
   usedEntries: string[];
   attachCv: boolean;
-  questions: { profileKey: string | null; groupKey: string; question: string; choices: string[] }[];
+  questions: {
+    profileKey: string | null;
+    groupKey: string;
+    question: string;
+    choices: DraftChoice[];
+  }[];
 }
 
 /** assistant.v1's answer (AssistantOutput); `changes` are packages/schema Changes. */

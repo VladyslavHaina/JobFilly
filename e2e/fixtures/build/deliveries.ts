@@ -510,7 +510,12 @@ export const DELIVERIES: readonly DeliverySource[] = [
                   profileKey: RELOCATION_GROUP,
                   groupKey: RELOCATION_GROUP,
                   question: "Would you relocate to Ireland?",
-                  choices: ["Yes", "No", "Maybe later"],
+                  // The model says which answers turn the question down (draft.v1).
+                  choices: [
+                    { label: "Yes", declines: false },
+                    { label: "No", declines: true },
+                    { label: "Maybe later", declines: true },
+                  ],
                 },
               ],
             },
