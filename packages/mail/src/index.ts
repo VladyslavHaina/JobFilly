@@ -10,5 +10,4 @@ export {
 } from "./client";
 export { buildDraftMime, type DraftMimeInput } from "./drafts/index";
 export { FAILURE_MESSAGES } from "./errors";
-export { newDraftMessageId } from "./message-id";
 export { MAIL_PRESETS } from "./presets";

@@ -1,6 +1,6 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { getCvFile, getMailboxConnection, getMessageRef } from "@jobfilly/db";
-import { MailUnavailableError, newDraftMessageId } from "@jobfilly/mail";
+import { MailUnavailableError } from "@jobfilly/mail";
 import {
   CV_MIME_TYPES,
   type DraftAttachment,
@@ -63,10 +63,22 @@ export async function attachmentFor(
   };
 }
 
+const ADDRESS = /^[^\s@<>]+@([^\s@<>]+\.[^\s@<>]+)$/;
+
 /**
- * A new draft's own Message-ID header (packages/mail's newDraftMessageId, on the mailbox
- * address's domain), chosen before the append and kept on the draft row (saveDraftText), so a
- * retry can find the copy an attempt left.
+ * A new draft Message-ID ("<uuid@domain>") on the mailbox address's domain, or on a domain no
+ * one has (jobfilly.invalid, RFC 2606) when the address has none.
+ */
+export function newDraftMessageId(address: string): string {
+  const domain = ADDRESS.exec(address.trim())?.[1] ?? "jobfilly.invalid";
+  return `<${randomUUID()}@${domain}>`;
+}
+
+/**
+ * A new draft's own Message-ID header, chosen here before the append and kept on the draft row
+ * (saveDraftText). It reaches packages/mail as DraftMailInput.draftMessageId, which the client
+ * keeps on the copy, so a retry (or a discard of a failed draft) can find the copy an earlier
+ * attempt left.
  */
 export async function draftMessageIdFor(deps: AppDeps, ws: string): Promise<string> {
   return newDraftMessageId((await getMailboxConnection(deps.db, ws))?.address ?? "");

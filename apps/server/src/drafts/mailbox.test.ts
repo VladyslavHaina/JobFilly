@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { newDraftMessageId } from "./message-id";
+import { newDraftMessageId } from "./mailbox";
+
+// A draft's own Message-ID, chosen by the server before the append (ARCHITECTURE › The draft
+// lifecycle): new each time, on the mailbox address's domain.
 
 describe("newDraftMessageId", () => {
   it("is a new <uuid@domain> on the mailbox address's domain each time", () => {
