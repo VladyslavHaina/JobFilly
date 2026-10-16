@@ -231,10 +231,14 @@ describe("needs (F7.1, F7.6)", () => {
         need: { profileKey: "extra.relocate_de", groupKey: "extra.relocate_de" },
         answer: "No",
       },
-      // A word-list key's parts can't be compared with its items: the key's own group key.
+      // A word-list key's parts can't be compared with its items: an extra question named after
+      // the whole group key, so no deal-breaker already there answers it.
       {
         q: { profileKey: "deal_breakers", groupKey: "deal_breakers:onsite", choices: [] },
-        need: { profileKey: "deal_breakers", groupKey: "deal_breakers" },
+        need: {
+          profileKey: "extra.deal_breakers_onsite",
+          groupKey: "extra.deal_breakers_onsite",
+        },
         answer: "Fully on-site",
       },
       // A key whose parts describe its items keeps them; a permit is one the model offered.
@@ -263,11 +267,11 @@ describe("needs (F7.1, F7.6)", () => {
         need: { profileKey: "places", groupKey: "places:IE:Dublin:hybrid" },
         answer: "так",
       },
-      // More parts than the key's items have fields: the key's own group key.
+      // More parts than the key's items have fields: an extra question named after them.
       {
         q: { profileKey: "remote", groupKey: "remote:EU:CET", choices: [] },
-        need: { profileKey: "remote", groupKey: "remote" },
-        answer: { scope: "EU, CET hours", timeZones: null },
+        need: { profileKey: "extra.remote_eu_cet", groupKey: "extra.remote_eu_cet" },
+        answer: "EU, CET hours",
       },
       // Fewer parts than fields: the answer gives the fields the parts leave out, as an item or
       // in the words the schema spells.
@@ -286,11 +290,14 @@ describe("needs (F7.1, F7.6)", () => {
         need: { profileKey: "places", groupKey: "places:IE:Dublin" },
         answer: "Onsite",
       },
-      // A part no item can have (no place is "remote"): the key's own group key.
+      // A part no item can have (no place is "remote"): an extra question named after the parts.
       {
         q: { profileKey: "places", groupKey: "places:IE:Dublin:remote", choices: [] },
-        need: { profileKey: "places", groupKey: "places" },
-        answer: { country: "IE", city: "Dublin", mode: "hybrid" },
+        need: {
+          profileKey: "extra.places_ie_dublin_remote",
+          groupKey: "extra.places_ie_dublin_remote",
+        },
+        answer: "Yes, remote from Dublin",
       },
     ];
     for (const { q, need: expected, answer } of asked) {
@@ -336,6 +343,76 @@ describe("needs (F7.1, F7.6)", () => {
     ]);
     expect(us && isOpen(us, answered, new Set())).toBe(true);
     expect(onsite && isOpen(onsite, answered, new Set())).toBe(true);
+  });
+
+  it("from a draft's questions stay open when the profile answers only their bare key", () => {
+    // Maria's profile as her first scan reads it (e2e/fixtures/maria): minimums in EUR, Berlin
+    // and Amsterdam hybrid, remote in the EU.
+    const eurDay = { amount: 450, currency: "EUR", period: "day" as const, asWritten: "€450" };
+    const scanned = {
+      entries: [
+        entry("min_pay", [eur, eurDay]),
+        entry("places", [
+          { country: "DE", city: "Berlin", mode: "hybrid" },
+          { country: "NL", city: "Amsterdam", mode: "hybrid" },
+        ]),
+        entry("remote", [{ scope: "EU", timeZones: null }]),
+        entry("deal_breakers", ["Crypto"]),
+      ],
+    };
+    // Group keys whose parts make no item, or that are another key's: no entry already there
+    // answers them, so the draft is held for a decision instead of going out on a guess.
+    const asked = needsFromQuestions([
+      {
+        profileKey: "min_pay",
+        groupKey: "min_pay:CHF:annual",
+        question: "Minimum pay in CHF per year?",
+        choices: offer("CHF 120,000"),
+      },
+      {
+        profileKey: "places",
+        groupKey: "places:IE:Dublin:remote",
+        question: "Remote from Dublin?",
+        choices: offer("Yes"),
+      },
+      { profileKey: "places", groupKey: "relocate:IE", question: "Relocate?", choices: [] },
+      { profileKey: "places", groupKey: "relocation", question: "Relocate?", choices: [] },
+      { profileKey: "remote", groupKey: "remote:EU:CET", question: "CET hours?", choices: [] },
+      { profileKey: "deal_breakers", groupKey: "deal_breakers:onsite", question: "?", choices: [] },
+    ]);
+    expect(asked).toHaveLength(6);
+    for (const need of asked) {
+      expect(need.groupKey, need.question).not.toMatch(/^(min_pay|places|remote|deal_breakers)$/);
+      expect(isOpen(need, scanned, new Set()), need.groupKey).toBe(true);
+    }
+    // Once answered, the same question from a later draft is answered by the profile (F7.6).
+    const [chfQuestion] = asked;
+    if (!chfQuestion?.profileKey) throw new Error("expected a profile key");
+    const answered = answerOf(chfQuestion, "CHF 120,000");
+    if (answered?.kind !== "item") throw new Error("the answer makes no item");
+    const applied = applyChanges(
+      { entries: scanned.entries, rules: [] },
+      [answerChange(chfQuestion.profileKey, answered.item)],
+      {
+        profileId: "p",
+        source: "decision",
+        userId: null,
+        at: now.toISOString(),
+        newRuleId: () => RULE,
+      },
+    );
+    if (!applied.ok) throw new Error("the answer doesn't apply");
+    const [again] = needsFromQuestions([
+      { profileKey: "min_pay", groupKey: "min_pay:CHF:annual", question: "?", choices: [] },
+    ]);
+    expect(again && isOpen(again, applied, new Set())).toBe(false);
+    // What the key's items do answer is still answered by them.
+    const [eurYear, bare] = needsFromQuestions([
+      { profileKey: "min_pay", groupKey: "min_pay:EUR:year", question: "?", choices: [] },
+      { profileKey: "min_pay", groupKey: "min_pay", question: "?", choices: [] },
+    ]);
+    expect(eurYear && isOpen(eurYear, scanned, new Set())).toBe(false);
+    expect(bare && isOpen(bare, scanned, new Set())).toBe(false);
   });
 
   it("never write what the user turned down or the words don't state, in any language", () => {

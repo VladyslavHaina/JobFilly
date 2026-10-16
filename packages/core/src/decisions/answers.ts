@@ -402,17 +402,23 @@ export const extraKey = (words: string): ProfileKey | null => {
 
 /**
  * The profile key a draft's question writes and the group key it is asked under, chosen so the
- * answer is found later (F7.6): what an answer adds to the profile key always answers the group
- * key (answeredFor).
+ * answer is found later (F7.6) and nothing the profile doesn't answer counts as answered
+ * (F6.2): what an answer adds to the profile key always answers the group key (answeredFor),
+ * and only that does.
  *
- * - The key it names (or its group key's own key, when it names none) is kept. Its group key
- *   stays only when it belongs to that key and its parts can make an item: each is a valid value
- *   of a field of the key's items, in order (GROUP_PARTS), and the answer completes the fields
- *   they leave out ("min_pay:CHF" plus "CHF 120,000 year", "places:IE:Dublin" plus "hybrid").
- *   So "remote:EU" and "places:IE:Dublin:hybrid" are answered by what their answer adds.
- *   Otherwise a core key's parts are dropped: answeredFor would compare its items (words) with
- *   the first part, and "Fully on-site" never equals "onsite" ("deal_breakers:onsite" is
- *   "deal_breakers"; "places:IE:Dublin:remote", whose mode no place has, is "places").
+ * - A core key's bare group key ("min_pay") is the key's own: any entry of the key answers it.
+ * - A core key's group key stays when it is that key's and its parts can make an item: each is a
+ *   valid value of a field of the key's items, in order (GROUP_PARTS), and the answer completes
+ *   the fields they leave out ("min_pay:CHF" plus "CHF 120,000 year", "places:IE:Dublin" plus
+ *   "hybrid"). So "remote:EU" and "places:IE:Dublin:hybrid" are answered by what their answer
+ *   adds, and an EUR minimum doesn't answer "min_pay:CHF:year".
+ * - Any other group key under a core key asks something more specific than the key: its parts
+ *   can't be compared with the key's items ("min_pay:CHF:annual", whose period no schema spells;
+ *   "places:IE:Dublin:remote", whose mode no place has; "deal_breakers:onsite", whose items are
+ *   words), or it is another key's ("relocation" or "relocate:IE" under places). Cut back to the
+ *   bare key, any entry would answer it: a EUR minimum would answer a CHF question and the reply
+ *   would go without asking. So it becomes an extra question named after its whole group key, as
+ *   an extra key's parts do ("extra.min_pay_chf_annual"): asked once, and its answer found later.
  * - An extra question's parts become part of its name: "extra.relocate:IE" is
  *   "extra.relocate_ie", so relocating to Ireland and to Germany stay two questions.
  * - Otherwise it is an extra question named after its whole group key, or its words.
@@ -426,17 +432,19 @@ export function questionKeys(question: {
   const named = ProfileKeySchema.safeParse(question.profileKey);
   const own = ProfileKeySchema.safeParse(head);
   const key = named.success ? named.data : own.success ? own.data : null;
-  if (key !== null) {
+  if (key !== null && isExtraKey(key)) {
     if (head !== key || parts.length === 0) return { profileKey: key, groupKey: groupKeyFor(key) };
+    const folded = extraKey([key.replace(/^extra\./, ""), ...parts].join("_")) ?? key;
+    return { profileKey: folded, groupKey: groupKeyFor(folded) };
+  }
+  if (key !== null && head === key) {
+    if (parts.length === 0) return { profileKey: key, groupKey: groupKeyFor(key) };
     const fields = partFieldsOf(key);
     const makesItem =
       fields !== undefined &&
       parts.length <= fields.length &&
       parts.every((part, i) => part !== "" && partFits(key, fields[i] ?? "", part));
     if (makesItem) return { profileKey: key, groupKey: question.groupKey };
-    if (!isExtraKey(key)) return { profileKey: key, groupKey: groupKeyFor(key) };
-    const folded = extraKey([key.replace(/^extra\./, ""), ...parts].join("_")) ?? key;
-    return { profileKey: folded, groupKey: groupKeyFor(folded) };
   }
   const extra =
     extraKey([head.replace(/^extra\./, ""), ...parts].join("_")) ??
