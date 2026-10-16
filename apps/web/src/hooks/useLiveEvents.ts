@@ -70,18 +70,21 @@ export function useLiveEvents(
   return { connected };
 }
 
+// "usage" goes with every event the server publishes after model calls: a scan's (classify,
+// extract, prefs), the pipeline's and a match's (messages), the intake's, a CV read's, a draft's
+// and the assistant's. Settings › AI usage then follows them live, whichever made the call.
 const AREA: Record<LiveEvent["type"], LiveArea[]> = {
-  "scan.progress": ["scan"],
-  "scan.stopped": ["scan", "messages", "intake"],
-  "messages.updated": ["messages"],
-  "intake.updated": ["intake", "profiles"],
+  "scan.progress": ["scan", "usage"],
+  "scan.stopped": ["scan", "messages", "intake", "usage"],
+  "messages.updated": ["messages", "usage"],
+  "intake.updated": ["intake", "profiles", "usage"],
   "workspace.updated": ["workspace"],
-  "cvs.updated": ["cvs"],
+  "cvs.updated": ["cvs", "usage"],
   // A draft's status shows in the inbox rows too.
-  "drafts.updated": ["drafts", "messages"],
+  "drafts.updated": ["drafts", "messages", "usage"],
   "decisions.updated": ["decisions"],
   "profiles.updated": ["profiles"],
-  "assistant.updated": ["assistant"],
+  "assistant.updated": ["assistant", "usage"],
   "mailbox.updated": ["mailbox"],
 };
 

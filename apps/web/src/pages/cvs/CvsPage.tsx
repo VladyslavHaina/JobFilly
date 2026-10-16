@@ -34,6 +34,9 @@ import { cvsKey, errorText, useCvs } from "./queries";
 const ACCEPT =
   ".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
+/** How long a downloaded CV's object URL is kept after the click that starts the download. */
+const REVOKE_DOWNLOAD_URL_MS = 60_000;
+
 const formatSize = (bytes: number) =>
   bytes < 1024 * 1024
     ? `${Math.max(1, Math.round(bytes / 1024))} KB`
@@ -89,7 +92,9 @@ function CvCard({ cv }: { cv: Cv }) {
       a.href = url;
       a.download = fileName ?? cv.fileName;
       a.click();
-      URL.revokeObjectURL(url);
+      // click() only starts the download; Safari reads the blob after it returns and drops the
+      // download if the URL is already revoked, so it is freed a while later.
+      setTimeout(() => URL.revokeObjectURL(url), REVOKE_DOWNLOAD_URL_MS);
     },
   });
   // While a change is saved, the fields show it, so a refetch in between doesn't undo it.

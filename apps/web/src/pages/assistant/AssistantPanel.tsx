@@ -7,7 +7,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, type KeyboardEvent, useEffect, useId, useRef, useState } from "react";
 import { api } from "../../api";
-import { Alert, Button, Loading, Textarea } from "../../components";
+import { Alert, Button, Loading, Textarea, useEscapeLayer } from "../../components";
 import { ProposalCard } from "./ProposalCard";
 import { assistantApi, assistantKey, errorText } from "./queries";
 
@@ -102,13 +102,20 @@ function Panel({ workspaceId, onClose }: { workspaceId: string; onClose: () => v
     queryFn: () => api(assistantApi(workspaceId), AssistantStateSchema),
   });
   const thread = state.data?.thread ?? null;
+  // The thread the next message goes to. The first reply names it, and it is kept from then on:
+  // a message sent before the refetch brings the thread back stays in it, not in a new one.
+  const threadId = useRef<string | null>(null);
+  if (thread) threadId.current = thread.id;
   const send = useMutation({
     mutationFn: (message: string) =>
       api(assistantApi(workspaceId), AssistantTurnSchema, {
         method: "POST",
-        body: { threadId: thread?.id ?? null, text: message },
+        body: { threadId: threadId.current, text: message },
       }),
-    onSuccess: () => client.invalidateQueries({ queryKey: assistantKey(workspaceId) }),
+    onSuccess: (turn) => {
+      threadId.current = turn.threadId;
+      return client.invalidateQueries({ queryKey: assistantKey(workspaceId) });
+    },
   });
   const pending = send.isPending ? (send.variables ?? null) : null;
   const ask = (message: string) => {
@@ -132,13 +139,11 @@ function Panel({ workspaceId, onClose }: { workspaceId: string; onClose: () => v
   useEffect(() => {
     if (count > 0 || pending) bottom.current?.scrollIntoView?.({ block: "end" });
   }, [count, pending]);
-  useEffect(() => {
-    const onKey = (e: globalThis.KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  // Esc closes the panel only, not an open message under it (nor itself under a dialog).
+  useEscapeLayer(true, (e) => {
+    e.preventDefault();
+    onClose();
+  });
   return (
     <section
       role="dialog"

@@ -1,5 +1,5 @@
 import type { AiUsageList, MailboxSyncStatus } from "@jobfilly/schema";
-import { act, cleanup, screen, within } from "@testing-library/react";
+import { act, cleanup, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeApi, renderInWorkspace, testWorkspace } from "../../components/testing";
 import { useLiveInvalidation } from "../../hooks";
@@ -209,6 +209,34 @@ describe("UsagePerDay (F1.5)", () => {
       [expect.stringMatching(/Oct 14, 2026|14 Oct 2026/), "3", "450"],
     ]);
     expect(seen.map((r) => r.path)).toContain(`/api/workspaces/${W}/ai/usage`);
+  });
+
+  it("updates live after a CV read's and the assistant's model calls, not only the mail's", async () => {
+    let calls = 0;
+    fakeApi({
+      "GET /api/workspaces/:id/ai/usage": (): AiUsageList => ({
+        items:
+          calls === 0 ? [] : [{ day: "2026-10-15", calls, inputTokens: 100, outputTokens: 10 }],
+      }),
+    });
+    function Settings() {
+      useLiveInvalidation(W);
+      return <UsagePerDay workspaceId={W} />;
+    }
+    renderInWorkspace(<Settings />);
+    expect(await screen.findByText("No model calls yet.")).toBeTruthy();
+    const stream = FakeEventSource.all[0];
+
+    calls = 1;
+    act(() => stream?.emit("cvs.updated", "{}"));
+    const table = await screen.findByRole("table");
+    expect(within(table).getAllByRole("cell")[0]?.textContent).toBe("1");
+
+    calls = 2;
+    act(() => stream?.emit("assistant.updated", "{}"));
+    await waitFor(() =>
+      expect(within(screen.getByRole("table")).getAllByRole("cell")[0]?.textContent).toBe("2"),
+    );
   });
 
   it("says when no model was called yet", async () => {

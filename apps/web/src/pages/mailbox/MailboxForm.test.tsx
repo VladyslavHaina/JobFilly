@@ -1,8 +1,9 @@
 import type { MailboxPublic, MailPreset } from "@jobfilly/schema";
-import { cleanup, screen, within } from "@testing-library/react";
+import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fakeApi, json, renderInWorkspace, testWorkspace } from "../../components/testing";
+import { MailboxStatus } from "../sync";
 import { MailboxForm } from "./MailboxForm";
 
 // MailboxForm in onboarding and settings mode, against a fake API (F2.1–F2.3, F2.5).
@@ -191,6 +192,47 @@ describe("a connected mailbox (F2.5)", () => {
     );
     expect(await screen.findByLabelText("Mail provider")).toBeTruthy();
     expect(seen.find((r) => r.method === "DELETE")?.path).toBe(`${base}/${mailbox.id}`);
+  });
+
+  /** Settings › Mailbox: the status (F1.4) above the form, as the settings page shows them. */
+  function SettingsMailbox() {
+    return (
+      <>
+        <MailboxStatus workspaceId={ws.id} align="start" />
+        <MailboxForm workspaceId={ws.id} mode="settings" />
+      </>
+    );
+  }
+
+  it("refreshes the mailbox status on connect and on disconnect (F1.4)", async () => {
+    let items: MailboxPublic[] = [];
+    fakeApi({
+      [`GET ${base}`]: () => ({ items }),
+      [`GET ${base}/presets`]: { items: presets },
+      [`POST ${base}`]: () => {
+        items = [mailbox];
+        return json(mailbox, 201);
+      },
+      [`DELETE ${base}/:id`]: () => {
+        items = [];
+        return new Response(null, { status: 204 });
+      },
+    });
+    const user = userEvent.setup();
+    renderInWorkspace(<SettingsMailbox />);
+    await chooseOther(user);
+    expect(screen.queryByRole("status")).toBeNull();
+
+    await user.type(screen.getByLabelText("Password"), PASSWORD);
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect((await screen.findByRole("status")).textContent).toContain("Waiting for the first sync");
+
+    await user.click(await screen.findByRole("button", { name: "Disconnect" }));
+    await user.click(
+      screen.getByRole("button", { name: "Disconnect and delete the stored password" }),
+    );
+    expect(await screen.findByLabelText("Mail provider")).toBeTruthy();
+    await waitFor(() => expect(screen.queryByRole("status")).toBeNull());
   });
 
   it("lets onboarding continue with the mailbox already connected", async () => {

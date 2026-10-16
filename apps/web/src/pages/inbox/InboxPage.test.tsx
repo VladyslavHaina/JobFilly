@@ -691,4 +691,20 @@ describe("keyboard use", () => {
       expect((document.activeElement as HTMLElement | null)?.dataset.messageId).toBe(RECRUITER.id),
     );
   });
+
+  it("Esc in the assistant opened over a message closes the assistant, not the message", async () => {
+    const { ws } = inboxApi();
+    const { router } = renderApp(paths.message(ws.id, RECRUITER.id));
+    expect(await screen.findByRole("heading", { name: RECRUITER.subject })).toBeTruthy();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Assistant" }));
+    await user.click(await screen.findByRole("textbox", { name: "Message" }));
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Assistant" })).toBeNull());
+    expect(router.state.location.pathname).toBe(paths.message(ws.id, RECRUITER.id));
+    expect(screen.getByRole("heading", { name: RECRUITER.subject })).toBeTruthy();
+    // With nothing open over it, the next Esc closes the message.
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(router.state.location.pathname).toBe(paths.inbox(ws.id)));
+  });
 });

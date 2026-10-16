@@ -10,6 +10,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { useEscapeLayer } from "./layers";
 
 // Small building blocks shared by every page, so the app looks and behaves the same everywhere.
 // Every field has a visible label tied to its input, so people (and role-based tests) find it.
@@ -422,18 +423,13 @@ export function Dialog({
     if (!open) return;
     const before = document.activeElement as HTMLElement | null;
     panel.current?.focus();
-    const onKey = (e: globalThis.KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        onClose();
-      }
-    };
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      before?.focus?.();
-    };
-  }, [open, onClose]);
+    return () => before?.focus?.();
+  }, [open]);
+  // Esc closes this dialog only, not the message or panel it opened over.
+  useEscapeLayer(open, (e) => {
+    e.preventDefault();
+    onClose();
+  });
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/30 p-4">

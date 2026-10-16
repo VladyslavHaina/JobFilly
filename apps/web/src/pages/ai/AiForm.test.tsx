@@ -1,5 +1,5 @@
 import type { AiProvider, AiProviderId, AiSettingsPublic } from "@jobfilly/schema";
-import { cleanup, screen } from "@testing-library/react";
+import { cleanup, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
@@ -200,12 +200,17 @@ describe.each(["onboarding", "settings"] as const)("AiForm in %s mode", (mode) =
         }),
     });
     const user = userEvent.setup();
-    renderInWorkspace(<AiForm workspaceId={ws.id} mode={mode} />);
+    const { queryClient } = renderInWorkspace(<AiForm workspaceId={ws.id} mode={mode} />);
+    const invalidate = vi.spyOn(queryClient, "invalidateQueries");
     await pickCompatible(user);
     await user.click(screen.getByRole("button", { name: "Test" }));
     expect(await screen.findByText("Waiting for the AI to answer…")).toBeTruthy();
     answer(json({ ok: true }));
     expect(await screen.findByText("Test succeeded: the AI answered.")).toBeTruthy();
+    // The test call counts in the model usage, which no live event refreshes.
+    await waitFor(() =>
+      expect(invalidate).toHaveBeenCalledWith({ queryKey: ["w", ws.id, "usage"] }),
+    );
     expect(seen.find((r) => r.method === "POST")?.body).toEqual({
       provider: "openai-compatible",
       baseUrl: "http://fake-ai:8080/v1",

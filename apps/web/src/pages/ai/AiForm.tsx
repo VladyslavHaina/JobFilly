@@ -142,6 +142,8 @@ function Form(props: {
     mutationFn: () => api(`${base}/test`, AiTestResultSchema, { method: "POST", body: body() }),
     onMutate: () => setTested(null),
     onSuccess: setTested,
+    // The test is a model call too, counted in the usage below the form; no live event follows it.
+    onSettled: () => client.invalidateQueries({ queryKey: queryKeys.area(workspaceId, "usage") }),
   });
   const save = useMutation({
     mutationFn: () => api(base, AiSettingsResponseSchema, { method: "PUT", body: body() }),

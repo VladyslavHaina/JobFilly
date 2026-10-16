@@ -116,7 +116,7 @@ describe("useLiveInvalidation", () => {
     act(() => emit("messages.updated"));
     expect(spy).not.toHaveBeenCalled();
     settle();
-    expect(keys()).toEqual([queryKeys.area(W, "messages")]);
+    expect(keys()).toEqual([queryKeys.area(W, "messages"), queryKeys.area(W, "usage")]);
     spy.mockClear();
     act(() => emit("workspace.updated"));
     settle();
@@ -131,12 +131,50 @@ describe("useLiveInvalidation", () => {
       settle();
       return keys().map((k) => k[2]);
     };
-    expect(areas("cvs.updated")).toEqual(["cvs"]);
-    expect(areas("drafts.updated")).toEqual(["drafts", "messages"]);
+    expect(areas("cvs.updated")).toEqual(["cvs", "usage"]);
+    expect(areas("drafts.updated")).toEqual(["drafts", "messages", "usage"]);
     expect(areas("decisions.updated")).toEqual(["decisions"]);
     expect(areas("profiles.updated")).toEqual(["profiles"]);
-    expect(areas("assistant.updated")).toEqual(["assistant"]);
+    expect(areas("assistant.updated")).toEqual(["assistant", "usage"]);
     expect(areas("mailbox.updated")).toEqual(["mailbox"]);
+  });
+
+  it("refetches the model usage (F1.5) on every event a model call leads to, and only those", () => {
+    const { spy, emit, keys } = mount();
+    const refetchesUsage = (type: string, data = "{}") => {
+      spy.mockClear();
+      act(() => emit(type, data));
+      settle();
+      return keys().some((k) => k[2] === "usage");
+    };
+    const scan = JSON.stringify({
+      scanId: "00000000-0000-4000-8000-0000000000c1",
+      kind: "first",
+      status: "running",
+      stopReason: null,
+      handledWithoutAi: 20,
+      likely: 10,
+      analyzed: 1,
+      jobFound: 1,
+      answersFirm: 0,
+      notAnalyzed: 9,
+      calls: 1,
+      tokens: 500,
+    });
+    // The CV read and the assistant call the model outside the mail pipeline.
+    for (const type of [
+      "cvs.updated",
+      "assistant.updated",
+      "messages.updated",
+      "drafts.updated",
+      "intake.updated",
+    ]) {
+      expect(refetchesUsage(type), type).toBe(true);
+    }
+    expect(refetchesUsage("scan.progress", scan)).toBe(true);
+    for (const type of ["workspace.updated", "profiles.updated", "mailbox.updated"]) {
+      expect(refetchesUsage(type), type).toBe(false);
+    }
   });
 
   it("refetches an open list and message once for a burst of events, not once per event", async () => {
@@ -168,19 +206,21 @@ describe("useLiveInvalidation", () => {
     }
     await act(() => vi.advanceTimersByTimeAsync(LIVE_SETTLE_MS));
     expect([list.mock.calls.length, detail.mock.calls.length]).toEqual([2, 2]);
-    expect(keys().map((k) => k[2])).toEqual(["drafts", "messages"]);
+    expect(keys().map((k) => k[2])).toEqual(["drafts", "messages", "usage"]);
     for (const off of unsubscribe) off();
   });
 
   it("still refetches during a steady stream of events, once per max wait", () => {
-    const { spy, emit } = mount();
+    const { emit, keys } = mount();
     for (let t = 0; t < LIVE_MAX_WAIT_MS * 2; t += 50) {
       act(() => {
         emit("messages.updated");
         vi.advanceTimersByTime(50);
       });
     }
-    expect(spy).toHaveBeenCalledTimes(2);
+    // Each flush refetches the event's areas once: the messages and the model usage.
+    expect(keys().filter((k) => k[2] === "messages")).toHaveLength(2);
+    expect(keys().filter((k) => k[2] === "usage")).toHaveLength(2);
   });
 
   it("shows a scan event's counts on the scan screen at once, ahead of a slow refetch, and never an older event's (F4.6)", async () => {

@@ -225,6 +225,36 @@ describe("sending a message (F8.9)", () => {
       }),
     );
   });
+
+  it("sends the next message to the first reply's thread before the refetch brings it", async () => {
+    let posted = false;
+    const requests = open(
+      "editor",
+      { thread: null },
+      {
+        // The refetch after the first reply doesn't bring the thread (here it fails).
+        [`GET ${ASSISTANT}`]: () =>
+          posted ? Response.json({ error: "unavailable" }, { status: 503 }) : { thread: null },
+        [`POST ${ASSISTANT}`]: () => {
+          posted = true;
+          return { threadId: THREAD, reply: "OK", clarify: null, proposal: null };
+        },
+      },
+    );
+    const panel = await openPanel();
+    const field = within(panel).getByLabelText("Message");
+    await userEvent.type(field, "Ignore agencies{Enter}");
+    await waitFor(() =>
+      expect(requests.filter((r) => r.method === "GET").length).toBeGreaterThan(1),
+    );
+    await waitFor(() => expect(within(panel).queryByText("Thinking…")).toBeNull());
+    await userEvent.type(field, "Only remote ones{Enter}");
+    await waitFor(() => expect(requests.filter((r) => r.method === "POST")).toHaveLength(2));
+    expect(requests.filter((r) => r.method === "POST").map((r) => r.body)).toEqual([
+      { threadId: null, text: "Ignore agencies" },
+      { threadId: THREAD, text: "Only remote ones" },
+    ]);
+  });
 });
 
 describe("a proposal card (F8.2, F8.5, F8.8)", () => {

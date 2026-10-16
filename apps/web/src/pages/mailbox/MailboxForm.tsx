@@ -9,7 +9,7 @@ import {
   MailTestResultSchema,
   type TlsMode,
 } from "@jobfilly/schema";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { type QueryClient, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { ApiError, api, apiVoid } from "../../api";
 import { Alert, Button, Card, Loading, SelectField, TextField } from "../../components";
@@ -33,6 +33,17 @@ const errorText = (error: unknown) =>
 
 const mailboxKey = (workspaceId: string) =>
   [...queryKeys.area(workspaceId, "workspace"), "mailboxes"] as const;
+
+/**
+ * After a connect or disconnect: this form's mailbox and the mailbox status (F1.4) in the inbox
+ * header and Settings › Mailbox, which reads the same list under the "mailbox" area.
+ */
+function refreshMailboxes(client: QueryClient, workspaceId: string) {
+  return Promise.all([
+    client.invalidateQueries({ queryKey: mailboxKey(workspaceId) }),
+    client.invalidateQueries({ queryKey: queryKeys.area(workspaceId, "mailbox") }),
+  ]);
+}
 
 /** "Sent" for the usual name; otherwise the folder's own name too. */
 function sentLabel(path: string): string {
@@ -69,7 +80,7 @@ function ConnectedMailbox(props: {
   const disconnect = useMutation({
     mutationFn: () =>
       apiVoid(`${apiPaths.workspace(workspaceId)}/mailboxes/${mailbox.id}`, { method: "DELETE" }),
-    onSuccess: () => client.invalidateQueries({ queryKey: mailboxKey(workspaceId) }),
+    onSuccess: () => refreshMailboxes(client, workspaceId),
   });
   const error = errorText(disconnect.error);
   return (
@@ -185,7 +196,7 @@ function ConnectForm(props: { presets: MailPreset[]; mode: Mode; onConnected?: (
       // The password is never kept or shown once it is stored.
       setForm((f) => ({ ...f, password: "" }));
       client.setQueryData(mailboxKey(workspaceId), { items: [mailbox] });
-      void client.invalidateQueries({ queryKey: mailboxKey(workspaceId) });
+      void refreshMailboxes(client, workspaceId);
       props.onConnected?.();
     },
   });

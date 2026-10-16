@@ -8,7 +8,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { ApiError, api } from "../../api";
-import { Alert, Button, Loading, PageHeader, TextField } from "../../components";
+import { Alert, Button, Loading, PageHeader, TextField, useEscapeLayer } from "../../components";
 import { queryKeys, useWorkspace } from "../../hooks";
 import { apiPaths, paths } from "../../paths";
 import { FitScore, HiddenFilter, HiddenReason } from "../match";
@@ -185,17 +185,12 @@ export function InboxPage({
     placeholderData: keepPreviousData,
   });
 
-  // Esc closes the open message (a select keeps Esc for its own popup).
-  useEffect(() => {
-    if (!messageId) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape" || e.defaultPrevented) return;
-      if (e.target instanceof HTMLSelectElement) return;
-      navigate(paths.inbox(workspaceId));
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [messageId, workspaceId, navigate]);
+  // Esc closes the open message when nothing is open over it (a select keeps Esc for its own
+  // popup); a dialog or the assistant opened on top closes first.
+  useEscapeLayer(messageId !== null, (e) => {
+    if (e.target instanceof HTMLSelectElement) return;
+    navigate(paths.inbox(workspaceId));
+  });
 
   // Back on the list, focus returns to the message that was open.
   const listRef = useRef<HTMLUListElement>(null);
