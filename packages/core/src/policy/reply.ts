@@ -24,7 +24,9 @@ export type HeldKind =
   | "rule_ask_first"
   | "open_needs"
   | "already_drafted"
-  | "dismissed";
+  | "dismissed"
+  /** Another role of the message has the one automatic draft (capAutoDrafts, TBD-221). */
+  | "another_role";
 
 export interface ReplyEligibilityInput {
   /**

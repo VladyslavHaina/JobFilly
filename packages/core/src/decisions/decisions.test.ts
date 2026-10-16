@@ -14,11 +14,13 @@ import {
   answerChange,
   answerItem,
   answerOf,
+  capAutoDrafts,
   groupNeeds,
   isOpen,
   itemFromText,
   needsFromQuestions,
   planReply,
+  type ReplyPlan,
   type ReplyPlanInput,
   type RoleNeed,
   roleNeeds,
@@ -766,6 +768,55 @@ describe("draft, ask or hold (F6.1, F7.1)", () => {
     // A hide rule still holds.
     const hide: RuleEffect = { ruleId: RULE, action: "hide", reason: "Hidden", need: null };
     expect(planReply({ ...base, ruleEffects: [hide], needs }).kind).toBe("hold");
+  });
+});
+
+describe("one automatic draft per message (TBD-221)", () => {
+  const fresh = { hadDraft: false, dismissed: false };
+  const draft = { kind: "draft" } as const;
+  const another = {
+    kind: "hold",
+    heldBy: [{ kind: "another_role", reason: "Another role in this email already has the reply" }],
+  };
+  const role = (position: number, score: number | null, plan: ReplyPlan = draft) => ({
+    position,
+    score,
+    draftHistory: fresh,
+    plan,
+  });
+  const plans = (roles: Parameters<typeof capAutoDrafts>[0]) =>
+    capAutoDrafts(roles).map((r) => r.plan);
+
+  it("drafts only the best-scoring eligible role; the others are held with a reason", () => {
+    expect(plans([role(0, 75), role(1, 85)])).toEqual([another, draft]);
+  });
+
+  it("breaks a tie by the lowest position, and leaves a lone or held role alone", () => {
+    expect(plans([role(0, 80), role(1, 80)])).toEqual([draft, another]);
+    expect(plans([role(0, 80)])).toEqual([draft]);
+    const held: ReplyPlan = { kind: "hold", heldBy: [{ kind: "below_threshold", reason: "Low" }] };
+    expect(plans([role(0, 95, held), role(1, 75)])).toEqual([held, draft]);
+  });
+
+  it("lets a best role that waits on a question keep the place", () => {
+    const ask: ReplyPlan = { kind: "ask", needs: [{ ...chfNeed, source: "match" }] };
+    expect(plans([role(0, 90, ask), role(1, 80)])).toEqual([ask, another]);
+  });
+
+  it("drafts no other role once one had a draft or was dismissed", () => {
+    const drafted: ReplyPlan = {
+      kind: "hold",
+      heldBy: [{ kind: "already_drafted", reason: "This role already had a draft" }],
+    };
+    for (const history of [
+      { hadDraft: true, dismissed: false },
+      { hadDraft: false, dismissed: true },
+    ]) {
+      expect(plans([{ ...role(0, 90, drafted), draftHistory: history }, role(1, 80)])).toEqual([
+        drafted,
+        another,
+      ]);
+    }
   });
 });
 

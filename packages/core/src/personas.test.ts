@@ -18,6 +18,8 @@ import { type CvCandidate, chooseCv, tagsAfterRead } from "./cv/index";
 import {
   answerChange,
   answerOf,
+  capAutoDrafts,
+  type MessageRolePlan,
   needsFromQuestions,
   planReply,
   type RoleNeed,
@@ -292,6 +294,9 @@ interface RoleOutcome {
   asks: RoleNeed[];
 }
 
+/** A role with its plan before the per-message cap (capAutoDrafts). */
+type PlannedRole = Omit<RoleOutcome, "needs" | "asks"> & MessageRolePlan;
+
 type Profile = { entries: readonly ProfileEntry[] };
 
 /** The reply threshold's default (F6.1): neither persona's profile sets reply_threshold. */
@@ -316,7 +321,7 @@ function runMessage(persona: Persona, m: JobMessage, profile: Profile) {
     mark: null,
     now: NOW,
   });
-  const roles = facts.map((role, position): RoleOutcome => {
+  const planned = facts.map((role, position): PlannedRole => {
     const choice = chooseCv({ role, language, cvs: persona.cvs, override: null });
     const cvSkills = choice.cv?.skills ?? [];
     const taskInput = matchTaskInput({
@@ -358,13 +363,10 @@ function runMessage(persona: Persona, m: JobMessage, profile: Profile) {
       needs,
       draftHistory: { hadDraft: false, dismissed: false },
     });
-    // What the first draft asks once the plan lets it be written (draft.v1, attempt 1).
-    const firstDraft = persona.drafts[`${m.messageId}#${position}#1`];
-    const asked =
-      plan.kind !== "hold" && firstDraft
-        ? needsFromQuestions(DraftOutputSchema.parse(firstDraft).questions)
-        : [];
     return {
+      position,
+      draftHistory: { hadDraft: false, dismissed: false },
+      plan,
       cv: choice.cv?.name ?? null,
       hardConflicts: [
         ...new Set(
@@ -376,7 +378,19 @@ function runMessage(persona: Persona, m: JobMessage, profile: Profile) {
       score: match.score,
       capped: match.capped,
       fit: match.capped ? "capped" : match.score >= THRESHOLD ? "good" : "below",
-      plan,
+    };
+  });
+  // At most one automatic draft per message (TBD-221), as the reply stage plans it.
+  const roles = capAutoDrafts(planned).map(({ position, draftHistory, ...r }): RoleOutcome => {
+    // What the first draft asks once the plan lets it be written (draft.v1, attempt 1).
+    const firstDraft = persona.drafts[`${m.messageId}#${position}#1`];
+    const { plan } = r;
+    const asked =
+      plan.kind !== "hold" && firstDraft
+        ? needsFromQuestions(DraftOutputSchema.parse(firstDraft).questions)
+        : [];
+    return {
+      ...r,
       needs: [...(plan.kind === "ask" ? plan.needs : []), ...asked].map((n) => n.groupKey),
       asks: plan.kind === "ask" ? plan.needs : [],
     };

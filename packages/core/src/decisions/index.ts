@@ -18,4 +18,10 @@ export {
   type RoleNeedsInput,
   roleNeeds,
 } from "./needs";
-export { planReply, type ReplyPlan, type ReplyPlanInput } from "./plan";
+export {
+  capAutoDrafts,
+  type MessageRolePlan,
+  planReply,
+  type ReplyPlan,
+  type ReplyPlanInput,
+} from "./plan";
