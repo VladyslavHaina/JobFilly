@@ -3,11 +3,14 @@ import {
   type CvChoice,
   type DraftStatus,
   JOB_CATEGORIES,
+  type ListFit,
   MESSAGE_PAGE_SIZE,
   type MessageDetail,
   type MessageList,
   type MessageListItem,
   type MessageRef,
+  type NoFitWhy,
+  type ScoredFit,
   type SenderVerdict,
 } from "@jobfilly/schema";
 import { and, asc, count, eq, inArray, isNull, ne, not, or, type SQL, sql } from "drizzle-orm";
@@ -31,7 +34,8 @@ import { getEvaluations, getSenderChecks } from "./evaluations";
 // From MVP 2 each row carries its best fit score (from a role not hidden, if any), its sender
 // verdict, its live draft's status and, for a message whose roles are all hidden by a rule, the
 // reason. Such a message is left out of the list unless the Hidden filter asks for exactly those
-// (F3.4).
+// (F3.4). A job message whose roles have no score says why instead: one is still to be
+// (re-)scored, or all were evaluated and none could be scored.
 
 export interface InboxListQuery {
   /** Only this category (not_job included, which shows non-job mail on its own). */
@@ -46,6 +50,12 @@ export interface InboxListQuery {
   hidden?: boolean;
 }
 
+// In a select list drizzle writes the columns of a query's single table without the table's name,
+// so `${messages.workspaceId}` inside a subquery there would name the subquery's own column and
+// match every row of the workspace. The subqueries below name the outer row in full.
+const outerWorkspaceId = sql.raw(`"messages"."workspace_id"`);
+const outerMessageId = sql.raw(`"messages"."message_id"`);
+
 const listColumns = {
   messageId: messages.messageId,
   fromAddress: messages.fromAddress,
@@ -55,25 +65,33 @@ const listColumns = {
   category: messages.category,
   categorySource: messages.categorySource,
   analysisStatus: messages.analysisStatus,
-  fit: sql<{ score: number; capped: boolean; stale: boolean } | null>`(
+  fit: sql<ScoredFit | null>`(
     select json_build_object('score', e.score, 'capped', e.capped, 'stale', e.stale)
     from role_evaluations e
-    where e.workspace_id = ${messages.workspaceId} and e.message_id = ${messages.messageId}
+    where e.workspace_id = ${outerWorkspaceId} and e.message_id = ${outerMessageId}
       and e.score is not null
     order by (e.hidden_rule_id is null) desc, e.score desc, e.position
     limit 1)`,
+  // Null for a message with no roles: the aggregate has no group, so `having` drops its one row.
+  noFit: sql<NoFitWhy | null>`(
+    select case when bool_or(e.id is null or e.stale) then 'pending' else 'unscored' end
+    from roles r
+    left join role_evaluations e on e.workspace_id = r.workspace_id
+      and e.message_id = r.message_id and e.position = r.position
+    where r.workspace_id = ${outerWorkspaceId} and r.message_id = ${outerMessageId}
+    having count(*) > 0)`,
   sender: sql<{ verdict: SenderVerdict; complete: boolean } | null>`(
     select json_build_object('verdict', sc.verdict, 'complete', sc.complete)
     from sender_checks sc
-    where sc.workspace_id = ${messages.workspaceId} and sc.message_id = ${messages.messageId})`,
+    where sc.workspace_id = ${outerWorkspaceId} and sc.message_id = ${outerMessageId})`,
   hiddenReason: sql<string | null>`(
     select e.hidden_reason from role_evaluations e
-    where e.workspace_id = ${messages.workspaceId} and e.message_id = ${messages.messageId}
+    where e.workspace_id = ${outerWorkspaceId} and e.message_id = ${outerMessageId}
       and e.hidden_rule_id is not null
     order by e.position limit 1)`,
   draft: sql<{ status: DraftStatus } | null>`(
     select json_build_object('status', d.status) from drafts d
-    where d.workspace_id = ${messages.workspaceId} and d.message_id = ${messages.messageId}
+    where d.workspace_id = ${outerWorkspaceId} and d.message_id = ${outerMessageId}
       and d.status <> 'discarded'
     order by d.updated_at desc limit 1)`,
 };
@@ -81,12 +99,12 @@ const listColumns = {
 /** Every role of the message is evaluated and hidden by a rule (it has at least one). */
 const allHidden = sql`(exists (
     select 1 from roles r
-    where r.workspace_id = ${messages.workspaceId} and r.message_id = ${messages.messageId})
+    where r.workspace_id = ${outerWorkspaceId} and r.message_id = ${outerMessageId})
   and not exists (
     select 1 from roles r
     left join role_evaluations e on e.workspace_id = r.workspace_id
       and e.message_id = r.message_id and e.position = r.position
-    where r.workspace_id = ${messages.workspaceId} and r.message_id = ${messages.messageId}
+    where r.workspace_id = ${outerWorkspaceId} and r.message_id = ${outerMessageId}
       and (e.id is null or e.hidden_rule_id is null)))`;
 
 interface ListRow {
@@ -98,7 +116,8 @@ interface ListRow {
   category: Category | null;
   categorySource: MessageListItem["categorySource"];
   analysisStatus: MessageListItem["analysisStatus"];
-  fit: MessageListItem["fit"];
+  fit: ScoredFit | string | null;
+  noFit: NoFitWhy | null;
   sender: MessageListItem["sender"];
   hiddenReason: string | null;
   draft: MessageListItem["draft"];
@@ -107,6 +126,14 @@ interface ListRow {
 
 const asJson = <T>(value: T | string | null): T | null =>
   typeof value === "string" ? (JSON.parse(value) as T) : value;
+
+/** The best score; else, for job mail with roles, why there is none; else nothing. */
+function fitOf(row: ListRow): ListFit {
+  const scored = asJson(row.fit);
+  if (scored) return scored;
+  const job = (JOB_CATEGORIES as readonly (Category | null)[]).includes(row.category);
+  return job && row.noFit ? { score: null, why: row.noFit } : null;
+}
 
 function toListItem(row: ListRow): MessageListItem {
   return {
@@ -117,7 +144,7 @@ function toListItem(row: ListRow): MessageListItem {
     category: row.category,
     categorySource: row.categorySource,
     analysisStatus: row.analysisStatus,
-    fit: asJson(row.fit),
+    fit: fitOf(row),
     sender: asJson(row.sender),
     hidden: row.allHidden && row.hiddenReason !== null ? { reason: row.hiddenReason } : null,
     draft: asJson(row.draft),

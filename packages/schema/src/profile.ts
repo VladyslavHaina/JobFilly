@@ -71,12 +71,30 @@ export const ProfileKeySchema = z.union([
 ]);
 export type ProfileKey = z.infer<typeof ProfileKeySchema>;
 
+/**
+ * Where a profile keeps its own skills: the words of the extra question with the slug "skills",
+ * when the profile has one (the core questions name no skills; the CVs do).
+ * The match (F4.4) counts a role's skill as matched when the chosen CV or this entry lists it,
+ * and match.v1 sees it as the profile's skills. A profile without the entry adds no skills.
+ */
+export const PROFILE_SKILLS_KEY = "extra.skills" satisfies ProfileKey;
+
 export function isExtraKey(key: string): key is `extra.${string}` {
   return key.startsWith("extra.");
 }
 
 export function isPolicyKey(key: string): key is PolicyKey {
   return (POLICY_KEYS as readonly string[]).includes(key);
+}
+
+/**
+ * How a profile entry is named where its own label isn't at hand: the intake form's label, the
+ * policy key's, or an extra question's slug in words ("extra.notice-period" reads "notice period").
+ */
+export function entryLabel(key: ProfileKey): string {
+  if (isPolicyKey(key)) return POLICY_LABELS[key];
+  if (isExtraKey(key)) return key.slice("extra.".length).replace(/[-_]+/g, " ");
+  return CORE_PROFILE_LABELS[key as CoreProfileKey];
 }
 
 // One value schema per core key. Every value is a list, so an empty answer is [].

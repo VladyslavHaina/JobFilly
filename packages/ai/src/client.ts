@@ -6,7 +6,8 @@ import {
   type AiTask,
   type AiTestOutput,
   AiTestOutputSchema,
-  type AssistantOutput,
+  type AssistantAnswer,
+  AssistantAnswerSchema,
   AssistantOutputSchema,
   type AssistantTaskInput,
   type BatchItemResult,
@@ -82,8 +83,11 @@ export interface AiClient {
   match(input: MatchTaskInput, options?: CallOptions): Promise<TaskResult<MatchAiOutput>>;
   /** draft.v1: one reply draft (F6). */
   draft(input: DraftTaskInput, options?: CallOptions): Promise<TaskResult<DraftOutput>>;
-  /** assistant.v1: one assistant turn (F8). */
-  assistant(input: AssistantTaskInput, options?: CallOptions): Promise<TaskResult<AssistantOutput>>;
+  /**
+   * assistant.v1: one assistant turn (F8). Its proposal may hold changes outside rules and
+   * entries (AssistantAnswerSchema): the caller refuses those with the reply kept (F8.7).
+   */
+  assistant(input: AssistantTaskInput, options?: CallOptions): Promise<TaskResult<AssistantAnswer>>;
 }
 
 const MESSAGES = {
@@ -222,7 +226,10 @@ export function clientFromModels(modelFor: ModelFor, options: AiClientOptions = 
     };
   }
 
-  /** One answer for the whole call; retried once when it doesn't fit. */
+  /**
+   * One answer for the whole call; retried once when it doesn't fit. The provider is asked for
+   * `sent` (by default `schema`, which the answer is checked against).
+   */
   async function single<T>(
     task: AiTask,
     taskId: TaskId,
@@ -230,10 +237,11 @@ export function clientFromModels(modelFor: ModelFor, options: AiClientOptions = 
     schema: ZodType<T>,
     maxCalls: 1 | 2,
     accept: (data: T) => boolean = () => true,
+    sent: ZodType = schema,
   ): Promise<TaskResult<T>> {
     const usage: Usage[] = [];
     for (let attempt = 1 as 1 | 2; ; attempt = 2) {
-      const answer = await request(modelFor(task), taskId, prompt, schema);
+      const answer = await request(modelFor(task), taskId, prompt, sent);
       usage.push(answer.usage);
       if (answer.error) return { ok: false, error: answer.error, usage };
       const json = parseJson(answer.text ?? "");
@@ -305,13 +313,18 @@ export function clientFromModels(modelFor: ModelFor, options: AiClientOptions = 
         DraftOutputSchema,
         opts?.maxCalls ?? 2,
       ),
+    // The model is asked for rule and entry changes only, but a proposal with a change outside
+    // them (a mailbox, a member…) is still an answer: its reply reaches the user, and the server
+    // refuses the proposal in words (F8.7) instead of failing the whole turn.
     assistant: (input, opts) =>
       single(
         "assistant",
         "assistant.v1",
         promptFor("assistant.v1", input),
-        AssistantOutputSchema,
+        AssistantAnswerSchema,
         opts?.maxCalls ?? 2,
+        undefined,
+        AssistantOutputSchema,
       ),
   };
 }

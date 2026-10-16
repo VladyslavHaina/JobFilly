@@ -1,11 +1,8 @@
 import {
   type Change,
-  CORE_PROFILE_LABELS,
   type CoreProfileKey,
-  isExtraKey,
+  entryLabel,
   isListProfileKey,
-  isPolicyKey,
-  POLICY_LABELS,
   type ProfileEntry,
   type ProfileItem,
   type ProfileKey,
@@ -15,8 +12,10 @@ import {
   parseGroupKey,
   profileValueSchema,
   type Rule,
+  type RuleDraft,
   type RuleSource,
 } from "@jobfilly/schema";
+import { describeRule } from "../rules/engine";
 
 // The semantics of a profile Change (TBD-195), pinned here and used by every writer through the
 // profile change service: the profile form (update), a decision answer (add of one item), an
@@ -29,7 +28,8 @@ import {
 //   have, sets the entry.
 // - update replaces the whole value (created when missing).
 // - remove with a value removes those items from the list; remove with null removes the entry.
-// - rules are added (a new id), replaced (update, keeping id, source and creation) or removed.
+// - rules are added (a new id), replaced (update, keeping id, source and creation) or removed;
+//   a rule is never stored without plain words describing what it does (ruleWords).
 //
 // "Already answered" (F7.6) is decided by group key, never by profile key: answeredFor.
 
@@ -65,17 +65,25 @@ export type AppliedChanges =
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
-function labelOf(key: ProfileKey): string {
-  if (isPolicyKey(key)) return POLICY_LABELS[key];
-  if (isExtraKey(key)) return key.slice("extra.".length);
-  return CORE_PROFILE_LABELS[key as CoreProfileKey];
-}
-
 const RULE_SOURCE: Record<ChangeContext["source"], RuleSource> = {
   you: "you",
   decision: "decision",
   assistant: "assistant",
 };
+
+/**
+ * The description a rule is stored with (F3.1): the one given, or its plain words from the
+ * conditions when the given one is blank, or when an update changes the conditions or action but
+ * keeps the old description, which would then describe a rule that is no longer there.
+ */
+function ruleWords(draft: RuleDraft, current: Rule | null): string {
+  const given = draft.description.trim();
+  if (given === "") return describeRule(draft);
+  const reworded = current !== null && given !== current.description.trim();
+  const sameRule =
+    current === null || (same(draft.when, current.when) && draft.then === current.then);
+  return sameRule || reworded ? draft.description : describeRule(draft);
+}
 
 /** Applies `changes` in order. Pure: the same input always gives the same output. */
 export function applyChanges(
@@ -115,7 +123,7 @@ export function applyChanges(
     if (!current) order.push(key);
     entries.set(key, {
       key,
-      label: current?.label ?? labelOf(key),
+      label: current?.label ?? entryLabel(key),
       value: parsed.data,
       confidence: null,
       evidence: current?.evidence ?? [],
@@ -166,6 +174,7 @@ export function applyChanges(
       touchRule(id);
       rules.set(id, {
         ...change.rule,
+        description: ruleWords(change.rule, null),
         id,
         profileId: ctx.profileId,
         source: RULE_SOURCE[ctx.source],
@@ -179,7 +188,11 @@ export function applyChanges(
     if (!current) return { ok: false, error: { kind: "unknown_rule", ruleId: change.ruleId } };
     touchRule(change.ruleId);
     if (change.op === "update") {
-      rules.set(change.ruleId, { ...current, ...change.rule });
+      rules.set(change.ruleId, {
+        ...current,
+        ...change.rule,
+        description: ruleWords(change.rule, current),
+      });
     } else {
       rules.delete(change.ruleId);
       ruleOrder.splice(ruleOrder.indexOf(change.ruleId), 1);

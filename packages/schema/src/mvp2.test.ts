@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   AppliedSenderMarkSchema,
+  AssistantAnswerSchema,
   AssistantOutputSchema,
   ChangeSchema,
   CORE_PROFILE_KEYS,
@@ -12,6 +13,7 @@ import {
   DraftCreatePayloadSchema,
   DraftOutputSchema,
   DraftSchema,
+  formatOffset,
   groupKeyFor,
   isListProfileKey,
   jobDedupeKey,
@@ -29,7 +31,9 @@ import {
   NEVER_SYNCED,
   POLICY_DEFAULTS,
   ProfileEntrySchema,
+  ProfileHistoryListSchema,
   ProfilePatchSchema,
+  ProposalSchema,
   parseGroupKey,
   profileItemSchema,
   RdapDomainAnswerSchema,
@@ -106,6 +110,18 @@ describe("profile keys of MVP 2", () => {
   });
 });
 
+describe("UTC offsets in plain words", () => {
+  it("writes them the short way, with a real minus sign", () => {
+    expect(formatOffset("UTC+05:00")).toBe("UTC+5");
+    expect(formatOffset("UTC+05:30")).toBe("UTC+5:30");
+    expect(formatOffset("UTC-01:30")).toBe("UTC−1:30");
+    expect(formatOffset("UTC-10:00")).toBe("UTC−10");
+    expect(formatOffset("UTC+00:00")).toBe("UTC+0");
+    expect(formatOffset("UTC-00:00")).toBe("UTC+0");
+    expect(formatOffset("Asia")).toBe("Asia");
+  });
+});
+
 describe("rules, changes and the assistant (F3, F8)", () => {
   const rule = {
     description: "Hide roles whose hours are UTC+05:00 or later",
@@ -171,6 +187,70 @@ describe("rules, changes and the assistant (F3, F8)", () => {
       },
     };
     expect(AssistantOutputSchema.safeParse(proposal).success).toBe(true);
+    expect(AssistantAnswerSchema.safeParse(proposal).data).toEqual(proposal);
+  });
+
+  it("lets a change outside rules and entries through assistant.v1's answer check (F8.7)", () => {
+    const answer = (changes: unknown[]) => ({
+      reply: "Here is a proposal.",
+      clarify: null,
+      proposal: { summary: "Change the mailbox", changes },
+    });
+    const mailbox = answer([{ op: "update", target: "mailbox", key: "host", value: ["imap"] }]);
+    expect(AssistantOutputSchema.safeParse(mailbox).success).toBe(false);
+    expect(AssistantAnswerSchema.safeParse(mailbox).success).toBe(true);
+    expect(AssistantAnswerSchema.safeParse(answer([{ op: "send", to: "x" }])).success).toBe(true);
+    // A malformed rule or entry change is a wrong answer, not one outside rules and entries.
+    for (const wrong of [
+      [{ op: "add", target: "rule", rule: { description: "x" } }],
+      [{ op: "update", target: "entry", key: "places" }],
+    ]) {
+      expect(AssistantAnswerSchema.safeParse(answer(wrong)).success).toBe(false);
+    }
+    expect(AssistantAnswerSchema.safeParse({ reply: "Hi", clarify: null }).success).toBe(false);
+  });
+
+  it("words a proposal card and a history item line by line, before and after (F8.2, F8.4)", () => {
+    const line = {
+      target: "rule",
+      label: "Rule",
+      before: null,
+      after: "Hide roles whose hours are within UTC+5 to UTC+14",
+    };
+    const snapshot = { entries: [], rules: [] };
+    const card = {
+      id,
+      summary: "Hide Asian time zones",
+      changes: [{ op: "add", target: "rule", rule }],
+      before: snapshot,
+      after: snapshot,
+      lines: [line],
+      impact: { hides: 3, shows: 0, scoreMoves: 0, draftsNotCreated: 0, draftsInMailbox: 1 },
+      status: "open",
+      createdAt: at,
+    };
+    expect(ProposalSchema.safeParse(card).success).toBe(true);
+    expect(ProposalSchema.safeParse({ ...card, lines: undefined }).success).toBe(false);
+    expect(
+      ProposalSchema.safeParse({ ...card, lines: [{ ...line, target: "mailbox" }] }).success,
+    ).toBe(false);
+    const item = {
+      id,
+      at,
+      by: id,
+      byName: "Maria Santos",
+      source: "assistant",
+      request: "No Asian time zones",
+      changes: card.changes,
+      before: snapshot,
+      after: snapshot,
+      lines: [line],
+      undoneAt: null,
+    };
+    expect(ProfileHistoryListSchema.safeParse({ items: [item] }).success).toBe(true);
+    expect(
+      ProfileHistoryListSchema.safeParse({ items: [{ ...item, byName: undefined }] }).success,
+    ).toBe(false);
   });
 });
 

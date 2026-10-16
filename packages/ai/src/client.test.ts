@@ -1,10 +1,11 @@
 import type { AiEvent, AiMailItem, AiTask, IntakeExtraInput } from "@jobfilly/schema";
 import { MockLanguageModelV4 } from "ai/test";
 import { describe, expect, it } from "vitest";
-import { clientFromModels } from "./client";
+import { clientFromModels, createAiClient } from "./client";
 
-// The client's validation, retry and usage rules, against the AI SDK's mock language model: no
-// request leaves the process. The real wire format is pinned in wire-client.test.ts.
+// The client's validation, retry and usage rules, against the AI SDK's mock language model or,
+// where the provider's own schema check matters, a fake fetch: no request leaves the process. The
+// real wire format is pinned in wire-client.test.ts.
 
 function item(n: number, extra: Partial<AiMailItem> = {}): AiMailItem {
   return {
@@ -392,5 +393,76 @@ describe("ai.output_invalid (F3.4)", () => {
     ]) {
       expect(logged).not.toContain(leak);
     }
+  });
+});
+
+describe("assistant.v1's proposals over HTTP (F8.7)", () => {
+  /** A client on a fake OpenAI-compatible provider answering each request with the next JSON. */
+  function overHttp(answers: unknown[]) {
+    const events: AiEvent[] = [];
+    let requests = 0;
+    const client = createAiClient(
+      {
+        provider: "openai-compatible",
+        baseUrl: "http://fake-ai.invalid/v1",
+        models: {
+          classify: "m",
+          extract: "m",
+          prefs: "m",
+          intake: "m",
+          cv: "m",
+          match: "m",
+          draft: "m",
+          assistant: "m",
+        },
+        apiKey: "test",
+      },
+      {
+        onEvent: (e) => events.push(e),
+        fetch: async () => {
+          const content = JSON.stringify(answers[requests] ?? {});
+          requests += 1;
+          return Response.json({
+            id: `chatcmpl-${requests}`,
+            object: "chat.completion",
+            created: 1790000000,
+            model: "m",
+            choices: [{ index: 0, message: { role: "assistant", content }, finish_reason: "stop" }],
+            usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+          });
+        },
+      },
+    );
+    const ask = () =>
+      client.assistant({
+        turn: 1,
+        text: "connect my work mailbox",
+        history: [],
+        entries: [],
+        rules: [],
+      });
+    return { ask, events, requests: () => requests };
+  }
+  const answer = (changes: unknown[]) => ({
+    reply: "Here is a proposal.",
+    clarify: null,
+    proposal: { summary: "Change the mailbox", changes },
+  });
+
+  it("returns a proposal that changes a mailbox with its reply, for the server to refuse", async () => {
+    const mailbox = answer([{ op: "update", target: "mailbox", key: "host", value: ["imap"] }]);
+    const http = overHttp([mailbox]);
+    const result = await http.ask();
+    expect(result).toMatchObject({ ok: true, data: mailbox });
+    expect(http.requests()).toBe(1);
+    expect(http.events).toEqual([]);
+  });
+
+  it("retries an answer with a malformed rule change, then fails it", async () => {
+    const wrong = answer([{ op: "add", target: "rule", rule: { description: "x" } }]);
+    const http = overHttp([wrong, wrong]);
+    const result = await http.ask();
+    expect(result).toMatchObject({ ok: false, error: { kind: "invalid_output" } });
+    expect(http.requests()).toBe(2);
   });
 });

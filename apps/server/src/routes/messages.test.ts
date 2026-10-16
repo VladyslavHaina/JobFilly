@@ -246,7 +246,8 @@ describe("GET /messages (F5.1)", () => {
       category: "interview",
       categorySource: "scan",
       analysisStatus: "done",
-      fit: null,
+      // Its role isn't scored yet (F4.1).
+      fit: { score: null, why: "pending" },
       sender: null,
       hidden: null,
       draft: null,

@@ -112,12 +112,17 @@ Rules:
 - Stored match answers: `match_ai_answers` keeps each match.v1 answer under the hash of exactly
   what the model saw (the role's title and skills, the profile's target roles and skills, the
   chosen CV's skills). A rule, pay or policy change leaves the hash alone, so re-scoring after
-  it is pure and makes no model call; the impact preview never calls the model either.
+  it is pure and makes no model call; the impact preview never calls the model either. The
+  profile's own skills are the words of its `extra.skills` entry (`PROFILE_SKILLS_KEY` in
+  `packages/schema`), an extra question with the slug "skills"; the core questions name no
+  skills, so a profile without that entry adds none and its skills come from the CVs alone.
 - Secrets (mail passwords, OAuth tokens, AI keys) are encrypted with AES-256-GCM using
   `JOBFILLY_SECRET_KEY` before they are stored. They are never returned by the API or logged.
   Every place that hands a workspace's AI key to the AI port (the AI settings routes, the scan job,
-  the intake.v1 call) opens it with `openAiKey` in `apps/server/src/secrets.ts`, so a key that was
-  never stored and one cleared on purpose (stored sealed as "") both read as no key.
+  the intake.v1 call, the match stage's match.v1 call in `apps/server/src/pipeline/match.ts`, the
+  assistant.v1 call in `apps/server/src/assistant/service.ts`) opens it with `openAiKey` in
+  `apps/server/src/secrets.ts`, so a key that was never stored and one cleared on purpose
+  (stored sealed as "") both read as no key.
 
 ## Background work and live updates
 
@@ -264,7 +269,10 @@ Rules:
   list (an equal item is a no-op); on another key, or a missing one, it sets the entry. `update`
   replaces the value; `remove` with a value removes those items, with null the entry. A decision
   answer is always `add` of one item, so answering "CHF per year" keeps the EUR minimum. "Already
-  answered" is decided by group key (`answeredFor`), never by profile key.
+  answered" is decided by group key (`answeredFor`), never by profile key. A rule is never stored
+  without plain words: one added with a blank description, or updated with new conditions or
+  action under its old description, is stored with the words built from its conditions
+  (`describeRule`), so the Rules list and every outcome naming the rule show what it does (F3.1).
 - `requestReevaluation(scope)` is the one way evaluations go stale: `{all}`, `{roles}`,
   `{messageIds}`, or a sender scope (`{senderAddress}`, `{senderDomain}`), which alone also makes
   the sender checks stale. It enqueues `pipeline.reevaluate` and tells open inboxes. Its triggers:
@@ -272,6 +280,33 @@ Rules:
   override, a sender mark, a decision answer, apply and undo, and a category correction
   (`{messageIds}`: the reply policy reads the category, so corrected mail gets or loses its
   draft).
+
+### The assistant
+
+- Each member has their own threads (`assistant_threads.user_id`). Only the thread lookups
+  (`getLatestThread`, `getThread`) take the user id as well as the workspace id; the reads by
+  thread or proposal id (`listThreadMessages`, `listThreadProposals`, `nextTurn`, `getProposal`)
+  take only the workspace id, so the server calls them with a thread it got from a lookup, or
+  checks the proposal's member (`ownProposal`) before acting. Another member's thread or proposal
+  answers 404.
+- A message gets one assistant.v1 call (`apps/server/src/assistant/service.ts`). packages/ai asks
+  the provider for `AssistantOutputSchema` but checks the answer against `AssistantAnswerSchema`,
+  which also lets through changes outside rules and entries, so the server can refuse such a
+  proposal in words with the reply kept (F8.7). A proposal is kept only when it is a list of rule
+  and entry Changes that apply to the profile, and with a clarifying question no proposal is
+  kept; otherwise the reply says why nothing was proposed.
+  Its card is stored with its impact preview and worded from its before and after
+  (`changeLines`, packages/core).
+- The impact preview (`previewImpact`, packages/core) runs `applyChanges`, the rules engine, the
+  match and `replyEligibility` over `listRoleStates` before and after, with each role's stored
+  match.v1 answer (`listStoredMatchAnswers`) picked by its CV and input hash, as the match stage
+  picks it: no model call, no mailbox. A role with no answer for that hash (its target roles or
+  skills changed and the re-evaluation hasn't asked the model yet) is previewed with none, its
+  title not compared yet, never with an older answer.
+- Apply marks the proposal applied and Undo marks the history entry undone in the transaction
+  that runs `applyAndReevaluate` on it (a savepoint), so each happens once; live events raised
+  inside are sent only after the commit. Undo restores the entry's `before` (`restoreChanges`)
+  by hand (source you), so the restore is in the history too. Neither writes a draft.
 
 ## AI
 

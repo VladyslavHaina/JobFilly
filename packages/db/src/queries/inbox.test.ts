@@ -6,7 +6,7 @@ import type { Database, DatabaseConnection } from "../client";
 import { openTestDatabase } from "../testing";
 import { registerAccount } from "./accounts";
 import { claimDraft } from "./draft-claims";
-import { saveEvaluation, saveSenderCheck } from "./evaluations";
+import { markStale, saveEvaluation, saveSenderCheck } from "./evaluations";
 import { correctCategory, getInboxMessage, getMessageRef, listInbox } from "./inbox";
 import { getStoredMessages, markAnalysisFailed, saveAnalysis, saveEnvelopes } from "./messages";
 
@@ -130,7 +130,8 @@ describe("listInbox (F5.1)", () => {
       category: "interview",
       categorySource: "scan",
       analysisStatus: "done",
-      fit: null,
+      // Its role isn't scored yet.
+      fit: { score: null, why: "pending" },
       sender: null,
       hidden: null,
       draft: null,
@@ -391,6 +392,85 @@ describe("the inbox of MVP 2: fit, sender, drafts and the Hidden filter (F3.4)",
       hidden: null,
       draft: { status: "saving" },
     });
+  });
+
+  it("gives each row only its own message's fit, sender, draft and hidden reason", async () => {
+    await seedMix();
+    const reason = "Hidden by your rule";
+    await saveEvaluation(conn.db, ws, id(3), evaluated(0, { score: 90, hidden: reason }), at);
+    await saveEvaluation(conn.db, ws, id(3), evaluated(1, { score: 80, hidden: reason }), at);
+    for (const [n, verdict] of [
+      [3, "caution"],
+      [2, "high_risk"],
+    ] as const) {
+      await saveSenderCheck(
+        conn.db,
+        ws,
+        id(n),
+        { verdict, complete: true, reasons: [], mark: null },
+        at,
+      );
+    }
+    await claimDraft(conn.db, ws, { messageId: id(3), position: 1 }, { origin: "auto", now: at });
+    const shown = await listInbox(conn.db, ws);
+    expect(
+      shown.items.map((m) => [m.id, m.fit, m.sender?.verdict ?? null, m.hidden, m.draft]),
+    ).toEqual([
+      [id(8), { score: null, why: "pending" }, null, null, null],
+      [id(5), null, null, null, null],
+      [id(2), { score: null, why: "pending" }, "high_risk", null, null],
+    ]);
+    const hidden = await listInbox(conn.db, ws, { hidden: true });
+    expect(hidden.items.map((m) => [m.id, m.fit?.score, m.sender?.verdict, m.hidden])).toEqual([
+      [id(3), 90, "caution", { reason }],
+    ]);
+    expect((await getInboxMessage(conn.db, ws, id(2)))?.fit).toEqual({
+      score: null,
+      why: "pending",
+    });
+  });
+
+  it("says why a job message with roles has no fit score: pending, or not scored (F4.1)", async () => {
+    await seedMix();
+    const fitOf = async (messageId: string) =>
+      (await listInbox(conn.db, ws, { showNonJob: true })).items.find((m) => m.id === messageId)
+        ?.fit;
+    const unscored = (position: number) => ({ ...evaluated(position), match: null });
+
+    // No role evaluated yet, or only one of two: pending.
+    expect(await fitOf(id(3))).toEqual({ score: null, why: "pending" });
+    await saveEvaluation(conn.db, ws, id(3), unscored(0), at);
+    expect(await fitOf(id(3))).toEqual({ score: null, why: "pending" });
+    // Both evaluated and neither could be scored: not scored.
+    await saveEvaluation(conn.db, ws, id(3), unscored(1), at);
+    expect(await fitOf(id(3))).toEqual({ score: null, why: "unscored" });
+    expect((await getInboxMessage(conn.db, ws, id(3)))?.fit).toEqual({
+      score: null,
+      why: "unscored",
+    });
+    // A change makes them stale: pending again, until they are re-scored.
+    await markStale(conn.db, ws, { messageIds: [id(3)] }, at);
+    expect(await fitOf(id(3))).toEqual({ score: null, why: "pending" });
+    await saveEvaluation(conn.db, ws, id(3), evaluated(1, { score: 64 }), at);
+    expect(await fitOf(id(3))).toEqual({ score: 64, capped: false, stale: false });
+
+    // No roles, or not job mail: nothing to score, so nothing at all.
+    expect(await fitOf(id(5))).toBeNull();
+    expect(await fitOf(id(7))).toBeNull();
+    await correctCategory(conn.db, ws, id(8), "not_job");
+    expect(await fitOf(id(8))).toBeNull();
+    // Another workspace's evaluations never count.
+    await saveEnvelopes(conn.db, other, [
+      { envelope: envelope(2), verdict: "likely_job", reason: "test" },
+    ]);
+    await saveAnalysis(conn.db, other, {
+      messageId: id(2),
+      scanId: null,
+      category: "recruiter_outreach",
+      roles: [role("Backend Engineer")],
+    });
+    await saveEvaluation(conn.db, other, id(2), unscored(0), at);
+    expect(await fitOf(id(2))).toEqual({ score: null, why: "pending" });
   });
 
   it("lists a message whose roles are all hidden only under the Hidden filter, with the reason", async () => {

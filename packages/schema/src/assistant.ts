@@ -70,6 +70,21 @@ export const ImpactSchema = z.object({
 });
 export type Impact = z.infer<typeof ImpactSchema>;
 
+/**
+ * One entry or rule a list of changes touches, in plain words before and after it (F8.2, F8.4):
+ * "Remote work" from "EU (UTC−1 to UTC+3)" to nothing, or a rule from nothing to "Hide roles
+ * whose hours are within UTC+5 to UTC+14". Null: it isn't there (yet, or any more). Worded by
+ * packages/core from the before and after snapshots.
+ */
+export const ChangeLineSchema = z.object({
+  target: z.enum(["entry", "rule"]),
+  /** The entry's label, or "Rule". */
+  label: z.string(),
+  before: z.string().nullable(),
+  after: z.string().nullable(),
+});
+export type ChangeLine = z.infer<typeof ChangeLineSchema>;
+
 export const ProposalStatusSchema = z.enum(["open", "applied", "discarded"]);
 export type ProposalStatus = z.infer<typeof ProposalStatusSchema>;
 
@@ -80,6 +95,8 @@ export const ProposalSchema = z.object({
   changes: z.array(ChangeSchema),
   before: ProfileSnapshotSchema,
   after: ProfileSnapshotSchema,
+  /** `before` and `after` in plain words, one line per entry or rule. */
+  lines: z.array(ChangeLineSchema),
   impact: ImpactSchema,
   status: ProposalStatusSchema,
   createdAt: IsoDateTimeSchema,
@@ -153,6 +170,14 @@ export const ProfileHistoryEntrySchema = z.object({
 });
 export type ProfileHistoryEntry = z.infer<typeof ProfileHistoryEntrySchema>;
 
+/** A history entry as the API lists it: with the name of who made it and its plain words. */
+export const ProfileHistoryItemSchema = ProfileHistoryEntrySchema.extend({
+  /** The member's name; null once that account is gone. */
+  byName: z.string().nullable(),
+  lines: z.array(ChangeLineSchema),
+});
+export type ProfileHistoryItem = z.infer<typeof ProfileHistoryItemSchema>;
+
 /** GET /profiles/:pid/history, newest first. Undo is a POST with no body. */
-export const ProfileHistoryListSchema = z.object({ items: z.array(ProfileHistoryEntrySchema) });
+export const ProfileHistoryListSchema = z.object({ items: z.array(ProfileHistoryItemSchema) });
 export type ProfileHistoryList = z.infer<typeof ProfileHistoryListSchema>;

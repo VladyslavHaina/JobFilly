@@ -37,11 +37,36 @@ export const StoredMessageSchema = z.object({
 });
 export type StoredMessage = z.infer<typeof StoredMessageSchema>;
 
+/** The best fit score of a message's roles; stale while a change hasn't been re-scored (F4.6). */
+const ScoredFitSchema = z.object({
+  score: z.number().int().min(0).max(100),
+  capped: z.boolean(),
+  stale: z.boolean(),
+});
+export type ScoredFit = z.infer<typeof ScoredFitSchema>;
+
+/**
+ * A job message whose roles have no fit score: `pending` while one of them is still to be scored
+ * (or re-scored), `unscored` when they were all evaluated and none could be scored.
+ */
+const NoFitScoreSchema = z.object({
+  score: z.null(),
+  why: z.enum(["pending", "unscored"]),
+});
+/** Why a job message with roles, or one role, has no fit score. */
+export type NoFitWhy = z.infer<typeof NoFitScoreSchema>["why"];
+
+/**
+ * Where a row's fit score goes: its best score, why a job message with roles has none, or null
+ * when there is nothing to score (no roles, or not job mail).
+ */
+export const ListFitSchema = z.union([ScoredFitSchema, NoFitScoreSchema]).nullable();
+export type ListFit = z.infer<typeof ListFitSchema>;
+
 /**
  * One row of the job inbox. `id` is the RFC Message-ID (URL-encoded in paths). From MVP 2 a row
- * also carries, when they exist: the best fit score of its roles (stale while a change hasn't
- * been re-scored, F4.6), the sender verdict (F5), why it is hidden (only under the Hidden filter,
- * F3.4) and its live draft's status.
+ * also carries: its fit (ListFitSchema), and when they exist the sender verdict (F5), why it is
+ * hidden (only under the Hidden filter, F3.4) and its live draft's status.
  */
 export const MessageListItemSchema = z.object({
   id: z.string(),
@@ -51,9 +76,7 @@ export const MessageListItemSchema = z.object({
   category: CategorySchema.nullable(),
   categorySource: CategorySourceSchema.nullable(),
   analysisStatus: AnalysisStatusSchema,
-  fit: z
-    .object({ score: z.number().int().min(0).max(100), capped: z.boolean(), stale: z.boolean() })
-    .nullable(),
+  fit: ListFitSchema,
   sender: z.object({ verdict: SenderVerdictSchema, complete: z.boolean() }).nullable(),
   hidden: z.object({ reason: z.string() }).nullable(),
   draft: z.object({ status: DraftStatusSchema }).nullable(),
