@@ -244,6 +244,31 @@ describe("SenderPanel", () => {
     expect(pressed("Blocked")).toBe("true");
   });
 
+  it("shows the new mark's verdict once it is saved, before the check is done again", async () => {
+    markServer(null);
+    const freeMail: SenderCheck = {
+      verdict: "caution",
+      complete: true,
+      reasons: [
+        {
+          signal: "free_mail_company",
+          reason: "writes as a company recruiter from a free-mail address (gmail.com)",
+        },
+      ],
+      mark: null,
+    };
+    renderInWorkspace(
+      <SenderPanel workspaceId={ws.id} messageId="<m@x>" {...JOB} from={from} check={freeMail} />,
+      { role: "editor" },
+    );
+    expect(screen.getByRole("img", { name: "Sender check: Caution" })).toBeTruthy();
+    await waitFor(() => expect(enabled("Trusted")).toBe(true));
+    // The stored check (the prop) stays the old one: the re-check arrives later, on its own.
+    await userEvent.click(screen.getByRole("button", { name: "Trusted" }));
+    expect(await screen.findByRole("img", { name: "Sender check: Looks fine" })).toBeTruthy();
+    expect(screen.getByText(/Checking this sender again with its new mark/)).toBeTruthy();
+  });
+
   it("shows viewers the reasons and the warning, but no Trusted or Blocked", () => {
     renderInWorkspace(
       <SenderPanel workspaceId={ws.id} messageId="<m@x>" {...JOB} from={from} check={scam} />,

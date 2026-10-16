@@ -97,6 +97,26 @@ const markedText = (m: AppliedMark | null, address: string) => {
     : `Marked ${m.mark} for every email from ${m.value}. Press it again to clear the mark.`;
 };
 
+/** The mark that applies to a message's sender now, as the server reads it back. */
+function useAppliedMark(messageId: string, enabled = true) {
+  const { workspaceId } = useWorkspace();
+  return useQuery({
+    // Under the messages area, so a sender's re-done check refreshes its mark too. Asked by the
+    // message, whose sender the server reads: an email address is never in a URL.
+    queryKey: [...queryKeys.area(workspaceId, "messages"), "sender-mark", messageId],
+    queryFn: async () =>
+      (await api(apiPaths.messageSenderMark(workspaceId, messageId), AppliedSenderMarkSchema))
+        .applied,
+    enabled,
+  });
+}
+
+/** The verdict a mark decides, as packages/core checkSender sets it (F5.4). */
+const MARK_VERDICT: Record<SenderMark, SenderVerdict> = {
+  trusted: "looks_fine",
+  blocked: "high_risk",
+};
+
 /**
  * Trusted and Blocked. The pressed one is the mark that applies to the sender now, as the server
  * tells it (its address's own, or else its whole domain's), so pressing it again clears that very
@@ -107,14 +127,7 @@ function MarkButtons({ messageId, from }: { messageId: string; from: Address }) 
   const client = useQueryClient();
   const messages = queryKeys.area(workspaceId, "messages");
   const address = from.address.toLowerCase();
-  const applied = useQuery({
-    // Under the messages area, so a sender's re-done check refreshes its mark too. Asked by the
-    // message, whose sender the server reads: an email address is never in a URL.
-    queryKey: [...messages, "sender-mark", messageId],
-    queryFn: async () =>
-      (await api(apiPaths.messageSenderMark(workspaceId, messageId), AppliedSenderMarkSchema))
-        .applied,
-  });
+  const applied = useAppliedMark(messageId);
   const set = useMutation({
     mutationFn: ({ input }: { press: SenderMark; input: SenderMarkInput }) =>
       api(apiPaths.senderMarks(workspaceId), SenderMarkInputSchema, { method: "PUT", body: input }),
@@ -176,8 +189,19 @@ export function SenderPanel(
     check: SenderCheck | null;
   },
 ) {
-  const { from, check } = props;
+  const { from } = props;
   const { can } = useWorkspace();
+  const applied = useAppliedMark(props.messageId, can.edit);
+  // A saved mark re-does the check in the background (a sender-scoped re-evaluation), and the
+  // new check arrives later with messages.updated. Meanwhile the stored check names another mark
+  // than the one that applies now: the badge shows the verdict the new mark decides at once, or
+  // that the check is being done again when the mark was cleared.
+  const markNow = applied.isSuccess ? (applied.data?.mark ?? null) : undefined;
+  const rechecking = props.check !== null && markNow !== undefined && markNow !== props.check.mark;
+  const check: SenderCheck | null =
+    props.check && rechecking && markNow
+      ? { ...props.check, verdict: MARK_VERDICT[markNow], complete: true }
+      : props.check;
   return (
     <section
       aria-label="Sender check"
@@ -185,12 +209,23 @@ export function SenderPanel(
     >
       <div className="flex flex-wrap items-center gap-2">
         <h3 className="text-sm font-semibold text-stone-700">Sender check</h3>
-        <SenderBadge
-          sender={check}
-          category={props.category}
-          analysisStatus={props.analysisStatus}
-        />
+        {rechecking && !markNow ? (
+          <Badge tone="neutral" label="Sender check: Checking again">
+            Checking again
+          </Badge>
+        ) : (
+          <SenderBadge
+            sender={check}
+            category={props.category}
+            analysisStatus={props.analysisStatus}
+          />
+        )}
       </div>
+      {rechecking && (
+        <p className="text-sm text-stone-500">
+          Checking this sender again with its new mark. The reasons below are from the last check.
+        </p>
+      )}
       {!check && <NoCheck category={props.category} analysisStatus={props.analysisStatus} />}
       {check?.verdict === "high_risk" && (
         <Alert tone="error" title="This sender looks high risk">
