@@ -2,7 +2,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Badge, Button, Dialog, Switch, TagInput, Textarea } from "./index";
+import { Badge, Button, Dialog, Switch, TagInput, Textarea, useEscapeLayer } from "./index";
 
 // The building blocks MVP 2's pages share, each found by its accessible name.
 
@@ -107,5 +107,27 @@ describe("Dialog", () => {
     await user.click(screen.getByRole("button", { name: "Edit" }));
     await user.click(screen.getByRole("button", { name: "Close" }));
     expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("closes alone on Esc when it is open over another layer, which closes on the next Esc", async () => {
+    // A layer open under the dialog, as an open message is: it registered first.
+    function Message() {
+      const [open, setOpen] = useState(true);
+      useEscapeLayer(open, () => setOpen(false));
+      return open ? (
+        <section aria-label="The message">
+          <Example />
+        </section>
+      ) : null;
+    }
+    const user = userEvent.setup();
+    render(<Message />);
+    await user.click(screen.getByRole("button", { name: "Edit" }));
+    expect(screen.getByRole("dialog", { name: "Edit the change" })).toBeTruthy();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.getByRole("region", { name: "The message" })).toBeTruthy();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("region", { name: "The message" })).toBeNull();
   });
 });

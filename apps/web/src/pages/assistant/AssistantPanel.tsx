@@ -7,7 +7,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, type KeyboardEvent, useEffect, useId, useRef, useState } from "react";
 import { api } from "../../api";
-import { Alert, Button, Loading, Textarea } from "../../components";
+import { Alert, Button, Loading, Textarea, useEscapeLayer } from "../../components";
 import { ProposalCard } from "./ProposalCard";
 import { assistantApi, assistantKey, errorText } from "./queries";
 
@@ -132,13 +132,11 @@ function Panel({ workspaceId, onClose }: { workspaceId: string; onClose: () => v
   useEffect(() => {
     if (count > 0 || pending) bottom.current?.scrollIntoView?.({ block: "end" });
   }, [count, pending]);
-  useEffect(() => {
-    const onKey = (e: globalThis.KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  // Esc closes the panel only, not an open message under it (nor itself under a dialog).
+  useEscapeLayer(true, (e) => {
+    e.preventDefault();
+    onClose();
+  });
   return (
     <section
       role="dialog"
