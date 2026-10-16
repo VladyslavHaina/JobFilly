@@ -30,6 +30,9 @@ import { describeRule } from "../rules/engine";
 // - remove with a value removes those items from the list; remove with null removes the entry.
 // - rules are added (a new id), replaced (update, keeping id, source and creation) or removed;
 //   a rule is never stored without plain words describing what it does (ruleWords).
+// - setting an entry to the value it has, from the source it has, changes nothing.
+// - Undo restores a snapshot exactly (restoreSnapshot): entries with their confidence, evidence
+//   and source, rules with their id, source and creation.
 //
 // "Already answered" (F7.6) is decided by group key, never by profile key: answeredFor.
 
@@ -85,6 +88,11 @@ function ruleWords(draft: RuleDraft, current: Rule | null): string {
   return sameRule || reworded ? draft.description : describeRule(draft);
 }
 
+/** One entry in a snapshot: its value, and the whole entry for Undo; null when it isn't there. */
+function entrySnapshot(key: ProfileKey, entry: ProfileEntry | undefined) {
+  return entry ? { key, value: entry.value, entry } : { key, value: null };
+}
+
 /** Applies `changes` in order. Pure: the same input always gives the same output. */
 export function applyChanges(
   content: ProfileContent,
@@ -102,7 +110,7 @@ export function applyChanges(
   const touchKey = (key: ProfileKey) => {
     if (touchedKeys.includes(key)) return;
     touchedKeys.push(key);
-    before.entries.push({ key, value: entries.get(key)?.value ?? null });
+    before.entries.push(entrySnapshot(key, entries.get(key)));
   };
   const touchRule = (id: string) => {
     if (touchedRules.includes(id)) return;
@@ -120,6 +128,7 @@ export function applyChanges(
       };
     }
     const current = entries.get(key);
+    if (current?.source === ctx.source && same(current.value, parsed.data)) return null;
     if (!current) order.push(key);
     entries.set(key, {
       key,
@@ -200,7 +209,7 @@ export function applyChanges(
   }
 
   const after: ProfileSnapshot = {
-    entries: touchedKeys.map((key) => ({ key, value: entries.get(key)?.value ?? null })),
+    entries: touchedKeys.map((key) => entrySnapshot(key, entries.get(key))),
     rules: touchedRules.map((id) => ({ id, rule: rules.get(id) ?? null })),
   };
   return {
@@ -241,6 +250,42 @@ export function restoreChanges(
     }
   }
   return changes;
+}
+
+/**
+ * Undo (F8.4): the profile with `snapshot` (a history entry's `before`) restored exactly. It
+ * applies restoreChanges, giving a re-added rule its old id, then puts back each entry and rule
+ * as the snapshot holds it: an entry with its confidence, evidence and source (a snapshot written
+ * before entries were kept restores the value only), a rule with its source and creation.
+ */
+export function restoreSnapshot(
+  content: ProfileContent,
+  snapshot: ProfileSnapshot,
+  ctx: ChangeContext,
+): AppliedChanges {
+  const oldIds = snapshot.rules
+    .filter(({ id, rule }) => rule !== null && !content.rules.some((r) => r.id === id))
+    .map(({ id }) => id);
+  const applied = applyChanges(content, restoreChanges(snapshot, content), {
+    ...ctx,
+    newRuleId: () => oldIds.shift() ?? ctx.newRuleId(),
+  });
+  if (!applied.ok) return applied;
+  const entryWas = new Map(snapshot.entries.flatMap((e) => (e.entry ? [[e.key, e.entry]] : [])));
+  const ruleWas = new Map(snapshot.rules.flatMap((r) => (r.rule ? [[r.id, r.rule]] : [])));
+  const entry = (e: ProfileEntry) => entryWas.get(e.key) ?? e;
+  const rule = (r: Rule) => ruleWas.get(r.id) ?? r;
+  return {
+    ...applied,
+    entries: applied.entries.map(entry),
+    rules: applied.rules.map(rule),
+    after: {
+      entries: applied.after.entries.map((e) =>
+        e.entry ? entrySnapshot(e.key, entry(e.entry)) : e,
+      ),
+      rules: applied.after.rules.map((r) => ({ id: r.id, rule: r.rule && rule(r.rule) })),
+    },
+  };
 }
 
 /**

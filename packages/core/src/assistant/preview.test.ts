@@ -227,8 +227,8 @@ describe("previewImpact (F8.2, F8.5)", () => {
       { op: "update", target: "entry", key: "languages", value: ["German"] },
     ]);
     if (!added.ok || !updated.ok) throw new Error("expected previews");
-    expect(added.after.entries).toEqual([{ key: "languages", value: ["English", "German"] }]);
-    expect(updated.after.entries).toEqual([{ key: "languages", value: ["German"] }]);
+    expect(added.after.entries).toMatchObject([{ key: "languages", value: ["English", "German"] }]);
+    expect(updated.after.entries).toMatchObject([{ key: "languages", value: ["German"] }]);
     // English roles still fit "English, German"; with "German" alone their language conflicts.
     expect(added.impact.scoreMoves).toBe(0);
     expect(updated.impact.scoreMoves).toBe(roles.length);
@@ -252,7 +252,7 @@ describe("previewImpact (F8.2, F8.5)", () => {
       },
     ]);
     if (!result.ok) throw new Error("expected a preview");
-    expect(result.before).toEqual({
+    expect(result.before).toMatchObject({
       entries: [
         { key: "languages", value: ["English"] },
         { key: "remote", value: [{ scope: "Worldwide", timeZones: null }] },

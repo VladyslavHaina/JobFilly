@@ -1,6 +1,12 @@
 import type { Change, ProfileEntry, Rule, RuleDraft } from "@jobfilly/schema";
 import { describe, expect, it } from "vitest";
-import { answeredFor, applyChanges, type ChangeContext, restoreChanges } from "./changes";
+import {
+  answeredFor,
+  applyChanges,
+  type ChangeContext,
+  restoreChanges,
+  restoreSnapshot,
+} from "./changes";
 
 const at = "2026-10-15T12:00:00.000Z";
 const PROFILE = "11111111-1111-4111-8111-111111111111";
@@ -59,8 +65,11 @@ describe("add on a list key (TBD-195)", () => {
       confidence: null,
       evidence: maria.entries[0]?.evidence,
     });
-    expect(result.before).toEqual({ entries: [{ key: "min_pay", value: [eur] }], rules: [] });
-    expect(result.after).toEqual({ entries: [{ key: "min_pay", value: [eur, chf] }], rules: [] });
+    expect(result.before).toMatchObject({ entries: [{ key: "min_pay", value: [eur] }], rules: [] });
+    expect(result.after).toMatchObject({
+      entries: [{ key: "min_pay", value: [eur, chf] }],
+      rules: [],
+    });
   });
 
   it("leaves the list as it is when the item is already there", () => {
@@ -254,6 +263,44 @@ describe("rules", () => {
     expect(restored.entries.map((e) => [e.key, e.value])).toEqual(
       maria.entries.map((e) => [e.key, e.value]),
     );
+  });
+});
+
+describe("Undo (F8.4)", () => {
+  it("restores the exact rule and entries: id, source and creation, confidence and evidence", () => {
+    const made = applyChanges(
+      maria,
+      [
+        {
+          op: "add",
+          target: "rule",
+          rule: { description: "Hide Dutch roles", when: [], then: "hide", enabled: true },
+        },
+      ],
+      { ...ctx("you"), at: "2026-09-02T00:00:00.000Z" },
+    );
+    if (!made.ok) throw new Error("expected ok");
+    const content = { entries: made.entries, rules: made.rules };
+    const [rule] = made.rules;
+    const applied = applyChanges(
+      content,
+      [
+        { op: "remove", target: "rule", ruleId: rule?.id ?? "" },
+        { op: "update", target: "entry", key: "min_pay", value: [chf] },
+        { op: "remove", target: "entry", key: "extra.relocate", value: null },
+      ],
+      ctx("assistant"),
+    );
+    if (!applied.ok) throw new Error("expected ok");
+    const undone = restoreSnapshot(
+      { entries: applied.entries, rules: applied.rules },
+      applied.before,
+      ctx("you"),
+    );
+    if (!undone.ok) throw new Error("expected ok");
+    expect(undone.rules).toEqual(made.rules);
+    expect(undone.entries).toEqual(expect.arrayContaining(made.entries));
+    expect(undone.entries).toHaveLength(made.entries.length);
   });
 });
 

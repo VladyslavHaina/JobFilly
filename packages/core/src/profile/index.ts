@@ -7,4 +7,5 @@ export {
   type ChangeError,
   type ProfileContent,
   restoreChanges,
+  restoreSnapshot,
 } from "./changes";
