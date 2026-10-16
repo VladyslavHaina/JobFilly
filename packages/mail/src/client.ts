@@ -23,6 +23,7 @@ import { FAILURE_MESSAGES, failureReason, isMailFailure, MailError } from "./err
 import {
   bodyText,
   conformed,
+  ENVELOPE_SOURCE_BYTES,
   envelopeFromSource,
   fallbackEnvelope,
   originalFromSource,
@@ -120,9 +121,6 @@ export interface MailClient {
   deleteDraft(ref: DraftRef): Promise<void>;
   close(): Promise<void>;
 }
-
-/** Only the start of each message is read for its envelope: the headers and the snippet. */
-const ENVELOPE_SOURCE_BYTES = 64 * 1024;
 
 const SENT_NAME = /^sent( items| messages| mail)?$/i;
 const DRAFTS_NAME = /^drafts?$/i;
@@ -256,7 +254,7 @@ export function mailClientWith(
         uid: message.uid,
         internalDate: usableDate(message.internalDate),
       };
-      const fallback = fallbackEnvelope(info);
+      const fallback = fallbackEnvelope(info, message.source);
       const envelope = await envelopeFromSource(message.source, info).catch(() => fallback);
       const receivedAt = info.internalDate?.toISOString() ?? envelope.date;
       const checked = conformed(
@@ -409,7 +407,7 @@ export function mailClientWith(
           const original = await originalFromSource(message.source, info);
           // Checked on its own, as each envelope is: a field that fails its schema is the
           // fallback envelope's, and every field of that one passes, so it is never refused.
-          const fallback = fallbackEnvelope(info);
+          const fallback = fallbackEnvelope(info, message.source);
           return conformed(OriginalMessageSchema, original, {
             messageId: fallback.messageId,
             references: fallback.references,
