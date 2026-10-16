@@ -1,6 +1,11 @@
 import { z } from "zod";
 import { IsoDateTimeSchema, TextSchema } from "./common";
-import { ProfileKeySchema, ProfileSourceSchema, ProfileValueSchema } from "./profile";
+import {
+  ProfileEntrySchema,
+  ProfileKeySchema,
+  ProfileSourceSchema,
+  ProfileValueSchema,
+} from "./profile";
 import { RuleDraftSchema, RuleSchema } from "./rules";
 
 // The assistant (F8) and the profile changes it proposes. Every change to the profile's entries
@@ -48,10 +53,18 @@ export type Change = z.infer<typeof ChangeSchema>;
 
 /**
  * The entries and rules a list of changes touched, as they were before or after it. An entry or a
- * rule that didn't exist (yet, or any more) is null. Undo restores `before`.
+ * rule that didn't exist (yet, or any more) is null. Undo restores `before` exactly: an entry as
+ * `entry` holds it (with its confidence, evidence and source), a rule with its id, source and
+ * creation. `entry` is absent where `value` is null, and in rows written before it was kept.
  */
 export const ProfileSnapshotSchema = z.object({
-  entries: z.array(z.object({ key: ProfileKeySchema, value: ProfileValueSchema.nullable() })),
+  entries: z.array(
+    z.object({
+      key: ProfileKeySchema,
+      value: ProfileValueSchema.nullable(),
+      entry: ProfileEntrySchema.optional(),
+    }),
+  ),
   rules: z.array(z.object({ id: z.uuid(), rule: RuleSchema.nullable() })),
 });
 export type ProfileSnapshot = z.infer<typeof ProfileSnapshotSchema>;
