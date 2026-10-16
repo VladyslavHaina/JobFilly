@@ -2,6 +2,7 @@ import { withinReplyWindow } from "@jobfilly/core";
 import {
   type BackOff,
   clearStageFailure,
+  clearStageFailures,
   draftHistory,
   getEvaluations,
   getSenderChecks,
@@ -18,6 +19,7 @@ import {
 } from "@jobfilly/db";
 import type { MailClient } from "@jobfilly/mail";
 import {
+  CHECK_FAILED_SIGNAL,
   MESSAGE_GONE_SIGNAL,
   type OriginalMessage,
   type Profile,
@@ -43,9 +45,10 @@ import { MessageGoneError, type SenderStageResult, type StageContext, type Stage
 //   minute of F3.5, F4.6, F7.4 and F8.3 and works while the mailbox is down.
 // - When the sender stage fails (the mailbox can't be reached…), an incomplete check is stored
 //   with the neutral check_failed reason ("Couldn't check this sender yet"), never "looks fine"
-//   (F5.3), so the inbox shows that the check is incomplete instead of nothing. It still counts
-//   as missing: it is checked again by a later sweep, the roles are still matched, and the reply
-//   waits for a real check (sender_check_pending).
+//   (F5.3), so the inbox shows that the check is incomplete instead of nothing. A check stored
+//   earlier keeps what it found: its verdict (looks fine drops to caution, high risk stays) and an
+//   editor's mark. It still counts as missing: it is checked again by a later sweep, the roles
+//   are still matched, and the reply waits for a real check (sender_check_pending).
 // - A stage that throws is logged with why (failureFields: the error's name, kind or code and a
 //   short masked reason) and recorded in stage_failures (packages/db): it is tried again at the
 //   next sweep, then with a back-off doubling from one sync interval up to an hour, so a stage
@@ -124,20 +127,24 @@ const backOffOf = (deps: AppDeps): BackOff => ({
   capMs: MAX_BACK_OFF_MS,
 });
 
-/** The signal of a check whose stage failed: incomplete, tried again (never "looks fine"). */
-const CHECK_FAILED_SIGNAL = "check_failed";
-
-const FAILED_CHECK: SenderCheck = {
-  verdict: "caution",
-  complete: false,
-  reasons: [
-    {
-      signal: CHECK_FAILED_SIGNAL,
-      reason: "Couldn't check this sender yet. JobFilly tries again shortly.",
-    },
-  ],
-  mark: null,
+const FAILED_REASON = {
+  signal: CHECK_FAILED_SIGNAL,
+  reason: "Couldn't check this sender yet. JobFilly tries again shortly.",
 };
+
+/**
+ * The check of a message whose sender stage failed: incomplete, at best caution. A check stored
+ * earlier keeps its verdict and its mark (a known high risk or an editor's mark isn't lost).
+ */
+function failedCheck(check: SenderCheck | null): SenderCheck {
+  if (!check) return { verdict: "caution", complete: false, reasons: [FAILED_REASON], mark: null };
+  return {
+    ...check,
+    verdict: check.verdict === "looks_fine" ? "caution" : check.verdict,
+    complete: false,
+    reasons: isFailedCheck(check) ? check.reasons : [...check.reasons, FAILED_REASON],
+  };
+}
 
 const isFailedCheck = (check: SenderCheck) =>
   check.reasons.some((r) => r.signal === CHECK_FAILED_SIGNAL);
@@ -291,12 +298,14 @@ export async function evaluateMessage(
         if (await saveMessageLanguage(deps.db, ws, messageId, result.language)) {
           message.language = result.language;
           await markStale(deps.db, ws, { messageIds: [messageId] }, now);
-          // Marked stale now: no role of the message waits any more.
+          // A new question for every role: an evaluated one is stale now, and one never evaluated
+          // (no stale flag to show the change) has its wait ended here.
+          await clearStageFailures(deps.db, ws, { messageIds: [messageId] });
           holds = await getStageHolds(deps.db, ws, messageId, now);
         }
       } else if (failure) {
         // Incomplete, never "looks fine", and still to do (F5.3).
-        sender = FAILED_CHECK;
+        sender = failedCheck(stored ? stripCheck(stored) : null);
         await saveSenderCheck(deps.db, ws, messageId, sender, now);
         await failed("sender", failure.error);
       }

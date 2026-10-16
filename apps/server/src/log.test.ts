@@ -274,6 +274,26 @@ describe("why a pipeline stage failed (failureFields)", () => {
     ]);
   });
 
+  it("tells a stage not written yet, a lookup timeout and an AI failure apart", () => {
+    const stub = new Error("the sender stage is written by the cvs-senders slice");
+    const timeout = new DOMException("The operation was aborted due to timeout", "TimeoutError");
+    const ai = Object.assign(new Error("match.v1 gave no answer: invalid_output"), {
+      name: "MatchAiError",
+      kind: "invalid_output",
+    });
+    const fields = [stub, timeout, ai].map(failureFields);
+    expect(fields).toEqual([
+      { error: "Error", reason: "the sender stage is written by the cvs-senders slice" },
+      { error: "TimeoutError", reason: "The operation was aborted due to timeout" },
+      {
+        error: "MatchAiError",
+        kind: "invalid_output",
+        reason: "match.v1 gave no answer: invalid_output",
+      },
+    ]);
+    expect(new Set(fields.map((f) => JSON.stringify(f))).size).toBe(3);
+  });
+
   it("keeps the reason on one bounded line", () => {
     const long = new Error(`first line\n${"x".repeat(500)}`);
     const { reason } = failureFields(long);

@@ -1,4 +1,9 @@
-import type { Envelope, JobFacts, SenderCheck } from "@jobfilly/schema";
+import {
+  CHECK_FAILED_SIGNAL,
+  type Envelope,
+  type JobFacts,
+  type SenderCheck,
+} from "@jobfilly/schema";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { DatabaseConnection } from "../client";
 import { openTestDatabase } from "../testing";
@@ -94,7 +99,7 @@ async function seedMessage() {
 const failed: SenderCheck = {
   verdict: "caution",
   complete: false,
-  reasons: [{ signal: "check_failed", reason: "Couldn't check this sender yet" }],
+  reasons: [{ signal: CHECK_FAILED_SIGNAL, reason: "Couldn't check this sender yet" }],
   mark: null,
 };
 

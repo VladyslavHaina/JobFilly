@@ -7,7 +7,7 @@ import {
   loadMessageInputs,
   markStale,
 } from "@jobfilly/db";
-import type { LiveEvent } from "@jobfilly/schema";
+import { CHECK_FAILED_SIGNAL, type LiveEvent } from "@jobfilly/schema";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { requestReevaluation } from "../profile/changes";
 import {
@@ -172,7 +172,7 @@ describe("evaluateMessage", () => {
         complete: false,
         reasons: [
           {
-            signal: "check_failed",
+            signal: CHECK_FAILED_SIGNAL,
             reason: "Couldn't check this sender yet. JobFilly tries again shortly.",
           },
         ],
@@ -214,6 +214,72 @@ describe("evaluateMessage", () => {
     });
     expect(stages.replies.at(-1)?.sender).toMatchObject({ verdict: "looks_fine" });
     expect(await listToEvaluate(deps.db, ws)).toEqual([]);
+  });
+
+  it("keeps a stored check's verdict and mark when the sender stage fails on a re-check (F5.3)", async () => {
+    await confirm();
+    await seedJobMail(deps, ws, mailbox, {
+      messageId: "<a@x.example>",
+      receivedAt: daysAgo(1),
+      from: "ann@agency.example",
+    });
+    const real = stages.sender;
+    stages.sender = async (input, ctx) => ({
+      ...(await real(input, ctx)),
+      check: {
+        verdict: "high_risk",
+        complete: true,
+        reasons: [{ signal: "asks_for_fee", reason: "Asks for a fee" }],
+        mark: "blocked",
+      },
+    });
+    await evaluate("<a@x.example>");
+
+    // A sender mark changed, and the re-check fails.
+    await markStale(deps.db, ws, { senderDomain: "agency.example" }, NOW);
+    stages.failing.sender = "*";
+    expect(await evaluate("<a@x.example>", "reevaluate")).toMatchObject({ senderChecked: false });
+    const expected = {
+      messageId: "<a@x.example>",
+      verdict: "high_risk",
+      complete: false,
+      reasons: [
+        { signal: "asks_for_fee", reason: "Asks for a fee" },
+        {
+          signal: CHECK_FAILED_SIGNAL,
+          reason: "Couldn't check this sender yet. JobFilly tries again shortly.",
+        },
+      ],
+      mark: "blocked",
+      stale: false,
+    };
+    expect(await getSenderChecks(deps.db, ws, ["<a@x.example>"])).toEqual([expected]);
+    // The reply waits for a real check.
+    expect(stages.replies.at(-1)?.sender).toBeNull();
+
+    // Failing again (the first retry is at once) names the failure once.
+    await evaluate("<a@x.example>", "reevaluate");
+    expect(stages.calls.filter((c) => c.startsWith("sender"))).toHaveLength(3);
+    expect(await getSenderChecks(deps.db, ws, ["<a@x.example>"])).toEqual([expected]);
+  });
+
+  it("drops a stored looks-fine check to caution when the sender stage fails on a re-check", async () => {
+    await confirm();
+    await seedJobMail(deps, ws, mailbox, {
+      messageId: "<a@x.example>",
+      receivedAt: daysAgo(1),
+      from: "ann@agency.example",
+    });
+    await evaluate("<a@x.example>");
+    await markStale(deps.db, ws, { senderDomain: "agency.example" }, NOW);
+    stages.failing.sender = "*";
+    await evaluate("<a@x.example>", "reevaluate");
+    expect((await getSenderChecks(deps.db, ws, ["<a@x.example>"]))[0]).toMatchObject({
+      verdict: "caution",
+      complete: false,
+      reasons: [{ signal: CHECK_FAILED_SIGNAL }],
+      mark: null,
+    });
   });
 
   it("says why a match stage failed, and backs off a stage that keeps failing", async () => {
@@ -401,6 +467,39 @@ describe("evaluateMessage", () => {
     ]);
     expect(stages.cvLanguages.at(-1)).toBe("<a@x.example>#0 de");
     expect(await listToEvaluate(deps.db, ws)).toEqual([]);
+  });
+
+  it("tries a waiting role never evaluated in the same run once the sender stage tells a new language", async () => {
+    await confirm();
+    await seedJobMail(deps, ws, mailbox, {
+      messageId: "<a@x.example>",
+      receivedAt: daysAgo(1),
+      from: "ann@agency.example",
+    });
+    // The role's match keeps failing: after two tries it waits out a back-off.
+    stages.failing.match = "*";
+    await evaluate("<a@x.example>", "backlog");
+    await evaluate("<a@x.example>", "reevaluate");
+    expect(await getEvaluations(deps.db, ws, ["<a@x.example>"])).toEqual([]);
+    stages.calls.length = 0;
+    await evaluate("<a@x.example>", "reevaluate");
+    expect(stages.calls).toEqual([]);
+
+    // A sender change: the re-check reads the text and tells a new language, which the CV choice
+    // depends on, so the role is a new question and is tried now, not after its wait.
+    await markStale(deps.db, ws, { senderDomain: "agency.example" }, NOW);
+    stages.failing = {};
+    stages.language = () => "de";
+    const outcome = await evaluate("<a@x.example>", "reevaluate");
+    expect(stages.calls).toEqual([
+      "sender <a@x.example>",
+      "cvChoice <a@x.example>#0",
+      "match <a@x.example>#0",
+      "reply <a@x.example>",
+    ]);
+    expect(outcome).toMatchObject({ senderChecked: true, evaluated: [0], failed: [] });
+    expect(stages.cvLanguages.at(-1)).toBe("<a@x.example>#0 de");
+    expect(await listToEvaluate(deps.db, ws, { now: NOW })).toEqual([]);
   });
 
   it("never marks a role evaluated when its match stage fails", async () => {
