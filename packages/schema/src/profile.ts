@@ -86,6 +86,16 @@ export function isPolicyKey(key: string): key is PolicyKey {
   return (POLICY_KEYS as readonly string[]).includes(key);
 }
 
+/**
+ * How a profile entry is named where its own label isn't at hand: the intake form's label, the
+ * policy key's, or an extra question's slug in words ("extra.notice-period" reads "notice period").
+ */
+export function entryLabel(key: ProfileKey): string {
+  if (isPolicyKey(key)) return POLICY_LABELS[key];
+  if (isExtraKey(key)) return key.slice("extra.".length).replace(/[-_]+/g, " ");
+  return CORE_PROFILE_LABELS[key as CoreProfileKey];
+}
+
 // One value schema per core key. Every value is a list, so an empty answer is [].
 const WordsSchema = z.array(TextSchema);
 export const ProfilePlaceSchema = z.object({
