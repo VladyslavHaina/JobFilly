@@ -24,7 +24,6 @@ import {
   type AssistantState,
   type AssistantTurn,
   type Change,
-  type LiveEvent,
   type Profile,
   type Proposal,
   type User,
@@ -35,6 +34,7 @@ import type { Logger } from "../log";
 import { applyAndReevaluate } from "../profile/changes";
 import { openAiKey } from "../secrets";
 import { previewChanges } from "./preview";
+import { fail, inTransaction, NOT_FOUND_FAILURE, type Result, refuse } from "./result";
 
 // The assistant (F8): one member's conversation, the proposals it makes and what the member does
 // with them. The model can only propose (assistant.v1): a proposal is a list of Changes to the
@@ -46,21 +46,6 @@ import { previewChanges } from "./preview";
 // Messages, replies, summaries and requests are stored for the history and never logged (F8.10):
 // the log lines carry ids and counts only.
 
-/** A refusal with its HTTP status and body. */
-export interface Failure {
-  ok: false;
-  status: 400 | 404 | 409 | 502;
-  body: { error: string; message?: string };
-}
-type Result<T> = { ok: true; data: T } | Failure;
-
-/** A refusal with `status` and the error code, and plain words when there are any. */
-export const fail = (status: Failure["status"], error: string, message?: string): Failure => ({
-  ok: false,
-  status,
-  body: message ? { error, message } : { error },
-});
-export const NOT_FOUND = fail(404, "not_found");
 const DECIDED = fail(409, "decided", "This proposal was already applied or discarded.");
 
 /** A proposal made only of rule and entry changes, or none: the only kind ever stored. */
@@ -139,7 +124,7 @@ export async function sendMessage(
   log: Logger,
 ): Promise<Result<AssistantTurn>> {
   const thread = input.threadId ? await getThread(deps.db, ws, user.id, input.threadId) : null;
-  if (input.threadId && !thread) return NOT_FOUND;
+  if (input.threadId && !thread) return NOT_FOUND_FAILURE;
   const settings = await getAiSettings(deps.db, ws);
   if (!settings) return fail(409, "no_ai", "Set up an AI provider under Settings › AI first.");
 
@@ -260,10 +245,10 @@ export async function editProposal(
   edited: Change[],
 ): Promise<Result<Proposal>> {
   const stored = await ownProposal(deps, ws, user, proposalId);
-  if (!stored) return NOT_FOUND;
+  if (!stored) return NOT_FOUND_FAILURE;
   if (stored.status !== "open") return DECIDED;
   const target = await proposalProfile(deps, ws, stored);
-  if (!target) return NOT_FOUND;
+  if (!target) return NOT_FOUND_FAILURE;
   const changes = rewordEdited(stored.changes, edited);
   const preview = await previewChanges(deps, ws, { ...target, changes, userId: user.id });
   if (!preview.ok) return fail(400, "invalid", errorWords(preview.error));
@@ -280,49 +265,7 @@ export async function editProposal(
   if (!updated) return DECIDED;
   await deps.live.publish(ws, { type: "assistant.updated", data: {} });
   const fresh = await getProposal(deps.db, ws, proposalId);
-  return fresh ? { ok: true, data: toProposal(fresh) } : NOT_FOUND;
-}
-
-class Refused extends Error {
-  constructor(readonly failure: Failure) {
-    super(failure.body.error);
-  }
-}
-
-/**
- * Runs `work` in one transaction with dependencies on it, and sends the live events it publishes
- * only once it committed, so no browser refetches before the change is there. A Refused thrown
- * inside rolls everything back and is returned.
- */
-export async function inTransaction<T>(
-  deps: AppDeps,
-  work: (tx: AppDeps) => Promise<T>,
-): Promise<{ ok: true; data: T } | Failure> {
-  const events: [string, LiveEvent][] = [];
-  try {
-    const data = await deps.db.transaction((db) =>
-      work({
-        ...deps,
-        db,
-        live: {
-          ...deps.live,
-          publish: async (workspaceId, event) => {
-            events.push([workspaceId, event]);
-          },
-        },
-      }),
-    );
-    for (const [workspaceId, event] of events) await deps.live.publish(workspaceId, event);
-    return { ok: true, data };
-  } catch (error) {
-    if (error instanceof Refused) return error.failure;
-    throw error;
-  }
-}
-
-/** Refuses the transaction's work with `failure`. */
-export function refuse(failure: Failure): never {
-  throw new Refused(failure);
+  return fresh ? { ok: true, data: toProposal(fresh) } : NOT_FOUND_FAILURE;
 }
 
 /**
@@ -340,7 +283,7 @@ export async function applyProposal(
   log: Logger,
 ): Promise<Result<Proposal>> {
   const stored = await ownProposal(deps, ws, user, proposalId);
-  if (!stored) return NOT_FOUND;
+  if (!stored) return NOT_FOUND_FAILURE;
   if (stored.status !== "open") return DECIDED;
   const at = deps.clock.now();
   const done = await inTransaction(deps, async (tx) => {
@@ -355,7 +298,7 @@ export async function applyProposal(
       userId: user.id,
       request: stored.request,
     });
-    if (!result) refuse(NOT_FOUND);
+    if (!result) refuse(NOT_FOUND_FAILURE);
     if (!result.ok) {
       refuse(
         fail(
@@ -370,7 +313,7 @@ export async function applyProposal(
   if (!done.ok) return done;
   log.info("assistant.proposal_applied", { proposalId });
   const fresh = await getProposal(deps.db, ws, proposalId);
-  return fresh ? { ok: true, data: toProposal(fresh) } : NOT_FOUND;
+  return fresh ? { ok: true, data: toProposal(fresh) } : NOT_FOUND_FAILURE;
 }
 
 /** Discards an open proposal (POST …/discard): nothing changes. Viewers may discard their own. */
@@ -382,7 +325,7 @@ export async function discardProposal(
   log: Logger,
 ): Promise<Result<Proposal>> {
   const stored = await ownProposal(deps, ws, user, proposalId);
-  if (!stored) return NOT_FOUND;
+  if (!stored) return NOT_FOUND_FAILURE;
   const decided = await decideProposal(deps.db, ws, proposalId, {
     status: "discarded",
     userId: user.id,
@@ -392,5 +335,5 @@ export async function discardProposal(
   log.info("assistant.proposal_discarded", { proposalId });
   await deps.live.publish(ws, { type: "assistant.updated", data: {} });
   const fresh = await getProposal(deps.db, ws, proposalId);
-  return fresh ? { ok: true, data: toProposal(fresh) } : NOT_FOUND;
+  return fresh ? { ok: true, data: toProposal(fresh) } : NOT_FOUND_FAILURE;
 }

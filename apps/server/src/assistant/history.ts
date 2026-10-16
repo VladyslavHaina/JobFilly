@@ -11,7 +11,7 @@ import type { ProfileHistoryEntry, ProfileHistoryItem, User } from "@jobfilly/sc
 import type { AppDeps } from "../deps";
 import type { Logger } from "../log";
 import { applyAndReevaluate } from "../profile/changes";
-import { type Failure, fail, inTransaction, NOT_FOUND, refuse } from "./service";
+import { fail, inTransaction, NOT_FOUND_FAILURE, type Result, refuse } from "./result";
 
 // The profile history (F8.4): every applied change with who, when, the source and the request
 // behind it, in plain words before and after, and Undo. Undo restores the entry's `before` as
@@ -58,9 +58,9 @@ export async function undoChange(
   user: User,
   input: { profileId: string; entryId: string },
   log: Logger,
-): Promise<{ ok: true; data: ProfileHistoryItem } | Failure> {
+): Promise<Result<ProfileHistoryItem>> {
   const entry = await getHistoryEntry(deps.db, ws, input.profileId, input.entryId);
-  if (!entry) return NOT_FOUND;
+  if (!entry) return NOT_FOUND_FAILURE;
   if (entry.undoneAt) return UNDONE;
   const done = await inTransaction(deps, async (tx) => {
     if (!(await markUndone(tx.db, ws, entry.id, { userId: user.id, at: deps.clock.now() }))) {
@@ -74,7 +74,7 @@ export async function undoChange(
       restoreChanges(entry.before, { rules }),
       { source: "you", userId: user.id, request: null },
     );
-    if (!result) refuse(NOT_FOUND);
+    if (!result) refuse(NOT_FOUND_FAILURE);
     if (!result.ok) {
       refuse(fail(409, "stale", "This change can't be undone any more."));
     }
@@ -82,6 +82,6 @@ export async function undoChange(
   if (!done.ok) return done;
   log.info("profile.change_undone", { entryId: entry.id });
   const fresh = await getHistoryEntry(deps.db, ws, input.profileId, entry.id);
-  if (!fresh) return NOT_FOUND;
+  if (!fresh) return NOT_FOUND_FAILURE;
   return { ok: true, data: toItem(fresh, await memberNames(deps, ws)) };
 }
