@@ -186,7 +186,9 @@ test("S11: resilience", async ({ page }) => {
             intervals: [2_000],
           })
           .toBeGreaterThan(0);
-        expect(syncs().map((l) => l.instance)).toEqual(syncs().map(() => other));
+        // One read: the log grows while the step runs.
+        const instances = syncs().map((l) => l.instance);
+        expect(instances).toEqual(instances.map(() => other));
       });
 
       await test.step("the message arrives", async () => {
