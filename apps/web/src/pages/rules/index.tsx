@@ -62,12 +62,18 @@ function RuleRow({ rule, workspaceId }: { rule: Rule; workspaceId: string }) {
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-3">
+          {/* Named by what it switches, so the name stays put when it flips; screen readers
+              hear its state from aria-checked, and the word beside it shows that state. */}
           <Switch
-            label="On"
+            label={`Use the rule "${rule.description}"`}
+            hideLabel
             checked={rule.enabled}
             disabled={!can.edit || busy}
             onChange={(enabled) => toggle.mutate(enabled)}
           />
+          <span aria-hidden className="w-6 text-sm text-stone-800">
+            {rule.enabled ? "On" : "Off"}
+          </span>
           <Button
             variant="danger"
             className="px-2.5 py-1 text-xs"

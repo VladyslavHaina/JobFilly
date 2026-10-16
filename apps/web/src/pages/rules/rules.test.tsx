@@ -81,12 +81,12 @@ describe("RulesList", () => {
     expect(agencies?.textContent).toContain("Off");
     expect(
       within(asia as HTMLElement)
-        .getByRole("switch", { name: "On" })
+        .getByRole("switch", { name: /^Use the rule/ })
         .getAttribute("aria-checked"),
     ).toBe("true");
     expect(
       within(agencies as HTMLElement)
-        .getByRole("switch", { name: "On" })
+        .getByRole("switch", { name: /^Use the rule/ })
         .getAttribute("aria-checked"),
     ).toBe("false");
   });
@@ -108,7 +108,9 @@ describe("RulesList", () => {
   it("lets an editor switch a rule off", async () => {
     const requests = setup("editor");
     const [asia] = await rows();
-    await userEvent.click(within(asia as HTMLElement).getByRole("switch", { name: "On" }));
+    await userEvent.click(
+      within(asia as HTMLElement).getByRole("switch", { name: /^Use the rule/ }),
+    );
     const patch = requests.find((r) => r.method === "PATCH");
     expect(patch?.path).toBe(`/api/workspaces/${WS}/profiles/${PROFILE}/rules/${ASIA.id}`);
     expect(patch?.body).toEqual({ enabled: false });
@@ -116,9 +118,32 @@ describe("RulesList", () => {
       const [after] = await rows();
       expect(
         within(after as HTMLElement)
-          .getByRole("switch", { name: "On" })
+          .getByRole("switch", { name: /^Use the rule/ })
           .getAttribute("aria-checked"),
       ).toBe("false");
+    });
+  });
+
+  it("names the switch by its rule and shows On or Off as the rule is", async () => {
+    setup("editor");
+    const [asia, agencies] = await rows();
+    const asiaSwitch = within(asia as HTMLElement).getByRole("switch", {
+      name: `Use the rule "${ASIA.description}"`,
+    });
+    expect(within(asia as HTMLElement).getByText("On")).toBeTruthy();
+    expect(
+      within(agencies as HTMLElement)
+        .getByRole("switch", { name: `Use the rule "${AGENCIES.description}"` })
+        .getAttribute("aria-checked"),
+    ).toBe("false");
+    expect(within(agencies as HTMLElement).queryByText("On")).toBeNull();
+    expect(within(agencies as HTMLElement).getByText("Off")).toBeTruthy();
+
+    await userEvent.click(asiaSwitch);
+    await vi.waitFor(async () => {
+      const [after] = await rows();
+      expect(within(after as HTMLElement).getByText("Off")).toBeTruthy();
+      expect(within(after as HTMLElement).queryByText("On")).toBeNull();
     });
   });
 
@@ -140,7 +165,9 @@ describe("RulesList", () => {
     const requests = setup("viewer");
     for (const row of await rows()) {
       const scope = within(row);
-      expect((scope.getByRole("switch", { name: "On" }) as HTMLButtonElement).disabled).toBe(true);
+      expect(
+        (scope.getByRole("switch", { name: /^Use the rule/ }) as HTMLButtonElement).disabled,
+      ).toBe(true);
       expect(
         (scope.getByRole("button", { name: /^Remove the rule/ }) as HTMLButtonElement).disabled,
       ).toBe(true);
