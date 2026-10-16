@@ -1,15 +1,13 @@
-import {
-  type DecisionChoice,
-  type DecisionNeed,
-  type DraftOutput,
-  groupKeyFor,
-  type NeedSpec,
-  type ProfileEntry,
-  parseGroupKey,
-  type RoleEvaluation,
+import type {
+  DecisionChoice,
+  DecisionNeed,
+  DraftOutput,
+  NeedSpec,
+  ProfileEntry,
+  RoleEvaluation,
 } from "@jobfilly/schema";
 import { answeredFor } from "../profile/changes";
-import { itemFromText, questionKey } from "./answers";
+import { itemFromText, questionKeys } from "./answers";
 
 // Where decisions come from (F7.1, F7.3, F7.6). A need is a question a reply can't go without,
 // stated by whoever knows why: a match verdict (verdict.need, "pay in another currency"), an
@@ -66,17 +64,15 @@ export function roleNeeds(input: RoleNeedsInput): RoleNeed[] {
 }
 
 /**
- * A draft's questions (draft.v1) as needs. Each writes a profile key: the one it names, or an
- * extra question; its group key is kept only when it belongs to that key, so answeredFor can tell
- * later that it is answered (F7.6). Its choices become items of the key; a choice that can't be
- * one is left out, as the free-text option is always there.
+ * A draft's questions (draft.v1) as needs. Each writes a profile key under a group key its answer
+ * answers (questionKeys), so answeredFor tells later that it is answered and the question isn't
+ * asked again (F7.6). Its choices become items of the key; a choice that can't be one is left
+ * out, as the free-text option is always there.
  */
 export function needsFromQuestions(questions: DraftOutput["questions"]): NeedSpec[] {
   const out: NeedSpec[] = [];
   for (const q of questions) {
-    const profileKey = questionKey(q);
-    const groupKey =
-      parseGroupKey(q.groupKey).profileKey === profileKey ? q.groupKey : groupKeyFor(profileKey);
+    const { profileKey, groupKey } = questionKeys(q);
     if (out.some((n) => n.groupKey === groupKey)) continue;
     const choices: DecisionChoice[] = [];
     for (const label of q.choices) {

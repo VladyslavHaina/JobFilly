@@ -12,6 +12,7 @@ import {
   answerChange,
   answerItem,
   groupNeeds,
+  isOpen,
   itemFromText,
   needsFromQuestions,
   planReply,
@@ -176,6 +177,63 @@ describe("needs (F7.1, F7.6)", () => {
     ]);
     const profile = { entries: [entry("extra.relocation_ie", ["Yes"])] };
     expect(answeredFor(profile, needs[1]?.groupKey ?? "")).toEqual(["Yes"]);
+  });
+
+  it("from a draft's questions stay answered once answered, whatever parts their group key has", () => {
+    const asked = [
+      // An extra question's parts become part of its name: Ireland and Germany stay apart.
+      {
+        q: { profileKey: "extra.relocate", groupKey: "extra.relocate:IE", choices: ["Yes", "No"] },
+        need: { profileKey: "extra.relocate_ie", groupKey: "extra.relocate_ie" },
+        answer: "Yes",
+      },
+      {
+        q: { profileKey: null, groupKey: "extra.relocate:DE", choices: [] },
+        need: { profileKey: "extra.relocate_de", groupKey: "extra.relocate_de" },
+        answer: "No",
+      },
+      // A word-list key's parts can't be compared with its items: the key's own group key.
+      {
+        q: { profileKey: "deal_breakers", groupKey: "deal_breakers:onsite", choices: [] },
+        need: { profileKey: "deal_breakers", groupKey: "deal_breakers" },
+        answer: "Fully on-site",
+      },
+      // A key whose parts describe its items keeps them.
+      {
+        q: { profileKey: null, groupKey: "work_permits:IE", choices: [] },
+        need: { profileKey: "work_permits", groupKey: "work_permits:IE" },
+        answer: "Stamp 4",
+      },
+    ];
+    for (const { q, need: expected, answer } of asked) {
+      const [need] = needsFromQuestions([{ ...q, question: "?" }]);
+      expect(need, q.groupKey).toMatchObject(expected);
+      if (!need?.profileKey) throw new Error("expected a profile key");
+      expect(isOpen(need, maria, new Set())).toBe(true);
+      const item = answerItem(need, answer);
+      if (item === null) throw new Error(`${q.groupKey}: the answer doesn't fit`);
+      const applied = applyChanges(
+        { entries: maria.entries, rules: [] },
+        [answerChange(need.profileKey, item)],
+        {
+          profileId: "p",
+          source: "decision",
+          userId: null,
+          at: now.toISOString(),
+          newRuleId: () => RULE,
+        },
+      );
+      if (!applied.ok) throw new Error(`${q.groupKey}: the answer doesn't apply`);
+      // The same question from a later draft is answered by the profile now.
+      const [again] = needsFromQuestions([{ ...q, question: "?" }]);
+      expect(again && isOpen(again, applied, new Set()), `${q.groupKey} answered`).toBe(false);
+    }
+    // Relocating to Ireland doesn't answer relocating to Germany.
+    const ie = { entries: [entry("extra.relocate_ie", ["Yes"])] };
+    const [de] = needsFromQuestions([
+      { profileKey: null, groupKey: "extra.relocate:DE", question: "?", choices: [] },
+    ]);
+    expect(de && isOpen(de, ie, new Set())).toBe(true);
   });
 });
 

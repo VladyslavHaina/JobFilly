@@ -1,6 +1,8 @@
 import {
   type Change,
   CountryCodeSchema,
+  groupKeyFor,
+  isExtraKey,
   type ProfileItem,
   type ProfileKey,
   ProfileKeySchema,
@@ -105,20 +107,55 @@ function slugOf(words: string): string {
 }
 
 /**
- * The profile key a draft's question writes: the key it names when that is one, otherwise an
- * extra question named after its group key (or its words), so the answer lands in the profile and
- * the next draft sees it (F7.6).
+ * The keys whose group key parts name fields of an item: itemFromText fills those fields from the
+ * parts, and answeredFor (profile/changes.ts, GROUP_PARTS) compares them, so "min_pay:CHF:year" is
+ * answered by the CHF per-year minimum the answer adds. Any other key's items are words, which
+ * answeredFor would compare with the first part: an answer "Yes" never equals "IE".
  */
-export function questionKey(question: {
+const KEYS_WITH_PARTS: ReadonlySet<string> = new Set([
+  "min_pay",
+  "places",
+  "remote",
+  "work_permits",
+]);
+
+const extraKey = (words: string): ProfileKey | null => {
+  const slug = slugOf(words);
+  return slug ? `extra.${slug}` : null;
+};
+
+/**
+ * The profile key a draft's question writes and the group key it is asked under, chosen so the
+ * answer is found later (F7.6): what an answer adds to the profile key always answers the group
+ * key (answeredFor).
+ *
+ * - The key it names (or its group key's own key, when it names none) is kept. Its group key
+ *   stays only when it belongs to that key; the parts stay only for a key whose items they
+ *   describe (KEYS_WITH_PARTS). A core key's other parts are dropped ("deal_breakers:onsite" is
+ *   "deal_breakers").
+ * - An extra question's parts become part of its name: "extra.relocate:IE" is
+ *   "extra.relocate_ie", so relocating to Ireland and to Germany stay two questions.
+ * - Otherwise it is an extra question named after its whole group key, or its words.
+ */
+export function questionKeys(question: {
   profileKey: string | null;
   groupKey: string;
   question: string;
-}): ProfileKey {
+}): { profileKey: ProfileKey; groupKey: string } {
+  const { profileKey: head, parts } = parseGroupKey(question.groupKey);
   const named = ProfileKeySchema.safeParse(question.profileKey);
-  if (named.success) return named.data;
-  const slug =
-    slugOf(parseGroupKey(question.groupKey).profileKey.replace(/^extra\./, "")) ||
-    slugOf(question.question) ||
-    "question";
-  return `extra.${slug}`;
+  const own = ProfileKeySchema.safeParse(head);
+  const key = named.success ? named.data : own.success ? own.data : null;
+  if (key !== null) {
+    if (head !== key || parts.length === 0) return { profileKey: key, groupKey: groupKeyFor(key) };
+    if (KEYS_WITH_PARTS.has(key)) return { profileKey: key, groupKey: question.groupKey };
+    if (!isExtraKey(key)) return { profileKey: key, groupKey: groupKeyFor(key) };
+    const folded = extraKey([key.replace(/^extra\./, ""), ...parts].join("_")) ?? key;
+    return { profileKey: folded, groupKey: groupKeyFor(folded) };
+  }
+  const extra =
+    extraKey([head.replace(/^extra\./, ""), ...parts].join("_")) ??
+    extraKey(question.question) ??
+    "extra.question";
+  return { profileKey: extra, groupKey: groupKeyFor(extra) };
 }
