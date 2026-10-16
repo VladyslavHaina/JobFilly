@@ -7,6 +7,7 @@ import { type MailboxSession, mailboxSession } from "../pipeline/evaluate";
 import {
   attachmentFor,
   contentHash,
+  copyByMessageId,
   DraftMailboxError,
   isMailboxError,
   mailboxReason,
@@ -110,7 +111,11 @@ export async function editDraft(
   }
 }
 
-/** Discards a draft: its mailbox copy is deleted; a failed one never had a copy. */
+/**
+ * Discards a draft: its mailbox copy is deleted. A failed draft has no recorded copy, but one
+ * whose text was written kept the Message-ID its copy gets, and an append can reach the server
+ * and still fail client-side: any copy with that Message-ID is deleted too.
+ */
 export async function discardDraft(
   deps: AppDeps,
   ws: string,
@@ -127,8 +132,15 @@ export async function discardDraft(
         return { ok: false, error: "conflict", message: "The draft is still being saved" };
       }
       const copy = draft.mailbox;
-      if (copy) {
-        const deleted = await inMailbox(session, log, (client) => client.deleteDraft(copy));
+      const kept = draft.draftMessageId;
+      if (copy || kept !== null) {
+        const deleted = await inMailbox(session, log, async (client) => {
+          if (copy) return client.deleteDraft(copy);
+          // A failed draft's append may have reached the server and failed after it: any copy
+          // with the Message-ID it kept goes, so a discarded draft leaves none (F6.4).
+          const { path } = await client.ensureDraftsFolder();
+          if (kept !== null) await client.deleteDraft(copyByMessageId(path, kept));
+        });
         if (!deleted.ok) {
           return {
             ok: false,

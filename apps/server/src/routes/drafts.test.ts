@@ -1,4 +1,5 @@
 import { addMember } from "@jobfilly/db";
+import { MailUnavailableError } from "@jobfilly/mail";
 import { DecisionListSchema, DraftListSchema, DraftSchema } from "@jobfilly/schema";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { editDraft } from "../drafts/edit";
@@ -169,6 +170,54 @@ describe("editing and discarding (F6.4)", () => {
     h.mailbox.resume();
     expect((await h.live(BERLIN))?.status).toBe("in_mailbox");
     expect(h.mailbox.drafts().map((d) => d.reply.body)).toEqual([draftAnswer().body]);
+  });
+
+  it("discarding a failed draft deletes the copy its append left behind", async () => {
+    await h.deliver(BERLIN);
+    h.ai.answers.draft[key(BERLIN)] = draftAnswer();
+    // The append reaches the Drafts folder, then the client fails: the row records no copy.
+    const port = h.deps.mail;
+    let armed = true;
+    h.deps.mail = {
+      connect(conn, options) {
+        const client = port.connect(conn, options);
+        return {
+          ...client,
+          async saveDraft(input) {
+            const ref = await client.saveDraft(input);
+            if (!armed) return ref;
+            armed = false;
+            throw new MailUnavailableError();
+          },
+        };
+      },
+    };
+    await h.evaluate(BERLIN);
+    await h.drain();
+    const failed = await h.live(BERLIN);
+    expect(failed).toMatchObject({ status: "failed", mailbox: null });
+    expect(h.mailbox.drafts()).toHaveLength(1);
+
+    const res = await maria.post(`${base}/${failed?.id}/discard`);
+    expect(res.status).toBe(200);
+    expect(DraftSchema.parse(await res.json()).status).toBe("discarded");
+    expect(h.mailbox.drafts()).toEqual([]);
+    expect(events("draft.discarded")).toEqual([expect.objectContaining({ draftId: failed?.id })]);
+  });
+
+  it("discards a failed draft that never wrote a text without the mailbox", async () => {
+    await h.deliver(BERLIN);
+    h.ai.answers.draft[key(BERLIN, 1)] = draftAnswer({ body: "Dear [Name]" });
+    h.ai.answers.draft[key(BERLIN, 2)] = draftAnswer({ body: "Hi {company}" });
+    await h.evaluate(BERLIN);
+    await h.drain();
+    const failed = await h.live(BERLIN);
+    expect(failed).toMatchObject({ status: "failed", draftMessageId: null });
+    h.mailbox.pause();
+    const res = await maria.post(`${base}/${failed?.id}/discard`);
+    h.mailbox.resume();
+    expect(res.status).toBe(200);
+    expect(DraftSchema.parse(await res.json()).status).toBe("discarded");
   });
 
   it("discarding deletes it from the mailbox, and no change brings it back", async () => {
