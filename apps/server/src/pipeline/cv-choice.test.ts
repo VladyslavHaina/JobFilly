@@ -43,11 +43,11 @@ beforeEach(async () => {
 });
 afterEach(() => deps.close());
 
-function context(): StageContext {
+function context(withProfile: Profile | null = profile): StageContext {
   return {
     deps,
     ws,
-    profile,
+    profile: withProfile,
     rules: [],
     now: NOW,
     origin: "reevaluate",
@@ -138,6 +138,14 @@ describe("the cv-choice stage", () => {
       reason: "You chose Backend (EN) for this role",
       source: "you",
     });
+  });
+
+  it("refuses to choose without a confirmed profile, never from all the CVs", async () => {
+    await mariasCvs();
+    const input = await message("de");
+    await expect(
+      cvChoiceStage({ message: input, role: { position: 0, facts: roleFacts() } }, context(null)),
+    ).rejects.toThrow("confirmed profile");
   });
 
   it("gives cvId null when the profile has no CV", async () => {
