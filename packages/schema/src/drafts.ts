@@ -41,6 +41,13 @@ export const DraftSchema = z.object({
   language: z.string().nullable(),
   /** The CV attached, if any; null once that CV is deleted (the mailbox draft stays, F2.5). */
   cvId: z.uuid().nullable(),
+  /**
+   * Whether the mailbox copy carries a CV attachment (F6.3). Stays true when that CV is deleted
+   * (cvId goes null, F2.5): the copy keeps its attachment, and an edit keeps it too. The server
+   * always sends it; it is optional so a page reading a draft from a replica that doesn't send it
+   * yet (a rolling update) still reads it, as without an attachment.
+   */
+  cvAttached: z.boolean().optional(),
   /** True for a draft the app made on its own, false for Draft a reply. */
   auto: z.boolean(),
   updatedAt: IsoDateTimeSchema,

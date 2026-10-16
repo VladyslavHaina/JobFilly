@@ -399,10 +399,16 @@ describe("evaluations, senders, drafts and decisions", () => {
       body: null,
       language: null,
       cvId: null,
+      cvAttached: false,
       auto: true,
       updatedAt: at,
     };
     expect(DraftSchema.safeParse(draft).success).toBe(true);
+    // A draft whose CV was deleted still says its copy has the attachment (F2.5).
+    expect(DraftSchema.parse({ ...draft, status: "in_mailbox", cvAttached: true }).cvAttached).toBe(
+      true,
+    );
+    expect(DraftSchema.safeParse({ ...draft, cvAttached: "yes" }).success).toBe(false);
     expect(DraftSchema.safeParse({ ...draft, failureKind: "ai" }).success).toBe(true);
     expect(DraftSchema.safeParse({ ...draft, failureKind: "smtp" }).success).toBe(false);
   });
