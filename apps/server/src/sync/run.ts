@@ -93,7 +93,7 @@ export function isDue(nextAttemptAt: Date | null, now: Date, intervalMs: number)
 }
 
 export type SyncOutcome =
-  | { status: "skipped"; reason: "no_mailbox" | "first_scan_running" }
+  | { status: "skipped"; reason: "no_mailbox" | "first_scan_running" | "backing_off" }
   | { status: "synced"; fresh: number; uidValidityChanged: boolean; lastUid: number }
   | { status: "failed"; failures: number };
 
@@ -274,8 +274,15 @@ export async function syncMailbox(
     return { status: "skipped", reason: "first_scan_running" };
   }
 
-  log.info("sync.started", { mailboxId });
+  // The back-off is checked again here, not only when the sync was queued (F1.4): a sync queued
+  // while a failing one still hung would otherwise run the moment that one failed.
   const state = await getSyncState(db, workspaceId, mailboxId, SYNC_FOLDER);
+  const intervalMs = deps.config.syncIntervalSeconds * 1000;
+  if (!isDue(state?.nextAttemptAt ?? null, deps.clock.now(), intervalMs)) {
+    return { status: "skipped", reason: "backing_off" };
+  }
+
+  log.info("sync.started", { mailboxId });
   let mail: MailClient | null = null;
   try {
     mail = connect(deps, mailbox);
