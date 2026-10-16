@@ -88,8 +88,13 @@ export type RuleSource = z.infer<typeof RuleSourceSchema>;
  * (biome.json turns noThenProperty off for it).
  */
 export const RuleDraftSchema = z.object({
-  /** In plain words: "Hide roles whose hours are outside UTC−1 to UTC+3" (F3.1). */
-  description: TextSchema,
+  /**
+   * In plain words: "Hide roles whose hours are outside UTC−1 to UTC+3" (F3.1). Trimmed, and
+   * never blank: a rule is always shown by what it does, so clearing the words on a proposal card
+   * (F8.2) or in a request is refused where it enters. A refinement rather than a length, so the
+   * JSON Schema assistant.v1 is given stays as it is.
+   */
+  description: TextSchema.trim().refine((s) => s.length > 0, "Describe the rule in words"),
   when: z.array(ConditionSchema).min(1),
   then: RuleActionSchema,
   enabled: z.boolean(),
