@@ -263,8 +263,17 @@ export const AiErrorKindSchema = z.enum([
 ]);
 export type AiErrorKind = z.infer<typeof AiErrorKindSchema>;
 
-/** A failure in plain words; never the key or the model's raw output. */
-export const AiErrorSchema = z.object({ kind: AiErrorKindSchema, message: z.string() });
+/**
+ * A failure in plain words; never the key or the model's raw output. A provider's error answer
+ * also gives its HTTP status and the provider's error type ("invalid_request_error"), for the
+ * logs; never the provider's message.
+ */
+export const AiErrorSchema = z.object({
+  kind: AiErrorKindSchema,
+  message: z.string(),
+  httpStatus: z.number().int().optional(),
+  providerErrorType: z.string().optional(),
+});
 export type AiError = z.infer<typeof AiErrorSchema>;
 
 /** The result of one task: its data, or why not, with the usage of every call made. */
