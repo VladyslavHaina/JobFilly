@@ -16,11 +16,14 @@ const TASK_ID: TaskId = "draft.v1";
 
 // The reply is checked after it comes back: questions go to the decision inbox, keyed by their
 // profileKey and groupKey (apps/server, packages/core needsFromQuestions), and a placeholder gets
-// one more attempt. So the instruction asks for exactly those fields' shapes.
+// one more attempt. So the instruction asks for exactly those fields' shapes. The app reads no
+// yes or no from an answer's words, in any language: the model says of each answer it offers
+// whether it declines, and an answer that declines writes nothing to the profile.
 const INSTRUCTION = [
   "Write a short reply to this recruiter email for the role given, as the person whose profile and CV follow, in the language of the email; set language to its ISO 639-1 code.",
   "Use only the profile and the CV: state nothing about the person, their skills or their wishes that they don't back up.",
-  "When the reply needs something they don't answer, don't guess: add a question instead, with profileKey the profile key the answer belongs to (a key from the profile, or extra.<short_slug> for anything else), groupKey that key followed by the parts that make it specific, separated by colons (for example min_pay:<ISO 4217 currency code>:<pay period>), and a few short answers to choose from.",
+  "When the reply needs something they don't answer, don't guess: add a question instead, with profileKey the profile key the answer belongs to (a key from the profile, or extra.<short_slug> for anything else), groupKey that key followed by the parts that make it specific, separated by colons (for example min_pay:<ISO 4217 currency code>:<pay period>), and a few short answers to choose from in the language of the email.",
+  "For each answer set declines to true when choosing it turns the question down or accepts anything other than exactly what the groupKey describes (a no, another place, currency, pay period or scope, a condition), and to false only when it accepts exactly that; an answer about an amount states it in digits with the currency's code.",
   "Address the sender by the name they sign with; never write a template placeholder such as [Name] or {company}.",
   "Set attachCv when the email asks for a CV.",
 ].join(" ");

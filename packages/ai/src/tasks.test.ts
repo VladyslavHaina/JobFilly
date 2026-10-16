@@ -76,6 +76,16 @@ describe("the key lines of the MVP 2 tasks", () => {
     expect(system).not.toMatch(/\b(CHF|EUR|USD|GBP)\b|per year|:year\b/);
   });
 
+  it("asks draft.v1 which answers it offers turn the question down, in any language (F7.4)", () => {
+    const { system } = promptFor("draft.v1", input("draft.v1"));
+    // The app reads no yes or no from words: the model says it of each answer it offers.
+    expect(system).toContain("a few short answers to choose from in the language of the email");
+    expect(system).toContain(
+      "set declines to true when choosing it turns the question down or accepts anything other than exactly what the groupKey describes",
+    );
+    expect(system).toContain("to false only when it accepts exactly that");
+  });
+
   it("keys assistant.v1 by turn, with the user's words as the last block", () => {
     const { user } = promptFor("assistant.v1", input("assistant.v1"));
     const lines = user.split("\n");
