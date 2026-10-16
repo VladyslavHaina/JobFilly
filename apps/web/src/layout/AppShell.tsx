@@ -97,7 +97,9 @@ function LiveUpdates() {
 export function AppShell() {
   const { workspaceId } = useParams();
   const workspaces = useWorkspaces();
-  if (workspaces.isLoading) {
+  // isPending, not isLoading: right after sign out the query is paused without data, and that
+  // is no reason to say "Workspace not found".
+  if (workspaces.isPending) {
     return (
       <main className="p-8">
         <Loading />
