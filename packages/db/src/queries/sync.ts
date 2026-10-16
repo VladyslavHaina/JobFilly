@@ -1,5 +1,5 @@
 import { type MailboxSyncStatus, NEVER_SYNCED, type SyncFailureReason } from "@jobfilly/schema";
-import { and, eq, exists, inArray, sql } from "drizzle-orm";
+import { and, eq, exists, gt, inArray, sql } from "drizzle-orm";
 import type { Database } from "../client";
 import { mailboxes, mailboxSync, messages, scans } from "../tables";
 
@@ -206,6 +206,34 @@ export async function countSyncAnalysisFailures(
     .where(and(eq(messages.workspaceId, workspaceId), inArray(messages.messageId, [...messageIds])))
     .returning({ messageId: messages.messageId, failures: messages.syncAnalysisFailures });
   return new Map(rows.map((r) => [r.messageId, r.failures]));
+}
+
+/**
+ * The likely job mail a sync stored in `folderPath` after its cursor (`afterUid` under
+ * `uidValidity`) that still waits for the model: what the cursor is held for (sync/run.ts). The
+ * cursor starts where the first scan's stored messages end and never moves back, so the first
+ * scan's own mail is never among them. Read before a new UIDVALIDITY re-indexes the folder,
+ * while the stored UIDs are still the ones the cursor counts in.
+ */
+export async function listHeldBySync(
+  db: Database,
+  workspaceId: string,
+  input: { folderPath: string; uidValidity: number; afterUid: number },
+): Promise<string[]> {
+  const rows = await db
+    .select({ messageId: messages.messageId })
+    .from(messages)
+    .where(
+      and(
+        eq(messages.workspaceId, workspaceId),
+        eq(messages.folderPath, input.folderPath),
+        eq(messages.uidValidity, input.uidValidity),
+        gt(messages.uid, input.afterUid),
+        inArray(messages.stageOne, ["likely_job", "job_alert"]),
+        eq(messages.analysisStatus, "pending"),
+      ),
+    );
+  return rows.map((r) => r.messageId);
 }
 
 export interface MailboxToSync {

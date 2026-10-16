@@ -4,12 +4,13 @@ import type { DatabaseConnection } from "../client";
 import { openTestDatabase } from "../testing";
 import { registerAccount } from "./accounts";
 import { createMailbox, deleteMailbox, getMailboxConnection } from "./mailboxes";
-import { saveEnvelopes } from "./messages";
+import { saveAnalysis, saveEnvelopes } from "./messages";
 import { createScan, stopScan } from "./scans";
 import {
   countSyncAnalysisFailures,
   getMailboxSyncStatus,
   getSyncState,
+  listHeldBySync,
   listMailboxesToSync,
   recordSyncFailure,
   recordSyncSuccess,
@@ -270,27 +271,28 @@ describe("listMailboxesToSync", () => {
   });
 });
 
+const envelope = (messageId: string, uid: number, uidValidity = 7): Envelope => ({
+  messageId,
+  folder: "inbox",
+  folderPath: "INBOX",
+  uidValidity,
+  uid,
+  date: T0.toISOString(),
+  from: { address: "lena@agency.example", name: null },
+  to: [],
+  cc: [],
+  replyTo: [],
+  inReplyTo: null,
+  references: [],
+  subject: "A role",
+  listId: null,
+  listUnsubscribe: null,
+  precedence: null,
+  autoSubmitted: null,
+  snippet: "",
+});
+
 describe("countSyncAnalysisFailures", () => {
-  const envelope = (messageId: string, uid: number): Envelope => ({
-    messageId,
-    folder: "inbox",
-    folderPath: "INBOX",
-    uidValidity: 7,
-    uid,
-    date: T0.toISOString(),
-    from: { address: "lena@agency.example", name: null },
-    to: [],
-    cc: [],
-    replyTo: [],
-    inReplyTo: null,
-    references: [],
-    subject: "A role",
-    listId: null,
-    listUnsubscribe: null,
-    precedence: null,
-    autoSubmitted: null,
-    snippet: "",
-  });
   const save = (key: "a" | "b", messageId: string, uid: number) =>
     saveEnvelopes(conn.db, ws[key].id, [
       { envelope: envelope(messageId, uid), verdict: "likely_job", reason: "test" },
@@ -323,5 +325,38 @@ describe("countSyncAnalysisFailures", () => {
     expect(await countSyncAnalysisFailures(conn.db, ws.b.id, ["<one@agency.example>"])).toEqual(
       new Map([["<one@agency.example>", 1]]),
     );
+  });
+});
+
+describe("listHeldBySync", () => {
+  const save = (key: "a" | "b", e: Envelope, verdict: "likely_job" | "job_alert" | "not_job") =>
+    saveEnvelopes(conn.db, ws[key].id, [{ envelope: e, verdict, reason: "test" }]);
+  const held = async (key: "a" | "b", afterUid: number, uidValidity = 7) =>
+    (
+      await listHeldBySync(conn.db, ws[key].id, { folderPath: "INBOX", uidValidity, afterUid })
+    ).sort();
+
+  it("lists the likely job mail after the cursor still waiting for the model, per workspace", async () => {
+    // The first scan's own mail, at or below the cursor.
+    await save("a", envelope("<backlog@agency.example>", 2), "likely_job");
+    // After the cursor: waiting, a job alert waiting, sorted already, and not job mail.
+    await save("a", envelope("<waiting@agency.example>", 3), "likely_job");
+    await save("a", envelope("<alert@jobs.example>", 4), "job_alert");
+    await save("a", envelope("<sorted@agency.example>", 5), "likely_job");
+    await saveAnalysis(conn.db, ws.a.id, {
+      messageId: "<sorted@agency.example>",
+      scanId: null,
+      category: "recruiter_outreach",
+      roles: [],
+    });
+    await save("a", envelope("<news@list.example>", 6), "not_job");
+    // Under another UIDVALIDITY, and in another workspace.
+    await save("a", envelope("<older@agency.example>", 9, 6), "likely_job");
+    await save("b", envelope("<other@agency.example>", 3), "likely_job");
+
+    expect(await held("a", 2)).toEqual(["<alert@jobs.example>", "<waiting@agency.example>"]);
+    expect(await held("a", 4)).toEqual([]);
+    expect(await held("a", 0, 6)).toEqual(["<older@agency.example>"]);
+    expect(await held("b", 2)).toEqual(["<other@agency.example>"]);
   });
 });
