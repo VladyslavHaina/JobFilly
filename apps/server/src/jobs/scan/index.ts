@@ -24,7 +24,7 @@ import { aiClientFor } from "../../ai-usage";
 import { DAY } from "../../clock";
 import type { AppDeps } from "../../deps";
 import type { Logger } from "../../log";
-import { connectMailbox, MailboxSecretError } from "../../mailbox";
+import { connectStoredMailbox, MailboxSecretError } from "../../mailbox";
 import { openAiKey } from "../../secrets";
 import type { JobContext, JobHandler } from "../queue";
 import { RunFailed, runScan } from "./run";
@@ -142,7 +142,7 @@ export function createScanRunHandler(
     if (!mailbox) return fail(deps, scan, log, "mailbox", "no_mailbox");
 
     // A stored secret that won't open was sealed with another JOBFILLY_SECRET_KEY: the server's
-    // configuration, not the user's settings. The mail password is opened by connectMailbox.
+    // configuration, not the user's settings. The mail password is opened by connectStoredMailbox.
     let apiKey: string | null;
     try {
       apiKey = openAiKey(deps.config.secretKey, settings.keyCiphertext);
@@ -165,18 +165,15 @@ export function createScanRunHandler(
     } catch {
       return fail(deps, scan, log, "ai", "ai_setup_error");
     }
-    let connected: MailClient | null;
+    let mail: MailClient;
     try {
-      connected = await connectMailbox(deps, scan.workspaceId, mailbox);
+      mail = connectStoredMailbox(deps, mailbox);
     } catch (error) {
       if (error instanceof MailboxSecretError) {
         return fail(deps, scan, log, "internal", "secret_error");
       }
       return fail(deps, scan, log, "mailbox", "mail_setup_error");
     }
-    // Never null with the connection given; kept for the type.
-    if (!connected) return fail(deps, scan, log, "mailbox", "no_mailbox");
-    const mail = connected;
 
     try {
       const saved = ScanCheckpointSchema.safeParse(ctx.checkpoint);

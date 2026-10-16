@@ -21,17 +21,22 @@ export class MailboxSecretError extends Error {
 }
 
 /**
- * A client for the workspace's mailbox, or null when none is connected. `connection` is the
- * stored row when the caller has already read it (the scan needs its address too). Throws
- * MailboxSecretError when the password won't open; the client itself logs in on first use.
+ * A client for the workspace's mailbox, or null when none is connected. Throws
+ * MailboxSecretError when the password won't open (connectStoredMailbox).
  */
 export async function connectMailbox(
   deps: AppDeps,
   workspaceId: string,
-  connection?: StoredMailbox,
 ): Promise<MailClient | null> {
-  const mailbox = connection ?? (await getMailboxConnection(deps.db, workspaceId));
-  if (!mailbox) return null;
+  const mailbox = await getMailboxConnection(deps.db, workspaceId);
+  return mailbox ? connectStoredMailbox(deps, mailbox) : null;
+}
+
+/**
+ * A client for a stored mailbox the caller has already read (the scan needs its address too).
+ * Throws MailboxSecretError when the password won't open; the client itself logs in on first use.
+ */
+export function connectStoredMailbox(deps: AppDeps, mailbox: StoredMailbox): MailClient {
   let password: string;
   try {
     password = open(deps.config.secretKey, mailbox.secretCiphertext);

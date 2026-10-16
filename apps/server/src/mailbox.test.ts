@@ -3,7 +3,7 @@ import { getMailboxConnection } from "@jobfilly/db";
 import type { MailConnection } from "@jobfilly/schema";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { MailPort } from "./deps";
-import { connectMailbox, MailboxSecretError } from "./mailbox";
+import { connectMailbox, connectStoredMailbox, MailboxSecretError } from "./mailbox";
 import {
   createFakeMailbox,
   createTestDeps,
@@ -13,7 +13,7 @@ import {
   type TestDeps,
 } from "./testing";
 
-// connectMailbox: the one way the server opens a workspace's mailbox.
+// connectMailbox and connectStoredMailbox: the one way the server opens a workspace's mailbox.
 
 const CONN: MailConnection = {
   host: "imap.inbox.example",
@@ -63,18 +63,42 @@ describe("connectMailbox", () => {
     await client?.close();
   });
 
-  it("uses a connection the caller has already read", async () => {
-    await seed();
-    const stored = await getMailboxConnection(deps.db, maria.workspaceId);
-    if (!stored) throw new Error("no mailbox");
-    await connectMailbox(deps, maria.workspaceId, { ...stored, host: "imap.other.example" });
-    expect(opened.map((o) => o.conn.host)).toEqual(["imap.other.example"]);
-  });
-
   it("says when the password was sealed under another key, naming nothing secret", async () => {
     await seed();
     const otherKey = { ...deps, config: { ...deps.config, secretKey: randomBytes(32) } };
     const error = await connectMailbox(otherKey, maria.workspaceId).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(MailboxSecretError);
+    expect(String((error as Error).message)).not.toContain("E2E-SECRET");
+    expect(opened).toEqual([]);
+  });
+});
+
+describe("connectStoredMailbox", () => {
+  const stored = async () => {
+    await seed();
+    const mailbox = await getMailboxConnection(deps.db, maria.workspaceId);
+    if (!mailbox) throw new Error("no mailbox");
+    return mailbox;
+  };
+
+  it("connects with the row the caller has already read, without reading it again", async () => {
+    const mailbox = await stored();
+    const client = connectStoredMailbox(deps, { ...mailbox, host: "imap.other.example" });
+    expect(opened).toEqual([
+      { conn: { ...CONN, host: "imap.other.example" }, allowInsecure: true },
+    ]);
+    await client.close();
+  });
+
+  it("says when the password was sealed under another key, naming nothing secret", async () => {
+    const mailbox = await stored();
+    const otherKey = { ...deps, config: { ...deps.config, secretKey: randomBytes(32) } };
+    let error: unknown = null;
+    try {
+      connectStoredMailbox(otherKey, mailbox);
+    } catch (e) {
+      error = e;
+    }
     expect(error).toBeInstanceOf(MailboxSecretError);
     expect(String((error as Error).message)).not.toContain("E2E-SECRET");
     expect(opened).toEqual([]);
