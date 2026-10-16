@@ -1,5 +1,10 @@
 import { randomUUID } from "node:crypto";
-import { type AppliedChanges, applyChanges, type ChangeError } from "@jobfilly/core";
+import {
+  type AppliedChanges,
+  applyChanges,
+  type ChangeError,
+  restoreSnapshot,
+} from "@jobfilly/core";
 import {
   type ApplyProfileChangesResult,
   applyProfileChanges,
@@ -8,7 +13,7 @@ import {
   markStale,
   type StaleScope,
 } from "@jobfilly/db";
-import type { Change, ProfileSource } from "@jobfilly/schema";
+import type { Change, ProfileSnapshot, ProfileSource } from "@jobfilly/schema";
 import type { AppDeps } from "../deps";
 import { requestRun } from "../pipeline/reevaluate";
 
@@ -50,6 +55,11 @@ export interface ChangeRequest {
   userId: string | null;
   /** The words behind it (the assistant request, the decision's question), or null. */
   request: string | null;
+  /**
+   * Undo: the snapshot to restore exactly (restoreSnapshot); `changes` are then what the history
+   * row records.
+   */
+  restore?: ProfileSnapshot;
 }
 
 /**
@@ -84,17 +94,21 @@ export function writeProfileChanges(
   meta: ChangeRequest,
 ): Promise<ApplyProfileChangesResult<ChangeError> | null> {
   const at = deps.clock.now();
+  const { restore, ...request } = meta;
   return applyProfileChanges(db, ws, profileId, changes, {
-    ...meta,
+    ...request,
     at,
-    apply: (state, list): AppliedChanges =>
-      applyChanges({ entries: state.profile.entries, rules: state.rules }, list, {
+    apply: (state, list): AppliedChanges => {
+      const content = { entries: state.profile.entries, rules: state.rules };
+      const ctx = {
         profileId,
         source: meta.source,
         userId: meta.userId,
         at: at.toISOString(),
         newRuleId: randomUUID,
-      }),
+      };
+      return restore ? restoreSnapshot(content, restore, ctx) : applyChanges(content, list, ctx);
+    },
   });
 }
 

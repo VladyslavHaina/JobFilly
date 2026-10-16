@@ -16,8 +16,9 @@ import { fail, inTransaction, NOT_FOUND_FAILURE, type Result, refuse } from "./r
 // The profile history (F8.4): every applied change with who, when, the source and the request
 // behind it, in plain words before and after, and Undo. Undo restores the entry's `before` as
 // Changes through the profile change service (by hand, source you), so the restore is in the
-// history too and every role is re-evaluated; the entry is marked undone in the same
-// transaction, so it is undone once. Like Apply, Undo writes no draft: those already in the
+// history too and every role is re-evaluated. Each entry and rule comes back exactly as it was
+// (restoreSnapshot: a removed rule keeps its id, source and creation, an entry its evidence).
+// The entry is marked undone in the same transaction, so it is undone once. Like Apply, Undo writes no draft: those already in the
 // mailbox stay, and the re-evaluation never recreates one a role had.
 
 function toItem(entry: ProfileHistoryEntry, names: Map<string, string>): ProfileHistoryItem {
@@ -72,7 +73,7 @@ export async function undoChange(
       ws,
       input.profileId,
       restoreChanges(entry.before, { rules }),
-      { source: "you", userId: user.id, request: null },
+      { source: "you", userId: user.id, request: null, restore: entry.before },
     );
     if (!result) refuse(NOT_FOUND_FAILURE);
     if (!result.ok) {

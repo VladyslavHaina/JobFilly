@@ -204,7 +204,7 @@ describe("Undo", () => {
     // The restore is itself in the history, by hand, and the roles are evaluated again.
     const [restore] = await getHistory(deps.db, ws.workspaceId, profile.id);
     expect(restore).toMatchObject({ source: "you", by: ws.owner.id });
-    expect(restore?.after.entries).toEqual([
+    expect(restore?.after.entries).toMatchObject([
       { key: "languages", value: ["English", "Portuguese"] },
     ]);
     expect(await reevaluationWaits()).toBe(true);
@@ -223,18 +223,13 @@ describe("Undo", () => {
     expect(await listRules(deps.db, ws.workspaceId, profile.id)).toEqual([]);
 
     expect((await maria.post(`${historyUrl()}/${removed.id}/undo`)).status).toBe(200);
-    const [back] = await listRules(deps.db, ws.workspaceId, profile.id);
-    expect(back).toMatchObject({
-      description: asiaRule.description,
-      when: asiaRule.when,
-      then: "hide",
-      enabled: true,
-    });
-    // The rule that came back is a new one: undoing its addition finds nothing left to remove,
-    // so the profile is unchanged and no restore is recorded.
+    // The rule that came back is the one removed: same id, source and creation (F8.4).
+    expect(await listRules(deps.db, ws.workspaceId, profile.id)).toEqual([rule]);
+    // So undoing its addition removes it again, and records that restore.
     const before = await getHistory(deps.db, ws.workspaceId, profile.id);
     expect((await maria.post(`${historyUrl()}/${added.id}/undo`)).status).toBe(200);
-    expect(await getHistory(deps.db, ws.workspaceId, profile.id)).toHaveLength(before.length);
+    expect(await listRules(deps.db, ws.workspaceId, profile.id)).toEqual([]);
+    expect(await getHistory(deps.db, ws.workspaceId, profile.id)).toHaveLength(before.length + 1);
   });
 
   it("answers 404 for an entry that isn't the profile's", async () => {
