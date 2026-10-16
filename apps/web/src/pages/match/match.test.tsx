@@ -161,11 +161,23 @@ describe("MatchPanel (F4.1, F4.2, F4.4)", () => {
     ).toBeTruthy();
   });
 
-  it("says when the role isn't scored yet", () => {
-    panel(null);
-    expect(screen.getByRole("region", { name: "Fit for role 1" }).textContent).toContain(
-      "Not scored yet.",
-    );
+  it("says the fit score is pending while the role isn't scored yet", () => {
+    const { container } = panel(null);
+    const region = screen.getByRole("region", { name: "Fit for role 1" });
+    expect(within(region).getByText("fit score pending")).toBeTruthy();
+    expect(region.textContent).toContain("This role hasn't been scored yet");
+    noAts(container);
+  });
+
+  it("says when the role couldn't be scored, and pending again once a change re-scores it", () => {
+    panel(evaluation({ match: null }));
+    const region = screen.getByRole("region", { name: "Fit for role 1" });
+    expect(within(region).getByText("no fit score")).toBeTruthy();
+    expect(region.textContent).toContain("This role couldn't be scored");
+    cleanup();
+
+    panel(evaluation({ match: null, stale: true }));
+    expect(screen.getByText("fit score pending")).toBeTruthy();
   });
 });
 

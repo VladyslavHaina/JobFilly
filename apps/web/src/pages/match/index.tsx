@@ -16,7 +16,8 @@ import { Badge } from "../../components";
 // The explainable match in the UI (F3.4, F4): the fit score on each row (always called a "fit
 // score"), the match panel per role in the message detail with every verdict and its reason, hard
 // conflicts first, why a message is hidden, and the Hidden filter. A score a change made out of
-// date is marked as being updated, never shown as current (F4.6).
+// date is marked as being updated, never shown as current (F4.6); a role not scored yet, or one
+// that couldn't be scored, says so where its fit score would be.
 
 interface FitScoreProps {
   fit: MessageListItem["fit"];
@@ -102,13 +103,30 @@ interface MatchPanelProps {
   evaluation: RoleEvaluation | null;
 }
 
+/** Where a role's fit score would be, when it has none: pending, or couldn't be scored. */
+function NoFitScore({ why }: { why: "pending" | "unscored" }) {
+  const [chip, words] =
+    why === "pending"
+      ? ["fit score pending", "This role hasn't been scored yet; its fit score shows here soon."]
+      : ["no fit score", "This role couldn't be scored, so it has no fit score."];
+  return (
+    <>
+      <Badge tone="neutral">{chip}</Badge>
+      <span className="text-sm text-stone-500">{words}</span>
+    </>
+  );
+}
+
 /** One role's match: its fit score, every verdict with its reason (rules included), its skills. */
 export function MatchPanel({ position, evaluation }: MatchPanelProps) {
   const heading = `Fit for role ${position + 1}`;
   if (!evaluation) {
     return (
-      <section aria-label={heading} className="text-sm text-stone-500">
-        Not scored yet.
+      <section
+        aria-label={heading}
+        className="flex flex-wrap items-center gap-2 rounded-md border border-stone-200 bg-stone-50 p-3"
+      >
+        <NoFitScore why="pending" />
       </section>
     );
   }
@@ -125,7 +143,7 @@ export function MatchPanel({ position, evaluation }: MatchPanelProps) {
         {match ? (
           <FitScore fit={{ score: match.score, capped: match.capped, stale }} />
         ) : (
-          <span className="text-sm text-stone-500">No fit score yet.</span>
+          <NoFitScore why={stale ? "pending" : "unscored"} />
         )}
         {match?.capped && (
           <span className="text-xs text-stone-600">
