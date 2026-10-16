@@ -239,6 +239,46 @@ describe("matchRole (F4.1)", () => {
     });
   });
 
+  it("fits a contract, seniority or work permit only when worded with the same whole words", () => {
+    const contract = (stated: string) =>
+      byKey(matchRole(input({ facts: facts({ contract: stated }) })).match.verdicts, "contracts");
+    expect(contract("Permanent")).toMatchObject({
+      verdict: "fits",
+      reason: "\"Permanent\" — fits your 'permanent'",
+    });
+    expect(contract("Permanent, full-time")?.verdict).toBe("fits");
+    expect(contract("Non-permanent, 6 months")).toMatchObject({
+      verdict: "unknown",
+      reason: "\"Non-permanent, 6 months\" — not worded like your contracts ('permanent', 'B2B')",
+    });
+    expect(contract("Impermanent")?.verdict).toBe("unknown");
+    expect(contract("B2Bish")?.verdict).toBe("unknown");
+
+    const seniority = (stated: string) =>
+      byKey(matchRole(input({ facts: facts({ seniority: stated }) })).match.verdicts, "seniority");
+    expect(seniority("Senior / Lead")?.verdict).toBe("fits");
+    expect(seniority("Non-senior")).toMatchObject({
+      verdict: "unknown",
+      reason: "\"Non-senior\" — not worded like your 'Senior'",
+    });
+    expect(seniority("Seniority not important")?.verdict).toBe("unknown");
+
+    const permits = {
+      entries: [...maria.entries, entry("work_permits", [{ country: "DE", text: "EU citizen" }])],
+    };
+    const permit = (asked: string) =>
+      byKey(
+        matchRole(input({ profile: permits, facts: facts({ workPermit: asked }) })).match.verdicts,
+        "work_permits",
+      );
+    expect(permit("EU citizen or work permit")).toMatchObject({
+      verdict: "fits",
+      reason: "\"EU citizen or work permit\" — fits your 'EU citizen'",
+    });
+    expect(permit("Non-EU citizen")?.verdict).toBe("unknown");
+    expect(permit("EU citizenship")?.verdict).toBe("unknown");
+  });
+
   it("is a pure function of facts, profile, rules, the CV choice and the match.v1 answer", () => {
     const one = input();
     expect(matchRole(one)).toEqual(matchRole(JSON.parse(JSON.stringify(one))));
@@ -430,6 +470,44 @@ describe("hard conflicts (F4.2)", () => {
       RULE_ID,
     ]);
     expect(match.score).toBeLessThan(40);
+  });
+
+  it("a deal-breaker conflicts only in whole words, never inside a longer word", () => {
+    const breakers = (words: string[]) => ({
+      entries: [
+        ...maria.entries.filter((e) => e.key !== "deal_breakers"),
+        entry("deal_breakers", words),
+      ],
+    });
+    const noConflict = (mine: string[], overrides: Partial<JobFacts>) => {
+      const { match } = matchRole(input({ profile: breakers(mine), facts: facts(overrides) }));
+      expect(match.capped).toBe(false);
+      expect(
+        match.verdicts.some((v) => v.entryKey === "deal_breakers" && v.verdict === "conflicts"),
+      ).toBe(false);
+      expect(byKey(match.verdicts, "deal_breakers")).toMatchObject({
+        verdict: "fits",
+        hard: false,
+      });
+    };
+    noConflict(["crypto"], { skills: ["Go", "Cryptography"] });
+    noConflict(["Java"], { skills: ["JavaScript", "TypeScript"] });
+    noConflict(["call"], { extra: { duties: "Weekly On-Call rotation" } });
+    noConflict(["on-call"], { extra: { duties: "Oncall-free team, calls on Mondays" } });
+
+    const conflict = (mine: string[], overrides: Partial<JobFacts>, hit: string) => {
+      const { match } = matchRole(input({ profile: breakers(mine), facts: facts(overrides) }));
+      expect(match.capped).toBe(true);
+      expect(match.verdicts[0]).toMatchObject({
+        entryKey: "deal_breakers",
+        verdict: "conflicts",
+        hard: true,
+        reason: `Mentions '${hit}', one of your deal-breakers`,
+      });
+    };
+    conflict(["on call"], { extra: { duties: "Weekly On-Call rotation." } }, "on call");
+    conflict(["Java"], { skills: ["Java/Kotlin"] }, "Java");
+    conflict(["crypto"], { company: "Crypto Exchange GmbH" }, "crypto");
   });
 
   it("a soft conflict doesn't cap: a language you don't list, a title that doesn't fit", () => {

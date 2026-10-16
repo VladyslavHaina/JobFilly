@@ -479,8 +479,44 @@ function payVerdict(input: MatchRoleInput): { credit: number; verdict: MatchVerd
 
 // The other entries: contracts, languages, seniority, work permits, deal-breakers.
 
-const mentions = (haystack: string, needle: string) =>
-  norm(needle) !== "" && norm(haystack).includes(norm(needle));
+/** A hyphen, dot or apostrophe between two letters joins them into one word: "on-call", "Node.js". */
+const JOINER = /^[-‐‑.'’]$/u;
+
+/**
+ * A text's words (letters, digits, + and #, lower-cased), each with whether a joiner ties it to
+ * the word before it: "Non-permanent, 6 months" is non, permanent (tied to non), 6, months.
+ */
+function wordsOf(s: string): { words: string[]; tied: boolean[] } {
+  const words: string[] = [];
+  const tied: boolean[] = [];
+  const text = norm(s);
+  let last = 0;
+  for (const m of text.matchAll(/[\p{L}\p{N}+#]+/gu)) {
+    tied.push(words.length > 0 && JOINER.test(text.slice(last, m.index)));
+    words.push(m[0]);
+    last = m.index + m[0].length;
+  }
+  return { words, tied };
+}
+
+/**
+ * Whether `haystack` says `needle` in whole words: the needle's words appear one after another,
+ * and not as part of a longer joined word. "on-call" is in "Weekly On-Call rotation" (and "on
+ * call" is too), "permanent" is in "Permanent, full-time"; but "crypto" isn't in "Cryptography",
+ * "Java" isn't in "JavaScript", and "permanent" isn't in "Non-permanent". Wording that doesn't
+ * clearly say it never fits (F4.1, F4.2).
+ */
+function mentions(haystack: string, needle: string): boolean {
+  const hay = wordsOf(haystack);
+  const want = wordsOf(needle).words;
+  if (want.length === 0) return false;
+  for (let i = 0; i + want.length <= hay.words.length; i++) {
+    const end = i + want.length;
+    if (hay.tied[i] || hay.tied[end]) continue;
+    if (want.every((w, k) => hay.words[i + k] === w)) return true;
+  }
+  return false;
+}
 
 function contractVerdict(input: MatchRoleInput): MatchVerdict | null {
   const contracts = entryValue<string>(input.profile, "contracts");
