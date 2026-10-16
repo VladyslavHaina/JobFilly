@@ -24,6 +24,15 @@ describe("the reply window (F1.6)", () => {
     expect(withinReplyWindow(daysAgo(30).toISOString(), now, { entries: [] })).toBe(false);
   });
 
+  it("holds mail dated past a day ahead, which would otherwise stay in the window for good", () => {
+    expect(withinReplyWindow(daysAgo(-0.5), now, null)).toBe(true);
+    expect(withinReplyWindow(daysAgo(-30), now, null)).toBe(false);
+    expect(withinReplyWindow("not a date", now, null)).toBe(false);
+    expect(replyEligibility({ ...base, receivedAt: daysAgo(-30) }).heldBy).toEqual([
+      { kind: "outside_window", reason: "Dated in the future" },
+    ]);
+  });
+
   it("follows reply_window_days", () => {
     const profile = { entries: [entry("reply_window_days", [30])] };
     expect(withinReplyWindow(daysAgo(29), now, profile)).toBe(true);

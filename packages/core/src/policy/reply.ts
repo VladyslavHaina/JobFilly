@@ -6,7 +6,7 @@ import type {
   RuleEffect,
   SenderVerdict,
 } from "@jobfilly/schema";
-import { policyValue, withinReplyWindow } from "./window";
+import { FUTURE_SKEW_MS, policyValue, withinReplyWindow } from "./window";
 
 // The reply policy (F6.1, F6.5, F1.6, TBD-193): whether a role gets a draft now, and what holds it
 // back. The replies slice asks it before every draft and the assistant's impact preview asks it to
@@ -94,7 +94,8 @@ export function replyEligibility(input: ReplyEligibilityInput): ReplyEligibility
   }
   if (!withinReplyWindow(input.receivedAt, input.now, input.profile)) {
     const days = policyValue(input.profile, "reply_window_days");
-    hold("outside_window", `Older than ${days} days`);
+    const ahead = new Date(input.receivedAt).getTime() - input.now.getTime() > FUTURE_SKEW_MS;
+    hold("outside_window", ahead ? "Dated in the future" : `Older than ${days} days`);
   }
   const threshold = policyValue(input.profile, "reply_threshold");
   if (input.score === null || input.score < threshold) {

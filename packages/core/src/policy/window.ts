@@ -16,8 +16,15 @@ export function policyValue(
 }
 
 /**
+ * How far ahead of the clock a message's date may be (a skewed clock, a wrong time zone). The date
+ * is the sender's Date header, so one set far ahead would keep the message in the window for good.
+ */
+export const FUTURE_SKEW_MS = DAY_MS;
+
+/**
  * Whether a message received at `date` is still inside the reply window at `now` (F1.6): at most
- * reply_window_days old (default 14). Only such mail gets automatic drafts.
+ * reply_window_days old (default 14), and dated at most a day ahead. Only such mail gets automatic
+ * drafts; a date that can't be read is outside.
  */
 export function withinReplyWindow(
   date: Date | string,
@@ -25,5 +32,6 @@ export function withinReplyWindow(
   profile: { entries: readonly ProfileEntry[] } | null,
 ): boolean {
   const received = typeof date === "string" ? Date.parse(date) : date.getTime();
-  return now.getTime() - received <= policyValue(profile, "reply_window_days") * DAY_MS;
+  const age = now.getTime() - received;
+  return age >= -FUTURE_SKEW_MS && age <= policyValue(profile, "reply_window_days") * DAY_MS;
 }
