@@ -198,6 +198,41 @@ describe("the CVs page (F2.1)", () => {
     expect(screen.getByRole("button", { name: "Download" })).toBeTruthy();
   });
 
+  it("downloads the stored file under its own name, for a viewer too", async () => {
+    const { seen } = api({
+      [`GET ${url}`]: { items: [backendEn] },
+      [`GET ${url}/:id/file`]: () =>
+        new Response(new Uint8Array([37, 80, 68, 70]), {
+          headers: {
+            "Content-Type": "application/pdf",
+            "Content-Disposition": `attachment; filename="Backend (EN).pdf"; filename*=UTF-8''Backend%20(EN).pdf`,
+          },
+        }),
+    });
+    const saved: { href: string; download: string }[] = [];
+    // jsdom has no object URLs; the page's own URL functions are put back below.
+    const { createObjectURL, revokeObjectURL } = URL;
+    URL.createObjectURL = () => "blob:cv";
+    URL.revokeObjectURL = () => {};
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
+      this: HTMLAnchorElement,
+    ) {
+      saved.push({ href: this.href, download: this.download });
+    });
+    try {
+      renderInWorkspace(<CvsPage workspaceId={ws.id} />, { role: "viewer" });
+      await userEvent.click(await screen.findByRole("button", { name: "Download" }));
+      await waitFor(() =>
+        expect(saved).toEqual([{ href: "blob:cv", download: "Backend (EN).pdf" }]),
+      );
+      expect(seen.find((r) => r.path.endsWith("/file"))?.path).toBe(`${url}/${backendEn.id}/file`);
+    } finally {
+      click.mockRestore();
+      URL.createObjectURL = createObjectURL;
+      URL.revokeObjectURL = revokeObjectURL;
+    }
+  });
+
   it("deletes a CV after confirming, saying drafts in the mailbox stay", async () => {
     let items = [backendEn];
     const { seen } = api({
