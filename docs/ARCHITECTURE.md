@@ -232,18 +232,26 @@ Rules:
   is there, a failure (recording it, a live event) leaves the row in `saving` for that same
   retry, and a draft that used up its attempts stays `failed` with its reason on the Drafts page,
   where Draft a reply takes it back.
-- The append is meant to be idempotent. The server chooses the copy's Message-ID before the
-  append, with packages/mail's `newDraftMessageId` (the one generator), and keeps it with the
-  text (`saveDraftText`), passing it as `DraftMailInput.draftMessageId`. A retry first deletes
-  any copy with that Message-ID (`deleteDraft` with UIDVALIDITY 0, which no folder has, finds it
-  by Message-ID), so an attempt that died after the append leaves no second copy. This rests on
-  the `MailClient.saveDraft` contract that the copy gets `draftMessageId` when it is set; the
-  mailbox slice's IMAP client doesn't keep it yet (see TBD.md), so until it does only the test
-  double gives this guarantee.
+- A retry is checked against the reply policy before the sweep re-claims it
+  (`apps/server/src/pipeline/reply.ts` `retryPlan`, `replyEligibility` with origin `retry`):
+  every hold applies but `already_drafted`, which the role's own row causes. A held retry (the
+  message left the reply window, F1.6; a high-risk sender, F5.2; a rule; open needs) is marked
+  `failed` with kind `content` and the hold's reason ("Not tried again: …");
+  a role without a current evaluation or sender check waits for the next sweep. A failed Draft a
+  reply is retried as `on_demand`, which nothing holds (F6.5).
+- The append is idempotent. The server chooses the copy's Message-ID before the append
+  (`apps/server/src/drafts/mailbox.ts` `draftMessageIdFor`, on the mailbox address's domain),
+  keeps it with the text (`saveDraftText`) and passes it as `DraftMailInput.draftMessageId`. A
+  retry first deletes any copy with that Message-ID (`deleteDraft` with UIDVALIDITY 0, which no
+  folder has, finds it by Message-ID), so an attempt that died after the append leaves no second
+  copy; discarding a failed draft deletes such a copy the same way. The contract: the IMAP client
+  (`MailClient.saveDraft`, `replaceDraft`) gives the copy the caller's `draftMessageId` when it is
+  set, and packages/mail's own tests prove it; the server's test double keeps it the same way.
 - A run that lost its claim to another run of it deletes its own copy only by a ref that knows
   the copy's UID: both copies carry the kept Message-ID, so a ref with UIDVALIDITY 0 (a server
   without UIDPLUS) is left alone. When a superfluous copy can't be deleted (that case, or a
-  failed delete after a losing edit) `draft.copy_left` (warn, the draft id and a reason code, no content) says so.
+  failed delete after a losing edit) `draft.copy_left` (warn, the draft id and a reason code, no
+  content) says so.
 - Edits and discards compare and set on the copy's Message-ID (`saveDraftEdit`,
   `markDraftDiscarded`): each copy has its own, so a change made from a copy the row no longer
   names writes nothing. A losing edit deletes the copy it appended and answers 409; a losing
