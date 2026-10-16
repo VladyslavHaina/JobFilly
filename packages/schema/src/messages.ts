@@ -43,6 +43,7 @@ const ScoredFitSchema = z.object({
   capped: z.boolean(),
   stale: z.boolean(),
 });
+export type ScoredFit = z.infer<typeof ScoredFitSchema>;
 
 /**
  * A job message whose roles have no fit score: `pending` while one of them is still to be scored
@@ -52,6 +53,8 @@ const NoFitScoreSchema = z.object({
   score: z.null(),
   why: z.enum(["pending", "unscored"]),
 });
+/** Why a job message with roles, or one role, has no fit score. */
+export type NoFitWhy = z.infer<typeof NoFitScoreSchema>["why"];
 
 /**
  * Where a row's fit score goes: its best score, why a job message with roles has none, or null
