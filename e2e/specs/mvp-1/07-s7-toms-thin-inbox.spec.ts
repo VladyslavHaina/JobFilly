@@ -50,7 +50,7 @@ test("S7: Tom's thin inbox", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: "Connect your mailbox", level: 1, exact: true }),
   ).toBeVisible();
-  await expect(page.getByText("in Tom's workspace")).toBeVisible();
+  await expect(page.getByText("in Tom Okafor's workspace")).toBeVisible();
 
   await test.step("Tom connects his mailbox", async () => {
     await fillMailbox(page);

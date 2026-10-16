@@ -12,10 +12,9 @@ import { hashPassword, UNKNOWN_USER_HASH, verifyPassword } from "../auth/passwor
 import { endSession, requireUser, startSession } from "../auth/session";
 import type { AppDeps } from "../deps";
 
-/** "Maria's workspace" for Maria Santos: the first word of the name (TBD-2). */
+/** "Maria Santos's workspace" for Maria Santos: the full name (TBD-18). */
 export function personalWorkspaceName(name: string): string {
-  const first = name.trim().split(/\s+/)[0] || name.trim();
-  return `${first}'s workspace`;
+  return `${name.trim()}'s workspace`;
 }
 
 // /api/auth: register, sign in, sign out, me and session (F1.1–F1.5).

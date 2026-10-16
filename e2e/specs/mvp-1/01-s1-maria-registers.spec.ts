@@ -30,9 +30,9 @@ test("S1: Maria registers and connects her mailbox", async ({ page, playwright, 
     await expect(
       page.getByRole("heading", { name: "Connect your mailbox", level: 1, exact: true }),
     ).toBeVisible();
-    await expect(page.getByText("in Maria's workspace")).toBeVisible();
+    await expect(page.getByText("in Maria Santos's workspace")).toBeVisible();
     await expect(page.getByLabel("Workspace").locator("option:checked")).toHaveText(
-      "Maria's workspace",
+      "Maria Santos's workspace",
     );
   });
 

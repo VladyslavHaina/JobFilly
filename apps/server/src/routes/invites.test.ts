@@ -54,7 +54,7 @@ describe("the invitee (F1.6)", () => {
       {
         id: created.invite.id,
         workspaceId: maria.workspaceId,
-        workspaceName: "Maria's workspace",
+        workspaceName: "Maria Santos's workspace",
         invitedBy: "Maria Santos",
         role: "viewer",
         expiresAt: created.invite.expiresAt,
@@ -64,7 +64,7 @@ describe("the invitee (F1.6)", () => {
     expect(accepted.status).toBe(200);
     expect(AcceptedInviteSchema.parse(await accepted.json()).workspace).toMatchObject({
       id: maria.workspaceId,
-      name: "Maria's workspace",
+      name: "Maria Santos's workspace",
       role: "viewer",
     });
     expect((await tomApi.get("/api/invites")).status).toBe(200);
@@ -110,7 +110,7 @@ describe("the invitee (F1.6)", () => {
     const shown = await api.get(`/api/invites/${created.invite.id}?token=${token}`);
     expect(shown.status).toBe(200);
     expect(await shown.json()).toMatchObject({
-      workspaceName: "Maria's workspace",
+      workspaceName: "Maria Santos's workspace",
       role: "editor",
     });
     expect((await api.post(`/api/invites/${created.invite.id}/accept`, { token })).status).toBe(

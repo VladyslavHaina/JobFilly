@@ -51,7 +51,7 @@ test("S6: inviting Tom, roles enforced", async ({ page, browser, playwright, bas
       await expect(
         tom.getByRole("heading", { name: "Connect your mailbox", level: 1, exact: true }),
       ).toBeVisible();
-      await expect(tom.getByText("in Tom's workspace")).toBeVisible();
+      await expect(tom.getByText("in Tom Okafor's workspace")).toBeVisible();
     });
 
     await signIn(page, "maria");
@@ -82,12 +82,14 @@ test("S6: inviting Tom, roles enforced", async ({ page, browser, playwright, bas
 
     await test.step("Tom sees the invitation, accepts it and lands in Maria's inbox", async () => {
       await tom.reload();
-      const invitation = tom.getByText("Maria invited you to “Maria's workspace” as a viewer");
+      const invitation = tom.getByText(
+        "Maria invited you to “Maria Santos's workspace” as a viewer",
+      );
       await expect(invitation).toBeVisible();
       await tom.getByRole("button", { name: "Accept", exact: true }).click();
       await expect(tom.getByRole("heading", { name: "Job inbox", exact: true })).toBeVisible();
       await expect(tom.getByLabel("Workspace").locator("option:checked")).toHaveText(
-        "Maria's workspace",
+        "Maria Santos's workspace",
       );
       await expect(
         tom.getByRole("list", { name: "Messages", exact: true }).getByRole("link").first(),
@@ -164,7 +166,7 @@ test("S6: inviting Tom, roles enforced", async ({ page, browser, playwright, bas
 
     await test.step("Maria's switcher doesn't show Tom's workspace", async () => {
       const options = await page.getByLabel("Workspace").locator("option").allInnerTexts();
-      expect(options).toEqual(["Maria's workspace"]);
+      expect(options).toEqual(["Maria Santos's workspace"]);
     });
 
     await test.step("logs", async () => {

@@ -31,6 +31,7 @@ import {
 } from "@jobfilly/schema";
 import { hashPassword } from "../auth/password";
 import type { AppDeps } from "../deps";
+import { personalWorkspaceName } from "../routes/auth";
 import { seal } from "../secrets";
 
 // Seeding for server tests, always through the workspace-scoped @jobfilly/db functions (never
@@ -50,7 +51,7 @@ const TEST_SCRYPT = { N: 2 ** 10, r: 8, p: 1 };
 
 let counter = 0;
 
-/** Registers a user with their personal workspace ("<first name>'s workspace"). */
+/** Registers a user with their personal workspace ("<full name>'s workspace"). */
 export async function seedUser(
   deps: AppDeps,
   input: { name?: string; email?: string; password?: string } = {},
@@ -59,12 +60,11 @@ export async function seedUser(
   const name = input.name ?? `Test User ${counter}`;
   const email = (input.email ?? `user${counter}.${Date.now()}@test.example`).toLowerCase();
   const password = input.password ?? `correct horse battery ${counter}`;
-  const first = name.trim().split(/\s+/)[0] ?? name;
   const result = await registerAccount(deps.db, {
     name,
     email,
     passwordHash: await hashPassword(password, TEST_SCRYPT),
-    workspaceName: `${first}'s workspace`,
+    workspaceName: personalWorkspaceName(name),
   });
   if (!result.ok) throw new Error(`seedUser: ${email} is taken`);
   return { id: result.user.id, name, email, password, workspaceId: result.workspaceId };

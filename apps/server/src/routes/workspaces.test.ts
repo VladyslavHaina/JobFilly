@@ -45,7 +45,7 @@ describe("several workspaces (F1.7)", () => {
     const res = await mariaApi.get("/api/workspaces");
     const { items } = WorkspaceListSchema.parse(await res.json());
     expect(items.map((w) => [w.name, w.role, w.isOwner])).toEqual([
-      ["Maria's workspace", "admin", true],
+      ["Maria Santos's workspace", "admin", true],
       ["Shared", "viewer", false],
     ]);
     expect(items.map((w) => w.id)).not.toContain(tom.workspaceId);

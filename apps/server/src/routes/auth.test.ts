@@ -34,7 +34,7 @@ describe("registration (F1.1)", () => {
     const { user } = SessionInfoSchema.parse(await res.json());
     expect(user).toMatchObject({ name: "Maria Santos", email: maria.email });
     const [ws] = await listWorkspacesForUser(deps.db, user.id);
-    expect(ws).toMatchObject({ name: "Maria's workspace", role: "admin", isOwner: true });
+    expect(ws).toMatchObject({ name: "Maria Santos's workspace", role: "admin", isOwner: true });
     const me = await testClient(app, deps, cookieFrom(res)).get("/api/auth/me");
     expect(me.status).toBe(200);
     const session = await testClient(app, deps, cookieFrom(res)).get("/api/auth/session");
@@ -57,8 +57,8 @@ describe("registration (F1.1)", () => {
     expect(await res.json()).toMatchObject({ error: "email_taken" });
   });
 
-  it("names the workspace after the first word of the name", () => {
-    expect(personalWorkspaceName("Maria Santos")).toBe("Maria's workspace");
+  it("names the workspace after the full name", () => {
+    expect(personalWorkspaceName("Maria Santos")).toBe("Maria Santos's workspace");
     expect(personalWorkspaceName("  Tom  ")).toBe("Tom's workspace");
   });
 });

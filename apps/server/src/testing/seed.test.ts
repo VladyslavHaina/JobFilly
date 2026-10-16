@@ -33,7 +33,11 @@ describe("test seeding", () => {
     const maria = await seedUser(deps, { name: "Maria Santos", email: "Maria@Inbox.Example" });
     expect(maria.email).toBe("maria@inbox.example");
     const [ws] = await listWorkspacesForUser(deps.db, maria.id);
-    expect(ws).toMatchObject({ id: maria.workspaceId, name: "Maria's workspace", role: "admin" });
+    expect(ws).toMatchObject({
+      id: maria.workspaceId,
+      name: "Maria Santos's workspace",
+      role: "admin",
+    });
   });
 
   it("seeds a workspace with members in their roles", async () => {
