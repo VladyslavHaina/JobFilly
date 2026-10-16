@@ -20,7 +20,8 @@ import { requestRun } from "../pipeline/reevaluate";
 // requestReevaluation is the one way to make evaluations stale. Its triggers, each with its
 // owner: intake confirm (foundation), a profile or rule change (here), a finished CV read and a
 // CV delete (cvs-senders), a CV-choice override (cvs-senders), a sender mark (cvs-senders, sender
-// scopes), a decision answer (replies), apply and undo (assistant).
+// scopes), a decision answer (replies), apply and undo (assistant), and a category correction
+// (foundation, routes/messages.ts: the message's roles, as reply_to reads the category).
 
 /**
  * Marks the scope's evaluations stale (and, for a sender scope only, the sender checks), asks

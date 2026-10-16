@@ -1,10 +1,4 @@
-import {
-  correctCategory,
-  getInboxMessage,
-  getMailboxConnection,
-  getMessageRef,
-  listInbox,
-} from "@jobfilly/db";
+import { correctCategory, getInboxMessage, getMessageRef, listInbox } from "@jobfilly/db";
 import {
   CategoryCorrectionSchema,
   CvChoiceOverrideSchema,
@@ -12,9 +6,9 @@ import {
   type MessageDetail,
   type MessageList,
   MessageListQuerySchema,
+  RoleParamsSchema,
 } from "@jobfilly/schema";
 import { type Context, Hono } from "hono";
-import { z } from "zod";
 import {
   NOT_FOUND,
   requireRole,
@@ -25,11 +19,14 @@ import {
 } from "../access";
 import { setCvOverride } from "../cvs/override";
 import type { AppDeps } from "../deps";
-import { open } from "../secrets";
+import { connectMailbox } from "../mailbox";
+import { requestReevaluation } from "../profile/changes";
 import { notImplemented } from "./not-implemented";
 
 // The job inbox: list (with the Hidden filter, F3.4), detail, body on demand, category correction
-// (F5), and an editor's CV choice for one role (F2.3, delegated to cvs/override.ts).
+// (F5), and an editor's CV choice for one role (F2.3, delegated to cvs/override.ts). A corrected
+// category re-evaluates the message: the reply policy reads the category (reply_to), so a job
+// alert corrected to recruiter outreach gets its draft, and mail corrected away loses it.
 // :messageId is the URL-encoded RFC Message-ID (angle brackets included); Hono hands it over
 // decoded, '/' and '%' included.
 // Mounted once at /api/workspaces/:workspaceId/messages; each handler applies its own role.
@@ -48,11 +45,6 @@ const OWN_REPLY = {
 } as const;
 
 const messageIdOf = (c: Context<WorkspaceEnv>) => c.req.param("messageId") ?? "";
-
-const RoleParamsSchema = z.object({
-  messageId: z.string().min(1),
-  position: z.coerce.number().int().min(0).max(10_000),
-});
 
 export function messageRoutes(deps: AppDeps) {
   return (
@@ -80,18 +72,8 @@ export function messageRoutes(deps: AppDeps) {
         const workspaceId = c.get("workspaceId");
         const ref = await getMessageRef(deps.db, workspaceId, messageIdOf(c));
         if (!ref) return c.json(NOT_FOUND, 404);
-        const mailbox = await getMailboxConnection(deps.db, workspaceId);
-        if (!mailbox) return c.json(NO_MAILBOX, 409);
-        const client = deps.mail.connect(
-          {
-            host: mailbox.host,
-            port: mailbox.port,
-            tlsMode: mailbox.tlsMode,
-            username: mailbox.username,
-            password: open(deps.config.secretKey, mailbox.secretCiphertext),
-          },
-          { allowInsecure: deps.config.allowInsecureMail },
-        );
+        const client = await connectMailbox(deps, workspaceId);
+        if (!client) return c.json(NO_MAILBOX, 409);
         let body: { text: string } | null;
         try {
           body = await client.fetchBody(ref);
@@ -118,6 +100,12 @@ export function messageRoutes(deps: AppDeps) {
           );
           if (result === "not_found") return c.json(NOT_FOUND, 404);
           if (result === "own_reply") return c.json(OWN_REPLY, 409);
+          await requestReevaluation(
+            deps,
+            workspaceId,
+            { messageIds: [messageId] },
+            "category.corrected",
+          );
           await deps.live.publish(workspaceId, {
             type: "messages.updated",
             data: { messageIds: [messageId] },

@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
 import {
+  getEvaluations,
+  getJob,
   getStoredMessages,
   markAnalysisFailed,
   saveAnalysis,
@@ -16,10 +18,12 @@ import {
   MessageDetailSchema,
   MessageListSchema,
   type MessageRef,
+  PIPELINE_REEVALUATE_JOB,
   type StageOneVerdict,
 } from "@jobfilly/schema";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../app";
+import { requestRun } from "../pipeline/reevaluate";
 import {
   createTestDeps,
   fakeMailClient,
@@ -446,6 +450,42 @@ describe("PUT /messages/:messageId/category (F5.4)", () => {
     expect(after.items).toEqual([
       expect.objectContaining({ id: id(2), category: "offer", categorySource: "you" }),
     ]);
+  });
+
+  it("re-evaluates the corrected message: its evaluations go stale and a run is queued", async () => {
+    await seedMix();
+    const evaluation = {
+      position: 0,
+      match: null,
+      hidden: null,
+      ruleEffects: [],
+      cvChoice: { cvId: null, reason: "No CV yet", source: "auto" as const },
+    };
+    await saveEvaluation(deps.db, ws.workspaceId, id(2), evaluation, deps.clock.now());
+    await saveEvaluation(deps.db, ws.workspaceId, id(7), evaluation, deps.clock.now());
+
+    const res = await editor.put(path(ws.workspaceId, id(2), "/category"), {
+      category: "job_alert",
+    });
+    expect(res.status).toBe(200);
+    // Only the corrected message's roles: the reply policy reads its category (reply_to).
+    expect(
+      (await getEvaluations(deps.db, ws.workspaceId, [id(2), id(7)])).map((e) => [
+        e.messageId,
+        e.stale,
+      ]),
+    ).toEqual([
+      [id(2), true],
+      [id(7), false],
+    ]);
+    // A pipeline.reevaluate waits (a second request is deduped onto it).
+    const probe = await requestRun(deps, ws.workspaceId, "probe");
+    expect(probe.enqueued).toBe(false);
+    expect(await getJob(deps.db, ws.workspaceId, probe.id)).toMatchObject({
+      type: PIPELINE_REEVALUATE_JOB,
+      status: "queued",
+      payload: { workspaceId: ws.workspaceId, reason: "category.corrected" },
+    });
   });
 
   it("lets admins correct too, and moves mail corrected to not job behind the toggle", async () => {

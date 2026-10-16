@@ -239,7 +239,11 @@ Rules:
   answered" is decided by group key (`answeredFor`), never by profile key.
 - `requestReevaluation(scope)` is the one way evaluations go stale: `{all}`, `{roles}`,
   `{messageIds}`, or a sender scope (`{senderAddress}`, `{senderDomain}`), which alone also makes
-  the sender checks stale. It enqueues `pipeline.reevaluate` and tells open inboxes.
+  the sender checks stale. It enqueues `pipeline.reevaluate` and tells open inboxes. Its triggers:
+  intake confirm, a profile or rule change, a finished CV read and a CV delete, a CV-choice
+  override, a sender mark, a decision answer, apply and undo, and a category correction
+  (`{messageIds}`: the reply policy reads the category, so corrected mail gets or loses its
+  draft).
 
 ## AI
 
@@ -265,6 +269,11 @@ Rules:
   records each call's usage (`ai_usage`, retries and failures included, at the clock's time), so
   the per-scan totals and Settings › AI's calls and tokens per day (`usagePerDay`, F1.5) count
   every task. Nothing calls `deps.ai.client` directly.
+- The same way, the server opens a workspace's mailbox only through `connectMailbox`
+  (`apps/server/src/mailbox.ts`): it reads the stored connection, opens the sealed password with
+  `JOBFILLY_SECRET_KEY` (`MailboxSecretError` when it won't open) and connects through
+  `deps.mail` with `JOBFILLY_ALLOW_INSECURE_MAIL`. The body route, the scan, the pipeline, the
+  sync and the drafts use it; nothing else calls `deps.mail.connect` with a stored mailbox.
 - The assistant can only propose changes. Applying one is a separate request made by the user.
 
 ## Configuration (environment)
