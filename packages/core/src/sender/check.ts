@@ -64,6 +64,9 @@ export interface SenderCheckInput {
 /** A domain registered less than this many days ago is young. */
 const YOUNG_DOMAIN_DAYS = 180;
 
+/** The signal of an RDAP answer that gives no registration date: the check is incomplete. */
+const DOMAIN_AGE_UNKNOWN = "domain_age_unknown";
+
 /** How much a signal weighs: one strong sign makes high risk; three medium ones do too. */
 const STRONG = new Set(["asks_for_fee", "asks_for_id"]);
 const MEDIUM = new Set([
@@ -185,9 +188,17 @@ function domainSignals(domain: string, facts: DomainFacts, now: Date): SenderRea
       signal: LOOKUP_FAILED_SIGNAL,
       reason: `Couldn't look up when ${domain} was registered, so this check is incomplete`,
     });
-  } else if (facts.rdap?.registeredAt) {
-    const days = Math.floor((now.getTime() - Date.parse(facts.rdap.registeredAt)) / DAY_MS);
-    if (Number.isFinite(days) && days < YOUNG_DOMAIN_DAYS) {
+  } else if (facts.rdap) {
+    // An answer without a registration date leaves the domain's age unknown: the check can't
+    // say the sender looks fine without it (F5.3).
+    const registered = facts.rdap.registeredAt ? Date.parse(facts.rdap.registeredAt) : Number.NaN;
+    const days = Math.floor((now.getTime() - registered) / DAY_MS);
+    if (!Number.isFinite(days)) {
+      out.push({
+        signal: DOMAIN_AGE_UNKNOWN,
+        reason: `Couldn't tell when ${domain} was registered, so this check is incomplete`,
+      });
+    } else if (days < YOUNG_DOMAIN_DAYS) {
       out.push({
         signal: "young_domain",
         reason: `Possibly risky: the domain ${domain} seems to be only ${Math.max(days, 0)} days old`,
@@ -211,6 +222,7 @@ function domainSignals(domain: string, facts: DomainFacts, now: Date): SenderRea
 /** What couldn't be checked: these make the check incomplete. */
 const INCOMPLETE = new Set([
   LOOKUP_FAILED_SIGNAL,
+  DOMAIN_AGE_UNKNOWN,
   "language_not_checked",
   "no_domain",
   MESSAGE_GONE_SIGNAL,

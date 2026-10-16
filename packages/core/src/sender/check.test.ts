@@ -240,6 +240,23 @@ describe("incomplete checks (F5.3)", () => {
     ]);
   });
 
+  it("an RDAP answer without a registration date is incomplete and never looks fine", () => {
+    for (const registeredAt of [null, "not a date"]) {
+      const check = checkSender(input({ domain: { rdap: { registeredAt }, mx: ["mx.example"] } }));
+      expect(check).toMatchObject({ verdict: "caution", complete: false });
+      expect(check.reasons).toEqual([
+        {
+          signal: "domain_age_unknown",
+          reason:
+            "Couldn't tell when tidewater.example was registered, so this check is incomplete",
+        },
+      ]);
+    }
+    // Not looked up at all (a free-mail domain, or a mark decides) adds no such reason.
+    const free = checkSender(input({ domain: { rdap: null, mx: ["mx.example"] } }));
+    expect(signals(free)).not.toContain("domain_age_unknown");
+  });
+
   it("a failed MX lookup is incomplete and never looks fine", () => {
     const check = checkSender(input({ domain: { rdap: OLD_DOMAIN.rdap, mx: "failed" } }));
     expect(check).toMatchObject({ verdict: "caution", complete: false });
