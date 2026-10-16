@@ -12,6 +12,8 @@ describe("nextPath", () => {
     for (const next of [
       "//evil.example",
       "/\\evil.example",
+      "/.//evil.example",
+      "/..//evil.example",
       "/\t/evil.example",
       "https://evil.example",
       "evil",

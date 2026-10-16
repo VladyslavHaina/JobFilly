@@ -10,5 +10,8 @@ export function nextPath(search: string): string | null {
   const next = new URLSearchParams(search).get("next");
   if (!next?.startsWith("/")) return null;
   const url = new URL(next, BASE);
-  return url.origin === BASE ? `${url.pathname}${url.search}${url.hash}` : null;
+  if (url.origin !== BASE) return null;
+  // Dot segments can leave "//evil.example" as the path ("/.//evil.example"), which is off-site.
+  const path = `${url.pathname}${url.search}${url.hash}`;
+  return path.startsWith("//") || path.startsWith("/\\") ? null : path;
 }
