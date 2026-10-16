@@ -9,6 +9,8 @@ import {
   type MessageList,
   type MessageListItem,
   type MessageRef,
+  type NoFitWhy,
+  type ScoredFit,
   type SenderVerdict,
 } from "@jobfilly/schema";
 import { and, asc, count, eq, inArray, isNull, ne, not, or, type SQL, sql } from "drizzle-orm";
@@ -31,9 +33,9 @@ import { getEvaluations, getSenderChecks } from "./evaluations";
 //
 // From MVP 2 each row carries its best fit score (from a role not hidden, if any), its sender
 // verdict, its live draft's status and, for a message whose roles are all hidden by a rule, the
-// reason. A job message whose roles have no score says why instead: one of them is still to be
-// (re-)scored, or they were all evaluated and none could be scored. Such a message is left out of the list unless the Hidden filter asks for exactly those
-// (F3.4).
+// reason. Such a message is left out of the list unless the Hidden filter asks for exactly those
+// (F3.4). A job message whose roles have no score says why instead: one is still to be
+// (re-)scored, or all were evaluated and none could be scored.
 
 export interface InboxListQuery {
   /** Only this category (not_job included, which shows non-job mail on its own). */
@@ -121,9 +123,6 @@ interface ListRow {
   draft: MessageListItem["draft"];
   allHidden?: boolean;
 }
-
-type ScoredFit = Extract<NonNullable<ListFit>, { score: number }>;
-type NoFitWhy = Extract<NonNullable<ListFit>, { score: null }>["why"];
 
 const asJson = <T>(value: T | string | null): T | null =>
   typeof value === "string" ? (JSON.parse(value) as T) : value;

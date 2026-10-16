@@ -4,6 +4,7 @@ import {
   type ListFit,
   type MatchVerdict,
   type MessageListItem,
+  type NoFitWhy,
   type RoleEvaluation,
   type Verdict,
 } from "@jobfilly/schema";
@@ -96,8 +97,6 @@ interface MatchPanelProps {
   /** Null until the role is evaluated. */
   evaluation: RoleEvaluation | null;
 }
-
-type NoFitWhy = Extract<NonNullable<ListFit>, { score: null }>["why"];
 
 const NO_FIT: Record<NoFitWhy, { chip: string; label: string; words: string }> = {
   pending: {
