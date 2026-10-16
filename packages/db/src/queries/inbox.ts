@@ -3,6 +3,7 @@ import {
   type CvChoice,
   type DraftStatus,
   JOB_CATEGORIES,
+  type ListFit,
   MESSAGE_PAGE_SIZE,
   type MessageDetail,
   type MessageList,
@@ -30,7 +31,8 @@ import { getEvaluations, getSenderChecks } from "./evaluations";
 //
 // From MVP 2 each row carries its best fit score (from a role not hidden, if any), its sender
 // verdict, its live draft's status and, for a message whose roles are all hidden by a rule, the
-// reason. Such a message is left out of the list unless the Hidden filter asks for exactly those
+// reason. A job message whose roles have no score says why instead: one of them is still to be
+// (re-)scored, or they were all evaluated and none could be scored. Such a message is left out of the list unless the Hidden filter asks for exactly those
 // (F3.4).
 
 export interface InboxListQuery {
@@ -61,13 +63,21 @@ const listColumns = {
   category: messages.category,
   categorySource: messages.categorySource,
   analysisStatus: messages.analysisStatus,
-  fit: sql<{ score: number; capped: boolean; stale: boolean } | null>`(
+  fit: sql<ScoredFit | null>`(
     select json_build_object('score', e.score, 'capped', e.capped, 'stale', e.stale)
     from role_evaluations e
     where e.workspace_id = ${outerWorkspaceId} and e.message_id = ${outerMessageId}
       and e.score is not null
     order by (e.hidden_rule_id is null) desc, e.score desc, e.position
     limit 1)`,
+  // Null for a message with no roles: the aggregate has no group, so `having` drops its one row.
+  noFit: sql<NoFitWhy | null>`(
+    select case when bool_or(e.id is null or e.stale) then 'pending' else 'unscored' end
+    from roles r
+    left join role_evaluations e on e.workspace_id = r.workspace_id
+      and e.message_id = r.message_id and e.position = r.position
+    where r.workspace_id = ${outerWorkspaceId} and r.message_id = ${outerMessageId}
+    having count(*) > 0)`,
   sender: sql<{ verdict: SenderVerdict; complete: boolean } | null>`(
     select json_build_object('verdict', sc.verdict, 'complete', sc.complete)
     from sender_checks sc
@@ -104,15 +114,27 @@ interface ListRow {
   category: Category | null;
   categorySource: MessageListItem["categorySource"];
   analysisStatus: MessageListItem["analysisStatus"];
-  fit: MessageListItem["fit"];
+  fit: ScoredFit | string | null;
+  noFit: NoFitWhy | null;
   sender: MessageListItem["sender"];
   hiddenReason: string | null;
   draft: MessageListItem["draft"];
   allHidden?: boolean;
 }
 
+type ScoredFit = Extract<NonNullable<ListFit>, { score: number }>;
+type NoFitWhy = Extract<NonNullable<ListFit>, { score: null }>["why"];
+
 const asJson = <T>(value: T | string | null): T | null =>
   typeof value === "string" ? (JSON.parse(value) as T) : value;
+
+/** The best score; else, for job mail with roles, why there is none; else nothing. */
+function fitOf(row: ListRow): ListFit {
+  const scored = asJson(row.fit);
+  if (scored) return scored;
+  const job = (JOB_CATEGORIES as readonly (Category | null)[]).includes(row.category);
+  return job && row.noFit ? { score: null, why: row.noFit } : null;
+}
 
 function toListItem(row: ListRow): MessageListItem {
   return {
@@ -123,7 +145,7 @@ function toListItem(row: ListRow): MessageListItem {
     category: row.category,
     categorySource: row.categorySource,
     analysisStatus: row.analysisStatus,
-    fit: asJson(row.fit),
+    fit: fitOf(row),
     sender: asJson(row.sender),
     hidden: row.allHidden && row.hiddenReason !== null ? { reason: row.hiddenReason } : null,
     draft: asJson(row.draft),
