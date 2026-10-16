@@ -224,17 +224,26 @@ async function drain() {
   while (await deps.queue.runOnce()) {}
 }
 
+/** The test database's own client: PGlite, which takes bound parameters. */
+interface TestDatabaseClient {
+  query(text: string, params: unknown[]): Promise<{ affectedRows?: number }>;
+}
+
 /**
  * Marks the role's claimed draft saved to the mailbox, as the replies slice's draft.create does
  * once the copy is in the Drafts folder. This branch has no packages/db function for it (the
- * replies slice adds markDraftSaved), so it is one statement on the test database.
+ * replies slice adds markDraftSaved, which this should call once both are integrated), and the
+ * server has no drizzle of its own, so it is one statement on the test database, scoped to the
+ * workspace, with every value a bound parameter.
  */
 async function markInMailbox(messageId: string) {
-  await deps.db.execute(
+  const client = (deps.db as unknown as { $client: TestDatabaseClient }).$client;
+  const { affectedRows } = await client.query(
     `update drafts set status = 'in_mailbox', claimed_at = null
-     where workspace_id = '${ws.workspaceId}' and message_id = '${messageId}' and position = 0
-       and status = 'saving'`,
+     where workspace_id = $1 and message_id = $2 and position = 0 and status = 'saving'`,
+    [ws.workspaceId, messageId],
   );
+  expect(affectedRows).toBe(1);
 }
 
 /**
