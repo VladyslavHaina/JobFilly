@@ -1,6 +1,6 @@
 import {
   type Change,
-  CountryCodeSchema,
+  type CoreProfileKey,
   groupKeyFor,
   isExtraKey,
   type ProfileItem,
@@ -10,6 +10,7 @@ import {
   parseGroupKey,
   profileItemSchema,
 } from "@jobfilly/schema";
+import { GROUP_PARTS } from "../profile/changes";
 
 // A decision's answer as the one profile item it adds (F7.4, TBD-195): a choice's item as it is,
 // or the words of the free-text option made into an item of the decision's key. The group key's
@@ -35,32 +36,49 @@ const parse = (key: ProfileKey, value: unknown): ProfileItem | null => {
   return result.success ? result.data : null;
 };
 
-/** The free-text answer `text` as one item of `profileKey`, or null when it can't be one. */
+const partFieldsOf = (profileKey: ProfileKey): readonly string[] | undefined =>
+  GROUP_PARTS[profileKey as CoreProfileKey];
+
+// Fields holding an ISO code, written upper case whatever the group key's case.
+const CODE_FIELDS: ReadonlySet<string> = new Set(["country", "currency"]);
+
+/**
+ * The fields of an item its group key's parts fill, as answeredFor compares them (GROUP_PARTS):
+ * "places:IE:Dublin:hybrid" is country IE, city Dublin and mode hybrid.
+ */
+function fieldsFromParts(profileKey: ProfileKey, parts: readonly string[]) {
+  const filled: Record<string, string> = {};
+  (partFieldsOf(profileKey) ?? []).forEach((field, i) => {
+    const part = parts[i];
+    if (part) filled[field] = CODE_FIELDS.has(field) ? part.toUpperCase() : part;
+  });
+  return filled;
+}
+
+/**
+ * The free-text answer `text` as one item of `profileKey`, or null when it can't be one. Every
+ * field the group key's parts name comes from the parts, never from the words, so the item
+ * answers the group key it was asked under (F7.6); the words fill only the fields the parts
+ * don't ("120,000" is the amount of "min_pay:CHF:year", "EU time zones" the scope of "remote").
+ */
 export function itemFromText(
   profileKey: ProfileKey,
   groupKey: string,
   text: string,
 ): ProfileItem | null {
   const words = text.trim();
-  const { parts } = parseGroupKey(groupKey);
-  const country = (part: string | undefined) =>
-    part && CountryCodeSchema.safeParse(part.toUpperCase()).success ? part.toUpperCase() : null;
+  const filled = fieldsFromParts(profileKey, parseGroupKey(groupKey).parts);
   const asIs = parse(profileKey, words);
   if (asIs !== null) return asIs;
   switch (profileKey) {
     case "min_pay":
-      return parse(profileKey, {
-        amount: amountOf(words),
-        currency: parts[0]?.toUpperCase(),
-        period: parts[1],
-        asWritten: words,
-      });
+      return parse(profileKey, { amount: amountOf(words), asWritten: words, ...filled });
     case "work_permits":
-      return parse(profileKey, { country: country(parts[0]), text: words });
+      return parse(profileKey, { country: null, text: words, ...filled });
     case "remote":
-      return parse(profileKey, { scope: words, timeZones: null });
+      return parse(profileKey, { scope: words, timeZones: null, ...filled });
     case "places":
-      return parse(profileKey, { country: country(parts[0]), city: words, mode: parts[2] });
+      return parse(profileKey, { city: words, ...filled });
     case "reply_threshold":
     case "reply_window_days":
       return parse(profileKey, amountOf(words));
@@ -106,19 +124,6 @@ function slugOf(words: string): string {
     .slice(0, 64);
 }
 
-/**
- * The keys whose group key parts name fields of an item: itemFromText fills those fields from the
- * parts, and answeredFor (profile/changes.ts, GROUP_PARTS) compares them, so "min_pay:CHF:year" is
- * answered by the CHF per-year minimum the answer adds. Any other key's items are words, which
- * answeredFor would compare with the first part: an answer "Yes" never equals "IE".
- */
-const KEYS_WITH_PARTS: ReadonlySet<string> = new Set([
-  "min_pay",
-  "places",
-  "remote",
-  "work_permits",
-]);
-
 const extraKey = (words: string): ProfileKey | null => {
   const slug = slugOf(words);
   return slug ? `extra.${slug}` : null;
@@ -130,9 +135,11 @@ const extraKey = (words: string): ProfileKey | null => {
  * key (answeredFor).
  *
  * - The key it names (or its group key's own key, when it names none) is kept. Its group key
- *   stays only when it belongs to that key; the parts stay only for a key whose items they
- *   describe (KEYS_WITH_PARTS). A core key's other parts are dropped ("deal_breakers:onsite" is
- *   "deal_breakers").
+ *   stays only when it belongs to that key; the parts stay only when each names a field of the
+ *   key's items (GROUP_PARTS), which itemFromText fills from the part, so "remote:EU" and
+ *   "places:IE:Dublin:hybrid" are answered by what their answer adds. Otherwise a core key's
+ *   parts are dropped: answeredFor would compare its items (words) with the first part, and
+ *   "Fully on-site" never equals "onsite" ("deal_breakers:onsite" is "deal_breakers").
  * - An extra question's parts become part of its name: "extra.relocate:IE" is
  *   "extra.relocate_ie", so relocating to Ireland and to Germany stay two questions.
  * - Otherwise it is an extra question named after its whole group key, or its words.
@@ -148,7 +155,10 @@ export function questionKeys(question: {
   const key = named.success ? named.data : own.success ? own.data : null;
   if (key !== null) {
     if (head !== key || parts.length === 0) return { profileKey: key, groupKey: groupKeyFor(key) };
-    if (KEYS_WITH_PARTS.has(key)) return { profileKey: key, groupKey: question.groupKey };
+    const fields = partFieldsOf(key);
+    if (fields && parts.length <= fields.length && parts.every(Boolean)) {
+      return { profileKey: key, groupKey: question.groupKey };
+    }
     if (!isExtraKey(key)) return { profileKey: key, groupKey: groupKeyFor(key) };
     const folded = extraKey([key.replace(/^extra\./, ""), ...parts].join("_")) ?? key;
     return { profileKey: folded, groupKey: groupKeyFor(folded) };

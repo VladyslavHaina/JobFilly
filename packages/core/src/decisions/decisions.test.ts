@@ -7,7 +7,7 @@ import type {
   RuleEffect,
 } from "@jobfilly/schema";
 import { describe, expect, it } from "vitest";
-import { answeredFor, applyChanges } from "../profile/changes";
+import { answeredFor, applyChanges, GROUP_PARTS } from "../profile/changes";
 import {
   answerChange,
   answerItem,
@@ -204,6 +204,23 @@ describe("needs (F7.1, F7.6)", () => {
         need: { profileKey: "work_permits", groupKey: "work_permits:IE" },
         answer: "Stamp 4",
       },
+      // The parts fill every field answeredFor compares, whatever the words: "Yes" isn't a scope.
+      {
+        q: { profileKey: "remote", groupKey: "remote:EU", choices: [] },
+        need: { profileKey: "remote", groupKey: "remote:EU" },
+        answer: "Yes",
+      },
+      {
+        q: { profileKey: "places", groupKey: "places:IE:Dublin:hybrid", choices: [] },
+        need: { profileKey: "places", groupKey: "places:IE:Dublin:hybrid" },
+        answer: "Yes",
+      },
+      // More parts than the key's items have fields: the key's own group key.
+      {
+        q: { profileKey: "remote", groupKey: "remote:EU:CET", choices: [] },
+        need: { profileKey: "remote", groupKey: "remote" },
+        answer: "EU, CET hours",
+      },
     ];
     for (const { q, need: expected, answer } of asked) {
       const [need] = needsFromQuestions([{ ...q, question: "?" }]);
@@ -234,6 +251,72 @@ describe("needs (F7.1, F7.6)", () => {
       { profileKey: null, groupKey: "extra.relocate:DE", question: "?", choices: [] },
     ]);
     expect(de && isOpen(de, ie, new Set())).toBe(true);
+    // Remote in the EU doesn't answer remote in the US, nor Dublin hybrid Dublin on-site.
+    const answered = {
+      entries: [
+        entry("remote", [{ scope: "EU", timeZones: null }]),
+        entry("places", [{ country: "IE", city: "Dublin", mode: "hybrid" }]),
+      ],
+    };
+    const [us, onsite] = needsFromQuestions([
+      { profileKey: "remote", groupKey: "remote:US", question: "?", choices: [] },
+      { profileKey: "places", groupKey: "places:IE:Dublin:onsite", question: "?", choices: [] },
+    ]);
+    expect(us && isOpen(us, answered, new Set())).toBe(true);
+    expect(onsite && isOpen(onsite, answered, new Set())).toBe(true);
+  });
+
+  it("fill every field a group key's parts name from the parts, for each key that has them", () => {
+    // One answer per key of GROUP_PARTS, with words that disagree with the parts.
+    const words: Record<string, string> = {
+      min_pay: "EUR 95,000 a month",
+      places: "Cork",
+      remote: "Worldwide",
+      work_permits: "Stamp 4 for DE",
+    };
+    const parts: Record<string, string[]> = {
+      min_pay: ["chf", "year"],
+      places: ["ie", "Dublin", "hybrid"],
+      remote: ["EU"],
+      work_permits: ["ie"],
+    };
+    for (const [key, fields] of Object.entries(GROUP_PARTS)) {
+      const own = parts[key];
+      const text = words[key];
+      if (!own || !text || !fields) throw new Error(`${key}: add a case for it here`);
+      const groupKey = [key, ...own].join(":");
+      const [need] = needsFromQuestions([
+        { profileKey: key, groupKey, question: "?", choices: [] },
+      ]);
+      expect(need?.groupKey, key).toBe(groupKey);
+      const item = itemFromText(key as ProfileEntry["key"], groupKey, text);
+      if (item === null) throw new Error(`${key} ${text}: no item`);
+      const value = [item] as ProfileEntry["value"];
+      expect(
+        answeredFor({ entries: [entry(key as ProfileEntry["key"], value)] }, groupKey),
+        `${key} answered`,
+      ).not.toBeNull();
+    }
+  });
+
+  it("leave out choices whose labels differ but whose items don't", () => {
+    const [dublin, pay] = needsFromQuestions([
+      {
+        profileKey: "places",
+        groupKey: "places:IE:Dublin:hybrid",
+        question: "Hybrid in Dublin?",
+        choices: ["Yes", "No"],
+      },
+      {
+        profileKey: "min_pay",
+        groupKey: "min_pay:CHF:year",
+        question: "Minimum pay in CHF per year?",
+        choices: ["CHF 110,000", "CHF 120,000"],
+      },
+    ]);
+    // Both would add Dublin hybrid: a "No" must never write it.
+    expect(dublin?.choices).toEqual([]);
+    expect(pay?.choices.map((c) => c.label)).toEqual(["CHF 110,000", "CHF 120,000"]);
   });
 });
 

@@ -67,18 +67,25 @@ export function roleNeeds(input: RoleNeedsInput): RoleNeed[] {
  * A draft's questions (draft.v1) as needs. Each writes a profile key under a group key its answer
  * answers (questionKeys), so answeredFor tells later that it is answered and the question isn't
  * asked again (F7.6). Its choices become items of the key; a choice that can't be one is left
- * out, as the free-text option is always there.
+ * out, as the free-text option is always there. So are choices whose labels differ but whose
+ * items don't: the group key's parts fill all of "places:IE:Dublin:hybrid", so "Yes" and "No"
+ * would both add Dublin, and a click must never write what its label doesn't say.
  */
 export function needsFromQuestions(questions: DraftOutput["questions"]): NeedSpec[] {
   const out: NeedSpec[] = [];
   for (const q of questions) {
     const { profileKey, groupKey } = questionKeys(q);
     if (out.some((n) => n.groupKey === groupKey)) continue;
-    const choices: DecisionChoice[] = [];
+    const made: DecisionChoice[] = [];
     for (const label of q.choices) {
       const value = itemFromText(profileKey, groupKey, label);
-      if (value !== null) choices.push({ label, value });
+      if (value !== null) made.push({ label, value });
     }
+    const same = (a: DecisionChoice, b: DecisionChoice) =>
+      JSON.stringify(a.value) === JSON.stringify(b.value);
+    const choices = made.filter(
+      (c) => !made.some((other) => other.label !== c.label && same(other, c)),
+    );
     out.push({ groupKey, profileKey, question: q.question, choices });
   }
   return out;
