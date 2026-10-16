@@ -298,12 +298,15 @@ describe("tags, download and delete", () => {
 
     const tags = [
       { label: "en", source: "ai" as const },
-      { label: "preferred", source: "you" as const },
+      { label: "remote", source: "you" as const },
     ];
     const patched = await editor.patch(`${cvsPath()}/${cv.id}`, { tags });
     expect(patched.status).toBe(200);
     expect(CvSchema.parse(await patched.json()).tags).toEqual(tags);
     expect((await list(viewer)).items[0]?.tags).toEqual(tags);
+    // The preferred mark is a flag of its own (F2.3), the tags kept.
+    const marked = await editor.patch(`${cvsPath()}/${cv.id}`, { preferred: true });
+    expect(CvSchema.parse(await marked.json())).toMatchObject({ preferred: true, tags });
     expect((await editor.patch(`${cvsPath()}/${cv.id}`, { tags: [{ label: "" }] })).status).toBe(
       400,
     );

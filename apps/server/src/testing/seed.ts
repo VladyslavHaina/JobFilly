@@ -11,6 +11,7 @@ import {
   registerAccount,
   saveAiSettings,
   stopScan,
+  updateCv,
   updateScanProgress,
 } from "@jobfilly/db";
 import {
@@ -197,6 +198,7 @@ export async function seedCv(
     roleFamilies?: string[];
     seniority?: string | null;
     tags?: CvTag[];
+    preferred?: boolean;
     /** Leave it unread (readStatus pending, no metadata). */
     unread?: boolean;
     profileId?: string;
@@ -227,5 +229,6 @@ export async function seedCv(
     at: deps.clock.now(),
   });
   if (input.profileId) await linkProfileCv(deps.db, workspaceId, input.profileId, cv.id);
-  return cv;
+  if (!input.preferred) return cv;
+  return (await updateCv(deps.db, workspaceId, cv.id, { preferred: true }, deps.clock.now())) ?? cv;
 }

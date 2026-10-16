@@ -301,8 +301,8 @@ describe("the sender stage", () => {
           { label: language, source: "ai" },
           { label: "Backend engineering", source: "ai" },
           { label: "Senior", source: "ai" },
-          ...(language === "en" ? [{ label: "preferred", source: "you" } as const] : []),
         ],
+        preferred: language === "en",
         profileId: profile.id,
       });
     await cv("Backend (EN)", "en");

@@ -81,10 +81,8 @@ async function mariasCvs() {
     skills: ["Go", "PostgreSQL", "Kubernetes"],
     roleFamilies: ["Backend engineering"],
     seniority: "Senior",
-    tags: [
-      { label: "Backend engineering", source: "ai" },
-      { label: "preferred", source: "you" },
-    ],
+    tags: [{ label: "Backend engineering", source: "ai" }],
+    preferred: true,
     profileId: profile.id,
   });
   deps.clock.advance(1000);
@@ -117,7 +115,7 @@ describe("the cv-choice stage", () => {
     const { en } = await mariasCvs();
     const choice = await choose(await message("en", "Backend Engineer"));
     expect(choice).toMatchObject({ cvId: en.id, name: "Backend (EN)", source: "auto" });
-    expect(choice.reason).toBe("English backend role → Backend (EN), tagged preferred");
+    expect(choice.reason).toBe("English backend role → Backend (EN), your preferred CV");
   });
 
   it("gives an editor's choice for the role precedence", async () => {

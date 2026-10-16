@@ -176,7 +176,7 @@ export function cvsRoutes(deps: AppDeps) {
         const cv = await updateCv(deps.db, workspaceId, cvId, change, deps.clock.now());
         if (!cv) return c.json(NOT_FOUND, 404);
         await deps.live.publish(workspaceId, { type: "cvs.updated", data: {} });
-        // A tag such as "preferred", a role family or a skill can change which CV a role uses.
+        // A tag, the preferred mark or a skill can change which CV a role uses.
         await requestReevaluation(deps, workspaceId, { all: true }, "cv.edited");
         return c.json(cv satisfies Cv);
       },
