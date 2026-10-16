@@ -151,5 +151,5 @@ describe("CV files live in Postgres (F2.4)", () => {
       const writing = spy.mock.calls.filter((args) => writes(args[1]));
       expect(writing, spy.getMockName()).toEqual([]);
     }
-  }, 60_000);
+  });
 });

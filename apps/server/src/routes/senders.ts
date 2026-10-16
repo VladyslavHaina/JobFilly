@@ -11,13 +11,13 @@ import { requestReevaluation } from "../profile/changes";
 
 // Sender marks (F5.4): an editor marks an address or a whole domain trusted or blocked, or clears
 // the mark (null); SenderMarkInputSchema refuses an address or a domain that isn't one, so
-// validJson gives its 400. Marks are keyed by the sender, so they survive syncs and
-// re-evaluations, and the check names them. Changing one re-does that sender's checks and evaluations (a sender
+// validJson gives its 400. Marks are keyed by the sender, so they survive syncs and re-evaluations,
+// and the check names them. Changing one re-does that sender's checks and evaluations (a sender
 // scope), so a newly blocked sender loses its automatic drafts and a trusted one is no longer held
-// back by its verdict. GET tells the mark that applies to a message's sender now, its address's
-// own or its domain's, so the UI clears that one; clearing a mark that isn't there is a 404, never
-// a quiet success. The GET is keyed by the message, not the address: request lines end up in
-// proxy and ingress logs, and an email address is never logged. :messageId is the URL-encoded RFC
+// back by its verdict. GET tells the mark that applies to a message's sender now, its address's own
+// or its domain's, so the UI clears that one; clearing a mark that isn't there is a 404, never a
+// quiet success. The GET is keyed by the message, not the address: request lines end up in proxy
+// and ingress logs, and an email address is never logged. :messageId is the URL-encoded RFC
 // Message-ID, as in the messages routes. Mounted once at /api/workspaces/:workspaceId/senders.
 
 const NO_MARK = { error: "not_found", message: "There is no such mark to clear" } as const;

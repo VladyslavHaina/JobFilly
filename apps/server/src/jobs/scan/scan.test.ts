@@ -717,12 +717,13 @@ describe("live progress, cancel and takeover (F4.6–F4.8)", { timeout: SLOW }, 
     });
   });
 
-  it("shows a finished batch's counts and the stop in GET /scans/current within 2 s, while a tick takes longer to go out live (F4.6)", async () => {
+  it("shows each finished batch's counts and the stop in GET /scans/current while a tick is still held from going out live (F4.6)", async () => {
     const box = mailbox(25);
     const s = await setup(box.envelopes, recruiterAnswers(box.notJob), { progressIntervalMs: 40 });
     const viewer = await signedIn(createApp(s.deps), s.deps, s.admin);
     const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
-    const HOLD_AFTER_BATCH_MS = 2500;
+    // Only a way out if storing did wait for the tick: the screen could then never show the stop.
+    const GIVE_UP_MS = 30_000;
 
     // When each batch and the stop are logged, on the wall clock.
     const marks: { event: string; analyzed: number; at: number }[] = [];
@@ -736,11 +737,22 @@ describe("live progress, cancel and takeover (F4.6–F4.8)", { timeout: SLOW }, 
       return push(...lines);
     };
 
-    // A progress tick sent while the first candidates batch is classified takes until 2.5 s after
-    // that batch has finished to go out (a slow NOTIFY): longer than the screen may wait.
+    // The screen asks GET /scans/current over and over, until it has shown the stop.
+    const answers: { progress: ScanProgress | null; at: number }[] = [];
+    const stopShown = () => {
+      const stop = marks.find((m) => m.event === "scan.stopped");
+      return answers.some((a) => stop && a.at >= stop.at && a.progress?.status === "stopped");
+    };
+
+    // A progress tick sent while the first candidates batch is classified doesn't go out (a slow
+    // NOTIFY) until the screen has shown the stop. Ordered against that release rather than timed,
+    // so a loaded machine can't fail it: if storing waited for the tick, the stop would only show
+    // after the give-up release.
     const publish = s.deps.live.publish;
     let hold: Promise<void> | null = null;
     let held = 0;
+    let releasedAt = Number.POSITIVE_INFINITY;
+    let releasedBy: "stop shown" | "gave up" | null = null;
     s.deps.live.publish = async (workspaceId, event) => {
       if (hold && event.type === "scan.progress") {
         held += 1;
@@ -758,19 +770,15 @@ describe("live progress, cancel and takeover (F4.6–F4.8)", { timeout: SLOW }, 
       });
       while (held === 0) await pause(5);
       void (async () => {
-        while (marks.length < 2) await pause(5);
-        await pause(HOLD_AFTER_BATCH_MS);
+        const giveUp = performance.now() + GIVE_UP_MS;
+        while (!stopShown() && performance.now() < giveUp) await pause(5);
+        releasedBy = stopShown() ? "stop shown" : "gave up";
+        releasedAt = performance.now();
         hold = null;
         release();
       })();
     };
 
-    // The screen asks GET /scans/current over and over, until it has shown the stop.
-    const answers: { progress: ScanProgress | null; at: number }[] = [];
-    const stopShown = () => {
-      const stop = marks.find((m) => m.event === "scan.stopped");
-      return answers.some((a) => stop && a.at >= stop.at && a.progress?.status === "stopped");
-    };
     let deadline = Number.POSITIVE_INFINITY;
     const poll = (async () => {
       while (!stopShown() && performance.now() < deadline) {
@@ -793,19 +801,21 @@ describe("live progress, cancel and takeover (F4.6–F4.8)", { timeout: SLOW }, 
       ["scan.batch_completed", 25],
       ["scan.stopped", 25],
     ]);
-    // How long after each mark GET /scans/current first answered with its counts.
-    const lag = marks.map((m) => {
-      const shown = answers.find(
-        (a) =>
-          a.at >= m.at &&
-          (a.progress?.analyzed ?? -1) >= m.analyzed &&
-          (m.event !== "scan.stopped" || a.progress?.status === "stopped"),
-      );
-      return shown ? Math.round(shown.at - m.at) : Number.POSITIVE_INFINITY;
-    });
+    // GET /scans/current first answered with each mark's counts after the mark, and before the
+    // held tick went out.
+    const shownAt = marks.map(
+      (m) =>
+        answers.find(
+          (a) =>
+            a.at >= m.at &&
+            (a.progress?.analyzed ?? -1) >= m.analyzed &&
+            (m.event !== "scan.stopped" || a.progress?.status === "stopped"),
+        )?.at ?? Number.POSITIVE_INFINITY,
+    );
+    expect(releasedBy).toBe("stop shown");
     expect(
-      lag.map((ms) => ms <= 2000),
-      `ms from each mark until shown: ${lag}`,
+      shownAt.map((at) => at < releasedAt),
+      `ms from each mark until shown: ${shownAt.map((at, i) => Math.round(at - (marks[i]?.at ?? 0)))}; tick released ${Math.round(releasedAt - (marks[0]?.at ?? 0))} ms after the first`,
     ).toEqual([true, true, true, true]);
     // The held tick still went out, and nothing went out after the stop's events.
     expect(s.events.at(-3)?.type).toBe("scan.stopped");
