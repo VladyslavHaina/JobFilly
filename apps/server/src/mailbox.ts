@@ -3,11 +3,16 @@ import type { MailClient } from "@jobfilly/mail";
 import type { AppDeps } from "./deps";
 import { open } from "./secrets";
 
-// The one way the server opens a workspace's mailbox (ARCHITECTURE › AI, next to aiClientFor):
-// read the stored connection, open its sealed password with JOBFILLY_SECRET_KEY, and connect
-// through deps.mail with JOBFILLY_ALLOW_INSECURE_MAIL. The body route, the scan, the pipeline,
-// the sync and the drafts all use it, so the password is opened in one place and never leaves
-// the mail client.
+// The one way the server opens a workspace's stored mailbox (ARCHITECTURE › AI, next to
+// aiClientFor): open its sealed password with JOBFILLY_SECRET_KEY and connect through deps.mail
+// with JOBFILLY_ALLOW_INSECURE_MAIL, so the password is opened in one place and never leaves the
+// mail client.
+//
+//   connectMailbox        reads the stored connection; null when there is none. The body route
+//                         (routes/messages.ts) and the pipeline (pipeline/evaluate.ts) use it;
+//                         the sync and the drafts, when their slices write them, are to use it.
+//   connectStoredMailbox  opens a row the caller already read: the scan (jobs/scan), which needs
+//                         the mailbox's address too.
 
 /**
  * The stored password won't open: it was sealed under another JOBFILLY_SECRET_KEY, a problem of

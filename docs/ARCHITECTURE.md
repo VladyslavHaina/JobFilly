@@ -280,11 +280,15 @@ Rules:
   records each call's usage (`ai_usage`, retries and failures included, at the clock's time), so
   the per-scan totals and Settings › AI's calls and tokens per day (`usagePerDay`, F1.5) count
   every task. Nothing calls `deps.ai.client` directly.
-- The same way, the server opens a workspace's mailbox only through `connectMailbox`
-  (`apps/server/src/mailbox.ts`): it reads the stored connection, opens the sealed password with
-  `JOBFILLY_SECRET_KEY` (`MailboxSecretError` when it won't open) and connects through
-  `deps.mail` with `JOBFILLY_ALLOW_INSECURE_MAIL`. The body route, the scan, the pipeline, the
-  sync and the drafts use it; nothing else calls `deps.mail.connect` with a stored mailbox.
+- The same way, the server opens a workspace's stored mailbox only through
+  `apps/server/src/mailbox.ts`, which opens the sealed password with `JOBFILLY_SECRET_KEY`
+  (`MailboxSecretError` when it won't open) and connects through `deps.mail` with
+  `JOBFILLY_ALLOW_INSECURE_MAIL`. `connectMailbox(deps, workspaceId)` reads the stored
+  connection itself and answers null when there is none; the body route and the pipeline use it.
+  `connectStoredMailbox(deps, mailbox)` opens a row the caller has already read; the scan uses it
+  (it needs the address too). The sync and the drafts, when their slices write them, are to use
+  `connectMailbox` too. Nothing else calls `deps.mail.connect` with a stored mailbox; the
+  connection test in Settings connects with the settings being tested, not a stored row.
 - The assistant can only propose changes. Applying one is a separate request made by the user.
 
 ## Configuration (environment)
