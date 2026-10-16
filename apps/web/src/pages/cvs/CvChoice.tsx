@@ -1,5 +1,6 @@
 import { CvChoiceSchema, type CvChoice as CvChoiceValue } from "@jobfilly/schema";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { api } from "../../api";
 import { Alert, SelectField } from "../../components";
 import { queryKeys, useWorkspace } from "../../hooks";
@@ -22,21 +23,33 @@ export function CvChoice(props: {
   const { can } = useWorkspace();
   const client = useQueryClient();
   const cvs = useCvs(workspaceId);
+  // What the PUT answered, shown only until the refetched role arrives: the change stays pending
+  // until then (onSuccess waits for the refetch), and afterwards the role's own choice (the prop)
+  // is shown. Kept past the refetch, a "back to automatic" answer (null) would hide the CV the
+  // app chose again.
+  const [answer, setAnswer] = useState<{ value: CvChoiceValue | null }>();
   const change = useMutation({
     mutationFn: (cvId: string | null) =>
       api(apiPaths.roleCv(workspaceId, messageId, position), CvChoiceSchema.nullable(), {
         method: "PUT",
         body: { cvId },
       }),
+    onMutate: () => setAnswer(undefined),
     // The role is re-evaluated with it; the message's detail shows the outcome.
-    onSuccess: () =>
-      client.invalidateQueries({ queryKey: queryKeys.area(workspaceId, "messages") }),
+    onSuccess: async (value) => {
+      setAnswer({ value });
+      await client.invalidateQueries({ queryKey: queryKeys.area(workspaceId, "messages") });
+    },
   });
-  const shown = change.isSuccess ? change.data : choice;
+  const pendingAnswer = change.isPending ? answer : undefined;
+  const shown = pendingAnswer ? pendingAnswer.value : choice;
   let reason = shown?.reason ?? "Not chosen yet: the role hasn't been evaluated.";
-  if (change.isSuccess && change.data === null) {
+  if (pendingAnswer && pendingAnswer.value === null) {
     reason = "Back to automatic: the CV is chosen again in a moment.";
   }
+  const chosen = shown?.source === "you" && shown.cvId ? shown.cvId : AUTO;
+  // While the change is under way the field keeps what the editor picked.
+  const selected = change.isPending ? (change.variables ?? AUTO) : chosen;
   const list = cvs.data ?? [];
   return (
     <section aria-label={`CV for role ${position + 1}`} className="flex flex-col gap-1.5 text-sm">
@@ -47,7 +60,7 @@ export function CvChoice(props: {
       {can.edit && list.length > 0 && (
         <SelectField
           label={`Use another CV for role ${position + 1}`}
-          value={shown?.source === "you" && shown.cvId ? shown.cvId : AUTO}
+          value={selected}
           disabled={change.isPending}
           onChange={(e) => change.mutate(e.target.value === AUTO ? null : e.target.value)}
         >

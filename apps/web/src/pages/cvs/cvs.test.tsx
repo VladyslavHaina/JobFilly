@@ -1,4 +1,5 @@
 import { type Cv, type CvChoice as CvChoiceValue, MAX_CV_BYTES } from "@jobfilly/schema";
+import { useQuery } from "@tanstack/react-query";
 import { cleanup, configure, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -9,6 +10,7 @@ import {
   renderInWorkspace,
   testWorkspace,
 } from "../../components/testing";
+import { queryKeys } from "../../hooks";
 import { CvChoice } from "./CvChoice";
 import { CvsPage } from "./CvsPage";
 import { ProfileCvPrompt } from "./ProfileCvPrompt";
@@ -335,20 +337,36 @@ describe("a role's CV choice (F2.3)", () => {
     source: "auto",
   };
 
+  const roleUrl = `/api/workspaces/${ws.id}/test-role`;
+
+  /** The role's choice as the message detail has it: a query in the "messages" area. */
+  function FromDetail() {
+    const role = useQuery({
+      queryKey: [...queryKeys.area(ws.id, "messages"), "detail", messageId],
+      queryFn: async () => (await (await fetch(roleUrl)).json()) as { choice: CvChoiceValue },
+    });
+    if (!role.data) return null;
+    return (
+      <CvChoice workspaceId={ws.id} messageId={messageId} position={0} choice={role.data.choice} />
+    );
+  }
+
   it("shows the CV with its reason, and lets an editor choose another for the role", async () => {
+    let current = choice;
     const { seen } = api({
       [`GET ${url}`]: { items: [backendEn, backendDe] },
-      [`PUT ${choiceUrl}`]: (req: FakeRequest) => ({
-        cvId: (req.body as { cvId: string }).cvId,
-        reason: "You chose Backend (EN) for this role",
-        source: "you",
-      }),
+      [`GET ${roleUrl}`]: () => ({ choice: current }),
+      [`PUT ${choiceUrl}`]: (req: FakeRequest) => {
+        current = {
+          cvId: (req.body as { cvId: string }).cvId,
+          reason: "You chose Backend (EN) for this role",
+          source: "you",
+        };
+        return current;
+      },
     });
-    renderInWorkspace(
-      <CvChoice workspaceId={ws.id} messageId={messageId} position={0} choice={choice} />,
-      { role: "editor" },
-    );
-    expect(screen.getByText("German backend role → Backend (DE)")).toBeTruthy();
+    renderInWorkspace(<FromDetail />, { role: "editor" });
+    expect(await screen.findByText("German backend role → Backend (DE)")).toBeTruthy();
     const select = await screen.findByLabelText("Use another CV for role 1");
     await userEvent.selectOptions(select, "Backend (EN)");
     expect(await screen.findByText("You chose Backend (EN) for this role")).toBeTruthy();
@@ -356,6 +374,51 @@ describe("a role's CV choice (F2.3)", () => {
       path: choiceUrl,
       body: { cvId: backendEn.id },
     });
+  });
+
+  it("after choosing automatically, shows the refetched choice, not the pending note", async () => {
+    let current: CvChoiceValue = {
+      cvId: backendEn.id,
+      reason: "You chose Backend (EN) for this role",
+      source: "you",
+    };
+    // Each request waits until the test lets it answer.
+    const held: { put?: () => void; role?: () => void } = {};
+    const { seen } = api({
+      [`GET ${url}`]: { items: [backendEn, backendDe] },
+      [`GET ${roleUrl}`]: async () => {
+        // The refetch after the change waits until the test lets it land.
+        if (seen.some((r) => r.method === "PUT")) {
+          await new Promise<void>((resolve) => {
+            held.role = resolve;
+          });
+        }
+        return { choice: current };
+      },
+      [`PUT ${choiceUrl}`]: async () => {
+        await new Promise<void>((resolve) => {
+          held.put = resolve;
+        });
+        // Back to automatic: the server answers null and picks the CV again for the role.
+        current = choice;
+        return null;
+      },
+    });
+    renderInWorkspace(<FromDetail />, { role: "editor" });
+    const select = (await screen.findByLabelText("Use another CV for role 1")) as HTMLSelectElement;
+    await waitFor(() => expect(select.value).toBe(backendEn.id));
+    await userEvent.selectOptions(select, "Choose automatically");
+    expect(select.value).toBe("");
+    await waitFor(() => expect(held.put).toBeDefined());
+    held.put?.();
+    // Until the refetched role lands, the change's own answer is shown.
+    expect(await screen.findByText(/^Back to automatic:/)).toBeTruthy();
+    await waitFor(() => expect(held.role).toBeDefined());
+    held.role?.();
+    expect(await screen.findByText("German backend role → Backend (DE)")).toBeTruthy();
+    expect(screen.queryByText(/^Back to automatic:/)).toBeNull();
+    expect(select.value).toBe("");
+    expect(select.disabled).toBe(false);
   });
 
   it("is read-only for viewers", async () => {
