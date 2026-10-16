@@ -246,7 +246,9 @@ Rules:
   folder has, finds it by Message-ID), so an attempt that died after the append leaves no second
   copy; discarding a failed draft deletes such a copy the same way. The contract: the IMAP client
   (`MailClient.saveDraft`, `replaceDraft`) gives the copy the caller's `draftMessageId` when it is
-  set, and packages/mail's own tests prove it; the server's test double keeps it the same way.
+  set; the mailbox slice owns that client and its contract test
+  (`packages/mail/src/drafts.test.ts`, TBD-331), and the server's test double keeps it the same
+  way.
 - A run that lost its claim to another run of it deletes its own copy only by a ref that knows
   the copy's UID: both copies carry the kept Message-ID, so a ref with UIDVALIDITY 0 (a server
   without UIDPLUS) is left alone. When a superfluous copy can't be deleted (that case, or a
