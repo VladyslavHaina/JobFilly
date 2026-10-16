@@ -20,7 +20,13 @@ import {
 } from "@jobfilly/schema";
 import { usableDate } from "./dates";
 import { buildDraftMime } from "./drafts/index";
-import { FAILURE_MESSAGES, failureReason, isMailFailure, MailError } from "./errors";
+import {
+  FAILURE_MESSAGES,
+  failureReason,
+  isConnectionDropped,
+  isMailFailure,
+  MailError,
+} from "./errors";
 import {
   attachmentFromSource,
   bodyText,
@@ -202,9 +208,21 @@ export function mailClientWith(
     return connecting;
   }
 
-  /** Runs `work` alone, after every operation before it; its error is passed on as it is. */
+  /**
+   * Runs `work` alone, after every operation before it; its error is passed on as it is. When
+   * the server dropped the connection (it closes an idle one, say while a model call takes
+   * long), the cached session is let go, and `work` runs once more on a new connection.
+   */
   function alone<T>(work: (s: ImapSession) => Promise<T>): Promise<T> {
-    const run = queue.then(async () => work(await session()));
+    const run = queue.then(async () => {
+      try {
+        return await work(await session());
+      } catch (error) {
+        if (!isConnectionDropped(error)) throw error;
+        connecting = null;
+        return work(await session());
+      }
+    });
     queue = run.catch(() => undefined);
     return run;
   }

@@ -98,6 +98,21 @@ export function isMailFailure(error: unknown): boolean {
   );
 }
 
+/**
+ * imapflow's codes for a connection that is closed (a command can't be sent on it) or was closed
+ * while a command ran.
+ */
+const DROPPED_CODE = /^(NoConnection|EConnectionClosed)$/;
+
+/**
+ * Whether the connection was closed or dropped under the session, as a server closes an idle
+ * one: then a new connection may well work.
+ */
+export function isConnectionDropped(error: unknown): boolean {
+  const code = asImapLike(error).code;
+  return typeof code === "string" && DROPPED_CODE.test(code);
+}
+
 /** Maps an error from the IMAP library, the socket or TLS to a reason the user can act on. */
 export function failureReason(error: unknown): MailTestFailureReason {
   if (error instanceof MailError) return error.reason;

@@ -333,6 +333,18 @@ describe("fetchBody", () => {
     expect(server.calls.some((c) => c.startsWith("fetch"))).toBe(false);
   });
 
+  it("connects again once when the server dropped the connection, and reads on", async () => {
+    const server = fakeServer(mailbox());
+    const client = mailClientWith(conn, secure, server.factory);
+    await client.fetchBody({ folderPath: "INBOX", uidValidity: 7, uid: 1 });
+    // The server closed the idle connection (GreenMail does after about 30 s).
+    server.drop();
+    const body = await client.fetchBody({ folderPath: "INBOX", uidValidity: 7, uid: 2 });
+    expect(body?.text).toContain("Go developer & Berlin");
+    expect(server.sessions).toBe(2);
+    expect(server.calls.filter((c) => c === "connect")).toHaveLength(2);
+  });
+
   it("returns null when the message is gone", async () => {
     const server = fakeServer(mailbox());
     const client = mailClientWith(conn, secure, server.factory);

@@ -26,6 +26,11 @@ export interface FakeServer {
   factory: SessionFactory;
   calls: string[];
   sessions: number;
+  /**
+   * Closes every connection open now, as a server drops an idle one: each one's next command
+   * fails with imapflow's NoConnection. A session opened after it works.
+   */
+  drop(): void;
 }
 
 /** Messages whose header `name` contains `value` (case-insensitive name, as IMAP SEARCH). */
@@ -38,7 +43,15 @@ function headerContains(source: string, name: string, value: string): boolean {
 }
 
 export function fakeServer(mailbox: FakeMailbox): FakeServer {
-  const server: FakeServer = { factory: () => session(), calls: [], sessions: 0 };
+  let droppedUpTo = 0;
+  const server: FakeServer = {
+    factory: () => session(),
+    calls: [],
+    sessions: 0,
+    drop: () => {
+      droppedUpTo = server.sessions;
+    },
+  };
   let open: string | null = null;
   // As a real server, a UID is never given out twice in a folder, also after a delete.
   const uidNext = new Map<string, number>();
@@ -58,32 +71,40 @@ export function fakeServer(mailbox: FakeMailbox): FakeServer {
 
   const session = (): ImapSession => {
     server.sessions += 1;
+    const id = server.sessions;
+    /** Records a command; on a dropped connection it fails as imapflow's does. */
+    const see = (call: string) => {
+      if (id <= droppedUpTo) {
+        throw Object.assign(new Error("Connection not available"), { code: "NoConnection" });
+      }
+      server.calls.push(call);
+    };
     return {
       async connect() {
-        server.calls.push("connect");
+        see("connect");
         if (mailbox.connectError) throw mailbox.connectError;
       },
       async list() {
-        server.calls.push("list");
+        see("list");
         return mailbox.folders;
       },
       async open(path) {
-        server.calls.push(`open ${path}`);
+        see(`open ${path}`);
         return opened(path);
       },
       async openWritable(path) {
-        server.calls.push(`open-rw ${path}`);
+        see(`open-rw ${path}`);
         return opened(path);
       },
       async searchSince(since) {
-        server.calls.push(`search ${since.toISOString().slice(0, 10)}`);
+        see(`search ${since.toISOString().slice(0, 10)}`);
         const day = new Date(since.toISOString().slice(0, 10));
         return current()
           .filter((m) => !m.internalDate || m.internalDate >= day)
           .map((m) => m.uid);
       },
       async searchFromUid(fromUid) {
-        server.calls.push(`search uid ${fromUid}:*`);
+        see(`search uid ${fromUid}:*`);
         const uids = current().map((m) => m.uid);
         const matching = uids.filter((uid) => uid >= fromUid);
         // As IMAP: n:* always matches the newest message, even when n is past it.
@@ -91,15 +112,13 @@ export function fakeServer(mailbox: FakeMailbox): FakeServer {
         return matching.length > 0 || uids.length === 0 ? matching : [newest];
       },
       async searchHeader(name, value) {
-        server.calls.push(`search header ${name}`);
+        see(`search header ${name}`);
         return current()
           .filter((m) => headerContains(m.source, name, value))
           .map((m) => m.uid);
       },
       async *fetch(uids, options) {
-        server.calls.push(
-          `fetch ${uids.join(",")}${options.maxBytes ? ` max ${options.maxBytes}` : ""}`,
-        );
+        see(`fetch ${uids.join(",")}${options.maxBytes ? ` max ${options.maxBytes}` : ""}`);
         for (const m of current()) {
           if (!uids.includes(m.uid)) continue;
           const source = Buffer.from(m.source.replace(/\r?\n/g, "\r\n"));
@@ -111,7 +130,7 @@ export function fakeServer(mailbox: FakeMailbox): FakeServer {
         }
       },
       async append(path, content, flags, date) {
-        server.calls.push(`append ${path} ${flags.join(" ")}`);
+        see(`append ${path} ${flags.join(" ")}`);
         if (mailbox.appendError === false) return false;
         if (mailbox.appendError) throw mailbox.appendError;
         const folder = mailbox.contents[path];
@@ -123,12 +142,12 @@ export function fakeServer(mailbox: FakeMailbox): FakeServer {
           : { uid, uidValidity: folder.uidValidity };
       },
       async deleteUids(uids) {
-        server.calls.push(`delete ${uids.join(",")}`);
+        see(`delete ${uids.join(",")}`);
         const folder = mailbox.contents[open ?? ""];
         if (folder) folder.messages = folder.messages.filter((m) => !uids.includes(m.uid));
       },
       async create(path) {
-        server.calls.push(`create ${path}`);
+        see(`create ${path}`);
         mailbox.folders.push({ path, name: path, specialUse: null });
         mailbox.contents[path] = { uidValidity: 1, messages: [] };
         return { path };
