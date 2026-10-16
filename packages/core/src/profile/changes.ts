@@ -1,11 +1,8 @@
 import {
   type Change,
-  CORE_PROFILE_LABELS,
   type CoreProfileKey,
-  isExtraKey,
+  entryLabel,
   isListProfileKey,
-  isPolicyKey,
-  POLICY_LABELS,
   type ProfileEntry,
   type ProfileItem,
   type ProfileKey,
@@ -68,12 +65,6 @@ export type AppliedChanges =
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
-function labelOf(key: ProfileKey): string {
-  if (isPolicyKey(key)) return POLICY_LABELS[key];
-  if (isExtraKey(key)) return key.slice("extra.".length);
-  return CORE_PROFILE_LABELS[key as CoreProfileKey];
-}
-
 const RULE_SOURCE: Record<ChangeContext["source"], RuleSource> = {
   you: "you",
   decision: "decision",
@@ -132,7 +123,7 @@ export function applyChanges(
     if (!current) order.push(key);
     entries.set(key, {
       key,
-      label: current?.label ?? labelOf(key),
+      label: current?.label ?? entryLabel(key),
       value: parsed.data,
       confidence: null,
       evidence: current?.evidence ?? [],

@@ -1,12 +1,8 @@
 import {
   type Change,
   type ChangeLine,
-  CORE_PROFILE_LABELS,
-  type CoreProfileKey,
-  isExtraKey,
+  entryLabel,
   isListProfileKey,
-  isPolicyKey,
-  POLICY_LABELS,
   type ProfileItem,
   type ProfileKey,
   type ProfileSnapshot,
@@ -20,13 +16,6 @@ import { formatAmount, formatRange } from "../rules/words";
 // A proposal in plain words (F8.2) and the profile history's lines (F8.4): each entry and rule a
 // list of changes touches, as it was and as it would be, and a summary of the changes. Every word
 // of a value comes from the profile itself; only the labels and the joining words are the app's.
-
-/** The label of a profile entry: the intake form's, the policy key's, or the extra slug. */
-function entryLabel(key: ProfileKey): string {
-  if (isPolicyKey(key)) return POLICY_LABELS[key];
-  if (isExtraKey(key)) return key.slice("extra.".length);
-  return CORE_PROFILE_LABELS[key as CoreProfileKey];
-}
 
 /** "recruiter_outreach" reads "Recruiter outreach". */
 const categoryWords = (category: string) => {

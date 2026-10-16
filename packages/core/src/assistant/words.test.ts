@@ -57,6 +57,7 @@ describe("changeSummary", () => {
       { op: "update", target: "entry", key: "reply_threshold", value: [80] },
       { op: "remove", target: "entry", key: "deal_breakers", value: ["on-call"] },
       { op: "remove", target: "entry", key: "extra.relocation", value: null },
+      { op: "remove", target: "entry", key: "extra.notice-period", value: null },
     ];
     expect(changeSummary(changes, [stored])).toBe(
       [
@@ -67,6 +68,8 @@ describe("changeSummary", () => {
         "Set Fit score that gets an automatic reply to 80",
         "Remove on-call from Deal-breakers",
         "Clear relocation",
+        // An extra slug reads in words, as in the match panel.
+        "Clear notice period",
       ].join("; "),
     );
   });
