@@ -63,20 +63,48 @@ export type MxLookupResult = z.infer<typeof MxLookupResultSchema>;
 
 /** What a mark is on: one address, or every address of a domain. */
 export const SenderMarkScopeSchema = z.enum(["address", "domain"]);
+export type SenderMarkScope = z.infer<typeof SenderMarkScopeSchema>;
 
 /** An address or a domain as a mark keys it: trimmed, lower case. */
 const MarkValueSchema = z.string().trim().toLowerCase().min(1).max(320);
 
 /**
- * PUT /senders/marks: mark an address or a whole domain trusted or blocked, or clear the mark
- * (null). Kept across syncs; the affected senders' checks are re-done. Clearing a mark that
- * isn't there is a 404, so a clear never looks done while another mark still applies.
+ * A mark as it applies to a sender: trusted or blocked, on one address or a whole domain, with
+ * the address or domain it is on. The sender check names it (packages/core) and packages/db reads
+ * it back by the sender.
  */
-export const SenderMarkInputSchema = z.object({
+export const AppliedMarkSchema = z.object({
   scope: SenderMarkScopeSchema,
   value: MarkValueSchema,
-  mark: SenderMarkSchema.nullable(),
+  mark: SenderMarkSchema,
 });
+export type AppliedMark = z.infer<typeof AppliedMarkSchema>;
+
+/**
+ * PUT /senders/marks: mark an address or a whole domain trusted or blocked, or clear the mark
+ * (null). Kept across syncs; the affected senders' checks are re-done. Clearing a mark that
+ * isn't there is a 404, so a clear never looks done while another mark still applies. An address
+ * has an '@' with a dotted domain after it; a domain has no '@' and a dot.
+ */
+export const SenderMarkInputSchema = z
+  .object({
+    scope: SenderMarkScopeSchema,
+    value: MarkValueSchema,
+    mark: SenderMarkSchema.nullable(),
+  })
+  .superRefine(({ scope, value }, ctx) => {
+    const at = value.lastIndexOf("@");
+    if (scope === "address" && !(at > 0 && value.slice(at + 1).includes("."))) {
+      ctx.addIssue({ code: "custom", path: ["value"], message: "Give an email address" });
+    }
+    if (scope === "domain" && !(at < 0 && value.includes("."))) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["value"],
+        message: "Give a domain such as example.com",
+      });
+    }
+  });
 export type SenderMarkInput = z.infer<typeof SenderMarkInputSchema>;
 
 /**
@@ -85,11 +113,7 @@ export type SenderMarkInput = z.infer<typeof SenderMarkInputSchema>;
  * the message, so no address is ever in a URL. A check names the mark it was made with; this
  * is the mark as it stands, so the UI clears the one that applies (F5.4).
  */
-export const AppliedSenderMarkSchema = z.object({
-  applied: z
-    .object({ scope: SenderMarkScopeSchema, value: MarkValueSchema, mark: SenderMarkSchema })
-    .nullable(),
-});
+export const AppliedSenderMarkSchema = z.object({ applied: AppliedMarkSchema.nullable() });
 export type AppliedSenderMark = z.infer<typeof AppliedSenderMarkSchema>;
 
 /** A lowercase hostname, as the sender data files list them. */
