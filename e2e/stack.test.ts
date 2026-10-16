@@ -428,6 +428,25 @@ describe("e2e/specs locators", () => {
     expect(inexactRoleNames(`getByRole("button", { name: ${chip}, exact: true })`)).toEqual([]);
     expect(inexactRoleNames('getByRole("button", { name: /^Remove / })')).toEqual([]);
     expect(inexactRoleNames('getByRole("link")')).toEqual([]);
+    // The shorthand names the role by a variable too.
+    expect(inexactRoleNames('getByRole("link", { name })')).toEqual([1]);
+    expect(inexactRoleNames('getByRole("link", { level: 2, name })')).toEqual([1]);
+    expect(inexactRoleNames('getByRole("link", { name, exact: true })')).toEqual([]);
+    expect(inexactRoleNames('getByRole("link", { exact: true, name })')).toEqual([]);
+    // Quotes, braces and "name" inside a string or a comment count for nothing, and a quote
+    // that never closes still ends the scan (it once restarted from the top, forever).
+    expect(inexactRoleNames(`getByRole("button", { name: 'a"b' })`)).toEqual([1]);
+    expect(inexactRoleNames(`getByRole("button", { name: 'a"b', exact: true })`)).toEqual([]);
+    expect(inexactRoleNames('getByRole("button", { name: "a}b", exact: true })')).toEqual([]);
+    expect(inexactRoleNames('getByRole("row", { level: 1, x: "name, y" })')).toEqual([]);
+    expect(
+      inexactRoleNames('getByRole("button", {\n  // don\'t, name }\n  name: "Save",\n})'),
+    ).toEqual([1]);
+    expect(
+      inexactRoleNames('getByRole("button", { name: "a })\ngetByRole("link", { name: "b" })'),
+    ).toEqual([1, 2]);
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: source text, not a template
+    expect(inexactRoleNames("getByRole(\"button\", { name: `a ${'}'} b")).toEqual([1]);
   });
 
   it("finds every role named by a string, template or variable by its exact name", () => {
@@ -447,28 +466,73 @@ describe("e2e/specs locators", () => {
 
 /**
  * The lines of the `getByRole` calls in `text` that name the role by a string, template or
- * variable without `exact: true`: Playwright would match that name as a substring.
+ * variable (`name: x` or the shorthand `{ name }`) without `exact: true`: Playwright would match
+ * that name as a substring.
  */
 function inexactRoleNames(text: string): number[] {
   const lines: number[] = [];
   for (const m of text.matchAll(/getByRole\(\s*"[a-z]+"\s*,\s*\{/g)) {
     const open = m.index + m[0].length - 1;
-    // The options object up to its own closing brace; a template's ${…} is balanced on its own.
+    // The options object up to its own closing brace, with what its strings and comments say
+    // blanked out, so a brace, a quote or a "name" inside one counts for nothing. A string that
+    // never closes runs to the end of its line (a template to the end of the text): the scan
+    // always moves forward and ends.
+    let options = "";
     let depth = 0;
-    let end = open;
-    for (; end < text.length; end++) {
-      const c = text[end];
-      if (c === '"') end = text.indexOf('"', end + 1);
-      else if (c === "{") depth++;
-      else if (c === "}" && --depth === 0) break;
+    for (let i = open; i < text.length; i++) {
+      const c = text[i];
+      if (c === '"' || c === "'" || c === "`") {
+        const close = closingQuote(text, i);
+        options += `${c}${" ".repeat(Math.max(0, close - i - 1))}${c}`;
+        i = close;
+      } else if (c === "/" && text[i + 1] === "/") {
+        const eol = text.indexOf("\n", i);
+        i = eol === -1 ? text.length : eol - 1;
+      } else if (c === "{") {
+        depth++;
+        options += c;
+      } else if (c === "}" && --depth === 0) {
+        break;
+      } else {
+        options += c;
+      }
     }
-    const options = text.slice(open + 1, end);
-    const name = /\bname:\s*(\S)/.exec(options)?.[1];
-    if (name && name !== "/" && !/\bexact:\s*true\b/.test(options)) {
+    // The first `name` property: `name: <value>`, or the shorthand `name` (a variable).
+    const prop = /(?<![\w$.])name\s*(?::\s*(\S)|(?=[,}]|\s*$))/.exec(options.slice(1));
+    const value = prop ? (prop[1] ?? "shorthand") : undefined;
+    if (value && value !== "/" && !/\bexact:\s*true\b/.test(options)) {
       lines.push(text.slice(0, m.index).split("\n").length);
     }
   }
   return lines;
+}
+
+/**
+ * The index of the quote that closes the string opening at `start` ('…', "…" or `…`), past
+ * backslash escapes and a template's balanced ${…}. Unclosed, it is the end of the line for
+ * '…' and "…" and the end of the text for `…`.
+ */
+function closingQuote(text: string, start: number): number {
+  const quote = text[start];
+  let i = start + 1;
+  while (i < text.length) {
+    const c = text[i];
+    if (c === "\\") i += 2;
+    else if (c === quote) return i;
+    else if (c === "\n" && quote !== "`") return i - 1;
+    else if (quote === "`" && c === "$" && text[i + 1] === "{") {
+      let depth = 1;
+      i += 2;
+      while (i < text.length && depth > 0) {
+        const d = text[i];
+        if (d === '"' || d === "'" || d === "`") i = closingQuote(text, i);
+        else if (d === "{") depth++;
+        else if (d === "}") depth--;
+        i++;
+      }
+    } else i++;
+  }
+  return text.length - 1;
 }
 
 describe("docker/e2e.Dockerfile", () => {
