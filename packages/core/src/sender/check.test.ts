@@ -1,7 +1,6 @@
-import { MESSAGE_GONE_SIGNAL, type SenderCheck } from "@jobfilly/schema";
+import { type AppliedMark, MESSAGE_GONE_SIGNAL, type SenderCheck } from "@jobfilly/schema";
 import { describe, expect, it } from "vitest";
 import {
-  type AppliedMark,
   checkSender,
   type DomainFacts,
   isFreeMailDomain,

@@ -1,11 +1,13 @@
 import {
   type Address,
+  type AppliedMark,
   type Category,
   LOOKUP_FAILED_SIGNAL,
   MESSAGE_GONE_SIGNAL,
   type MessageSignal,
+  type MxLookupResult,
+  type RdapLookupResult,
   type SenderCheck,
-  type SenderMark,
   type SenderReason,
   type SenderVerdict,
 } from "@jobfilly/schema";
@@ -40,15 +42,8 @@ export function isFreeMailDomain(domain: string): boolean {
 
 /** What the domain lookups found: an answer, "failed", or null when not looked up. */
 export interface DomainFacts {
-  rdap: { registeredAt: string | null } | "failed" | null;
-  mx: string[] | "failed" | null;
-}
-
-/** The mark that applies to the sender, by its address or its whole domain. */
-export interface AppliedMark {
-  mark: SenderMark;
-  scope: "address" | "domain";
-  value: string;
+  rdap: RdapLookupResult | "failed" | null;
+  mx: MxLookupResult | "failed" | null;
 }
 
 export interface SenderCheckInput {
@@ -61,6 +56,7 @@ export interface SenderCheckInput {
   /** The body's language (ISO 639-1) as detected, or null. */
   language: string | null;
   domain: DomainFacts;
+  /** The mark that applies to the sender, by its address or its whole domain. */
   mark: AppliedMark | null;
   now: Date;
 }
