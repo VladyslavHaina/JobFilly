@@ -17,7 +17,7 @@ const CONN: MailConnection = {
   password: "E2E-SECRET-x",
 };
 const connect = (box: ReturnType<typeof createFakeMailbox>) =>
-  box.port.connect(CONN, { allowInsecure: true });
+  box.port.connect(CONN, { allowInsecure: true, address: "maria.santos@inbox.example" });
 
 const reply = (original: DraftMailInput["original"]): DraftMailInput => ({
   original,

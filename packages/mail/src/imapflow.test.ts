@@ -148,6 +148,9 @@ afterEach(async () => {
   await Promise.all(servers.splice(0).map((s) => new Promise((r) => s.close(r))));
 });
 
+/** The mailbox's own address, the drafts' From; the IMAP user name is "maria". */
+const ADDRESS = "maria.santos@inbox.example";
+
 const connection = (port: number, extra: Partial<MailConnection> = {}): MailConnection => ({
   host: "127.0.0.1",
   port,
@@ -160,7 +163,7 @@ const connection = (port: number, extra: Partial<MailConnection> = {}): MailConn
 describe("the imapflow session", () => {
   it("connects, lists Inbox and Sent, and reads envelopes and bodies", async () => {
     const port = await scriptedImap();
-    const client = createMailClient(connection(port), { allowInsecure: true });
+    const client = createMailClient(connection(port), { allowInsecure: true, address: ADDRESS });
     try {
       expect(await client.test()).toEqual({
         ok: true,
@@ -192,7 +195,7 @@ describe("the imapflow session", () => {
 
   it("syncs by UID, and creates Drafts, appends a draft with \\Draft and deletes it", async () => {
     const port = await scriptedImap();
-    const client = createMailClient(connection(port), { allowInsecure: true });
+    const client = createMailClient(connection(port), { allowInsecure: true, address: ADDRESS });
     try {
       const synced = await client.fetchSince({ folder: "inbox", uidValidity: 42, afterUid: 6 });
       expect(synced).toMatchObject({ uidValidity: 42, changed: false, messages: [{ uid: 7 }] });
@@ -234,6 +237,7 @@ describe("the imapflow session", () => {
     const port = await scriptedImap();
     const client = createMailClient(connection(port, { password: "E2E-SECRET-wrong" }), {
       allowInsecure: true,
+      address: ADDRESS,
     });
     const result = await client.test();
     await client.close();
@@ -243,7 +247,10 @@ describe("the imapflow session", () => {
 
   it("maps a TLS client talking to a plain-text server to tls", async () => {
     const port = await scriptedImap();
-    const client = createMailClient(connection(port, { tlsMode: "tls" }), { allowInsecure: false });
+    const client = createMailClient(connection(port, { tlsMode: "tls" }), {
+      allowInsecure: false,
+      address: ADDRESS,
+    });
     const result = await client.test();
     await client.close();
     expect(result).toMatchObject({ ok: false, reason: "tls" });
@@ -252,7 +259,10 @@ describe("the imapflow session", () => {
   it("maps a closed port to unreachable", async () => {
     const port = await scriptedImap();
     await new Promise((r) => servers.pop()?.close(r));
-    const client = createMailClient(connection(port, { tlsMode: "tls" }), { allowInsecure: false });
+    const client = createMailClient(connection(port, { tlsMode: "tls" }), {
+      allowInsecure: false,
+      address: ADDRESS,
+    });
     const result = await client.test();
     await client.close();
     expect(result).toMatchObject({ ok: false, reason: "unreachable" });

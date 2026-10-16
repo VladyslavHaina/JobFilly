@@ -2,7 +2,7 @@ import type { AiClient } from "@jobfilly/ai";
 import { createAiClient } from "@jobfilly/ai";
 import { aggregateIntake } from "@jobfilly/core";
 import type { Database, DatabaseConnection } from "@jobfilly/db";
-import { createMailClient, type MailClient } from "@jobfilly/mail";
+import { createMailClient, type MailClient, type MailClientOptions } from "@jobfilly/mail";
 import type { AiClientSettings, MailConnection, Readiness } from "@jobfilly/schema";
 import { type Clock, systemClock } from "./clock";
 import type { Config } from "./config";
@@ -22,7 +22,7 @@ import { createDomainPort } from "./senders/lookup";
 // replace the ports with fakes (src/testing), so no test needs a mailbox, a model or a network.
 
 export interface MailPort {
-  connect(conn: MailConnection, options: { allowInsecure: boolean }): MailClient;
+  connect(conn: MailConnection, options: MailClientOptions): MailClient;
 }
 
 export interface AiPort {

@@ -20,7 +20,7 @@ const conn: MailConnection = {
   username: "maria.santos@inbox.example",
   password: "E2E-SECRET-maria-imap",
 };
-const secure = { allowInsecure: false };
+const secure = { allowInsecure: false, address: "maria.santos@inbox.example" };
 
 const original: OriginalMessage = {
   messageId: "<berlin-1@agency.example>",
@@ -114,14 +114,13 @@ describe("buildDraftMime (F6.3)", () => {
     const mail = await parse(
       await buildDraftMime({
         ...input({ attachment: null, reply: { subject: "", body: "Hi" } }),
-        from: null,
+        from: { address: "maria.santos@inbox.example", name: null },
         messageId: "<d@x.example>",
         date: new Date(),
       }),
     );
     expect(mail.attachments).toEqual([]);
     expect(mail.subject).toBe("Re: Backend Engineer (Go) - Berlin");
-    expect(mail.from).toBeUndefined();
   });
 
   it("doesn't thread to a Message-ID packages/mail made up", () => {
@@ -189,6 +188,16 @@ describe("saveDraft (F6.3)", () => {
     expect(mail.text).toContain("> bitte schicken Sie mir Ihren Lebenslauf.");
     // Only appended: no folder is opened for changes to save a draft.
     expect(server.calls.some((c) => c.startsWith("open-rw"))).toBe(false);
+  });
+
+  it("is from the mailbox's own address, also when the IMAP user name isn't one", async () => {
+    const box = mailbox();
+    const login = { ...conn, username: "msantos" };
+    const ref = await mailClientWith(login, secure, fakeServer(box).factory).saveDraft(input());
+    expect(ref.draftMessageId).toMatch(/^<[0-9a-f-]{36}@inbox\.example>$/);
+    const [saved] = box.contents["[Gmail]/Entwürfe"]?.messages ?? [];
+    const mail = await parse(saved?.source ?? "");
+    expect(mail.from?.value).toEqual([{ address: "maria.santos@inbox.example", name: "" }]);
   });
 
   it("finds the UID by the draft's Message-ID when the server has no UIDPLUS", async () => {

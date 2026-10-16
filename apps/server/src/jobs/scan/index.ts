@@ -178,7 +178,7 @@ export function createScanRunHandler(
           username: mailbox.username,
           password: secrets.password,
         },
-        { allowInsecure: deps.config.allowInsecureMail },
+        { allowInsecure: deps.config.allowInsecureMail, address: mailbox.address },
       );
     } catch {
       return fail(deps, scan, log, "mailbox", "mail_setup_error");

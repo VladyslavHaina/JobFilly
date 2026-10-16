@@ -25,28 +25,37 @@ import { type ImapFolder, type ImapSession, imapflowSession, type SessionFactory
 export interface MailClientOptions {
   /** Plain-text IMAP is refused unless JOBFILLY_ALLOW_INSECURE_MAIL=true (F2.4). */
   allowInsecure: boolean;
-}
-
-/**
- * The mail server couldn't be reached, or refused to take a draft (an append or a store failed).
- * draft.create maps it to a draft failed with kind `mailbox`, which the sweep retries; the sync
- * job to a failed sync, retried with back-off. The message is plain words, never the server's.
- * Every MVP 2 operation (fetchSince, fetchOriginal and the Drafts-folder ones) fails with it.
- */
-export class MailUnavailableError extends Error {
-  constructor(message = "Couldn't reach the mail server") {
-    super(message);
-    this.name = "MailUnavailableError";
-  }
+  /**
+   * The mailbox's own email address, as the user gave it when connecting: the From of every
+   * draft and the domain of its Message-ID. The IMAP user name is often not an address.
+   */
+  address: string;
 }
 
 /** The words of a MailUnavailableError per reason, as the mailbox status shows them (F1.4). */
-const UNAVAILABLE_MESSAGES: Record<MailTestFailureReason, string> = {
+export const UNAVAILABLE_MESSAGES: Record<MailTestFailureReason, string> = {
   unreachable: "Couldn't reach the mail server",
   wrong_password: FAILURE_MESSAGES.wrong_password,
   tls: FAILURE_MESSAGES.tls,
   insecure_refused: FAILURE_MESSAGES.insecure_refused,
 };
+
+/**
+ * The mail server couldn't be reached, or refused to take a draft (an append or a store failed).
+ * draft.create maps it to a draft failed with kind `mailbox`, which the sweep retries; the sync
+ * job to a failed sync, retried with back-off, whose status keeps `reason` for the UI to branch
+ * on. The message is plain words, never the server's: by default the reason's own words.
+ * Every MVP 2 operation (fetchSince, fetchOriginal and the Drafts-folder ones) fails with it.
+ */
+export class MailUnavailableError extends Error {
+  constructor(
+    readonly reason: MailTestFailureReason = "unreachable",
+    message: string = UNAVAILABLE_MESSAGES[reason],
+  ) {
+    super(message);
+    this.name = "MailUnavailableError";
+  }
+}
 
 export interface MailClient {
   /** Connects and lists the folders, finding Sent; never reports the password. */
@@ -122,15 +131,9 @@ function locateDrafts(folders: ImapFolder[]): string | null {
   );
 }
 
-/** The account's own address, the drafts' From, when the user name is one. */
-function ownAddress(conn: MailConnection): Address | null {
-  const name = conn.username.trim();
-  return /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(name) ? { address: name, name: null } : null;
-}
-
-/** A new draft's Message-ID, on the mailbox's own domain when it is known. */
-function draftMessageId(from: Address | null): string {
-  const domain = from?.address.split("@")[1] ?? "jobfilly.invalid";
+/** A new draft's Message-ID, on the mailbox's own domain. */
+function draftMessageId(from: Address): string {
+  const domain = from.address.split("@").at(-1) || "jobfilly.invalid";
   return `<${randomUUID()}@${domain}>`;
 }
 
@@ -143,7 +146,7 @@ export function mailClientWith(
   let listing: ImapFolder[] | null = null;
   let located: { inbox: string; sent: string | null } | null = null;
   let drafts: string | null = null;
-  const from = ownAddress(conn);
+  const from: Address = { address: options.address, name: null };
   // One operation at a time: opening a folder and reading it must not interleave with another.
   let queue: Promise<unknown> = Promise.resolve();
 
@@ -183,7 +186,7 @@ export function mailClientWith(
   function available<T>(work: (s: ImapSession) => Promise<T>): Promise<T> {
     return exclusive(work).catch((error: unknown) => {
       if (error instanceof MailUnavailableError) throw error;
-      throw new MailUnavailableError(UNAVAILABLE_MESSAGES[failureReason(error)]);
+      throw new MailUnavailableError(failureReason(error));
     });
   }
 
@@ -246,7 +249,10 @@ export function mailClientWith(
     const messageId = draftMessageId(from);
     const mime = await buildDraftMime({ ...input, from, messageId, date });
     const appended = await s.append(path, mime, ["\\Draft"], date);
-    if (!appended) throw new MailUnavailableError("The mail server refused to save the draft");
+    // The server was reached but didn't take the draft: retried as when it can't be reached.
+    if (!appended) {
+      throw new MailUnavailableError("unreachable", "The mail server refused to save the draft");
+    }
     const ref = { path, draftMessageId: messageId };
     if (appended.uid !== null && appended.uidValidity !== null) {
       return { ...ref, uid: appended.uid, uidValidity: appended.uidValidity };

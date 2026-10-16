@@ -18,7 +18,7 @@ const conn: MailConnection = {
   username: "maria.santos@inbox.example",
   password: PASSWORD,
 };
-const secure = { allowInsecure: false };
+const secure = { allowInsecure: false, address: "maria.santos@inbox.example" };
 
 const message = (id: number, extra = "") => `Message-ID: <role-${id}@agency.example>
 Date: Mon, 12 Oct 2026 08:0${id}:00 +0000
@@ -132,6 +132,7 @@ describe("fetchSince (F1.1, F1.3)", () => {
       .fetchSince({ folder: "inbox", uidValidity: 7, afterUid: 0 })
       .catch((e: unknown) => e);
     expect(error).toBeInstanceOf(MailUnavailableError);
+    expect((error as MailUnavailableError).reason).toBe("unreachable");
     expect((error as Error).message).toBe("Couldn't reach the mail server");
     expect(String((error as Error).message)).not.toContain(PASSWORD);
   });
@@ -145,7 +146,10 @@ describe("fetchSince (F1.1, F1.3)", () => {
         uidValidity: 7,
         afterUid: 0,
       }),
-    ).rejects.toThrow(/didn't accept the user name or password/);
+    ).rejects.toMatchObject({
+      reason: "wrong_password",
+      message: expect.stringMatching(/didn't accept the user name or password/),
+    });
   });
 });
 

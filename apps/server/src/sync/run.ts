@@ -119,7 +119,7 @@ function connect(deps: AppDeps, mailbox: StoredMailbox): MailClient {
       username: mailbox.username,
       password,
     },
-    { allowInsecure: deps.config.allowInsecureMail },
+    { allowInsecure: deps.config.allowInsecureMail, address: mailbox.address },
   );
 }
 

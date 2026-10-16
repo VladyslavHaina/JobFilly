@@ -472,7 +472,7 @@ describe("a new UIDVALIDITY (F1.3)", () => {
     });
     // The re-indexed message's body is found again under its new UID.
     expect(
-      await mailbox.port.connect({} as never, { allowInsecure: false }).fetchBody({
+      await mailbox.port.connect({} as never, { allowInsecure: false, address: "" }).fetchBody({
         folderPath: "INBOX",
         uidValidity: 200,
         uid: 1,

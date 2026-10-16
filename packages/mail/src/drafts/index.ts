@@ -8,8 +8,8 @@ import MailComposer from "nodemailer/lib/mail-composer";
 // chosen CV as an attachment.
 
 export interface DraftMimeInput extends DraftMailInput {
-  /** The mailbox's own address, the draft's From; null when the account name isn't one. */
-  from: Address | null;
+  /** The mailbox's own address: the draft's From. */
+  from: Address;
   /** The draft's own Message-ID header, "<...>". */
   messageId: string;
   date: Date;
@@ -63,7 +63,7 @@ export async function buildDraftMime(input: DraftMimeInput): Promise<Buffer> {
   const thread = isSynthetic(original.messageId) ? null : original.messageId;
   const address = (a: Address) => ({ address: a.address, name: a.name ?? "" });
   const composer = new MailComposer({
-    ...(input.from ? { from: address(input.from) } : {}),
+    from: address(input.from),
     to: [address(original.from)],
     subject: replySubject(input.reply.subject, original),
     messageId: input.messageId,

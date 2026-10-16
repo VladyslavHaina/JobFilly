@@ -22,8 +22,9 @@ import type { Logger } from "../log";
 import { seal } from "../secrets";
 
 // The workspace's mailbox (F2): presets, test, connect, disconnect, and the continuous sync's
-// status for everyone in the workspace (MVP 2 F1.4). One mailbox per workspace in MVP 1 (F2.5). The password is sealed before it is stored, never returned and never logged
-// (F2.3); plain-text IMAP is refused unless JOBFILLY_ALLOW_INSECURE_MAIL=true (F2.4).
+// status for everyone in the workspace (MVP 2 F1.4). One mailbox per workspace in MVP 1 (F2.5).
+// The password is sealed before it is stored, never returned and never logged (F2.3); plain-text
+// IMAP is refused unless JOBFILLY_ALLOW_INSECURE_MAIL=true (F2.4).
 
 const INSECURE: MailTestResult = {
   ok: false,
@@ -58,8 +59,8 @@ export function mailboxRoutes(deps: AppDeps) {
     if (input.tlsMode === "none" && !allowInsecure) {
       result = INSECURE;
     } else {
-      const { address: _address, ...conn } = input;
-      const client = deps.mail.connect(conn, { allowInsecure });
+      const { address, ...conn } = input;
+      const client = deps.mail.connect(conn, { allowInsecure, address });
       try {
         result = await client.test();
       } finally {

@@ -90,7 +90,7 @@ export function messageRoutes(deps: AppDeps) {
             username: mailbox.username,
             password: open(deps.config.secretKey, mailbox.secretCiphertext),
           },
-          { allowInsecure: deps.config.allowInsecureMail },
+          { allowInsecure: deps.config.allowInsecureMail, address: mailbox.address },
         );
         let body: { text: string } | null;
         try {

@@ -80,6 +80,8 @@ export interface FakeMailbox {
   port: MailPort;
   /** The connections opened, in order. */
   connections: MailConnection[];
+  /** The mailbox address each connection was opened with (the drafts' From), in order. */
+  addresses: string[];
   calls: Record<FakeMailOp, number>;
   /** The messages of a folder, in UID order. */
   messages(folder: MailFolder): FakeMessage[];
@@ -232,10 +234,12 @@ export function createFakeMailbox(
 
   const fake: FakeMailbox = {
     connections: [],
+    addresses: [],
     calls,
     port: {
-      connect(conn) {
+      connect(conn, options) {
         fake.connections.push(conn);
+        fake.addresses.push(options.address);
         calls.connect += 1;
         const failure = failures.get("connect");
         if (failure) failures.delete("connect");

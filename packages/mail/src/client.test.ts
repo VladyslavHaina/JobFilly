@@ -14,7 +14,7 @@ const conn: MailConnection = {
   username: "maria",
   password: PASSWORD,
 };
-const secure = { allowInsecure: false };
+const secure = { allowInsecure: false, address: "maria.santos@inbox.example" };
 
 const full = `Message-ID: <recruiter-1@agency.example>
 Date: Mon, 28 Sep 2026 08:15:00 +0000
@@ -174,7 +174,7 @@ describe("plain-text IMAP (F2.4)", () => {
 
   it("is refused without allowInsecure, before any connection is made", async () => {
     const server = fakeServer(mailbox());
-    const client = mailClientWith(plain, { allowInsecure: false }, server.factory);
+    const client = mailClientWith(plain, { ...secure, allowInsecure: false }, server.factory);
     expect(await client.test()).toEqual({
       ok: false,
       reason: "insecure_refused",
@@ -188,7 +188,11 @@ describe("plain-text IMAP (F2.4)", () => {
 
   it("is allowed with allowInsecure", async () => {
     const server = fakeServer(mailbox());
-    const result = await mailClientWith(plain, { allowInsecure: true }, server.factory).test();
+    const result = await mailClientWith(
+      plain,
+      { ...secure, allowInsecure: true },
+      server.factory,
+    ).test();
     expect(result.ok).toBe(true);
   });
 });

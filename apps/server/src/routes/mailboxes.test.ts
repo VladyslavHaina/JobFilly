@@ -47,7 +47,7 @@ const connected: MailTestResult = { ok: true, folders: ["INBOX", "Sent"], sentPa
 
 interface FakeMail {
   port: MailPort;
-  connects: { conn: MailConnection; allowInsecure: boolean }[];
+  connects: { conn: MailConnection; allowInsecure: boolean; address: string }[];
   closed: number;
   result: MailTestResult;
 }
@@ -59,7 +59,7 @@ function fakeMail(): FakeMail {
     result: connected,
     port: {
       connect(conn, options) {
-        fake.connects.push({ conn, allowInsecure: options.allowInsecure });
+        fake.connects.push({ conn, ...options });
         const client: MailClient = fakeMailClient({
           test: async () => fake.result,
           fetchEnvelopes: async () => [],
@@ -223,6 +223,7 @@ describe("test connection (F2.1)", () => {
           password: PASSWORD,
         },
         allowInsecure: false,
+        address: "maria.santos@inbox.example",
       },
     ]);
     expect(mail.closed).toBe(1);

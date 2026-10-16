@@ -31,7 +31,7 @@ beforeEach(async () => {
   ai = createFakeAi();
   mail = mailbox.port.connect(
     { host: "imap", port: 993, tlsMode: "tls", username: "maria", password: "p" },
-    { allowInsecure: false },
+    { allowInsecure: false, address: "maria.santos@inbox.example" },
   );
 });
 afterEach(() => deps.close());
