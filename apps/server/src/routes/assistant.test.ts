@@ -95,6 +95,9 @@ const asiaRule = (from = "UTC+05:00"): RuleDraft => ({
   enabled: true,
 });
 
+/** asiaRule's plain words, as a proposal stores them (F3.1): from its conditions and action. */
+const ASIA_WORDS = "Hide roles whose hours are within UTC+5 to UTC+14";
+
 const proposalAnswer = (changes: Change[], summary = asiaRule().description): AssistantOutput => ({
   reply: "I can hide roles on Asian time zones for you. Here is a proposal.",
   clarify: null,
@@ -406,7 +409,8 @@ describe("a preference request (F8.2)", () => {
           target: "rule",
           label: "Rule",
           before: null,
-          after: "Hide roles whose working hours are UTC+5 or later",
+          // The model's words for the rule are replaced by its plain words (F3.1).
+          after: ASIA_WORDS,
         },
       ],
       // Sydney's draft failed for good and the other Singapore role is under the threshold, so no
@@ -479,7 +483,12 @@ describe("a preference request (F8.2)", () => {
     ]);
     const card = (await send(maria, ASIA_REQUEST)).proposal;
     if (!card) throw new Error("expected a proposal");
-    const edit = { changes: [{ op: "add", target: "rule", rule: asiaRule("UTC+11:00") }] };
+    // The card's change with its range edited, its stored words kept.
+    const edit = {
+      changes: [
+        { op: "add", target: "rule", rule: { ...asiaRule("UTC+11:00"), description: ASIA_WORDS } },
+      ],
+    };
     // A viewer can't edit; another member's proposal is not there for them.
     expect((await tom.patch(proposalUrl(card.id), edit)).status).toBe(403);
     const calls = { ...ai.calls };
@@ -490,7 +499,9 @@ describe("a preference request (F8.2)", () => {
     expect(edited.lines[0]?.after).toBe("Hide roles whose hours are within UTC+11 to UTC+14");
     expect(edited.impact.hides).toBe(0);
     const back = await maria.patch(proposalUrl(card.id), {
-      changes: [{ op: "add", target: "rule", rule: asiaRule("UTC+04:00") }],
+      changes: [
+        { op: "add", target: "rule", rule: { ...asiaRule("UTC+04:00"), description: ASIA_WORDS } },
+      ],
     });
     expect(ProposalSchema.parse(await back.json()).impact.hides).toBe(3);
     // Editing previews again without the model.
@@ -521,7 +532,7 @@ describe("a preference request (F8.2)", () => {
     );
     expect(applied.status).toBe("applied");
     const [rule] = await listRules(deps.db, ws.workspaceId, profile.id);
-    expect(rule?.description).toBe(asiaRule().description);
+    expect(rule?.description).toBe(ASIA_WORDS);
   });
 });
 
@@ -559,9 +570,7 @@ describe("Apply (F8.3, F8.5, F8.8)", () => {
     expect(await hiddenIds(maria)).toEqual([ROLES.sg1.id, ROLES.sg2.id, ROLES.syd.id]);
     for (const s of await states()) {
       if (s.messageId === ROLES.eu.id) continue;
-      expect(s.evaluation?.hidden?.reason).toBe(
-        'Hidden by your rule "Hide roles whose working hours are UTC+5 or later"',
-      );
+      expect(s.evaluation?.hidden?.reason).toBe(`Hidden by your rule "${ASIA_WORDS}"`);
       const since = new Date(s.evaluation?.evaluatedAt ?? 0).getTime() - appliedAt.getTime();
       expect(since).toBeLessThanOrEqual(MINUTE);
     }
@@ -662,7 +671,7 @@ describe("history and Undo after Apply (F8.4)", () => {
             target: "rule",
             label: "Rule",
             before: null,
-            after: "Hide roles whose working hours are UTC+5 or later",
+            after: ASIA_WORDS,
           },
         ],
       }),
@@ -818,7 +827,8 @@ describe("the conversation is stored but never logged (F8.10)", () => {
       proposal: {
         summary: "Hide Asian hours E2E-CHAT-3",
         changes: [
-          { op: "add", target: "rule", rule: { ...asiaRule(), description: "No Asia E2E-CHAT-4" } },
+          { op: "add", target: "rule", rule: asiaRule() },
+          { op: "add", target: "entry", key: "deal_breakers", value: ["E2E-CHAT-4"] },
         ],
       },
     };

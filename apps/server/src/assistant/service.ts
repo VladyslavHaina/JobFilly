@@ -1,4 +1,10 @@
-import { type ChangeError, changeLines, editedSummary, rewordEdited } from "@jobfilly/core";
+import {
+  type ChangeError,
+  changeLines,
+  editedSummary,
+  rewordEdited,
+  rewordProposed,
+} from "@jobfilly/core";
 import {
   createThread,
   type Database,
@@ -157,7 +163,9 @@ export async function sendMessage(
   // packages/ai lets through a proposal with changes outside rules and entries (a mailbox, a
   // member…): it is refused here, alone, and the reply says so.
   const inScope = PROPOSAL.safeParse(clarify ? null : result.data.proposal);
-  let proposal: { summary: string; changes: Change[] } | null = inScope.data ?? null;
+  let proposal: { summary: string; changes: Change[] } | null = inScope.data
+    ? { ...inScope.data, changes: rewordProposed(inScope.data.changes, rules) }
+    : null;
   if (!inScope.success) text = `${text}\n\n${OUTSIDE}`;
   if (proposal && proposal.changes.length === 0) proposal = null;
   if (proposal && !profile) {
