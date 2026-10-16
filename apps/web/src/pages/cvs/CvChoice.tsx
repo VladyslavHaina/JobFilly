@@ -24,11 +24,10 @@ export function CvChoice(props: {
   const cvs = useCvs(workspaceId);
   const change = useMutation({
     mutationFn: (cvId: string | null) =>
-      api(
-        `${apiPaths.message(workspaceId, messageId)}/roles/${position}/cv`,
-        CvChoiceSchema.nullable(),
-        { method: "PUT", body: { cvId } },
-      ),
+      api(apiPaths.roleCv(workspaceId, messageId, position), CvChoiceSchema.nullable(), {
+        method: "PUT",
+        body: { cvId },
+      }),
     // The role is re-evaluated with it; the message's detail shows the outcome.
     onSuccess: () =>
       client.invalidateQueries({ queryKey: queryKeys.area(workspaceId, "messages") }),

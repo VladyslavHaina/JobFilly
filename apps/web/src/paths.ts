@@ -39,6 +39,12 @@ export const apiPaths = {
     `${api(workspaceId)}/messages/${encodeURIComponent(messageId)}`,
   cvs: (workspaceId: string) => `${api(workspaceId)}/cvs`,
   cv: (workspaceId: string, cvId: string) => `${api(workspaceId)}/cvs/${encodeURIComponent(cvId)}`,
+  /** A CV's file, to download. */
+  cvFile: (workspaceId: string, cvId: string) =>
+    `${api(workspaceId)}/cvs/${encodeURIComponent(cvId)}/file`,
+  /** The CV chosen for one role of a message (position from 0), to override it. */
+  roleCv: (workspaceId: string, messageId: string, position: number) =>
+    `${api(workspaceId)}/messages/${encodeURIComponent(messageId)}/roles/${position}/cv`,
   senderMarks: (workspaceId: string) => `${api(workspaceId)}/senders/marks`,
   /** The mark on a message's sender, asked by the message: no email address is ever in a URL. */
   messageSenderMark: (workspaceId: string, messageId: string) =>

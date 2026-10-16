@@ -83,7 +83,7 @@ function CvCard({ cv }: { cv: Cv }) {
   });
   const download = useMutation({
     mutationFn: async () => {
-      const { blob, fileName } = await apiDownload(`${apiPaths.cv(workspaceId, cv.id)}/file`);
+      const { blob, fileName } = await apiDownload(apiPaths.cvFile(workspaceId, cv.id));
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
