@@ -1,13 +1,15 @@
-import type {
-  DecisionChoice,
-  DecisionNeed,
-  DraftOutput,
-  NeedSpec,
-  ProfileEntry,
-  RoleEvaluation,
+import {
+  type DecisionChoice,
+  type DecisionNeed,
+  type DraftOutput,
+  type NeedSpec,
+  type ProfileEntry,
+  type RoleEvaluation,
+  turnsDown,
 } from "@jobfilly/schema";
 import { answeredFor } from "../profile/changes";
 import { itemFromText, questionKeys } from "./answers";
+import { isNo } from "./words";
 
 // Where decisions come from (F7.1, F7.3, F7.6). A need is a question a reply can't go without,
 // stated by whoever knows why: a match verdict (verdict.need, "pay in another currency"), an
@@ -66,26 +68,26 @@ export function roleNeeds(input: RoleNeedsInput): RoleNeed[] {
 /**
  * A draft's questions (draft.v1) as needs. Each writes a profile key under a group key its answer
  * answers (questionKeys), so answeredFor tells later that it is answered and the question isn't
- * asked again (F7.6). Its choices become items of the key; a choice that can't be one is left
- * out, as the free-text option is always there. So are choices whose labels differ but whose
- * items don't: the group key's parts fill all of "places:IE:Dublin:hybrid", so "Yes" and "No"
- * would both add Dublin, and a click must never write what its label doesn't say.
+ * asked again (F7.6). Its choices stay answers to click, and a click never writes what its label
+ * doesn't say: a choice that makes an item of the key adds that item ("Yes" to
+ * "places:IE:Dublin:hybrid" adds Dublin hybrid); a no to a question whose items are objects
+ * turns it down for the waiting roles and writes nothing (its value is its words, turnsDown);
+ * any other choice is left out, as the free-text option is always there. Two choices that would
+ * add the same item are one.
  */
 export function needsFromQuestions(questions: DraftOutput["questions"]): NeedSpec[] {
   const out: NeedSpec[] = [];
   for (const q of questions) {
     const { profileKey, groupKey } = questionKeys(q);
     if (out.some((n) => n.groupKey === groupKey)) continue;
-    const made: DecisionChoice[] = [];
+    const choices: DecisionChoice[] = [];
     for (const label of q.choices) {
-      const value = itemFromText(profileKey, groupKey, label);
-      if (value !== null) made.push({ label, value });
+      const item = itemFromText(profileKey, groupKey, label);
+      const value = item ?? (isNo(label) && turnsDown(profileKey, label) ? label : null);
+      if (value === null) continue;
+      const same = choices.some((c) => JSON.stringify(c.value) === JSON.stringify(value));
+      if (!same) choices.push({ label, value });
     }
-    const same = (a: DecisionChoice, b: DecisionChoice) =>
-      JSON.stringify(a.value) === JSON.stringify(b.value);
-    const choices = made.filter(
-      (c) => !made.some((other) => other.label !== c.label && same(other, c)),
-    );
     out.push({ groupKey, profileKey, question: q.question, choices });
   }
   return out;

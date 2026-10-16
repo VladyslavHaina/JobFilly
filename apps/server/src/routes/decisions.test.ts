@@ -25,6 +25,14 @@ const ZURICH = "<zurich@x.example>";
 const BASEL = "<basel@x.example>";
 const ZURICH_2 = "<zurich-2@x.example>";
 const DUBLIN = "<dublin@x.example>";
+const BERLIN = "<berlin@x.example>";
+/** A draft.v1 question whose group key's parts fill every field of the item. */
+const HYBRID_DUBLIN = {
+  profileKey: "places",
+  groupKey: "places:IE:Dublin:hybrid",
+  question: "Hybrid in Dublin?",
+  choices: ["Yes", "No"],
+};
 const key = (id: string) => `${id}#0#1`;
 const CHF_120 = { amount: 120000, currency: "CHF", period: "year", asWritten: "CHF 120,000" };
 
@@ -258,6 +266,87 @@ describe("answering (F7.4, F7.6)", () => {
       useForSimilar: true,
     });
     expect(again.status).toBe(409);
+  });
+
+  it("refuses free text that says no or contradicts the question, and writes nothing", async () => {
+    await seedThree();
+    const chf = await decisionOf("min_pay:CHF:year");
+    for (const value of ["No", "EUR 95,000 a month", "95,000 a month", "None"]) {
+      const res = await maria.post(`${base}/${chf.id}/answer`, { value, useForSimilar: true });
+      expect(res.status, value).toBe(400);
+    }
+    await h.deliver(BERLIN);
+    h.ai.answers.draft[key(BERLIN)] = draftAnswer({ questions: [HYBRID_DUBLIN] });
+    await h.evaluate(BERLIN);
+    await h.drain();
+    const dublin = await decisionOf(HYBRID_DUBLIN.groupKey);
+    for (const value of ["No, only Cork", "Cork", "Onsite", "Nope"]) {
+      const res = await maria.post(`${base}/${dublin.id}/answer`, { value, useForSimilar: true });
+      expect(res.status, value).toBe(400);
+    }
+    expect((await decisionOf("min_pay:CHF:year")).status).toBe("open");
+    expect((await decisionOf(HYBRID_DUBLIN.groupKey)).status).toBe("open");
+    const [profile] = await listProfiles(h.deps.db, h.ws);
+    expect(profile?.entries.find((e) => e.key === "min_pay")?.value).toEqual([EUR_MIN]);
+    expect(profile?.entries.find((e) => e.key === "places")?.value ?? []).toEqual([]);
+    expect(await getHistory(h.deps.db, h.ws, h.profileId)).toEqual([]);
+  });
+
+  it("offers a yes and a no to click; the no answers the waiting role and writes nothing (F7.2)", async () => {
+    await h.deliver(BERLIN);
+    h.ai.answers.draft[key(BERLIN)] = draftAnswer({ questions: [HYBRID_DUBLIN] });
+    await h.evaluate(BERLIN);
+    await h.drain();
+    const decision = await decisionOf(HYBRID_DUBLIN.groupKey);
+    expect(decision.choices).toEqual([
+      { label: "Yes", value: { country: "IE", city: "Dublin", mode: "hybrid" } },
+      { label: "No", value: "No" },
+    ]);
+
+    h.ai.answers.draft[key(BERLIN)] = draftAnswer();
+    const res = await maria.post(`${base}/${decision.id}/answer`, {
+      value: "No",
+      useForSimilar: true,
+    });
+    expect(res.status).toBe(200);
+    expect(events("decision.answered")).toEqual([
+      expect.objectContaining({ decisionId: decision.id, useForSimilar: false, declined: true }),
+    ]);
+    await h.drain();
+    // Nothing is written to the profile: no place, no history.
+    const [profile] = await listProfiles(h.deps.db, h.ws);
+    expect(profile?.entries.find((e) => e.key === "places")?.value ?? []).toEqual([]);
+    expect(await getHistory(h.deps.db, h.ws, h.profileId)).toEqual([]);
+    // The waiting role gets its draft, told the answer, and the decision is gone.
+    expect(await h.live(BERLIN)).toMatchObject({ status: "in_mailbox", origin: "decision" });
+    const entries = h.draftInputs.at(-1)?.entries ?? [];
+    expect(entries).toContainEqual({
+      key: "extra.answer_places_ie_dublin_hybrid",
+      label: HYBRID_DUBLIN.question,
+      value: ["No"],
+    });
+    expect(entries.find((e) => e.key === "places")).toBeUndefined();
+    expect(await inbox()).toEqual([]);
+  });
+
+  it("writes the parts' item for a clicked yes", async () => {
+    await h.deliver(BERLIN);
+    h.ai.answers.draft[key(BERLIN)] = draftAnswer({ questions: [HYBRID_DUBLIN] });
+    await h.evaluate(BERLIN);
+    await h.drain();
+    const decision = await decisionOf(HYBRID_DUBLIN.groupKey);
+    h.ai.answers.draft[key(BERLIN)] = draftAnswer();
+    const res = await maria.post(`${base}/${decision.id}/answer`, {
+      value: decision.choices[0]?.value,
+      useForSimilar: true,
+    });
+    expect(res.status).toBe(200);
+    await h.drain();
+    const [profile] = await listProfiles(h.deps.db, h.ws);
+    expect(profile?.entries.find((e) => e.key === "places")?.value).toEqual([
+      { country: "IE", city: "Dublin", mode: "hybrid" },
+    ]);
+    expect(await h.live(BERLIN)).toMatchObject({ status: "in_mailbox" });
   });
 
   it("writes only the answer that claims the decision when two editors answer at once", async () => {

@@ -98,11 +98,14 @@ async function confirmedProfile(deps: AppDeps, ws: string): Promise<Profile | nu
   return (await listProfiles(deps.db, ws)).find((p) => p.confirmedAt !== null) ?? null;
 }
 
-/** The answers given for this role alone, which the draft may use besides the profile. */
+/**
+ * The answers given for this role alone, which the draft may use besides the profile: an item,
+ * or a no that turned the question down (draftEntries).
+ */
 function roleAnswers(rows: Awaited<ReturnType<typeof roleDecisions>>): DraftAnswer[] {
   return rows.flatMap((r) =>
     r.state === "resolved" && r.decisionStatus === "answered" && r.profileKey && r.answer !== null
-      ? [{ profileKey: r.profileKey, value: r.answer }]
+      ? [{ profileKey: r.profileKey, groupKey: r.groupKey, question: r.question, value: r.answer }]
       : [],
   );
 }

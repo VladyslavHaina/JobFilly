@@ -1,6 +1,6 @@
 import type { ProfileEntry } from "@jobfilly/schema";
 import { describe, expect, it } from "vitest";
-import { draftEntries, findPlaceholders } from "./index";
+import { type DraftAnswer, draftEntries, findPlaceholders } from "./index";
 
 const entry = (key: ProfileEntry["key"], value: ProfileEntry["value"]): ProfileEntry => ({
   key,
@@ -41,14 +41,41 @@ describe("what a draft may use (F6.2)", () => {
 
   it("adds an answer given for this role only, keeping the profile's items", () => {
     const entries = [entry("min_pay", [eur])];
-    expect(draftEntries(entries, [{ profileKey: "min_pay", value: chf }])).toEqual([
-      { key: "min_pay", label: "min_pay", value: [eur, chf] },
-    ]);
-    expect(draftEntries(entries, [{ profileKey: "extra.relocate", value: "Yes" }])).toEqual([
+    const asked = (profileKey: DraftAnswer["profileKey"], groupKey: string) => ({
+      profileKey,
+      groupKey,
+      question: "?",
+    });
+    expect(
+      draftEntries(entries, [{ ...asked("min_pay", "min_pay:CHF:year"), value: chf }]),
+    ).toEqual([{ key: "min_pay", label: "min_pay", value: [eur, chf] }]);
+    expect(
+      draftEntries(entries, [{ ...asked("extra.relocate", "extra.relocate"), value: "Yes" }]),
+    ).toEqual([
       { key: "min_pay", label: "min_pay", value: [eur] },
       { key: "extra.relocate", label: "relocate", value: ["Yes"] },
     ]);
     // The profile itself is untouched.
     expect(entries[0]?.value).toEqual([eur]);
+  });
+
+  it("gives a no as the question and its answer, adding no item to the key", () => {
+    const entries = [entry("min_pay", [eur])];
+    const declined = {
+      profileKey: "places" as const,
+      groupKey: "places:IE:Dublin:hybrid",
+      question: "Hybrid in Dublin?",
+      value: "No",
+    };
+    const ok = {
+      profileKey: "min_pay" as const,
+      groupKey: "min_pay:CHF:year",
+      question: "?",
+      value: chf,
+    };
+    expect(draftEntries(entries, [declined, ok])).toEqual([
+      { key: "min_pay", label: "min_pay", value: [eur, chf] },
+      { key: "extra.answer_places_ie_dublin_hybrid", label: "Hybrid in Dublin?", value: ["No"] },
+    ]);
   });
 });
