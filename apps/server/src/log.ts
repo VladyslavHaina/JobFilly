@@ -64,6 +64,8 @@ export type LogEvent =
   | "assistant.proposal_applied"
   | "assistant.proposal_discarded"
   | "profile.change_undone"
+  // Operational: assistant.v1 gave no answer (the turn is a 502), with the AI error's codes.
+  | "assistant.failed"
   // Operational: a pipeline stage or the sweep failed for one item (it is retried later; a stage
   // failure says why with failureFields, and when it is tried again), or a message's body was
   // gone from the mailbox (its sender check is stored incomplete), or the sweep has incomplete

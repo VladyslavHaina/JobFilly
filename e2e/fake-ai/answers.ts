@@ -4,6 +4,7 @@ import {
   type AnswerFile,
   ASSISTANT_ANSWERS_PATH,
   ASSISTANT_ANY_TURN,
+  type AssistantAnswer,
   type AssistantAnswerFile,
   assistantMessageKey,
   type ClassifyAnswer,
@@ -182,6 +183,32 @@ function roleAnswer(store: AnswerStore, prompt: Prompt): Answer {
   return answer ? { ok: true, content: answer } : missing(`no draft.v1 answer for ${key}`);
 }
 
+/**
+ * One Change as the model writes it for assistant.v1 (packages/schema AssistantRequestSchema):
+ * flat, with the rule and the entry's value as JSON text and the fields it doesn't use null.
+ */
+export function wireChange(change: unknown): unknown {
+  const c = change as Record<string, unknown>;
+  return {
+    op: c.op,
+    target: c.target,
+    ruleId: c.ruleId ?? null,
+    key: c.key ?? null,
+    rule: c.rule === undefined ? null : JSON.stringify(c.rule),
+    value: c.value === undefined || c.value === null ? null : JSON.stringify(c.value),
+  };
+}
+
+/** ai/assistant.json's answer (its meaning, with Changes) as the model writes it on the wire. */
+function wireAssistantAnswer(answer: AssistantAnswer): unknown {
+  return answer.proposal
+    ? {
+        ...answer,
+        proposal: { ...answer.proposal, changes: answer.proposal.changes.map(wireChange) },
+      }
+    : answer;
+}
+
 /** assistant.v1: by the user's message (assistantMessageKey), then by the Turn line or any turn. */
 function assistantAnswer(store: AnswerStore, prompt: Prompt): Answer {
   const turn = prompt.keys.Turn;
@@ -193,7 +220,7 @@ function assistantAnswer(store: AnswerStore, prompt: Prompt): Answer {
   // The reason names the turn only: the user's words are never logged (F8.10), and the app may
   // log a provider's error message.
   return answer
-    ? { ok: true, content: answer }
+    ? { ok: true, content: wireAssistantAnswer(answer) }
     : missing(`no assistant.v1 answer for this message at turn ${turn}`);
 }
 

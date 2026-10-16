@@ -26,7 +26,7 @@ export type MailTaskId = "classify.v1" | "extract.v1" | "prefs.v1" | "intake.v1"
 
 const INSTRUCTIONS: Record<MailTaskId, string> = {
   "classify.v1":
-    "Sort each email by what it is for a person looking for a job. Answer with one category per item, naming each item by its Message-ID.",
+    "Sort each email by what it is for a person looking for a job. Mail that offers a job, asks the person to apply or recruits for a role is job mail, even when it looks suspicious, asks for money or documents, or comes from a free-mail address: judging whether a sender can be trusted is the sender check's job, not this one. Answer with one category per item, naming each item by its Message-ID.",
   "extract.v1":
     "List every job role the email describes with its facts. For anything the email does not state, use null, or an empty string where the schema allows no null; never guess.",
   "prefs.v1":

@@ -3,6 +3,8 @@ import {
   AppliedSenderMarkSchema,
   AssistantAnswerSchema,
   AssistantOutputSchema,
+  AssistantRequestSchema,
+  AssistantWireAnswerSchema,
   answersWaitingOnly,
   ChangeSchema,
   CORE_PROFILE_KEYS,
@@ -235,6 +237,56 @@ describe("rules, changes and the assistant (F3, F8)", () => {
       expect(AssistantAnswerSchema.safeParse(answer(wrong)).success).toBe(false);
     }
     expect(AssistantAnswerSchema.safeParse({ reply: "Hi", clarify: null }).success).toBe(false);
+  });
+
+  it("reads assistant.v1's flat changes, with JSON text for rules and values, as Changes", () => {
+    const flat = (change: Record<string, unknown>) => ({
+      reply: "Here is a proposal.",
+      clarify: null,
+      proposal: {
+        summary: "s",
+        changes: [{ ruleId: null, key: null, rule: null, value: null, ...change }],
+      },
+    });
+    const decoded = (change: Record<string, unknown>) =>
+      AssistantWireAnswerSchema.safeParse(flat(change));
+    const places = [{ country: "DE", city: null, mode: "hybrid" }];
+    const cases: [Record<string, unknown>, unknown][] = [
+      [
+        { op: "add", target: "rule", rule: JSON.stringify(rule) },
+        { op: "add", target: "rule", rule },
+      ],
+      [
+        { op: "update", target: "rule", ruleId: id, rule: JSON.stringify(rule) },
+        { op: "update", target: "rule", ruleId: id, rule },
+      ],
+      [
+        { op: "remove", target: "rule", ruleId: id },
+        { op: "remove", target: "rule", ruleId: id },
+      ],
+      [
+        { op: "add", target: "entry", key: "places", value: JSON.stringify(places) },
+        { op: "add", target: "entry", key: "places", value: places },
+      ],
+      [
+        { op: "remove", target: "entry", key: "places" },
+        { op: "remove", target: "entry", key: "places", value: null },
+      ],
+    ];
+    for (const [change, want] of cases) {
+      expect(decoded(change).data?.proposal?.changes, JSON.stringify(change)).toEqual([want]);
+      expect(AssistantRequestSchema.safeParse(flat(change)).success).toBe(true);
+    }
+    // The decoded answer is checked against ChangeSchema: text that isn't JSON, a rule as an
+    // object instead of text, or a value missing on add fails like any wrong answer.
+    for (const wrong of [
+      { op: "add", target: "rule", rule: "{not json" },
+      { op: "add", target: "rule", rule },
+      { op: "add", target: "entry", key: "places" },
+      { op: "update", target: "rule", rule: JSON.stringify(rule) },
+    ]) {
+      expect(decoded(wrong).success, JSON.stringify(wrong)).toBe(false);
+    }
   });
 
   it("words a proposal card and a history item line by line, before and after (F8.2, F8.4)", () => {

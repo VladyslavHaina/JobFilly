@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { ChangeSchema, TASK_OUTPUT_SCHEMAS } from "./index";
+import { AssistantOutputSchema, ChangeSchema, TASK_OUTPUT_SCHEMAS } from "./index";
 
 // The test stack's canned model answers and the assistant requests' expected Changes
 // (e2e/fixtures) against the schemas the app validates them with. The direction is from here to
@@ -49,14 +49,16 @@ describe("the e2e fixtures", () => {
     },
   );
 
-  it("answer every turn of ai/assistant.json with assistant.v1's output schema", () => {
+  // ai/assistant.json holds each answer's meaning, with Changes; the fake AI writes its changes
+  // in assistant.v1's flat wire shape (AssistantRequestSchema) when it answers.
+  it("answer every turn of ai/assistant.json with assistant.v1's output", () => {
     const answers = readJson("ai/assistant.json") as Record<string, Record<string, unknown>>;
     const turns = Object.entries(answers).flatMap(([message, byTurn]) =>
       Object.entries(byTurn).map(([turn, answer]) => ({ where: `${message} @${turn}`, answer })),
     );
     expect(turns.length).toBeGreaterThan(0);
     for (const { where, answer } of turns) {
-      const result = TASK_OUTPUT_SCHEMAS["assistant.v1"].safeParse(answer);
+      const result = AssistantOutputSchema.safeParse(answer);
       expect(result.error?.issues, where).toBeUndefined();
     }
   });

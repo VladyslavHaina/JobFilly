@@ -340,8 +340,9 @@ Rules:
   checks the proposal's member (`ownProposal`) before acting. Another member's thread or proposal
   answers 404.
 - A message gets one assistant.v1 call (`apps/server/src/assistant/service.ts`). packages/ai asks
-  the provider for `AssistantRequestSchema` (its entry changes as one shape, for fewer unions)
-  but checks the answer against `AssistantAnswerSchema`,
+  the provider for `AssistantRequestSchema` (every change one flat shape, with the rule and the
+  entry's value as JSON text, so the schema stays small enough for every provider's grammar),
+  reads the answer back into Changes and checks it against `AssistantAnswerSchema`,
   which also lets through changes outside rules and entries, so the server can refuse such a
   proposal in words with the reply kept (F8.7). A proposal is kept only when it is a list of rule
   and entry Changes that apply to the profile, and with a clarifying question no proposal is

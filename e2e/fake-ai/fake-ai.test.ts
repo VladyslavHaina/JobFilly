@@ -24,7 +24,13 @@ import {
   personaPathsMvp2,
   readJson,
 } from "../fixtures/format.ts";
-import { createStore, INVALID_VALUE, loadAnswers, type PersonaAnswers } from "./answers.ts";
+import {
+  createStore,
+  INVALID_VALUE,
+  loadAnswers,
+  type PersonaAnswers,
+  wireChange,
+} from "./answers.ts";
 import { parsePrompt } from "./prompt.ts";
 import { createFakeAi, respond } from "./server.ts";
 
@@ -450,7 +456,8 @@ describe("the fake AI's assistant answers", () => {
           "profile",
           `${r.text} E2E-CHAT-${turn}`,
         );
-        expect(content.proposal?.changes, r.text).toEqual(r.expected);
+        // On the wire: flat, with the rule and the value as JSON text (AssistantRequestSchema).
+        expect(content.proposal?.changes, r.text).toEqual(r.expected?.map(wireChange));
       }
     },
   );

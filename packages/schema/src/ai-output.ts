@@ -3,13 +3,7 @@ import { ChangeSchema } from "./assistant";
 import { CategorySchema } from "./category";
 import { TextSchema } from "./common";
 import { JobFactsAnswerSchema } from "./facts";
-import {
-  ExtraQuestionSchema,
-  MAX_EXTRA_QUESTIONS,
-  PreferencesAnswerSchema,
-  ProfileKeySchema,
-  ProfileValueSchema,
-} from "./profile";
+import { ExtraQuestionSchema, MAX_EXTRA_QUESTIONS, PreferencesAnswerSchema } from "./profile";
 
 // The structured outputs the model must return, one per task id. packages/ai validates every
 // answer against these (per item for batched tasks) and never patches an invalid one up. The
@@ -112,29 +106,70 @@ export const AssistantOutputSchema = z.object({
 export type AssistantOutput = z.infer<typeof AssistantOutputSchema>;
 
 /**
- * A Change as assistant.v1 asks the model for it: ChangeSchema with its three entry shapes as
- * one, whose `op` is add, update or remove and whose value may be null. Every Change is one of
- * these, and the JSON Schema the provider is given has 13 unions instead of 23 (Anthropic refuses
- * more than 16). The answer is still checked against ChangeSchema (AssistantAnswerSchema), so an
- * add or update with a null value fails there.
+ * A Change as assistant.v1 asks the model for it: one flat object for every Change, with the
+ * rule (a RuleDraft) and the entry's value as JSON text, and the fields a change doesn't use
+ * null. The nested Change union compiled to a grammar Anthropic refuses as too large (HTTP 400),
+ * so the JSON Schema the provider is given stays flat. The answer is decoded
+ * (assistantAnswerFromRequest) and then checked against ChangeSchema like any answer.
  */
-const [addRule, updateRule, removeRule] = ChangeSchema.options;
-const ChangeRequestSchema = z.union([
-  addRule,
-  updateRule,
-  removeRule,
-  z.object({
-    op: z.enum(["add", "update", "remove"]),
-    target: z.literal("entry"),
-    key: ProfileKeySchema,
-    value: ProfileValueSchema.nullable(),
-  }),
-]);
+const ChangeRequestSchema = z.object({
+  op: z.enum(["add", "update", "remove"]),
+  target: z.enum(["rule", "entry"]),
+  /** The rule an update or a remove changes. */
+  ruleId: z.string().nullable(),
+  /** The profile entry's key. */
+  key: z.string().nullable(),
+  /** The rule an add or an update sets, as JSON text: { description, when, then, enabled }. */
+  rule: z.string().nullable(),
+  /** The entry's value as JSON text; null with remove removes the whole entry. */
+  value: z.string().nullable(),
+});
 
 /** What the provider is asked for in assistant.v1: AssistantOutputSchema, the changes as above. */
 export const AssistantRequestSchema = AssistantOutputSchema.extend({
   proposal: z.object({ summary: TextSchema, changes: z.array(ChangeRequestSchema) }).nullable(),
 });
+
+/** The value of JSON text; anything else, or text that isn't JSON, is undefined, which fails. */
+function jsonText(text: unknown): unknown {
+  if (text === null) return null;
+  if (typeof text !== "string") return undefined;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return undefined;
+  }
+}
+
+/** One change of the answer in ChangeSchema's shape; a change outside rules and entries as is. */
+function changeFromRequest(change: unknown): unknown {
+  if (typeof change !== "object" || change === null) return change;
+  const { op, target, ruleId, key, rule, value } = change as Record<string, unknown>;
+  if (target === "rule") {
+    return {
+      op,
+      target,
+      ...(op === "add" ? {} : { ruleId }),
+      ...(op === "remove" ? {} : { rule: jsonText(rule) }),
+    };
+  }
+  if (target === "entry") return { op, target, key, value: jsonText(value) };
+  return change;
+}
+
+/**
+ * An assistant.v1 answer as AssistantRequestSchema writes it, in AssistantAnswerSchema's shape:
+ * each change's rule and value read from their JSON text. Nothing is checked here; the result is
+ * checked against AssistantAnswerSchema (AssistantWireAnswerSchema).
+ */
+function assistantAnswerFromRequest(answer: unknown): unknown {
+  if (typeof answer !== "object" || answer === null) return answer;
+  const { proposal } = answer as { proposal?: unknown };
+  if (typeof proposal !== "object" || proposal === null) return answer;
+  const { changes } = proposal as { changes?: unknown };
+  if (!Array.isArray(changes)) return answer;
+  return { ...answer, proposal: { ...proposal, changes: changes.map(changeFromRequest) } };
+}
 
 /**
  * A change in an assistant.v1 answer that targets neither a rule nor a profile entry (a mailbox,
@@ -160,6 +195,12 @@ export const AssistantAnswerSchema = AssistantOutputSchema.extend({
     .nullable(),
 });
 export type AssistantAnswer = z.infer<typeof AssistantAnswerSchema>;
+
+/** What packages/ai checks the provider's assistant.v1 answer against: decoded, then checked. */
+export const AssistantWireAnswerSchema = z.preprocess(
+  assistantAnswerFromRequest,
+  AssistantAnswerSchema,
+);
 
 /** The output schema each task id asks the provider for. */
 export const TASK_OUTPUT_SCHEMAS = {

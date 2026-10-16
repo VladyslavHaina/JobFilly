@@ -1,3 +1,4 @@
+import { CORE_PROFILE_KEYS, POLICY_KEYS } from "@jobfilly/schema";
 import { describe, expect, it } from "vitest";
 import { assistantPrompt } from "./assistant";
 
@@ -23,8 +24,19 @@ describe("assistant.v1's instruction", () => {
     expect(system).toContain("never say a change is made");
   });
 
+  it("asks for flat changes with the rule and the value as JSON text, naming every key", () => {
+    expect(system).toContain("`rule` to the rule as JSON text");
+    expect(system).toContain("`value` to the entry's value as JSON text");
+    expect(system).toContain("every field a change doesn't use is null");
+    for (const key of [...CORE_PROFILE_KEYS, ...POLICY_KEYS]) expect(system).toContain(` ${key} (`);
+    expect(system).toContain(" extra.<key>: a list of words");
+  });
+
   it("asks one clarifying question with choices instead of guessing (F8.6)", () => {
     expect(system).toMatch(/unclear.*`clarify`.*`choices`.*never guess/);
+    // …but a clear request whose value has several readings gets the likeliest, to edit (F8.2).
+    expect(system).toContain("It is unclear only when you can't tell what the user wants changed.");
+    expect(system).toContain("propose the likeliest reading: the user can edit a proposal");
   });
 
   it("says what it can't do and where each is done (F8.7)", () => {
