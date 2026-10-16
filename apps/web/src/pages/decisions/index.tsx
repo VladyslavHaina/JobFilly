@@ -1,4 +1,4 @@
-import { type Decision, type ProfileItem, turnsDown } from "@jobfilly/schema";
+import { answersWaitingOnly, type Decision, type ProfileItem, turnsDown } from "@jobfilly/schema";
 import { useId, useState } from "react";
 import { Link } from "react-router";
 import { errorText } from "../../api";
@@ -38,10 +38,13 @@ function DecisionCard({ decision }: { decision: Decision }) {
   const locked = !can.edit || busy;
   // An ask_first rule's question has no profile key: the rule asks it for each message.
   const perRule = decision.profileKey === null;
-  // A no to "Hybrid in Dublin?" answers the messages above and writes nothing (turnsDown).
+  // A no to "Hybrid in Dublin?", or an answer no item can be made of, answers the messages above
+  // and writes nothing (answersWaitingOnly).
   const choice = picked !== null && picked !== OTHER ? decision.choices[Number(picked)] : null;
-  const declines = choice ? turnsDown(decision.profileKey, choice.value) : false;
+  const declines = choice ? answersWaitingOnly(decision.profileKey, choice) : false;
   const forTheseOnly = perRule || declines;
+  // Own words where the key's items are objects add one only when they state it exactly.
+  const ownWords = picked === OTHER && !perRule && turnsDown(decision.profileKey, OTHER);
 
   return (
     <Card>
@@ -140,6 +143,13 @@ function DecisionCard({ decision }: { decision: Decision }) {
               <p id={`${name}-only`} className="text-xs text-stone-500">
                 "{choice?.label}" answers the messages above only: their replies are told, and
                 nothing is added to your profile.
+              </p>
+            )}
+            {ownWords && (
+              <p className="text-xs text-stone-500">
+                Your words are added to your profile only when they state exactly this, such as an
+                amount with its currency. Otherwise they answer the messages above only: their
+                replies are told, and nothing is added to your profile.
               </p>
             )}
           </fieldset>

@@ -159,7 +159,7 @@ describe("the Decisions page (F7.2)", () => {
       groupKey: "places:IE:Dublin:hybrid",
       choices: [
         { label: "Yes", value: { country: "IE", city: "Dublin", mode: "hybrid" } },
-        { label: "No", value: "No" },
+        { label: "No", value: "No", declines: true },
       ],
     };
     const seen = fakeApi({
@@ -184,6 +184,33 @@ describe("the Decisions page (F7.2)", () => {
       value: "No",
       useForSimilar: false,
     });
+  });
+
+  it("says when an answer can only answer the waiting messages: a yes no item can be made of, own words", async () => {
+    const dublin: Decision = {
+      ...RELOCATE,
+      id: "00000000-0000-4000-8000-0000000000c5",
+      question: "Would you work in Dublin?",
+      profileKey: "places",
+      groupKey: "places:IE:Dublin",
+      // "Yes" names no work mode: it stays clickable, for the waiting messages only.
+      choices: [
+        { label: "Yes", value: "Yes" },
+        { label: "No", value: "No", declines: true },
+      ],
+    };
+    fakeApi({ [`GET ${BASE}`]: { items: [dublin] } });
+    renderInWorkspace(<DecisionsPage workspaceId={W} />);
+    await screen.findByRole("heading", { name: "Would you work in Dublin?" });
+    const similar = screen.getByRole("checkbox", {
+      name: "Use this answer for similar mail",
+    }) as HTMLInputElement;
+    await userEvent.click(screen.getByRole("radio", { name: "Yes" }));
+    expect(similar.disabled).toBe(true);
+    expect(screen.getByText(/"Yes" answers the messages above only/)).toBeTruthy();
+    await userEvent.click(screen.getByRole("radio", { name: "Something else" }));
+    expect(similar.disabled).toBe(false);
+    expect(screen.getByText(/only when they state exactly this/)).toBeTruthy();
   });
 
   it("keeps a decision with Not now, and closes it for one message with Don't ask", async () => {
