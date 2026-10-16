@@ -4937,3 +4937,563 @@ These make sign-off possible; without them the build goes on and records an open
 - **If you decide otherwise:** Other test files can still cascade under heavy load until the shared helper or those files get the same protection; the e2e-fixtures or a db-testing task should do it.
 - **Refs:** apps/server/src/routes/history.test.ts, apps/server/src/routes/assistant.test.ts, packages/db/src/queries/assistant.test.ts, packages/db/src/testing.ts, vitest.config.ts (isolate:false, hookTimeout 30s)
 - **Status:** open
+
+## TBD-394 · Create the missing MVP 1 state through the UI before S1
+- **Kind:** decision
+- **Where:** MVP 2 · Validate (S1)
+- **Context:** S1 expects Maria (and Tom) to exist from the MVP 1 scenarios, but the stack had no users. Maria's sign-in failed, and the earlier 'specs' were only stack health checks.
+- **Options:**
+  1. Stop and report S1 as not walkable
+  2. Register Maria and Tom through the UI and set up Maria's AI, then walk S1
+  3. Replay all of MVP 1 (mailbox, 600-message scan, intake) first
+- **Chosen:** Registered Maria (E2E-SECRET-maria-login) and Tom (E2E-SECRET-tom-login) through the Create account form, saved Maria's AI as OpenAI-compatible http://fake-ai:8080/v1 with key E2E-SECRET-ai-key, then walked S1. S1 needs only an account and a workspace to reach the CVs page. The CVs feature is a stub, so a full MVP 1 replay would not change S1's result, and these minimal steps let the walk still check what a person sees.
+- **If you decide otherwise:** If the owner wants MVP 2 runs to replay MVP 1 first, the workflow has to run MVP 1's scenarios or specs that create that state. The current e2e/specs/mvp-1 has only stack checks. The two accounts and Maria's AI settings now exist on stack jobfilly-e2e-20261016-070152 for the later scenarios.
+- **Refs:** e2e/reports/mvp-2/20261016T070152Z-r2-walkthrough/specs.log; app.log auth.registered x2, ai.settings_saved
+- **Status:** open
+
+## TBD-395 · CV fixture files taken from an unmerged branch for the walk
+- **Kind:** decision
+- **Where:** MVP 2 · Validate (S1)
+- **Context:** The CV fixtures needed for the file picker are not on mvp-2.
+- **Options:**
+  1. Report S1 as unwalkable without files
+  2. Use the fixture files from mvp-2-fix-r1-e2e-fixtures, unchanged, in the scratchpad
+- **Chosen:** Took them with git show into the session scratchpad. Nothing was committed or added to the tree. This keeps the walk faithful to the spec's fixtures without changing the branch. In the end it made no difference: the page has no upload control.
+- **If you decide otherwise:** Nothing changes; the files are outside the repo.
+- **Refs:** git show mvp-2-fix-r1-e2e-fixtures:e2e/fixtures/maria/cvs/*
+- **Status:** open
+
+## TBD-396 · Did not complete Maria's MVP 1 onboarding (connect mailbox, scan, confirm profile) during the S2 walkthrough
+- **Kind:** decision
+- **Where:** MVP 2 · Validate (S2)
+- **Context:** Maria's workspace had no mailbox, and S2 relies on MVP 1's end state. Completing it would mean walking MVP 1's S1 to S5, which this task doesn't list. It also wouldn't change the outcome, because this build has no sync job, no seed deliver and no usage view.
+- **Options:**
+  1. Walk MVP 1 onboarding inside S2 to create the precondition
+  2. Report the missing precondition and walk S2 as far as it goes
+- **Chosen:** Report the missing precondition and walk S2 as far as it goes. The protocol limits each walkthrough to the steps the scenario lists. Merging the slices is the real fix, and replaying MVP 1's scenarios belongs to the run, not to S2.
+- **If you decide otherwise:** If the orchestrator wants scenario agents to set up missing earlier-MVP state themselves, S2 would first connect Maria's mailbox (Other IMAP, E2E-SECRET-maria-imap), run the scan and confirm the profile. On this build S2 would still fail F1.1, F1.2, F1.5 and F1.6.
+- **Refs:** docs/mvp/README.md 'The test stack' (MVP 2 relies on the profile Maria confirmed in MVP 1); docs/mvp/MVP-2.md S2
+- **Status:** open
+
+## TBD-397 · Walk S3 against the given stack instead of rebuilding the missing earlier state
+- **Kind:** decision
+- **Where:** MVP 2 · Validate (S3)
+- **Context:** S3 assumes Maria's MVP 1 profile, her three CVs from S1 and the Berlin message delivered in S2. None of these exist in the stack: no mailbox, no seed deliver command, no CV fixtures.
+- **Options:**
+  1. Walk S3 as far as the UI allows and report it failed
+  2. Connect Maria's mailbox and run the MVP 1 setup myself to make the state
+  3. Mark S3 not run
+- **Chosen:** Walk S3 as far as the UI allows and report it failed. The protocol says a scenario starts from the state earlier scenarios leave behind, and a scenario counts as passed only if it was walked. Even with the setup redone, the Berlin role can't be delivered and the match, CV and draft UI are stubs, so the outcome would be the same and the stack would be left in a state the next agents don't expect.
+- **If you decide otherwise:** If the owner wants each walkthrough agent to rebuild missing preconditions, the S3 agent would also do the mailbox setup and scan. S3 would still fail until seed deliver and inspect, the delivered-mail and CV fixtures, and the MVP 2 UI exist.
+- **Refs:** docs/mvp/README.md 'Validation protocol' and 'One run plays the scenarios of every MVP up to the current one'; e2e/seed/main.ts; apps/web/src/pages/{match,cvs,drafts}/index.tsx
+- **Status:** open
+
+## TBD-398 · Report S4 as failed instead of building missing state by other means
+- **Kind:** decision
+- **Where:** MVP 2 · Validate (S4)
+- **Context:** S4 needs a remote-EU draft, a data-engineering role and the Data engineering (EN) CV. None of these exist, and none can be created through the UI or the seed on this stack, because the MVP 2 code and fixtures are not merged into mvp-2.
+- **Options:**
+  1. Mark S4 failed with the evidence, and name the root cause (slice branches not merged)
+  2. Create the state with API calls or database writes
+  3. Rebuild the stack from an unmerged slice branch
+- **Chosen:** Mark S4 failed with the evidence, and name the root cause (slice branches not merged). The validation protocol forbids API calls and database reads during the walkthrough, and it forbids marking a scenario passed unless it was walked. Rebuilding the stack from another branch is outside a walkthrough agent's remit and would not validate mvp-2.
+- **If you decide otherwise:** If the orchestrator merges the verified slice and fix branches into mvp-2 and starts a fresh stack (replaying MVP 1's scenarios first), S4 can be walked for real.
+- **Refs:** docs/mvp/README.md (Validation protocol 1, Quality gates); git branch --no-merged mvp-2; apps/server/src/routes/drafts.ts; apps/server/src/routes/cvs.ts; apps/web/src/pages/drafts/index.tsx; apps/web/src/pages/cvs/index.tsx; e2e/seed/main.ts
+- **Status:** open
+
+## TBD-399 · Did not rebuild the MVP 1 state (mailbox, AI, scan, profile) to reach S5
+- **Kind:** decision
+- **Where:** MVP 2 · Validate (S5)
+- **Context:** Maria has no mailbox connected in this run. S5 relies on state from MVP 1 and from MVP 2 S2, which delivers the Zurich, Basel and Dublin roles with 'seed deliver'.
+- **Options:**
+  1. Run MVP 1 S1–S5 by hand inside this S5 walkthrough
+  2. Walk what S5 can reach, record the missing state and features, and mark it failed
+- **Chosen:** Walk what S5 can reach, record the missing state and features, and mark it failed. The protocol allows only the steps S5 lists. Even with the MVP 1 state rebuilt, S5 still couldn't run: 'seed deliver' and the delivery fixtures don't exist, and the decision inbox is a stub on every layer.
+- **If you decide otherwise:** Rebuilding the MVP 1 state would change S5's outcome only after the replies slice, the seed 'deliver' command and the MVP 2 fixtures are built.
+- **Refs:** apps/web/src/pages/decisions/index.tsx; apps/server/src/routes/decisions.ts; e2e/seed/main.ts; e2e/reports/mvp-2/20261016T070152Z-r2-walkthrough/specs.log
+- **Status:** open
+
+## TBD-400 · Did not set up S6's missing preconditions by hand during the walkthrough
+- **Kind:** decision
+- **Where:** MVP 2 · Validate (S6)
+- **Context:** S6 starts from the state earlier scenarios leave behind: Maria's connected mailbox, the first scan's backlog with the scam, and the MVP 2 delivered mail. None of it exists on this stack, and S6 lists no infrastructure steps.
+- **Options:**
+  1. Report S6 as failed and leave the stack untouched
+  2. Connect Maria's mailbox through the UI, run `seed load maria` and a scan to create the backlog, then walk S6
+- **Chosen:** Report S6 as failed and leave the stack untouched. The validation protocol allows infrastructure steps only where the scenario lists them. Rebuilding MVP 1 state would change the shared stack for the scenarios after this one. And even with that state, the scenario still couldn't pass: `seed deliver` doesn't exist, the dns/rdap services are missing, and the sender check and sender-mark route are stubs that return 501.
+- **If you decide otherwise:** If the owner wants S6 walked from a rebuilt state, the run must first replay MVP 1's S1–S5 (mailbox, AI, scan, profile) on the stack. The F5 slice (domain lookups, sender marks, badge), the dns/rdap services and seed deliver must also be built before S6 can pass.
+- **Refs:** docs/mvp/README.md › Validation protocol §1 and The test stack; docs/mvp/MVP-2.md S6, F5; apps/server/src/routes/senders.ts; apps/server/src/senders/lookup.ts; e2e/seed/main.ts; docker/compose.e2e.yaml
+- **Status:** open
+
+## TBD-401 · Did not create the missing MVP 1 / S2 state myself to make S7 walkable
+- **Kind:** decision
+- **Where:** MVP 2 · Validate (S7)
+- **Context:** S7 needs the Amsterdam and Singapore roles (delivered in S2), a job alert and the first scan's backlog with Maria's confirmed profile (MVP 1). None of that exists on the stack. S7 lists no infrastructure steps.
+- **Options:**
+  1. Connect Maria's mailbox, run the first scan, confirm intake and `seed deliver` the batch myself, then walk S7
+  2. Walk S7 as written on the state the run left behind and report it as blocked
+- **Chosen:** Walk S7 as written and report it as blocked. The protocol allows infrastructure steps only where a scenario lists them, and S7 lists none. Replaying MVP 1 S1-S5 and MVP 2 S2 inside S7 would mean walking other scenarios under S7's name and changing the state that S8-S12 start from. Also, with match/rules/drafts still returning 501, recreating the state would not make any S7 criterion pass.
+- **If you decide otherwise:** The validation phase should run the MVP 1 scenarios (or their specs) first on the fresh stack, merge the MVP 2 slice branches, then walk S7 again. Only then can F4.2, F6.1 and F1.6 be judged.
+- **Refs:** docs/mvp/README.md 'The test stack' (one run plays every MVP's scenarios in order; MVP 2 relies on the profile Maria confirmed in MVP 1); docs/mvp/MVP-2.md S7
+- **Status:** open
+
+## TBD-402 · Rebuild S10's starting state through the UI
+- **Kind:** decision
+- **Where:** MVP 2 · Validate (S10)
+- **Context:** S10 starts with 'Maria sets Tom back to Viewer', which assumes MVP 1 S6 left Tom as an Editor in Maria's workspace. In this run Tom was not a member: app.log had no invite or role events, and the Members page listed only Maria.
+- **Options:**
+  1. Mark S10 as failed on its precondition and stop
+  2. Create the precondition the way a person would (Maria invites Tom as Editor, Tom accepts), then walk S10
+- **Chosen:** Create the precondition through visible UI: Members > invite tom.okafor@inbox.example as Editor > Tom signs in and presses Accept > Maria sets him to Viewer. This uses only person-level actions that MVP 1 already specifies. It lets the walk test the parts of S10 that can be tested (role change, viewer nav, server 403s) without editing the spec, and it reports the gap instead of hiding it.
+- **If you decide otherwise:** S10 would have produced no evidence at all, and the role-guard behaviour would have gone untested in this run.
+- **Refs:** docs/mvp/MVP-1.md S6; docs/mvp/MVP-2.md S10; log 07:41:57Z workspace.invite_created, 07:42:29Z workspace.invite_accepted, 07:42:50Z workspace.role_changed
+- **Status:** open
+
+## TBD-403 · Probe with made-up ids because no proposal, decision or draft exists
+- **Kind:** decision
+- **Where:** MVP 2 · Validate (S10)
+- **Context:** The probes need a real proposal, decision and draft id. None can exist, because the handlers are 501 stubs.
+- **Options:**
+  1. Skip the probes
+  2. Probe with syntactically valid made-up UUIDs and compare the result with an editor (Maria)
+- **Chosen:** Made-up UUIDs, with Maria's session as a control (501 for her, 403 for Tom). The control shows the 403 comes from the role check, not from a missing object. The result is reported with that limit.
+- **If you decide otherwise:** The role guard would have gone unverified on the live stack.
+- **Refs:** apps/server/src/routes/{assistant,decisions,drafts}.ts; log 07:43:47Z 403 lines
+- **Status:** open
+
+## TBD-404 · Connected Maria's mailbox through the UI before walking S11
+- **Kind:** decision
+- **Where:** MVP 2 · Validate (S11)
+- **Context:** S11 assumes the state earlier scenarios leave behind, but Maria's workspace had no connected mailbox. Without one, the missing sync events would prove nothing about the sync itself.
+- **Options:**
+  1. Walk S11 with no mailbox and report everything as precondition-blocked
+  2. Connect Maria's mailbox as a person would (Other IMAP, imap:3143, plain text), without starting a scan, so the sync and outage steps could be observed
+- **Chosen:** Connected the mailbox through the visible setup form (Test connection showed 'Connected: Inbox, Sent', then Save and continue), kept the AI settings already saved, and did not start a scan. It produces direct evidence that no sync runs for a connected mailbox, which separates a missing feature from missing setup. It uses only person actions in the UI and adds no scan data that later regression specs might trip on.
+- **If you decide otherwise:** Maria's workspace would still have no mailbox. If the next scenario or spec run (S12) expects a workspace without a mailbox, disconnect it under Settings › Mailbox, or start a fresh stack.
+- **Refs:** app.log mailbox.connected 2026-10-16T07:46:42.520Z mailboxId 3704779f-2035-411e-905e-254116593acc
+- **Status:** open
+
+## TBD-405 · Killed app-b although no sync.started instance existed
+- **Kind:** decision
+- **Where:** MVP 2 · Validate (S11)
+- **Context:** The scenario says to kill the replica named in the next sync.started, but no sync.started was ever logged.
+- **Options:**
+  1. Skip the kill step
+  2. Kill one replica anyway to see whether a lease or sync is taken over and whether the UI survives
+- **Chosen:** Killed app-b at 07:51:02Z and started it again at 07:52:37Z. It still exercises the takeover path. No job.lease_expired appeared, which confirms there was no sync job to take over, and it shows the UI keeps working through app-a.
+- **If you decide otherwise:** Nothing would change in the result; the step would just be recorded as not performed.
+- **Refs:** app.log app-b server.ready 2026-10-16T07:52:38.169Z
+- **Status:** open
+
+## TBD-406 · How to walk S12 'All MVP 1 specs pass'
+- **Kind:** decision
+- **Where:** MVP 2 · Validate (S12)
+- **Context:** S12 has no UI steps and no camera mark. The MVP 1 spec suite has no scenario specs (only a stack smoke test and a skipped F5.3 proof), so running it proves little about MVP 1 behaviour.
+- **Options:**
+  1. Only run `pnpm e2e:specs --mvp 1` and report its result
+  2. Run the specs, then walk MVP 1's main paths by hand in the browser (scan, intake confirm, inbox facts, Esc, sign-out/Back/sign-in)
+  3. Re-walk all of MVP 1 S1-S11 on this stack
+- **Chosen:** Ran the specs, then did a short hand walk of MVP 1's main paths as Maria. This included pressing Start scan and confirming the intake with Amsterdam removed, because no MVP 1 scan or profile existed yet in this run. I saved 3 evidence screenshots, although S12 marks no camera step. The criterion is literally the specs, so running them is the scenario. The specs cover no MVP 1 scenario, so a visible-UI walk was the only real regression evidence. S12 is the last scenario, so changing state (scan, profile) no longer affects later steps. A full S1-S11 re-walk would re-register users and repeat infrastructure steps the scenario doesn't list.
+- **If you decide otherwise:** If only the spec run counts, S12 is '3 passed, 2 skipped' and fails on the skips. If S12 is meant to re-prove MVP 1's scenarios, they must first be codified with the names fixed in e2e/fixtures/f53-proof.ts (TBD-148/TBD-324) and run on a fresh stack before MVP 2's scenarios.
+- **Refs:** docs/mvp/MVP-2.md S12; docs/mvp/README.md 'How an MVP ends'/'Sign-off'; TBD-324; e2e/reports/mvp-2/20261016T070152Z-r2-walkthrough/S12-specs-mvp-1.log, S12-01..03 screenshots
+- **Status:** open
+
+## TBD-407 · Count skipped specs as not passing
+- **Kind:** decision
+- **Where:** MVP 2 · Validate (S12)
+- **Context:** The spec run exits 0 with 3 passed and 2 skipped, and the workflow's computed task describes the earlier run as 'all passed'.
+- **Options:**
+  1. Treat exit 0 as S12 passed
+  2. Treat skipped specs as not passing, so S12 fails
+- **Chosen:** S12 reported as not passed. 'All MVP 1 specs pass' cannot hold while 2 of 5 specs never run, and README's sign-off requires earlier MVPs' specs to pass rather than skip. Marking it passed would claim a check that never ran.
+- **If you decide otherwise:** If the owner accepts the skip guard (TBD-142) as compliant during walkthrough rounds, S12 passes on the 3 stack specs plus the hand walk. The confirm run must still have codified MVP 1 specs.
+- **Refs:** e2e/specs/mvp-1/99-f5.3-stored-equals-expected.spec.ts; e2e/fixtures/f53-proof.ts; TBD-142
+- **Status:** open
+
+## TBD-408 · Every slice's fixes continue its newest fix-r2 branch, scoped to the verifier findings
+- **Kind:** decision
+- **Where:** MVP 2 · Fix round 3
+- **Context:** Validation failed in S1-S12 for one main reason: no MVP 2 slice or fix branch is merged into mvp-2 (HEAD 8e79340, only fix-r1-web-shell). In rounds 1 and 2 each slice's fix branch failed verification, so the integrate step never merged it, and the stack ran foundation stubs.
+- **Options:**
+  1. Continue each slice's newest fix-r2 branch, scoped to its verifier findings plus the validation criteria it owns
+  2. One task that merges every branch into a fresh branch and fixes everything
+  3. A task that changes .claude/workflows/build-mvp.js so unverified branches merge too
+- **Chosen:** Continue each slice's newest fix-r2 branch, scoped to its verifier findings plus the validation criteria it owns. The fix-r2 branches are the newest version of each slice (fix-r2-cvs-senders and fix-r2-mailbox are rebased rewrites of r1, and the others descend from r1). Fixing exactly what blocked verification is what lets them merge. One merge-everything task would be judged on about 100 items and would almost surely fail some, which would again merge nothing. Changing the workflow mid-run has no effect on the script that is running, and loosening the verify gate is the owner's call, not the build's.
+- **If you decide otherwise:** If verification keeps failing on new hygiene findings, mvp-2 stays stubs and every validation round fails the same way. The owner may then want the integrate step to merge branches whose criterion findings pass even when hygiene findings remain.
+- **Refs:** .claude/workflows/build-mvp.js:296-305, 384-422; git branch --no-merged mvp-2
+- **Status:** open
+
+## TBD-409 · Rules-match and assistant go into one task on mvp-2-fix-r2-assistant
+- **Kind:** decision
+- **Where:** MVP 2 · Fix round 3
+- **Context:** mvp-2-fix-r2-assistant already holds mvp-2-rules-match (merge 2575ca8) and changes its files (words.ts, engine.test.ts, match/index.tsx). The rules-match fixes (febc022, 5025fb4, 5b438b2) aren't in it, and both branches' findings touch apps/web/src/pages/match/index.tsx and packages/core/src/rules.
+- **Options:**
+  1. Two tasks with overlapping paths
+  2. One task on the assistant branch that first merges mvp-2-fix-r2-rules-match
+- **Chosen:** One task on the assistant branch that first merges mvp-2-fix-r2-rules-match. Owned paths must not overlap, and the two slices share files. With one branch the integrator merges both slices together and resolves the rules and match conflicts once.
+- **If you decide otherwise:** Two tasks would both edit match/index.tsx and words.ts, and integration would conflict between two diverging fixes of the same code.
+- **Refs:** git log --merges mvp-2..mvp-2-fix-r2-assistant; git diff mvp-2-rules-match mvp-2-fix-r2-rules-match --stat
+- **Status:** open
+
+## TBD-410 · Contract, seniority, permit and remote fits: no built-in negation word list; anything not a plain match is unknown
+- **Kind:** decision
+- **Where:** MVP 2 · Fix round 3
+- **Context:** saysPlainly decides 'fits' unless one of four English words comes first. It misses "isn't" and every other language ('Keine Festanstellung' fits 'Festanstellung'), which breaks 'Unknown means ask' and 'Nothing market-specific in code'.
+- **Options:**
+  1. Add more English negations (n't)
+  2. Claim a fit only when the role's and the profile's wording match once normalised (or the profile phrase stands alone in its clause), and make everything else unknown
+  3. Move the judgement into match.v1 in packages/ai
+- **Chosen:** Claim a fit only when the role's and the profile's wording match once normalised (or the profile phrase stands alone in its clause), and make everything else unknown. It is language-neutral, never guesses, and stays inside packages/core. The match.v1 route would need changes in packages/ai/src/tasks and the fake-AI fixtures, which other tasks own this round.
+- **If you decide otherwise:** Users will see more 'unknown' verdicts, and so more decisions, on loosely worded contracts. If that turns out too noisy, the owner can move the judgement to match.v1 later.
+- **Refs:** packages/core/src/rules/words.ts:86-138; packages/core/src/match/match.ts:258-530; NORTH_STAR 'Fully dynamic across markets'
+- **Status:** open
+
+## TBD-411 · A 'No' answer under a grouped decision resolves it for those roles without writing a profile item; contradicting free text gets the 400 'doesn't fit'
+- **Kind:** decision
+- **Where:** MVP 2 · Fix round 3
+- **Context:** answers.ts fills the item from the group key's parts after the user's words, so 'No' or 'Cork' writes Dublin hybrid into the profile. needs.ts drops both Yes and No, which leaves nothing to click.
+- **Options:**
+  1. Refuse every negative answer
+  2. Affirmative choice writes the parts' item; negative choice resolves the decision for the waiting roles and writes nothing; contradicting free text gets 400
+  3. Store whatever the words say and ignore the parts
+- **Chosen:** Affirmative choice writes the parts' item; negative choice resolves the decision for the waiting roles and writes nothing; contradicting free text gets 400. It keeps answers clickable (F7.2), never writes what the user turned down ('Nothing changes without the user's say') and never guesses.
+- **If you decide otherwise:** Refusing every 'No' would leave roles waiting forever. Storing the words would bring back the parts-versus-words mismatch the F7.6 grouping fix addressed.
+- **Refs:** packages/core/src/decisions/answers.ts:75-81,159; needs.ts:84-88; apps/server/src/routes/decisions.ts:70-96
+- **Status:** open
+
+## TBD-412 · Sender checks show 'Not checked yet' only for job mail
+- **Kind:** decision
+- **Where:** MVP 2 · Fix round 3
+- **Context:** The new state shows on every message without a check and promises a check that never comes for non-job mail.
+- **Options:**
+  1. Keep it on every message
+  2. Show it only for job mail, and nothing (or 'Sender checks are for job mail only') for other mail
+- **Chosen:** Show it only for job mail, and nothing (or 'Sender checks are for job mail only') for other mail. F5.1 covers job-mail senders, and the pipeline checks only job mail, so the notice on other mail is false.
+- **If you decide otherwise:** Non-job rows would keep showing a permanent 'Not checked yet'.
+- **Refs:** apps/web/src/pages/senders/index.tsx:44,151-156; packages/db/src/queries/evaluations.ts:39-43
+- **Status:** open
+
+## TBD-413 · Shared files get exactly one owner: ARCHITECTURE goes to the foundation task, test timeouts to e2e-fixtures, db tables and migrations to replies; no task edits TBD.md
+- **Kind:** decision
+- **Where:** MVP 2 · Fix round 3
+- **Context:** docs/ARCHITECTURE.md, vitest.config.ts, packages/db/src/tables.ts and the migrations are changed on several slice branches, and owned paths must not overlap.
+- **Options:**
+  1. Let several tasks edit them
+  2. One owner each; other tasks report boundary changes as decisions and rerun timeout-only failures alone
+- **Chosen:** One owner each; other tasks report boundary changes as decisions and rerun timeout-only failures alone. Only the foundation task needs an ARCHITECTURE edit (the mailbox split). The load-tolerant timeouts already started on the e2e-fixtures branch. Of all the tasks, only the replies task might need a table change. The orchestrator records TBD entries from results.
+- **If you decide otherwise:** Overlapping edits would conflict at integration.
+- **Refs:** CLAUDE.md Docs rule; .claude/workflows/build-mvp.js:387
+- **Status:** open
+
+## TBD-414 · The fixture check against the real rules engine waits until the engine and the fixtures are both on mvp-2
+- **Kind:** decision
+- **Where:** MVP 2 · Fix round 3
+- **Context:** consistency.test.ts carries a drifting copy of rule matching. The real engine is on the rules-assistant branch and the fixtures are on the e2e-fixtures branch, so neither branch can run that check alone.
+- **Options:**
+  1. Keep the copy
+  2. Delete the copy, keep the semantics-free assertions, and add the engine-based fixture test in packages/core after integration
+- **Chosen:** Delete the copy, keep the semantics-free assertions, and add the engine-based fixture test in packages/core after integration. A copy measures itself rather than the engine, which is the same pattern that 582eab3 and 459c240 removed.
+- **If you decide otherwise:** The fixture checks would disagree with the engine on the unbefristet/befristet case.
+- **Refs:** e2e/fixtures/consistency.test.ts:1558-1590
+- **Status:** open
+
+## TBD-415 · No code task for the unwritten report.md
+- **Kind:** decision
+- **Where:** MVP 2 · Fix round 3
+- **Context:** The close step's Write of e2e/reports/mvp-2/…-r2-walkthrough/report.md was refused by the harness ('Subagents should return findings as text'). The content is in the close result.
+- **Options:**
+  1. Create a fix task for it
+  2. Leave it to the orchestrator or a step that is allowed to write run reports
+- **Chosen:** Leave it to the orchestrator or a step that is allowed to write run reports. It is a run artifact blocked by the agent harness, not a defect in the repository.
+- **If you decide otherwise:** A fix task would have no source change to make.
+- **Refs:** close result of validation run 2
+- **Status:** open
+
+## TBD-416 · The check that hide-by-contract rules spare permanent roles moves to packages/core
+- **Kind:** decision
+- **Where:** MVP 2 · Fix round 3 (e2e-fixtures)
+- **Context:** The e2e fixture check had its own copy of rule matching, with `contains` matching substrings. The real rules engine (rules-match) matches `contains` on whole words, so the two disagree on unbefristet/befristet. e2e imports no package code, and the engine is not on this branch.
+- **Options:**
+  1. Keep the copy in e2e
+  2. Delete the copy, keep only checks that need no matching semantics, and later check against the real engine from packages/core
+  3. Import the engine into e2e
+- **Chosen:** Delete the copy and keep only the presence checks: permanent contracts in maria/expected.json, and hide-by-contract conditions in assistant/requests.json. Once both are on mvp-2, packages/core runs the real engine against the fixtures, the way packages/core/src/sender/fixtures.test.ts already checks the sender data. A copy of the engine can only drift from it. The fixture-to-package direction is already set up: packages/schema/src/fixtures.test.ts and packages/core/src/sender/fixtures.test.ts both read e2e fixtures, and e2e imports no package code.
+- **If you decide otherwise:** Keeping the copy would let fixture checks pass or fail on matching rules the app doesn't use, and the unbefristet/befristet case would be checked wrongly.
+- **Refs:** e2e/fixtures/consistency.test.ts (commit 4415544); a follow-up packages/core rules fixture test once rules-match and the fixtures are both on mvp-2
+- **Status:** open
+
+## TBD-417 · Core tests read the fixtures with node:fs and are typechecked by their own tsconfig
+- **Kind:** decision
+- **Where:** MVP 2 · Fix round 3 (e2e-fixtures)
+- **Context:** The task allowed either a packages/core/tsconfig.test.json, or reading with node:fs and dropping the ImportMeta augmentation.
+- **Options:**
+  1. tsconfig.test.json only, keeping import.meta.glob and the augmentation
+  2. node:fs only
+  3. Both: node:fs plus tsconfig.test.json with Node types
+- **Chosen:** Both. The test uses node:fs, tsconfig.json excludes *.test.ts, and tsconfig.test.json (types: node) checks the tests. The typecheck script runs both. This matches packages/schema. Production core keeps types: [] and has no I/O types, and no global type augmentation is left anywhere.
+- **If you decide otherwise:** Keeping the glob augmentation would carry a hand-written copy of Vite's types in the test.
+- **Refs:** packages/core/tsconfig.json, packages/core/tsconfig.test.json, packages/core/package.json (commit b6544dd)
+- **Status:** open
+
+## TBD-418 · Which errors count as 'the mail server can't be used' (MailUnavailableError)
+- **Kind:** decision
+- **Where:** MVP 2 · Fix round 3 (mailbox)
+- **Context:** The finding asked that only connection, IMAP and TLS errors map to MailUnavailableError and that everything else be rethrown. imapflow has no single error class, so I needed a rule that recognises its errors and Node's socket/TLS errors.
+- **Options:**
+  1. Recognise errors by their known properties: MailError, authenticationFailed/tlsFailed, an IMAP responseStatus/serverResponseCode, imapflow's own codes (ImapFlowErrorCode: connection, timeout, server-response, parser kinds), Node E* socket and DNS codes, and TLS codes
+  2. Treat any error that has a string `code` as a mail error
+  3. Keep mapping everything (the old behaviour)
+- **Chosen:** Recognise errors by their known properties (isMailFailure in packages/mail/src/errors.ts). This keeps bugs and schema mismatches (RangeError, ZodError, TypeError with Node ERR_* codes) out of the 'unreachable' status. Real server, network and TLS failures still show as can't-reach, with back-off and retry. A rule based on any string code would also catch Node ERR_ programming errors.
+- **If you decide otherwise:** If imapflow adds a new error code that isn't on the list, that failure would show as reason `error` ('Something went wrong while syncing') instead of 'unreachable'. The sync still retries it with back-off; only the status wording differs. Fix by adding the code to IMAPFLOW_CODE.
+- **Refs:** packages/mail/src/errors.ts (isMailFailure), packages/mail/src/client.ts (available), apps/server/src/sync/run.ts:426-436
+- **Status:** open
+
+## TBD-419 · A schema mismatch in what the server sent fails the whole sync with reason `error`
+- **Kind:** decision
+- **Where:** MVP 2 · Fix round 3 (mailbox)
+- **Context:** fetchSince now parses the whole result with FetchSinceResultSchema. One value that is still invalid after the INTERNALDATE fix (for example a non-numeric UIDVALIDITY) makes that sync fail as `error` and back off, instead of leaving out only the bad message.
+- **Options:**
+  1. Parse the whole result and fail the sync (shows 'Something went wrong', retried with back-off)
+  2. Drop only the messages that fail the schema and sync the rest
+- **Chosen:** Parse the whole result and fail the sync. This matches the 'validated where it enters' rule and the finding's fix. A dropped message would never be seen again once the cursor moves past it, which loses mail without anyone noticing. The fields that can still fail now are ones the server itself controls (UIDVALIDITY, UID), not message content, so a failure there points to a real server problem.
+- **If you decide otherwise:** If the owner would rather sync the rest, change fetchSince to safeParse each SyncedEnvelope and log and skip the invalid ones. The cursor logic in sync/run.ts would then need to keep the cursor from moving past a skipped UID.
+- **Refs:** packages/mail/src/client.ts (fetchSince), packages/schema/src/mailbox.ts (FetchSinceResultSchema)
+- **Status:** open
+
+## TBD-420 · How to keep a single messages.updated on a category correction
+- **Kind:** decision
+- **Where:** MVP 2 · Fix round 3 (foundation)
+- **Context:** requestReevaluation published messages.updated {} and the category route published a second one, {messageIds:[id]}.
+- **Options:**
+  1. Remove the route's second publish (the event becomes {} with no ids)
+  2. Have requestReevaluation publish the scope's messageIds when the scope is {messageIds}, and remove the route's publish
+- **Chosen:** requestReevaluation publishes {messageIds:[...]} for a messageIds scope ({} for every other scope), and the route publishes nothing of its own. The single event still tells the inbox which message changed, as the route meant to. Every other caller of a messageIds scope (CV delete, CV override, decisions) gets the same more precise event for free.
+- **If you decide otherwise:** If only the route's publish were removed, the event would carry no ids; the web UI refetches the list either way, so users wouldn't notice.
+- **Refs:** apps/server/src/profile/changes.ts, apps/server/src/routes/messages.ts, apps/server/src/routes/messages.test.ts
+- **Status:** open
+
+## TBD-421 · Upper bound for a role position path param
+- **Kind:** decision
+- **Where:** MVP 2 · Fix round 3 (foundation)
+- **Context:** RoleParamsSchema.position had no upper bound; every position column is int4.
+- **Options:**
+  1. .max(2_147_483_647), the int4 limit
+  2. .max(10_000), the earlier bound
+- **Chosen:** .max(2_147_483_647), as a module constant MAX_ROLE_POSITION. It is exactly what the columns hold, so the schema never rejects a position the database could store and never lets through one it can't. A role-count limit isn't in the spec.
+- **If you decide otherwise:** With 10_000, positions from 10_001 up would be refused as 404 even though the database could hold them.
+- **Refs:** packages/schema/src/cv.ts, packages/schema/src/index.test.ts
+- **Status:** open
+
+## TBD-422 · Where the 'job mail only' gate lives, and what non-job and failed mail say
+- **Kind:** decision
+- **Where:** MVP 2 · Fix round 3 (cvs-senders)
+- **Context:** The fix could gate SenderBadge and SenderPanel in InboxPage and MessageDetail, or inside the senders slot. The task also left open whether non-job detail hides the panel or explains itself, and said nothing about mail the model failed on, which is also never checked.
+- **Options:**
+  1. Gate in InboxPage/MessageDetail and hide the panel for non-job mail
+  2. Pass category and analysisStatus to the slot, gate inside it, keep the panel with an explanation
+- **Chosen:** Pass category and analysisStatus to SenderBadge and SenderPanel, and gate inside the senders slot. Non-job mail says 'Sender checks are for job mail only.' and failed mail says 'This sender isn't checked, as the email couldn't be analyzed.' Trusted and Blocked stay available to editors on both. One rule in the slice that owns sender checks, matching the db's isJobMessage (job category, analysis done). The page never says nothing or something false, and a sender can still be marked from any of its emails. Failed job-category mail is never checked either, so promising a check there would be the same bug.
+- **If you decide otherwise:** If the owner prefers hiding the panel for non-job mail, return null from SenderPanel when isCheckedMail is false and there is no check. This drops the marks on non-job mail.
+- **Refs:** apps/web/src/pages/senders/index.tsx (isCheckedMail, NoCheck); packages/db/src/queries/evaluations.ts:39-43
+- **Status:** open
+
+## TBD-423 · NOTIFY on the existing dedicated LISTEN connection rather than a third connection or the pool
+- **Kind:** decision
+- **Where:** MVP 2 · Fix round 3 (scan-feedback)
+- **Context:** A NOTIFY through the pool queued behind every pooled query, so live events were late while the pipeline kept the pool busy.
+- **Options:**
+  1. Keep NOTIFY through the pool
+  2. Add a second dedicated connection just for NOTIFY
+  3. NOTIFY on the existing dedicated LISTEN connection
+- **Chosen:** NOTIFY on the existing dedicated LISTEN connection; pgNotifier no longer takes a pool. It removes the pool wait without adding a Postgres connection per replica. All NOTIFYs from a replica now go out in order on one session. Postgres still delivers a session's own notifications to it, which the local streams need. A NOTIFY reopens the connection at once if it has dropped.
+- **If you decide otherwise:** A separate NOTIFY client would let a LISTEN reconnect and a NOTIFY fail independently, at the cost of one more connection per replica. Keeping the pool would leave the measured 150-400 ms+ wait per event under load.
+- **Refs:** packages/db/src/notify.ts, packages/db/src/client.ts, packages/db/src/notify.test.ts
+- **Status:** open
+
+## TBD-424 · Live events from a scan run go out from an ordered, coalescing outbox that the run never awaits
+- **Kind:** decision
+- **Where:** MVP 2 · Fix round 3 (scan-feedback)
+- **Context:** Storing had to be separated from publishing, and the stop must still be the last event.
+- **Options:**
+  1. Fire each publish independently (concurrent, unordered)
+  2. Ordered outbox, not awaited, newer scan.progress replacing a waiting one
+  3. Keep awaiting publishes
+- **Chosen:** Ordered outbox; the job waits for it only at the very end. Writes and batches never wait on NOTIFY. Order is kept, so no progress goes out after scan.stopped. With all NOTIFYs on one connection they are serialised anyway, so this costs nothing in practice. Coalescing keeps the queue short while NOTIFY is slow.
+- **If you decide otherwise:** Unordered publishes could deliver a progress event after the stop, and the existing hub-order assertions would break.
+- **Refs:** apps/server/src/jobs/scan/run.ts
+- **Status:** open
+
+## TBD-425 · The browser applies scan.progress and scan.stopped data directly to the current-scan query
+- **Kind:** decision
+- **Where:** MVP 2 · Fix round 3 (scan-feedback)
+- **Context:** Even with fast events, the screen waited for GET /scans/current, which under pool load took 0.8-2.8 s by itself; the routes are outside this task's paths.
+- **Options:**
+  1. Only refetch on events (as before)
+  2. Apply event data at once, guarded, and still refetch
+- **Chosen:** Apply at once with guards (same scan, status and counts never move back, nothing after a stop), cancel a request under way, then refetch as before. The event carries exactly what was stored, so the screen can show it without a database round trip. The refetch still fills in stoppedAt and totalTokens. Users see faster updates and no other behaviour change; for a moment after a stop, the 'Ended …' time is missing until the refetch answers.
+- **If you decide otherwise:** Without it, the 2 s bound depends on how fast GET /scans/current answers under load, which the measurement showed can pass 2 s.
+- **Refs:** apps/web/src/hooks/useLiveEvents.ts, apps/web/src/hooks/queryKeys.ts, apps/web/src/pages/scan/queries.ts
+- **Status:** open
+
+## TBD-426 · Changed the r2 held-tick test's exact assertion to a lower bound
+- **Kind:** decision
+- **Where:** MVP 2 · Fix round 3 (scan-feedback)
+- **Context:** The test 'stores each finished batch's counts before it says so live, also while a tick is still being sent' asserted that what was stored when each messages.updated was published equalled [0, 20, 25, 25] exactly. With the outbox, batch 1's event can wait behind the held tick while batch 2 is stored, so it now reads [0, 25, 25, 25].
+- **Options:**
+  1. Keep exact equality (would fail, by design of the new behaviour)
+  2. Assert each value is at least the batch's own counts
+  3. Delete the test
+- **Chosen:** Assert each stored value is at least that batch's counts (and four of them). The bug it guards (a stale tick's older counts standing for a finished batch, [0, 0, 25, 25] before r2) still fails this check. Only the exact timing it relied on has changed on purpose. Nothing was deleted or skipped.
+- **If you decide otherwise:** Keeping exact equality would make the test fail on correct behaviour.
+- **Refs:** apps/server/src/jobs/scan/scan.test.ts
+- **Status:** open
+
+## TBD-427 · How S2 reaches the AI form without typing a URL
+- **Kind:** decision
+- **Where:** MVP 2 · Fix round 3 (mvp1-specs)
+- **Context:** S1 leaves Maria on the onboarding 'Pick your AI' step, but each spec has its own browser. When she signs in again she lands in the Job inbox (WorkspaceIndex only restarts onboarding when there is no mailbox), so the onboarding step can only be reached by typing /setup/ai, which docs/mvp/README.md forbids.
+- **Options:**
+  1. Main nav Settings › AI (same AiForm in settings mode: Save, then 'Saved.'), then Main nav Scan
+  2. Share one page across the S1 and S2 files with a worker-scoped Playwright fixture
+  3. Merge S1 and S2 into one spec file
+- **Chosen:** Main nav Settings › AI, then Main nav Scan. It uses only visible links, runs the same form, provider list, Test, privacy line and ai.settings_saved, and keeps one spec file per scenario as the every-scenario check requires. A worker fixture would lose per-test traces and break if the worker restarts. Merging would break the one-file-per-scenario layout.
+- **If you decide otherwise:** If the owner wants S2 to keep pressing the onboarding 'Save and continue', S1 and S2 need a shared page (worker fixture or merged file), and the every-scenario check in e2e/stack.test.ts would have to accept one file covering two scenarios.
+- **Refs:** e2e/specs/mvp-1/02-s2-maria-picks-the-ai.spec.ts; apps/web/src/layout/Home.tsx (WorkspaceIndex); docs/mvp/README.md › Walk it like a person
+- **Status:** open
+
+## TBD-428 · Cleanup that restores MVP 1's end state when a spec fails
+- **Kind:** decision
+- **Where:** MVP 2 · Fix round 3 (mvp1-specs)
+- **Context:** S8 (budget 5), S9 (killed replica) and S11 (Postgres, app-b, slow fake AI) change shared stack state. S8 and S9 only restored it on success, so one failure left later specs, including MVP 2's, on a broken stack.
+- **Options:**
+  1. withCleanup(body, cleanup): always clean up, and report the body's error if it failed
+  2. try/finally with the cleanup's error replacing the original
+  3. No cleanup on failure
+- **Chosen:** withCleanup in e2e/specs/shared.ts, used by S8 (budget back to 300 through Settings › AI), S9 (start the killed replica, wait for it and the proxy to be ready) and S11 (start Postgres and both replicas, bring back a quick fake AI, wait until ready). Later specs start from a stack that is close to MVP 1's end state, and the reported failure is still the real one.
+- **If you decide otherwise:** Without it, one failed S8 or S9 run leaves the budget at 5 or a replica down, and every later spec fails for reasons that have nothing to do with it.
+- **Refs:** e2e/specs/shared.ts withCleanup; 08-s8-budget-stop.spec.ts; 09-s9-replica-dies.spec.ts; 11-s11-startup-health-shutdown.spec.ts
+- **Status:** open
+
+## TBD-429 · How a 'No' click on a question whose parts fill the whole item is represented
+- **Kind:** decision
+- **Where:** MVP 2 · Fix round 3 (replies)
+- **Context:** F7.2 needs clickable answers. A 'No' to places:IE:Dublin:hybrid or remote:EU can't be a profile item, and the old code dropped both Yes and No.
+- **Options:**
+  1. A choice whose value is its words under an object-item key means 'turned down' (schema turnsDown); no new column
+  2. Add a nullable choice value plus a new answer shape, or a 'declined' flag column with a migration
+  3. Refuse all negatives and rely on 'Don't ask for this message'
+- **Chosen:** Words as the choice value under an object-item key mean 'turned down'. answerOf returns kind 'declined', the route resolves the waiting roles and stores the words as the decision's answer, and nothing is written to the profile, whatever useForSimilar says. No migration and no change to DecisionAnswer. A string can never be an item of those keys, so it can't be confused with one. The label always says what happens.
+- **If you decide otherwise:** Without it there is no clickable 'No' (F7.2), or a 'No' click writes the parts' item, which breaks 'nothing changes without the user's say'.
+- **Refs:** packages/schema/src/decisions.ts turnsDown; packages/core/src/decisions/answers.ts answerOf; apps/server/src/routes/decisions.ts
+- **Status:** open
+
+## TBD-430 · A declined answer counts for the waiting roles only and is asked again for later mail
+- **Kind:** decision
+- **Where:** MVP 2 · Fix round 3 (replies)
+- **Context:** The profile has no way to record 'not open to Dublin hybrid' without making up an item or a deal breaker.
+- **Options:**
+  1. Per-role only: the waiting roles get their draft and later mail asks again
+  2. Write a deal_breaker or a negative extra entry to the profile
+- **Chosen:** Per-role only. The draft prompt gets the answer as an extra entry (extra.answer_<groupKey>, label = the question, value = [the words]), which exists only in the prompt. Never invent profile content. 'Unknown means ask' still holds: a later message asks again, and the user can answer or dismiss it.
+- **If you decide otherwise:** A later role with the same group key would never be asked, and the profile would hold an item the user never wrote.
+- **Refs:** packages/core/src/drafts/entries.ts; apps/server/src/drafts/write.ts roleAnswers
+- **Status:** open
+
+## TBD-431 · A small yes/no and field-word vocabulary in core to read answer words
+- **Kind:** decision
+- **Where:** MVP 2 · Fix round 3 (replies)
+- **Context:** Telling 'Yes' from 'No'/'None'/'Cork' and spotting 'a month' against a per-year question needs some word knowledge. Country and currency codes come from Intl (ISO standards).
+- **Options:**
+  1. A short multilingual yes/no and pay-period/mode word list, refusing whenever unsure
+  2. Change draft.v1 so the model marks affirmative and negative choices (packages/ai, not in my paths)
+  3. Refuse every free-text answer under a group key with parts
+- **Chosen:** The word list in packages/core/src/decisions/words.ts: yes/no words in common European languages, pay-period and work-mode words, ISO codes via Intl, currency signs via Intl narrowSymbol. Anything unclear is refused (400), never guessed. It is not market- or user-specific data, and it only ever narrows what gets written. A false refusal costs the user a retype or a click. A false accept would write something they turned down.
+- **If you decide otherwise:** If the owner prefers model-marked choices, packages/ai's draft.v1 output would need a per-choice flag, and the fixtures would need regenerating.
+- **Refs:** packages/core/src/decisions/words.ts
+- **Status:** open
+
+## TBD-432 · Merged mvp-2 into the fix branch
+- **Kind:** decision
+- **Where:** MVP 2 · Fix round 3 (replies)
+- **Context:** PageFrame exists only on mvp-2, and the task asks to check that it can't hide the replies pages, and to get the branch merged.
+- **Options:**
+  1. Merge mvp-2 into mvp-2-fix-r3-replies (clean, no conflicts)
+  2. Leave it to integration and test without PageFrame
+- **Chosen:** Merged mvp-2, then added a shell-level test of the real pages under PageFrame. It is the only way to test PageFrame with the real pages, and it shows the merge is conflict-free.
+- **If you decide otherwise:** Integration would have to resolve the merge, and the PageFrame check could only run after it.
+- **Refs:** 3902377; apps/web/src/layout/RepliesPages.test.tsx
+- **Status:** open
+
+## TBD-433 · Boundary change to report (ARCHITECTURE not edited)
+- **Kind:** decision
+- **Where:** MVP 2 · Fix round 3 (replies)
+- **Context:** packages/schema now exports turnsDown, packages/core exports answerOf and the Answer type, and DraftAnswer now needs groupKey and question.
+- **Options:**
+  1. Report it here for the architecture owner
+  2. Edit docs/ARCHITECTURE.md (forbidden for this task)
+- **Chosen:** Reported here. ARCHITECTURE could note that a decision answer is either an item or a declined no that writes nothing and is given to the draft only. The task forbids editing docs/ARCHITECTURE.md.
+- **If you decide otherwise:** ARCHITECTURE would describe answers as items only.
+- **Refs:** packages/schema/src/decisions.ts; packages/core/src/decisions/index.ts; packages/core/src/drafts/entries.ts
+- **Status:** open
+
+## TBD-434 · What a 'clause' is when a fit is claimed (saysPlainly)
+- **Kind:** decision
+- **Where:** MVP 2 · Fix round 3 (rules-assistant)
+- **Context:** F4.1 fix: drop the English negation list. A fit is claimed only when the wording is the same once normalised, or the profile phrase is a whole-word phrase with no other words in its clause. 'Permanent: no' must come out unknown, so where a clause ends has to be defined.
+- **Options:**
+  1. A clause ends at a comma, semicolon, slash, line break, or a full stop followed by a space; a colon, dash, bracket or '?' does not end one
+  2. Also end clauses at colons and dashes
+  3. Allow no clause splitting at all: only exact whole-text equality
+- **Chosen:** A clause ends at a comma, semicolon, slash, line break, or a full stop followed by a space. List punctuation, which is the same in any language, keeps the common fits ('Permanent, full-time', 'Senior / Lead', 'EU, UK', 'No relocation; permanent'). Keeping a colon, dash or '?' inside the clause keeps a label and its answer together ('Permanent: no', 'Permanent — no', 'Permanent? No'), so those are unknown. No word list is needed. A remaining edge case is 'Permanent, no', which would fit.
+- **If you decide otherwise:** Change CLAUSE_BREAK in packages/core/src/rules/words.ts and the cases in words.test.ts. Exact-equality-only would make 'Permanent, full-time' unknown and lower many scores.
+- **Refs:** packages/core/src/rules/words.ts (saysPlainly, CLAUSE_BREAK); packages/core/src/rules/words.test.ts; packages/core/src/match/match.test.ts
+- **Status:** open
+
+## TBD-435 · Remote scopes like 'within the EU' are now unknown, not fits (changes TBD-247's outcome)
+- **Kind:** decision
+- **Where:** MVP 2 · Fix round 3 (rules-assistant)
+- **Context:** TBD-247 said 'within the EU' still fits a profile's 'EU'. Under the new rule from this task, any other word in the clause makes it unknown. Fixture roles with remoteScope 'within the EU', 'innerhalb der EU' or 'em qualquer país da UE' lose the remote fit: the place part goes from 20 to 10 points. A role scoring 70-79 that relied on it could fall under the reply threshold. This includes the MVP-2 'remote EU role on CET hours', if its extract fixture says 'within the EU'.
+- **Options:**
+  1. Follow the task's rule: unknown (and so asked)
+  2. Keep a special case for scope words
+- **Chosen:** Follow the task's rule: unknown. The task explicitly says everything except the same wording, or a clause that is exactly the phrase, is unknown and so asked, never guessed. A special case would bring back a language-specific word list. I updated the match.test.ts expectations that encoded the old fits: 'within the EU', 'PT or Lisbon', 'EU citizen or work permit'. Each now has an unknown case plus a list-punctuation fit case; no test was removed.
+- **If you decide otherwise:** If the remote-EU e2e role must keep its draft, the e2e-fixtures slice can set its remoteScope to 'EU' (or 'EU, …'), or the owner can accept the lower score. An alternative is a match.v1 scope-closeness judgement (TBD-247 option 2).
+- **Refs:** packages/core/src/match/match.ts (scopeCovered, remotePlaceCovered); e2e/fixtures/ai/maria/extract.json; TBD-247; docs/mvp/MVP-2.md S4
+- **Status:** open
+
+## TBD-436 · Shape of the inbox row's no-score state
+- **Kind:** decision
+- **Where:** MVP 2 · Fix round 3 (rules-assistant)
+- **Context:** MessageListItem.fit had to tell 'job role not scored yet' apart from 'no roles' without breaking callers outside this task's paths (InboxPage tests, slots.test, IntakePage.test, the server tests).
+- **Options:**
+  1. fit becomes the union {score, capped, stale} | {score: null, why: 'pending'|'unscored'} | null
+  2. A separate new field (e.g. fitMissing)
+  3. Make fit.score nullable and use stale for pending
+- **Chosen:** fit becomes the union with score: null and an explicit why. One field says where the fit score goes and reads clearly in the UI. Existing literals like {score: 72, capped, stale} and `fit?.score` reads still typecheck, so files outside my paths needed no type changes. Only one exact-equality expectation changed (messages.test.ts). 'pending' covers both not-yet-evaluated and stale roles, matching how MatchPanel treats a stale evaluation with no score. The not-job guard lives in toListItem.
+- **If you decide otherwise:** Switch ListFitSchema in packages/schema/src/messages.ts plus fitOf in packages/db/src/queries/inbox.ts and FitScore in apps/web/src/pages/match/index.tsx.
+- **Refs:** packages/schema/src/messages.ts (ListFitSchema); packages/db/src/queries/inbox.ts (noFit, fitOf); apps/web/src/pages/match/index.tsx (FitScore, NoFitChip)
+- **Status:** open
+
+## TBD-437 · markInMailbox uses bound parameters on the test PGlite client; switch to markDraftSaved after integration
+- **Kind:** decision
+- **Where:** MVP 2 · Fix round 3 (rules-assistant)
+- **Context:** Rule: workspace-scoped everything. markDraftSaved lives on the replies branch. apps/server has no drizzle-orm dependency, so drizzle's sql template isn't importable there, and adding the dependency would touch apps/server/package.json, outside this task's paths.
+- **Options:**
+  1. A bound-parameter, workspace-scoped statement through the test database's PGlite client ($client.query with $1/$2)
+  2. Add drizzle-orm to apps/server
+  3. Add a temporary draft writer to a packages/db file in my paths (e.g. queries/assistant.ts)
+- **Chosen:** A bound-parameter, workspace-scoped statement on the test PGlite client, asserting exactly one row changed. No dependency change and no stray product function in the wrong module, which the replies slice would duplicate. It removes the string interpolation the finding was about.
+- **If you decide otherwise:** After integration, replace markInMailbox in apps/server/src/routes/assistant.test.ts with a call to packages/db markDraftSaved (draft id from claimDraft, a DraftRef and a content hash).
+- **Refs:** apps/server/src/routes/assistant.test.ts (markInMailbox); mvp-2-fix-r2-replies packages/db/src/queries/drafts.ts (markDraftSaved)
+- **Status:** open
+
+## TBD-438 · entryLabel reads extra slugs in words everywhere
+- **Kind:** decision
+- **Where:** MVP 2 · Fix round 3 (rules-assistant)
+- **Context:** The two copies had drifted: the web replaced -/_ with spaces, core kept the raw slug. A third copy (labelOf in packages/core/src/profile/changes.ts, used only when an entry has no stored label) also kept the raw slug.
+- **Options:**
+  1. Spaced words ('notice period')
+  2. Raw slug ('notice-period')
+- **Chosen:** Spaced words, in one entryLabel in packages/schema/src/profile.ts used by all three places. It matches the match panel and the rules engine's fact labels, and plain words fit the history and proposal lines.
+- **If you decide otherwise:** Drop the .replace in entryLabel; single-word slugs such as 'relocation' are unaffected either way.
+- **Refs:** packages/schema/src/profile.ts (entryLabel); packages/core/src/assistant/words.ts; packages/core/src/profile/changes.ts; apps/web/src/pages/match/index.tsx
+- **Status:** open
