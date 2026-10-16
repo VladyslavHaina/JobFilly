@@ -331,6 +331,24 @@ describe("questions a draft can't answer (F6.2, F7.1)", () => {
   });
 });
 
+describe("a reply in another language than the message (F6.1)", () => {
+  it("is regenerated once, then marks the draft failed with kind content", async () => {
+    await h.deliver(BERLIN, { language: "de", text: "Hallo Maria, eine Backend-Rolle für Sie." });
+    h.ai.answers.draft[key(BERLIN, 1)] = draftAnswer({ language: "en" });
+    h.ai.answers.draft[key(BERLIN, 2)] = draftAnswer({ language: "en" });
+    await h.evaluate(BERLIN);
+    await h.drain();
+    expect(h.ai.calls.draft).toBe(2);
+    expect(events("draft.rejected_language")).toHaveLength(2);
+    expect(await h.live(BERLIN)).toMatchObject({
+      status: "failed",
+      failureKind: "content",
+      failureReason: "The draft still wasn't in the language of the message after one retry",
+    });
+    expect(h.mailbox.drafts()).toEqual([]);
+  });
+});
+
 describe("a template placeholder (F6.2)", () => {
   it("is regenerated once with Attempt 2", async () => {
     await h.deliver(REMOTE);

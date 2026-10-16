@@ -58,7 +58,8 @@ import {
 // 2. draft.v1 writes the reply from the profile and the chosen CV only (F6.2). Questions it can't
 //    answer from them release the claim and become decisions (F7). A template placeholder is
 //    regenerated once (Attempt: 2), then the draft fails with kind content, never retried
-//    automatically. No answer at all fails it with kind ai. Draft a reply's questions are asked
+//    automatically. So is a reply whose language isn't the one the sender stage detected in the
+//    message (F6.1; no check while none was detected). No answer at all fails it with kind ai. Draft a reply's questions are asked
 //    even when the user chose "Don't ask for this message" before: they asked for this reply.
 //    They are recorded with source draft_on_demand, an automatic draft's with source draft.
 // 3. The text is kept on the row with the Message-ID its copy will have, then saved to the
@@ -92,7 +93,12 @@ interface Role {
   position: number;
   facts: JobFacts;
   folder: MailFolder;
+  /** The message's language (ISO 639-1) as the sender stage detected it, or null. */
+  language: string | null;
 }
+
+/** An ISO 639-1 code's primary part, lower-cased: "DE", "de-CH" and "de" are all "de". */
+const languageCode = (code: string) => code.trim().toLowerCase().split(/[-_]/)[0] ?? "";
 
 async function confirmedProfile(deps: AppDeps, ws: string): Promise<Profile | null> {
   return (await listProfiles(deps.db, ws)).find((p) => p.confirmedAt !== null) ?? null;
@@ -162,6 +168,7 @@ async function writeReply(
         : null,
   };
 
+  let rejected = "The draft still held a template placeholder after one retry";
   for (const attempt of [1, 2] as const) {
     const result = await ai.draft({ ...input, attempt });
     if (!result.ok) return { kind: "failed", failure: "ai", reason: AI_REASONS[result.error.kind] };
@@ -202,6 +209,12 @@ async function writeReply(
     });
     if (placeholders.length > 0) {
       log.warn("draft.rejected_placeholder", { draftId: draft.id, attempt });
+      rejected = "The draft still held a template placeholder after one retry";
+      continue;
+    }
+    if (role.language !== null && languageCode(out.language) !== languageCode(role.language)) {
+      log.warn("draft.rejected_language", { draftId: draft.id, attempt, language: out.language });
+      rejected = "The draft still wasn't in the language of the message after one retry";
       continue;
     }
     log.info("draft.created", {
@@ -222,7 +235,7 @@ async function writeReply(
   return {
     kind: "failed",
     failure: "content",
-    reason: "The draft still held a template placeholder after one retry",
+    reason: rejected,
   };
 }
 
@@ -357,7 +370,7 @@ async function prepare(
   if (kept) {
     text = kept;
   } else {
-    const role = { ...payload, facts, folder: message.folder };
+    const role = { ...payload, facts, folder: message.folder, language: message.language };
     const written = await writeReply(deps, ws, draft, role, original, log);
     if (written.kind === "questions") {
       await done.publish();

@@ -115,6 +115,8 @@ export interface Harness {
       subject?: string;
       references?: string[];
       category?: Category;
+      /** The language the sender stage detects in it (default none). */
+      language?: string;
       /** The sender check (default looks fine). */
       sender?: SenderSetup;
       roles?: (RoleSetup & { facts?: Partial<JobFacts> })[];
@@ -134,6 +136,8 @@ export async function createHarness(options: { entries?: ProfileEntry[] } = {}):
   const roles = new Map<string, RoleSetup>();
   const senders = new Map<string, SenderSetup>();
   const recording = recordingStages();
+  const languages = new Map<string, string>();
+  recording.language = (id) => languages.get(id) ?? null;
   recording.score = (id, position) => roles.get(`${id}#${position}`)?.score ?? 80;
   const stages: Stages = {
     async sender(input, ctx) {
@@ -243,6 +247,7 @@ export async function createHarness(options: { entries?: ProfileEntry[] } = {}):
         roles.set(`${messageId}#${position}`, setup);
       });
       if (input.sender) senders.set(messageId, input.sender);
+      if (input.language) languages.set(messageId, input.language);
       const envelope = await seedJobMail(deps, ws, mailbox, {
         messageId,
         category: input.category,

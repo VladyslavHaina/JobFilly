@@ -56,6 +56,7 @@ export type LogEvent =
   | "draft.updated"
   | "draft.discarded"
   | "draft.rejected_placeholder"
+  | "draft.rejected_language"
   | "decision.created"
   | "decision.answered"
   | "assistant.message"
