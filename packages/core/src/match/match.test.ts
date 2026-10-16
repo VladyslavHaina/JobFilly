@@ -179,9 +179,29 @@ describe("matchRole (F4.1)", () => {
     expect(remote({ remoteScope: "UK, EU" }).verdict?.verdict).toBe("fits");
     // A clause after yours may take it back ("EU, no"), so it is asked.
     expect(remote({ remoteScope: "EU, UK" }).verdict?.verdict).toBe("unknown");
-    expect(remote({}).verdict).toMatchObject({
-      verdict: "fits",
-      reason: "Remote — fits your remote 'EU'",
+    // Neither a scope nor a place: where you may work from isn't stated, so it isn't a fit,
+    // just as "from anywhere" isn't, nor a conflict, and it asks nothing.
+    const unstated = remote({});
+    expect(unstated.verdict).toMatchObject({
+      verdict: "unknown",
+      hard: false,
+      need: null,
+      reason: "Remote — where not stated, not compared with your remote 'EU'",
+    });
+    expect(unstated.match.capped).toBe(false);
+    expect(unstated.match.score).toBe(remote({ remoteScope: "from anywhere" }).match.score);
+    expect(unstated.match.score).toBeLessThan(remote({ remoteScope: "EU" }).match.score);
+    const hoursOnly = {
+      entries: [
+        ...maria.entries.filter((e) => e.key !== "remote"),
+        entry("remote", [{ scope: "EU", timeZones: { from: "UTC-01:00", to: "UTC+03:00" } }]),
+      ],
+    };
+    expect(
+      remote({ timeZones: { from: "UTC+01:00", to: "UTC+01:00" } }, hoursOnly).verdict,
+    ).toMatchObject({
+      verdict: "unknown",
+      reason: "Remote, UTC+1 — where not stated, not compared with your remote 'EU'",
     });
 
     // Another scope: not compared, so neither a fit nor a conflict, and never capped.
