@@ -183,6 +183,58 @@ describe("useLiveInvalidation", () => {
     expect(spy).toHaveBeenCalledTimes(2);
   });
 
+  it("refetches the scan screen within 2 seconds of a batch's progress and of the stop, also amid a stream of other events (F4.6)", async () => {
+    const client = new QueryClient();
+    const scan = vi.fn(async () => ({ analyzed: 0 }));
+    // The key useCurrentScan reads.
+    const observer = new QueryObserver(client, {
+      queryKey: [...queryKeys.area(W, "scan"), "current"],
+      queryFn: scan,
+    });
+    const off = observer.subscribe(() => {});
+    await act(() => vi.advanceTimersByTimeAsync(0));
+    const { emit } = mount(client);
+    const progress = {
+      scanId: "00000000-0000-4000-8000-0000000000c1",
+      kind: "first",
+      status: "running",
+      stopReason: null,
+      handledWithoutAi: 275,
+      likely: 345,
+      analyzed: 20,
+      jobFound: 16,
+      answersFirm: 8,
+      notAnalyzed: 325,
+      calls: 18,
+      tokens: 9000,
+    };
+    const data = {
+      "scan.progress": progress,
+      "scan.stopped": {
+        ...progress,
+        status: "stopped",
+        stopReason: "confident",
+        stopMessage: "Stopped: confident after 20 of 345 likely job emails",
+      },
+    };
+    // Within 2 s of `type`, while messages.updated keeps coming every 50 ms.
+    const refetchedWithin2s = async (type: keyof typeof data) => {
+      const before = scan.mock.calls.length;
+      act(() => emit(type, JSON.stringify(data[type])));
+      for (let t = 0; t < 2000 && scan.mock.calls.length === before; t += 50) {
+        await act(() => vi.advanceTimersByTimeAsync(50));
+        act(() => emit("messages.updated"));
+      }
+      return scan.mock.calls.length > before;
+    };
+    act(() => emit("messages.updated"));
+    await act(() => vi.advanceTimersByTimeAsync(LIVE_MAX_WAIT_MS - 100));
+    expect(await refetchedWithin2s("scan.progress")).toBe(true);
+    expect(await refetchedWithin2s("scan.progress")).toBe(true);
+    expect(await refetchedWithin2s("scan.stopped")).toBe(true);
+    off();
+  });
+
   it("drops what the old workspace collected when the workspace changes", () => {
     const { spy, emit, hook } = mount();
     act(() => emit("cvs.updated"));

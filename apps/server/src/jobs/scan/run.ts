@@ -114,24 +114,41 @@ export async function runScan(input: RunInput): Promise<void> {
     deps.live.publish(workspaceId, event).catch((error) => log.warn("live.error", { error }));
 
   /** Stores the progress and sends it live; notices a cancel (the scan was stopped meanwhile). */
+  const write = async () => {
+    const stored = await updateScanProgress(db, workspaceId, scanId, {
+      status: "running",
+      counts,
+      calls,
+      inputTokens,
+      outputTokens,
+    });
+    if (!stored) cancelled = true;
+    else await publish({ type: "scan.progress", data: progress() });
+  };
+  // One write at a time. A report asked for while one is under way waits for it and then
+  // stores again: the one under way may hold the counts from before a batch finished, and the
+  // screen refetches what is stored, so joining it would leave a finished batch unseen until the
+  // next tick (F4.6). Callers meanwhile share that one follow-up.
   let reporting: Promise<void> | null = null;
-  const report = () => {
-    reporting ??= (async () => {
-      try {
-        const stored = await updateScanProgress(db, workspaceId, scanId, {
-          status: "running",
-          counts,
-          calls,
-          inputTokens,
-          outputTokens,
-        });
-        if (!stored) cancelled = true;
-        else await publish({ type: "scan.progress", data: progress() });
-      } finally {
+  let followUp: Promise<void> | null = null;
+  const report = (): Promise<void> => {
+    if (!reporting) {
+      reporting = write().finally(() => {
         reporting = null;
-      }
-    })();
-    return reporting;
+      });
+      return reporting;
+    }
+    followUp ??= reporting
+      .catch(() => {})
+      .then(() => {
+        followUp = null;
+        return report();
+      });
+    return followUp;
+  };
+  /** Settles once no report is under way or waiting. */
+  const reported = async () => {
+    while (followUp ?? reporting) await (followUp ?? reporting)?.catch(() => {});
   };
   // Progress goes out at least every few seconds, also while one batch takes long (F4.6).
   const ticker = setInterval(() => {
@@ -232,7 +249,7 @@ export async function runScan(input: RunInput): Promise<void> {
   async function stop(reason: StopReason, failure?: RunFailed) {
     // No progress may go out after the stop.
     clearInterval(ticker);
-    await reporting;
+    await reported();
     await refreshCounts();
     const stored = await updateScanProgress(db, workspaceId, scanId, {
       status: "running",
@@ -391,6 +408,6 @@ export async function runScan(input: RunInput): Promise<void> {
     await stop("failed", error);
   } finally {
     clearInterval(ticker);
-    await reporting;
+    await reported();
   }
 }

@@ -664,6 +664,50 @@ describe("live progress, cancel and takeover (F4.6–F4.8)", { timeout: SLOW }, 
     expect(s.events.at(-3)?.type).toBe("scan.stopped");
   });
 
+  it("stores each finished batch's counts before it says so live, also while a tick is still being sent (F4.6)", async () => {
+    const box = mailbox(25);
+    const s = await setup(box.envelopes, recruiterAnswers(box.notJob), { progressIntervalMs: 40 });
+    const tick = () => new Promise((r) => setTimeout(r, 5));
+    // A progress tick stores the counts, then is slow to go out live (a busy NOTIFY): it is held
+    // from the first classify call until the batch it was stored in has finished.
+    const publish = s.deps.live.publish;
+    let hold: Promise<void> | null = null;
+    let held = 0;
+    // What the screen would read (GET /scans/current) as each batch tells it to refetch.
+    const stored: (number | undefined)[] = [];
+    s.deps.live.publish = async (workspaceId, event) => {
+      if (hold && event.type === "scan.progress") {
+        held += 1;
+        await hold;
+      }
+      if (event.type === "messages.updated") {
+        stored.push((await getScan(s.deps.db, workspaceId, scanId))?.counts.analyzed);
+      }
+      return publish(workspaceId, event);
+    };
+    let armed = true;
+    s.ai.beforeAnswer = async (task) => {
+      if (task !== "classify.v1" || !armed) return;
+      armed = false;
+      let release = () => {};
+      hold = new Promise((r) => {
+        release = r;
+      });
+      while (held === 0) await tick();
+      void (async () => {
+        while (logs(s.deps, "scan.batch_completed").length < 2) await tick();
+        hold = null;
+        release();
+      })();
+    };
+    const scanId = await s.start();
+    await s.runAll();
+    await settle();
+    expect(logs(s.deps, "scan.batch_completed").map((l) => l.analyzed)).toEqual([0, 20, 25]);
+    // Each batch's own counts, and the stop's: not the ones of the tick under way.
+    expect(stored).toEqual([0, 20, 25, 25]);
+  });
+
   it("ends without another call or stop once an admin has cancelled the scan", async () => {
     const box = mailbox(30);
     const s = await setup(box.envelopes, recruiterAnswers(box.notJob));
