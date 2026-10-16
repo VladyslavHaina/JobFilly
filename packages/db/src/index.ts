@@ -32,6 +32,15 @@ export * from "./queries/rules";
 export * from "./queries/scans";
 export * from "./queries/senders";
 export * from "./queries/sessions";
+export {
+  type BackOff,
+  clearStageFailure,
+  clearStageFailures,
+  type FailedStage,
+  getStageHolds,
+  recordStageFailure,
+  type StageHolds,
+} from "./queries/stage-failures";
 export * from "./queries/sync";
 export * from "./queries/usage";
 export * from "./queries/workspaces";

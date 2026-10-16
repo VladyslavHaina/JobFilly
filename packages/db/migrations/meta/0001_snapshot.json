@@ -4128,6 +4128,111 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.stage_failures": {
+      "name": "stage_failures",
+      "schema": "",
+      "columns": {
+        "workspace_id": {
+          "name": "workspace_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "message_id": {
+          "name": "message_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "stage": {
+          "name": "stage",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "position": {
+          "name": "position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "failures": {
+          "name": "failures",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "failed_at": {
+          "name": "failed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "retry_at": {
+          "name": "retry_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "stale_since": {
+          "name": "stale_since",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "stage_failures_workspace_id_workspaces_id_fk": {
+          "name": "stage_failures_workspace_id_workspaces_id_fk",
+          "tableFrom": "stage_failures",
+          "tableTo": "workspaces",
+          "columnsFrom": [
+            "workspace_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "stage_failures_message_fk": {
+          "name": "stage_failures_message_fk",
+          "tableFrom": "stage_failures",
+          "tableTo": "messages",
+          "columnsFrom": [
+            "workspace_id",
+            "message_id"
+          ],
+          "columnsTo": [
+            "workspace_id",
+            "message_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "stage_failures_workspace_id_message_id_stage_position_pk": {
+          "name": "stage_failures_workspace_id_message_id_stage_position_pk",
+          "columns": [
+            "workspace_id",
+            "message_id",
+            "stage",
+            "position"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "stage_failures_stage_check": {
+          "name": "stage_failures_stage_check",
+          "value": "stage in ('sender', 'match')"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.users": {
       "name": "users",
       "schema": "",

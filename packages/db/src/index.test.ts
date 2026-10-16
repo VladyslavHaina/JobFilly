@@ -88,6 +88,7 @@ describe("migrations", () => {
       "sender_checks",
       "sender_marks",
       "sessions",
+      "stage_failures",
       "users",
       "workspaces",
     ]);
