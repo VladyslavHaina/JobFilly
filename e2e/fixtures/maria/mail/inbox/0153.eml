@@ -1,10 +1,9 @@
-Message-ID: <maria-0396@museudigital.example>
-Date: Tue, 08 Sep 2026 07:49:00 +0000
-From: "Museu Digital" <newsletter@museudigital.example>
+Message-ID: <maria-0272@readly.example>
+Date: Mon, 07 Sep 2026 05:46:00 +0000
+From: "Readly Daily" <updates@readly.example>
 To: "Maria Santos" <maria.santos@inbox.example>
-Subject: Novo podcast do museu
-List-Id: Museu Digital <news.museudigital.example>
-List-Unsubscribe: <https://museudigital.example/unsubscribe?u=11873>, <mailto:unsubscribe@museudigital.example>
+Subject: Your daily digest
+List-Unsubscribe: <https://readly.example/unsubscribe?u=32867>, <mailto:unsubscribe@readly.example>
 MIME-Version: 1.0
 Content-Type: multipart/alternative; boundary="=_jf_maria_inbox_0153"
 
@@ -12,11 +11,11 @@ Content-Type: multipart/alternative; boundary="=_jf_maria_inbox_0153"
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: quoted-printable
 
-Conhe=C3=A7a as novas exposi=C3=A7=C3=B5es tempor=C3=A1rias.
+Five stories we think you'll like.
 
-Ou=C3=A7a o novo epis=C3=B3dio do nosso podcast.
+From our editors: long reads for the weekend.
 
-Read the full issue online: https://museudigital.example/issues/11873
+Read the full issue online: https://readly.example/issues/32867
 
 You are receiving this email because you subscribed to our newsletter or bo=
 ught something from us. If you no longer want to receive these emails, you =
@@ -44,10 +43,9 @@ Content-Transfer-Encoding: quoted-printable
 <!DOCTYPE html>
 <html><head><meta charset=3D"utf-8"></head>
 <body style=3D"font-family: sans-serif">
-<p>Conhe=C3=A7a as novas exposi=C3=A7=C3=B5es tempor=C3=A1rias.</p>
-<p>Ou=C3=A7a o novo epis=C3=B3dio do nosso podcast.</p>
-<p>Read the full issue online: https://museudigital.example/issues/11873</p=
->
+<p>Five stories we think you'll like.</p>
+<p>From our editors: long reads for the weekend.</p>
+<p>Read the full issue online: https://readly.example/issues/32867</p>
 <p>You are receiving this email because you subscribed to our newsletter or=
  bought something from us. If you no longer want to receive these emails, y=
 ou can unsubscribe at any time using the link in the header of this message=

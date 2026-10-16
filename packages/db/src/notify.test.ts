@@ -44,10 +44,13 @@ describe("LISTEN/NOTIFY on PGlite", () => {
 /** A stand-in for pg.Client: records queries and lets the test raise notifications and errors. */
 class FakeClient extends EventEmitter {
   queries: string[] = [];
+  /** The values of each query, in the same order. */
+  values: unknown[][] = [];
   ended = false;
   async connect() {}
-  async query(text: string) {
+  async query(text: string, values: unknown[] = []) {
     this.queries.push(text);
+    this.values.push(values);
     return { rows: [] };
   }
   async end() {
@@ -58,10 +61,8 @@ class FakeClient extends EventEmitter {
 describe("LISTEN/NOTIFY on node-postgres", () => {
   function setup() {
     const clients: FakeClient[] = [];
-    const pool = { query: vi.fn(async () => ({ rows: [] })) } as unknown as pg.Pool;
     const errors: Error[] = [];
     const notifier = pgNotifier(
-      pool,
       {},
       {
         createClient: () => {
@@ -73,11 +74,14 @@ describe("LISTEN/NOTIFY on node-postgres", () => {
         reconnectDelayMs: 1,
       },
     );
-    return { clients, pool, errors, notifier };
+    return { clients, errors, notifier };
   }
 
-  it("listens on one dedicated connection and notifies through the pool", async () => {
-    const { clients, pool, notifier } = setup();
+  // A NOTIFY through the pool waited in line behind every query queued for a pooled connection:
+  // with the pipeline busy, a scan's progress reached the screen seconds late (F4.6). The
+  // notifier takes no pool, so nothing it sends can wait for one.
+  it("listens and notifies on one dedicated connection, never through the pool", async () => {
+    const { clients, notifier } = setup();
     const got: string[] = [];
     await notifier.listen("live_events", (p) => got.push(p));
     await notifier.listen("live_events", (p) => got.push(`2:${p}`));
@@ -86,9 +90,26 @@ describe("LISTEN/NOTIFY on node-postgres", () => {
     clients[0]?.emit("notification", { channel: "live_events", payload: "hi" });
     expect(got).toEqual(["hi", "2:hi"]);
     await notifier.notify("live_events", "x");
-    expect(pool.query).toHaveBeenCalledWith("select pg_notify($1, $2)", ["live_events", "x"]);
+    expect(clients).toHaveLength(1);
+    expect(clients[0]?.queries.at(-1)).toBe("select pg_notify($1, $2)");
+    expect(clients[0]?.values.at(-1)).toEqual(["live_events", "x"]);
     await notifier.close();
     expect(clients[0]?.ended).toBe(true);
+    await expect(notifier.notify("live_events", "late")).rejects.toThrow(/closed/);
+    expect(clients).toHaveLength(1);
+  });
+
+  it("opens the dedicated connection to notify when nothing listens, and again after it failed", async () => {
+    const { clients, notifier } = setup();
+    await notifier.notify("live_events", "a");
+    expect(clients).toHaveLength(1);
+    expect(clients[0]?.values).toEqual([["live_events", "a"]]);
+    clients[0]?.emit("error", new Error("connection lost"));
+    await notifier.notify("live_events", "b");
+    expect(clients).toHaveLength(2);
+    expect(clients[0]?.ended).toBe(true);
+    expect(clients[1]?.values).toEqual([["live_events", "b"]]);
+    await notifier.close();
   });
 
   it("reconnects after the connection fails and listens to every channel again", async () => {

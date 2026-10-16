@@ -92,28 +92,67 @@ export async function runScan(input: RunInput): Promise<void> {
     calls,
     tokens: inputTokens + outputTokens,
   });
-  const publish = (event: LiveEvent) =>
-    deps.live.publish(workspaceId, event).catch((error) => log.warn("live.error", { error }));
+  // Storing and sending live are apart (F4.6): the screen shows what is stored, so a finished
+  // batch's counts are stored at once, and nothing in the run waits for an event to go out. The
+  // events go out one at a time in the order they were sent, so the stop is always the last
+  // word; a scan.progress still waiting its turn gives way to a newer one.
+  const outbox: LiveEvent[] = [];
+  let sending: Promise<void> | null = null;
+  const send = (event: LiveEvent) => {
+    if (event.type === "scan.progress" && outbox.at(-1)?.type === "scan.progress") outbox.pop();
+    outbox.push(event);
+    sending ??= (async () => {
+      for (let next = outbox.shift(); next; next = outbox.shift()) {
+        await deps.live
+          .publish(workspaceId, next)
+          .catch((error) => log.warn("live.error", { error }));
+      }
+      sending = null;
+    })();
+  };
+  /** Settles once every event sent so far has gone out. */
+  const sent = async () => {
+    while (sending) await sending;
+  };
 
   /** Stores the progress and sends it live; notices a cancel (the scan was stopped meanwhile). */
+  const write = async () => {
+    // The counts as they are now, sent as they were stored: the run goes on counting meanwhile.
+    const data = progress();
+    const stored = await updateScanProgress(db, workspaceId, scanId, {
+      status: "running",
+      counts: { ...counts },
+      calls,
+      inputTokens,
+      outputTokens,
+    });
+    if (!stored) cancelled = true;
+    else send({ type: "scan.progress", data });
+  };
+  // One write at a time, so what is stored only ever moves forward. A report asked for while one
+  // is under way waits for it and then stores again: the one under way may hold the counts from
+  // before a batch finished, so joining it would leave a finished batch unseen until the next
+  // tick. Callers meanwhile share that one follow-up. Only the database write is waited for.
   let reporting: Promise<void> | null = null;
-  const report = () => {
-    reporting ??= (async () => {
-      try {
-        const stored = await updateScanProgress(db, workspaceId, scanId, {
-          status: "running",
-          counts,
-          calls,
-          inputTokens,
-          outputTokens,
-        });
-        if (!stored) cancelled = true;
-        else await publish({ type: "scan.progress", data: progress() });
-      } finally {
+  let followUp: Promise<void> | null = null;
+  const report = (): Promise<void> => {
+    if (!reporting) {
+      reporting = write().finally(() => {
         reporting = null;
-      }
-    })();
-    return reporting;
+      });
+      return reporting;
+    }
+    followUp ??= reporting
+      .catch(() => {})
+      .then(() => {
+        followUp = null;
+        return report();
+      });
+    return followUp;
+  };
+  /** Settles once no report is under way or waiting. */
+  const reported = async () => {
+    while (followUp ?? reporting) await (followUp ?? reporting)?.catch(() => {});
   };
   // Progress goes out at least every few seconds, also while one batch takes long (F4.6).
   const ticker = setInterval(() => {
@@ -168,7 +207,7 @@ export async function runScan(input: RunInput): Promise<void> {
     counts.answersFirm = countFirmAnswers(proposal);
     const snapshot = JSON.stringify(proposal);
     if (lastProposal !== null && snapshot !== lastProposal) {
-      await publish({ type: "intake.updated", data: {} });
+      send({ type: "intake.updated", data: {} });
     }
     lastProposal = snapshot;
     return proposal;
@@ -190,13 +229,14 @@ export async function runScan(input: RunInput): Promise<void> {
       calls,
     });
     await report();
-    await publish({ type: "messages.updated", data: {} });
+    send({ type: "messages.updated", data: {} });
   }
 
   async function stop(reason: StopReason, failure?: RunFailed) {
-    // No progress may go out after the stop.
+    // No progress may go out after the stop: no tick comes any more, no write is under way, and
+    // what they sent goes out before the stop's events, which queue behind it.
     clearInterval(ticker);
-    await reporting;
+    await reported();
     await refreshCounts();
     const stored = await updateScanProgress(db, workspaceId, scanId, {
       status: "running",
@@ -216,12 +256,12 @@ export async function runScan(input: RunInput): Promise<void> {
       log.warn("scan.stopped", { scanId, reason, cause: failure.code, stopCause, calls });
     } else log.info("scan.stopped", { scanId, reason, analyzed: counts.analyzed, calls });
     const message = stopMessage(reason, counts.analyzed, counts.likely, stopCause);
-    await publish({
+    send({
       type: "scan.stopped",
       data: { ...progress(), status: "stopped", stopReason: reason, stopMessage: message },
     });
-    await publish({ type: "messages.updated", data: {} });
-    await publish({ type: "intake.updated", data: {} });
+    send({ type: "messages.updated", data: {} });
+    send({ type: "intake.updated", data: {} });
   }
 
   /** The user's own replies, read for the preferences they state; null when they are all read. */
@@ -309,6 +349,8 @@ export async function runScan(input: RunInput): Promise<void> {
     await stop("failed", error);
   } finally {
     clearInterval(ticker);
-    await reporting;
+    await reported();
+    // The job ends once the events it sent are out, the stop's among them.
+    await sent();
   }
 }

@@ -1,8 +1,8 @@
-Message-ID: <maria-0511@skylusa.example>
-Date: Fri, 25 Sep 2026 18:55:00 +0000
-From: "SkyLusa Airlines" <bookings@skylusa.example>
+Message-ID: <maria-0497@cityride.example>
+Date: Wed, 23 Sep 2026 13:38:00 +0000
+From: "CityRide" <receipts@cityride.example>
 To: "Maria Santos" <maria.santos@inbox.example>
-Subject: Booking confirmation HCQUWY
+Subject: Your ride receipt
 MIME-Version: 1.0
 Content-Type: multipart/alternative; boundary="=_jf_maria_inbox_0037"
 
@@ -10,11 +10,12 @@ Content-Type: multipart/alternative; boundary="=_jf_maria_inbox_0037"
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: quoted-printable
 
-Dear Maria Santos,
+Thanks for riding with CityRide, Maria.
 
-Your booking HCQUWY is confirmed. Lisbon (LIS) to Berlin (BER).
+Trip total: =E2=82=AC13.26
+Distance: 5 km
 
-Online check-in opens 36 hours before departure.
+Rate your driver in the app.
 
 This is an automatically generated message about your account or order. Ple=
 ase keep it for your records. If you did not make this purchase or do not r=
@@ -44,9 +45,10 @@ Content-Transfer-Encoding: quoted-printable
 <!DOCTYPE html>
 <html><head><meta charset=3D"utf-8"></head>
 <body style=3D"font-family: sans-serif">
-<p>Dear Maria Santos,</p>
-<p>Your booking HCQUWY is confirmed. Lisbon (LIS) to Berlin (BER).</p>
-<p>Online check-in opens 36 hours before departure.</p>
+<p>Thanks for riding with CityRide, Maria.</p>
+<p>Trip total: =E2=82=AC13.26<br>
+Distance: 5 km</p>
+<p>Rate your driver in the app.</p>
 <p>This is an automatically generated message about your account or order. =
 Please keep it for your records. If you did not make this purchase or do no=
 t recognise this activity, contact our customer service team straight away.=

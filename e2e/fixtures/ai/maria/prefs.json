@@ -56,6 +56,9 @@
       ]
     }
   },
+  "<maria-0551@inbox.example>": {
+    "preferences": {}
+  },
   "<maria-0012@inbox.example>": {
     "preferences": {
       "target_roles": [
@@ -87,9 +90,6 @@
         }
       ]
     }
-  },
-  "<maria-0551@inbox.example>": {
-    "preferences": {}
   },
   "<maria-0016@inbox.example>": {
     "preferences": {

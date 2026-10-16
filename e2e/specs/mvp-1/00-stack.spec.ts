@@ -1,7 +1,9 @@
 import { expect, test } from "@playwright/test";
+import { DIRECT_PORTS, REPLICAS } from "../shared.ts";
 
 // The stack itself, before any scenario: the proxy serves the app, and each replica is ready on
-// its direct port (docs/mvp/README.md › The test stack).
+// its direct port (docs/mvp/README.md › The test stack). That every scenario of
+// docs/mvp/MVP-1.md has its spec here is checked by e2e/stack.test.ts, in pnpm check.
 
 test("the start page loads through the proxy", async ({ page }) => {
   const problems: string[] = [];
@@ -20,10 +22,8 @@ test("the start page loads through the proxy", async ({ page }) => {
   expect(problems).toEqual([]);
 });
 
-for (const [replica, port] of [
-  ["app-a", 8081],
-  ["app-b", 8082],
-] as const) {
+for (const replica of REPLICAS) {
+  const port = DIRECT_PORTS[replica];
   test(`${replica} answers ready on its direct port :${port}`, async ({ request }) => {
     const response = await request.get(`http://127.0.0.1:${port}/api/health/ready`);
     expect(response.status()).toBe(200);

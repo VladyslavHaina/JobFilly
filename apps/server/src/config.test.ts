@@ -98,13 +98,17 @@ describe("loadConfig", () => {
 });
 
 describe("starting the server without configuration", () => {
+  // Starting tsx and loading the server's modules takes a second on a quiet machine but took over
+  // 20 seconds on one shared with other builds, and a child killed at its timeout exits 143, not
+  // 1. So the child gets 90 seconds, and the test, which only waits for it, more than that.
   it("exits non-zero with one clear JSON line", () => {
     const root = fileURLToPath(new URL("..", import.meta.url));
     const result = spawnSync(
       process.execPath,
       [join(root, "node_modules/tsx/dist/cli.mjs"), join(root, "src/index.ts")],
-      { env: { PATH: process.env.PATH ?? "" }, encoding: "utf8", timeout: 20_000 },
+      { env: { PATH: process.env.PATH ?? "" }, encoding: "utf8", timeout: 90_000 },
     );
+    expect(result.error, "the server didn't exit within 90 seconds").toBeUndefined();
     expect(result.status).toBe(1);
     const lines = result.stdout.trim().split("\n");
     expect(lines).toHaveLength(1);
@@ -113,5 +117,5 @@ describe("starting the server without configuration", () => {
       event: "config.invalid",
       message: "DATABASE_URL is required",
     });
-  }, 30_000);
+  }, 120_000);
 });

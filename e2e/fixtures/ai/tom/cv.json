@@ -1,0 +1,23 @@
+{
+  "dacfa7db1b17194acebf3ee9d11e7ad2d56d109559c8057b98743bfd7f0c577e": {
+    "language": "en",
+    "skills": [
+      "Patient assessment",
+      "Medication administration",
+      "Wound care",
+      "IV therapy",
+      "Triage"
+    ],
+    "roleFamilies": [
+      "Nursing"
+    ],
+    "seniority": "Mid-level",
+    "countryHints": [
+      "GB"
+    ],
+    "formatHints": [
+      "one page",
+      "no photo"
+    ]
+  }
+}
