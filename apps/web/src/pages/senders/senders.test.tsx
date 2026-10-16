@@ -1,10 +1,11 @@
-import type { SenderCheck } from "@jobfilly/schema";
+import type { AppliedSenderMark, SenderCheck, SenderMarkInput } from "@jobfilly/schema";
 import { cleanup, configure, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   type FakeRequest,
   fakeApi,
+  json,
   renderInWorkspace,
   testWorkspace,
 } from "../../components/testing";
@@ -41,6 +42,38 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+type Applied = AppliedSenderMark["applied"];
+
+/**
+ * The marks API over one stored mark: GET answers it, PUT sets it or clears it, and a clear of
+ * any other mark is a 404, as the server answers it. `keep` makes PUT answer 200 and change
+ * nothing, to prove the buttons show what the server reads back.
+ */
+function markServer(initial: Applied, options: { keep?: boolean } = {}) {
+  let applied = initial;
+  return fakeApi({
+    [`GET ${marksUrl}`]: () => ({ applied }),
+    [`PUT ${marksUrl}`]: (req: FakeRequest) => {
+      const input = req.body as SenderMarkInput;
+      if (options.keep) return input;
+      if (input.mark === null) {
+        if (applied?.scope !== input.scope || applied.value !== input.value) {
+          return json({ error: "not_found", message: "There is no such mark to clear" }, 404);
+        }
+        applied = null;
+      } else {
+        applied = { scope: input.scope, value: input.value, mark: input.mark };
+      }
+      return input;
+    },
+  });
+}
+
+const pressed = (name: "Trusted" | "Blocked") =>
+  screen.getByRole("button", { name }).getAttribute("aria-pressed");
+const enabled = (name: "Trusted" | "Blocked") =>
+  !(screen.getByRole("button", { name }) as HTMLButtonElement).disabled;
+
 describe("SenderBadge", () => {
   it("shows each verdict, and says when a check is incomplete", () => {
     renderInWorkspace(
@@ -64,7 +97,7 @@ describe("SenderBadge", () => {
 
 describe("SenderPanel", () => {
   it("shows the reasons and the high-risk warning, with Trusted and Blocked for editors", async () => {
-    const seen = fakeApi({ [`PUT ${marksUrl}`]: (req: FakeRequest) => req.body });
+    const seen = markServer(null);
     renderInWorkspace(
       <SenderPanel workspaceId={ws.id} messageId="<m@x>" from={from} check={scam} />,
       {
@@ -79,12 +112,9 @@ describe("SenderPanel", () => {
     expect(screen.getByText("This sender looks high risk")).toBeTruthy();
     expect(panel.textContent).toContain("No reply is drafted for it automatically.");
 
+    await waitFor(() => expect(enabled("Blocked")).toBe(true));
     await userEvent.click(screen.getByRole("button", { name: "Blocked" }));
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Blocked" }).getAttribute("aria-pressed")).toBe(
-        "true",
-      ),
-    );
+    await waitFor(() => expect(pressed("Blocked")).toBe("true"));
     expect(seen.find((r) => r.method === "PUT")).toMatchObject({
       path: marksUrl,
       body: { scope: "address", value: from.address, mark: "blocked" },
@@ -92,7 +122,7 @@ describe("SenderPanel", () => {
   });
 
   it("clears a mark when its button is pressed again", async () => {
-    const seen = fakeApi({ [`PUT ${marksUrl}`]: (req: FakeRequest) => req.body });
+    const seen = markServer({ scope: "address", value: from.address, mark: "trusted" });
     const trusted: SenderCheck = {
       verdict: "looks_fine",
       complete: true,
@@ -109,15 +139,66 @@ describe("SenderPanel", () => {
       { role: "editor" },
     );
     expect(screen.getByText(/is marked trusted in this workspace/)).toBeTruthy();
-    const button = screen.getByRole("button", { name: "Trusted" });
-    expect(button.getAttribute("aria-pressed")).toBe("true");
-    await userEvent.click(button);
-    await waitFor(() => expect(seen.some((r) => r.method === "PUT")).toBe(true));
+    await waitFor(() => expect(pressed("Trusted")).toBe("true"));
+    await userEvent.click(screen.getByRole("button", { name: "Trusted" }));
+    await waitFor(() => expect(pressed("Trusted")).toBe("false"));
     expect(seen.find((r) => r.method === "PUT")?.body).toEqual({
       scope: "address",
       value: from.address,
       mark: null,
     });
+    expect(screen.queryByText(/no such mark|didn.t work|Couldn.t read/)).toBeNull();
+  });
+
+  it("clears a domain's mark for the whole domain, and says it is the domain's", async () => {
+    const domain = "globalcareers-mail.example";
+    const seen = markServer({ scope: "domain", value: domain, mark: "blocked" });
+    const blocked: SenderCheck = {
+      verdict: "high_risk",
+      complete: true,
+      reasons: [
+        {
+          signal: "marked_blocked",
+          reason: `Blocked: the domain ${domain} is marked blocked in this workspace`,
+        },
+      ],
+      mark: "blocked",
+    };
+    renderInWorkspace(
+      <SenderPanel workspaceId={ws.id} messageId="<m@x>" from={from} check={blocked} />,
+      { role: "editor" },
+    );
+    await waitFor(() => expect(pressed("Blocked")).toBe("true"));
+    expect(
+      screen.getByText(/for every email from the domain globalcareers-mail\.example/),
+    ).toBeTruthy();
+
+    await userEvent.click(screen.getByRole("button", { name: "Blocked" }));
+    await waitFor(() => expect(pressed("Blocked")).toBe("false"));
+    expect(seen.find((r) => r.method === "PUT")?.body).toEqual({
+      scope: "domain",
+      value: domain,
+      mark: null,
+    });
+    expect(
+      screen.getByText(`Mark ${from.address} trusted or blocked for all its email.`),
+    ).toBeTruthy();
+    expect(screen.queryByText(/no such mark|didn.t work|Couldn.t read/)).toBeNull();
+  });
+
+  it("shows the mark the server reads back after a change, not the one asked for", async () => {
+    markServer(
+      { scope: "domain", value: "globalcareers-mail.example", mark: "blocked" },
+      { keep: true },
+    );
+    renderInWorkspace(
+      <SenderPanel workspaceId={ws.id} messageId="<m@x>" from={from} check={scam} />,
+      { role: "editor" },
+    );
+    await waitFor(() => expect(pressed("Blocked")).toBe("true"));
+    await userEvent.click(screen.getByRole("button", { name: "Blocked" }));
+    await waitFor(() => expect(enabled("Blocked")).toBe(true));
+    expect(pressed("Blocked")).toBe("true");
   });
 
   it("shows viewers the reasons and the warning, but no Trusted or Blocked", () => {

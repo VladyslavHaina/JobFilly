@@ -1,12 +1,15 @@
 import {
   type Address,
+  type AppliedSenderMark,
+  AppliedSenderMarkSchema,
   type MessageListItem,
   type SenderCheck,
   type SenderMark,
+  type SenderMarkInput,
   SenderMarkInputSchema,
   type SenderVerdict,
 } from "@jobfilly/schema";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, api } from "../../api";
 import { Alert, Badge, Button } from "../../components";
 import { queryKeys, useWorkspace } from "../../hooks";
@@ -36,48 +39,81 @@ export function SenderBadge({ sender }: { sender: MessageListItem["sender"] }) {
   );
 }
 
-function MarkButtons({ from, mark }: { from: Address; mark: SenderMark | null }) {
+type AppliedMark = NonNullable<AppliedSenderMark["applied"]>;
+
+const markedText = (m: AppliedMark | null, address: string) => {
+  if (!m) return `Mark ${address} trusted or blocked for all its email.`;
+  const button = m.mark === "trusted" ? "Trusted" : "Blocked";
+  return m.scope === "domain"
+    ? `Marked ${m.mark} for every email from the domain ${m.value}. Press ${button} again to clear it for the whole domain.`
+    : `Marked ${m.mark} for every email from ${m.value}. Press it again to clear the mark.`;
+};
+
+/**
+ * Trusted and Blocked. The pressed one is the mark that applies to the sender now, as the server
+ * tells it (its address's own, or else its whole domain's), so pressing it again clears that very
+ * mark; while a change is on its way, the one asked for.
+ */
+function MarkButtons({ from }: { from: Address }) {
   const { workspaceId } = useWorkspace();
   const client = useQueryClient();
-  const set = useMutation({
-    mutationFn: (next: SenderMark | null) =>
-      api(apiPaths.senderMarks(workspaceId), SenderMarkInputSchema, {
-        method: "PUT",
-        body: { scope: "address", value: from.address, mark: next },
-      }),
-    // The sender's mail is checked again; the inbox shows it when that is done.
-    onSuccess: () =>
-      client.invalidateQueries({ queryKey: queryKeys.area(workspaceId, "messages") }),
+  const messages = queryKeys.area(workspaceId, "messages");
+  const address = from.address.toLowerCase();
+  const applied = useQuery({
+    // Under the messages area, so a sender's re-done check refreshes its mark too.
+    queryKey: [...messages, "sender-mark", address],
+    queryFn: async () =>
+      (
+        await api(
+          `${apiPaths.senderMarks(workspaceId)}?address=${encodeURIComponent(address)}`,
+          AppliedSenderMarkSchema,
+        )
+      ).applied,
   });
-  const current = set.isSuccess ? set.variables : mark;
-  const toggle = (which: SenderMark) => set.mutate(current === which ? null : which);
+  const set = useMutation({
+    mutationFn: ({ input }: { press: SenderMark; input: SenderMarkInput }) =>
+      api(apiPaths.senderMarks(workspaceId), SenderMarkInputSchema, { method: "PUT", body: input }),
+    // The sender's mail is checked again; the inbox shows it when that is done. Pending until the
+    // mark is read back, so the buttons never show a mark the server doesn't have.
+    onSettled: () => client.invalidateQueries({ queryKey: messages }),
+  });
+  const standing = applied.data ?? null;
+  const shown: AppliedMark | null = set.isPending
+    ? set.variables.input.mark && { ...set.variables.input, mark: set.variables.input.mark }
+    : standing;
+  const press = (which: SenderMark) =>
+    set.mutate({
+      press: which,
+      input:
+        standing?.mark === which
+          ? { scope: standing.scope, value: standing.value, mark: null }
+          : { scope: "address", value: address, mark: which },
+    });
+  const ready = applied.isSuccess && !set.isPending;
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex flex-wrap items-center gap-2">
         <Button
           variant="secondary"
-          aria-pressed={current === "trusted"}
-          busy={set.isPending && set.variables === "trusted"}
-          disabled={set.isPending}
-          onClick={() => toggle("trusted")}
+          aria-pressed={shown?.mark === "trusted"}
+          busy={set.isPending && set.variables.press === "trusted"}
+          disabled={!ready}
+          onClick={() => press("trusted")}
         >
           Trusted
         </Button>
         <Button
           variant="danger"
-          aria-pressed={current === "blocked"}
-          busy={set.isPending && set.variables === "blocked"}
-          disabled={set.isPending}
-          onClick={() => toggle("blocked")}
+          aria-pressed={shown?.mark === "blocked"}
+          busy={set.isPending && set.variables.press === "blocked"}
+          disabled={!ready}
+          onClick={() => press("blocked")}
         >
           Blocked
         </Button>
       </div>
-      <p className="text-xs text-stone-500">
-        {current
-          ? `Marked ${current} for every email from ${from.address}. Press it again to clear the mark.`
-          : `Mark ${from.address} trusted or blocked for all its email.`}
-      </p>
+      <p className="text-xs text-stone-500">{markedText(shown, from.address)}</p>
+      {applied.isError && <Alert>Couldn't read this sender's mark. Reload to try again.</Alert>}
       {set.isError && (
         <Alert>
           {set.error instanceof ApiError ? set.error.message : "That didn't work. Try again."}
@@ -133,7 +169,7 @@ export function SenderPanel(props: {
           </p>
         </>
       )}
-      {can.edit && <MarkButtons from={from} mark={check?.mark ?? null} />}
+      {can.edit && <MarkButtons from={from} />}
     </section>
   );
 }
