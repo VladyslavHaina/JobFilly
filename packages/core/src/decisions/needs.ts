@@ -1,15 +1,13 @@
-import {
-  type DecisionChoice,
-  type DecisionNeed,
-  type DraftOutput,
-  type NeedSpec,
-  type ProfileEntry,
-  type RoleEvaluation,
-  turnsDown,
+import type {
+  DecisionChoice,
+  DecisionNeed,
+  DraftOutput,
+  NeedSpec,
+  ProfileEntry,
+  RoleEvaluation,
 } from "@jobfilly/schema";
 import { answeredFor } from "../profile/changes";
-import { itemFromText, questionKeys } from "./answers";
-import { isNo } from "./words";
+import { choiceOf, questionKeys } from "./answers";
 
 // Where decisions come from (F7.1, F7.3, F7.6). A need is a question a reply can't go without,
 // stated by whoever knows why: a match verdict (verdict.need, "pay in another currency"), an
@@ -68,12 +66,12 @@ export function roleNeeds(input: RoleNeedsInput): RoleNeed[] {
 /**
  * A draft's questions (draft.v1) as needs. Each writes a profile key under a group key its answer
  * answers (questionKeys), so answeredFor tells later that it is answered and the question isn't
- * asked again (F7.6). Its choices stay answers to click, and a click never writes what its label
- * doesn't say: a choice that makes an item of the key adds that item ("Yes" to
- * "places:IE:Dublin:hybrid" adds Dublin hybrid); a no to a question whose items are objects
- * turns it down for the waiting roles and writes nothing (its value is its words, turnsDown);
- * any other choice is left out, as the free-text option is always there. Two choices that would
- * add the same item are one.
+ * asked again (F7.6). Every choice the model offers stays an answer to click (F7.2), and a click
+ * never writes what the user turned down (choiceOf): one the model says declines answers the
+ * waiting roles and writes nothing; any other adds the parts' item ("Yes" to
+ * "places:IE:Dublin:hybrid" adds Dublin hybrid), or answers the waiting roles only when its
+ * words can't complete one ("Yes" to "places:IE:Dublin" names no work mode). Only the same words
+ * offered twice are one.
  */
 export function needsFromQuestions(questions: DraftOutput["questions"]): NeedSpec[] {
   const out: NeedSpec[] = [];
@@ -81,12 +79,9 @@ export function needsFromQuestions(questions: DraftOutput["questions"]): NeedSpe
     const { profileKey, groupKey } = questionKeys(q);
     if (out.some((n) => n.groupKey === groupKey)) continue;
     const choices: DecisionChoice[] = [];
-    for (const label of q.choices) {
-      const item = itemFromText(profileKey, groupKey, label);
-      const value = item ?? (isNo(label) && turnsDown(profileKey, label) ? label : null);
-      if (value === null) continue;
-      const same = choices.some((c) => JSON.stringify(c.value) === JSON.stringify(value));
-      if (!same) choices.push({ label, value });
+    for (const offered of q.choices) {
+      const choice = choiceOf(profileKey, groupKey, offered);
+      if (!choices.some((c) => c.label === choice.label)) choices.push(choice);
     }
     out.push({ groupKey, profileKey, question: q.question, choices });
   }

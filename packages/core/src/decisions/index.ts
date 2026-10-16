@@ -1,6 +1,6 @@
 // Pure logic for the decision inbox (F7): needs from match verdicts, ask_first rules and a draft's
 // questions, grouped by group key; whether a role is drafted, asked about or held; and an answer
-// as the profile item it adds, or a no that writes nothing.
+// as the profile item it adds, or words for the waiting roles only that write nothing.
 export {
   type Answer,
   answerChange,

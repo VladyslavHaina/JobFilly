@@ -1,8 +1,10 @@
 import type {
   DecisionNeed,
+  DraftChoice,
   MatchVerdict,
   NeedSpec,
   ProfileEntry,
+  ProfileItem,
   RoleEvaluation,
   RuleEffect,
 } from "@jobfilly/schema";
@@ -70,6 +72,26 @@ const evaluation = (
 });
 
 const maria = { entries: [entry("min_pay", [eur])] };
+
+/** Answers draft.v1 offers that accept what the question asks. */
+const offer = (...labels: string[]) => labels.map((label) => ({ label, declines: false }));
+/** An answer draft.v1 offers that turns the question down. */
+const no = (label: string) => ({ label, declines: true });
+
+/** Ways to say no that no word list catches, and words that say no once read whole. */
+const NO_IN_ANY_LANGUAGE = [
+  "No",
+  "None",
+  "Nope",
+  "Ні",
+  "いいえ",
+  "Nem",
+  "Ei",
+  "Hayır",
+  "Unfortunately not",
+  "Absolutely not",
+  "Negative",
+];
 
 describe("needs (F7.1, F7.6)", () => {
   it("are collected from match verdicts, rule effects and a draft's questions as stated", () => {
@@ -145,10 +167,15 @@ describe("needs (F7.1, F7.6)", () => {
         profileKey: "min_pay",
         groupKey: "min_pay:CHF:year",
         question: "Minimum pay in CHF per year?",
-        choices: ["CHF 110,000", "120k", "whatever you think"],
+        choices: offer("CHF 110,000", "120k", "whatever you think"),
       },
       // No usable key: an extra question named after its group key.
-      { profileKey: null, groupKey: "Relocation (IE)", question: "Relocate?", choices: ["Yes"] },
+      {
+        profileKey: null,
+        groupKey: "Relocation (IE)",
+        question: "Relocate?",
+        choices: offer("Yes"),
+      },
       // A group key of another key is replaced by the key's own.
       { profileKey: "extra.visa", groupKey: "visa:IE", question: "Visa?", choices: [] },
     ]);
@@ -166,6 +193,8 @@ describe("needs (F7.1, F7.6)", () => {
             label: "120k",
             value: { amount: 120000, currency: "CHF", period: "year", asWritten: "120k" },
           },
+          // Words that state no amount stay clickable, for the waiting roles only.
+          { label: "whatever you think", value: "whatever you think" },
         ],
       },
       {
@@ -181,15 +210,24 @@ describe("needs (F7.1, F7.6)", () => {
   });
 
   it("from a draft's questions stay answered once answered, whatever parts their group key has", () => {
-    const asked = [
+    const asked: {
+      q: { profileKey: string | null; groupKey: string; choices: DraftChoice[] };
+      need: { profileKey: string; groupKey: string };
+      answer: ProfileItem;
+    }[] = [
       // An extra question's parts become part of its name: Ireland and Germany stay apart.
       {
-        q: { profileKey: "extra.relocate", groupKey: "extra.relocate:IE", choices: ["Yes", "No"] },
+        q: {
+          profileKey: "extra.relocate",
+          groupKey: "extra.relocate:IE",
+          choices: [...offer("Yes"), no("No")],
+        },
         need: { profileKey: "extra.relocate_ie", groupKey: "extra.relocate_ie" },
         answer: "Yes",
       },
+      // An extra question's answer is its words, a no included.
       {
-        q: { profileKey: null, groupKey: "extra.relocate:DE", choices: [] },
+        q: { profileKey: null, groupKey: "extra.relocate:DE", choices: [no("No")] },
         need: { profileKey: "extra.relocate_de", groupKey: "extra.relocate_de" },
         answer: "No",
       },
@@ -199,34 +237,44 @@ describe("needs (F7.1, F7.6)", () => {
         need: { profileKey: "deal_breakers", groupKey: "deal_breakers" },
         answer: "Fully on-site",
       },
-      // A key whose parts describe its items keeps them.
+      // A key whose parts describe its items keeps them; a permit is one the model offered.
       {
-        q: { profileKey: null, groupKey: "work_permits:IE", choices: [] },
+        q: { profileKey: null, groupKey: "work_permits:IE", choices: offer("Stamp 4") },
         need: { profileKey: "work_permits", groupKey: "work_permits:IE" },
         answer: "Stamp 4",
       },
       // The parts fill every field answeredFor compares, whatever the words: "Yes" isn't a scope.
       {
-        q: { profileKey: "remote", groupKey: "remote:EU", choices: [] },
+        q: { profileKey: "remote", groupKey: "remote:EU", choices: offer("Yes") },
         need: { profileKey: "remote", groupKey: "remote:EU" },
         answer: "Yes",
       },
       {
-        q: { profileKey: "places", groupKey: "places:IE:Dublin:hybrid", choices: [] },
+        q: { profileKey: "remote", groupKey: "remote:EU", choices: [] },
+        need: { profileKey: "remote", groupKey: "remote:EU" },
+        answer: "EU",
+      },
+      {
+        q: {
+          profileKey: "places",
+          groupKey: "places:IE:Dublin:hybrid",
+          choices: offer("Так"),
+        },
         need: { profileKey: "places", groupKey: "places:IE:Dublin:hybrid" },
-        answer: "Yes",
+        answer: "так",
       },
       // More parts than the key's items have fields: the key's own group key.
       {
         q: { profileKey: "remote", groupKey: "remote:EU:CET", choices: [] },
         need: { profileKey: "remote", groupKey: "remote" },
-        answer: "EU, CET hours",
+        answer: { scope: "EU, CET hours", timeZones: null },
       },
-      // Fewer parts than fields: the words give the fields the parts leave out.
+      // Fewer parts than fields: the answer gives the fields the parts leave out, as an item or
+      // in the words the schema spells.
       {
         q: { profileKey: "min_pay", groupKey: "min_pay:CHF", choices: [] },
         need: { profileKey: "min_pay", groupKey: "min_pay:CHF" },
-        answer: "CHF 120,000 per year",
+        answer: { amount: 120000, currency: "CHF", period: "year", asWritten: "CHF 120k" },
       },
       {
         q: { profileKey: "places", groupKey: "places:IE", choices: [] },
@@ -234,16 +282,15 @@ describe("needs (F7.1, F7.6)", () => {
         answer: "Hybrid",
       },
       {
-        q: { profileKey: "places", groupKey: "places:IE:Dublin", choices: [] },
+        q: { profileKey: "places", groupKey: "places:IE:Dublin", choices: offer("Onsite") },
         need: { profileKey: "places", groupKey: "places:IE:Dublin" },
         answer: "Onsite",
       },
-      // A part no item can have (no place is "remote"): the key's own group key, and the words
-      // name the whole place.
+      // A part no item can have (no place is "remote"): the key's own group key.
       {
         q: { profileKey: "places", groupKey: "places:IE:Dublin:remote", choices: [] },
         need: { profileKey: "places", groupKey: "places" },
-        answer: "Dublin, IE, hybrid",
+        answer: { country: "IE", city: "Dublin", mode: "hybrid" },
       },
     ];
     for (const { q, need: expected, answer } of asked) {
@@ -251,8 +298,9 @@ describe("needs (F7.1, F7.6)", () => {
       expect(need, q.groupKey).toMatchObject(expected);
       if (!need?.profileKey) throw new Error("expected a profile key");
       expect(isOpen(need, maria, new Set())).toBe(true);
-      const item = answerItem(need, answer);
-      if (item === null) throw new Error(`${q.groupKey}: the answer doesn't fit`);
+      const answered = answerOf(need, answer);
+      if (answered?.kind !== "item") throw new Error(`${q.groupKey}: the answer makes no item`);
+      const { item } = answered;
       const applied = applyChanges(
         { entries: maria.entries, rules: [] },
         [answerChange(need.profileKey, item)],
@@ -290,37 +338,78 @@ describe("needs (F7.1, F7.6)", () => {
     expect(onsite && isOpen(onsite, answered, new Set())).toBe(true);
   });
 
-  it("never write what the words turn down or contradict, and keep the parts for a yes", () => {
-    // Per key of GROUP_PARTS: words that agree make the parts' item; a no or words naming
-    // another city, scope, currency, period or country are refused, never the parts' item.
+  it("never write what the user turned down or the words don't state, in any language", () => {
+    // Per key of GROUP_PARTS: typed words make the parts' item only when they state it in a form
+    // every language shares (digits with the currency's own code or sign, the parts' own words,
+    // ISO codes, the schema's values). A no in any language, words naming another city, scope,
+    // currency, period or country, and anything else make no item: they are kept for the
+    // waiting roles only (answerOf), and nothing is written.
     const cases: Record<string, { groupKey: string; agree: string[]; refuse: string[] }> = {
       min_pay: {
         groupKey: "min_pay:chf:year",
-        agree: ["120,000", "CHF 95'000", "120k a year"],
+        agree: ["CHF 120,000", "CHF 95'000", "120.000 CHF", "chf 120k", "CHF 120 000.-"],
         refuse: [
-          "No",
-          "None",
           "EUR 95,000 a month",
           "EUR 95,000",
           "95,000 a month",
           "€95,000",
           "No, 120k is too low",
+          "120k euros",
+          "120k dollars",
+          "usd 120k",
+          "USD 120k",
+          "10k/mo",
+          "10k p.m.",
+          "CHF 10k month",
+          "CHF 120k a year",
+          "CHF 100-120k",
+          // An amount without the currency's own code or sign doesn't state the minimum.
+          "120,000",
         ],
       },
       places: {
         groupKey: "places:ie:Dublin:hybrid",
-        agree: ["Yes", "Yes, hybrid", "Hybrid in Dublin is fine", "Ja"],
-        refuse: ["No", "No, only Cork", "Cork", "Onsite", "Yes, but only Cork", "Not hybrid", "DE"],
+        agree: ["Dublin", "Dublin, IE, hybrid", "hybrid"],
+        refuse: [
+          "Yes",
+          "Ja",
+          "Так",
+          "No, only Cork",
+          "Cork",
+          "Onsite",
+          "Yes, but only Cork",
+          "Not hybrid",
+          "DE",
+          "Dublin doesn't work for me",
+          "Dublin is not an option",
+          "Hybrid in Dublin is a no",
+          "I would prefer Cork over Dublin",
+          "Dublin, but remote only",
+        ],
       },
       remote: {
         groupKey: "remote:EU",
-        agree: ["Yes", "EU", "Sure, anywhere in the EU"],
-        refuse: ["No", "Worldwide", "Nope", "I'm not open to remote"],
+        agree: ["EU"],
+        refuse: [
+          "Yes",
+          "Worldwide",
+          "I'm not open to remote",
+          "EU is not ok",
+          "Only outside the EU",
+        ],
       },
       work_permits: {
+        // A permit is never made of typed words: only of an answer the model offered.
         groupKey: "work_permits:ie",
-        agree: ["Stamp 4", "Stamp 4, no restrictions"],
-        refuse: ["None", "No", "I have none", "Stamp 4 for DE"],
+        agree: [],
+        refuse: [
+          "Stamp 4",
+          "IE",
+          "I have none",
+          "Stamp 4 for DE",
+          "I need a visa",
+          "I need sponsorship",
+        ],
       },
     };
     for (const [key, fields] of Object.entries(GROUP_PARTS)) {
@@ -331,37 +420,58 @@ describe("needs (F7.1, F7.6)", () => {
         { profileKey: key, groupKey: c.groupKey, question: "?", choices: [] },
       ]);
       expect(need?.groupKey, key).toBe(c.groupKey);
+      if (!need) throw new Error("expected a need");
       for (const text of c.agree) {
         const item = itemFromText(profileKey, c.groupKey, text);
         if (item === null) throw new Error(`${key} ${text}: no item`);
+        expect(answerOf(need, text), `${key} "${text}"`).toEqual({ kind: "item", item });
         const value = [item] as ProfileEntry["value"];
         expect(
           answeredFor({ entries: [entry(profileKey, value)] }, c.groupKey),
           `${key} ${text} answers`,
         ).not.toBeNull();
       }
-      for (const text of c.refuse) {
+      for (const text of [...c.refuse, ...NO_IN_ANY_LANGUAGE]) {
         expect(itemFromText(profileKey, c.groupKey, text), `${key} "${text}"`).toBeNull();
         expect(
           answerItem({ profileKey, groupKey: c.groupKey }, text),
           `${key} "${text}"`,
         ).toBeNull();
+        // Kept for the waiting roles only: their replies are told the words, nothing is written.
+        expect(answerOf(need, text), `${key} "${text}"`).toEqual({
+          kind: "words",
+          words: text,
+          declines: false,
+        });
       }
     }
-    expect(itemFromText("places", "places:IE:Dublin:hybrid", "Yes")).toEqual({
+    expect(itemFromText("min_pay", "min_pay:CHF:year", "CHF 120k")).toEqual({
+      amount: 120000,
+      currency: "CHF",
+      period: "year",
+      asWritten: "CHF 120k",
+    });
+    // The words complete what the parts leave out only with the schema's own values.
+    expect(itemFromText("min_pay", "min_pay:CHF", "CHF 120k year")).toMatchObject({
+      period: "year",
+    });
+    expect(itemFromText("min_pay", "min_pay:CHF", "CHF 120,000 per year")).toBeNull();
+    expect(itemFromText("places", "places:IE:Dublin", "hybrid")).toEqual({
       country: "IE",
       city: "Dublin",
       mode: "hybrid",
     });
-    expect(itemFromText("min_pay", "min_pay:CHF:year", "120k a year")).toEqual({
-      amount: 120000,
-      currency: "CHF",
-      period: "year",
-      asWritten: "120k a year",
+    expect(itemFromText("places", "places", "Dublin, IE, hybrid")).toBeNull();
+    expect(itemFromText("places", "places", "IE, hybrid")).toEqual({
+      country: "IE",
+      city: null,
+      mode: "hybrid",
     });
-    // A no isn't an item of a word list either: "None" is no deal breaker.
-    expect(itemFromText("deal_breakers", "deal_breakers", "None")).toBeNull();
+    expect(itemFromText("remote", "remote", "EU time zones")).toBeNull();
+    // An extra question keeps its words, a no included: that is its answer.
     expect(itemFromText("extra.relocate", "extra.relocate", "No")).toBe("No");
+    expect(itemFromText("reply_threshold", "reply_threshold", "80 %")).toBe(80);
+    expect(itemFromText("reply_threshold", "reply_threshold", "not below 80")).toBeNull();
     // A choice's item that answers another question than the one asked is refused too.
     const decision = { profileKey: "places" as const, groupKey: "places:IE:Dublin:hybrid" };
     expect(answerItem(decision, { country: "IE", city: "Cork", mode: "hybrid" })).toBeNull();
@@ -372,57 +482,133 @@ describe("needs (F7.1, F7.6)", () => {
     });
   });
 
-  it("keep answers to click: a yes adds the parts' item, a no writes nothing", () => {
-    const [remote, dublin, pay] = needsFromQuestions([
+  it("keep answers to click: what the model says declines writes nothing, every other is offered", () => {
+    const dublinHybrid = { country: "IE", city: "Dublin", mode: "hybrid" };
+    const asked = needsFromQuestions([
       {
         profileKey: "remote",
         groupKey: "remote:EU",
         question: "Open to remote in the EU?",
-        choices: ["Yes", "No"],
+        choices: [...offer("Yes"), no("No")],
       },
       {
         profileKey: "places",
         groupKey: "places:IE:Dublin:hybrid",
         question: "Hybrid in Dublin?",
-        choices: ["Yes", "Sure", "No", "Only Cork"],
+        choices: [...offer("Yes", "Sure"), no("No"), no("Only Cork")],
       },
       {
         profileKey: "min_pay",
         groupKey: "min_pay:CHF:year",
         question: "Minimum pay in CHF per year?",
-        choices: ["CHF 110,000", "CHF 120,000", "No CHF roles"],
+        choices: [...offer("CHF 110,000", "CHF 120,000"), no("No CHF roles")],
+      },
+      // A no the old word lists missed, offered before a yes, is still offered.
+      {
+        profileKey: "places",
+        groupKey: "places:IE:Cork:hybrid",
+        question: "Hybrid in Cork?",
+        choices: [no("Absolutely not"), ...offer("Yes")],
+      },
+      // Fewer parts than the item has fields: a yes can't complete the item, and stays.
+      {
+        profileKey: "places",
+        groupKey: "places:IE:Dublin",
+        question: "Dublin?",
+        choices: [...offer("Yes"), no("No")],
+      },
+      {
+        profileKey: "min_pay",
+        groupKey: "min_pay:CHF",
+        question: "Minimum pay in CHF?",
+        choices: [...offer("CHF 100k"), no("No")],
+      },
+      // Any language: the model says which answer declines.
+      {
+        profileKey: "places",
+        groupKey: "places:IE:Galway:hybrid",
+        question: "Гібрид у Голвеї?",
+        choices: [...offer("Так"), no("Ні")],
+      },
+      {
+        profileKey: "work_permits",
+        groupKey: "work_permits:IE",
+        question: "Work permit for Ireland?",
+        choices: [...offer("Stamp 4"), no("いいえ"), no("Unfortunately not")],
       },
     ]);
-    expect(remote?.choices).toEqual([
+    const choicesOf = (groupKey: string) => asked.find((n) => n.groupKey === groupKey)?.choices;
+    expect(choicesOf("remote:EU")).toEqual([
       { label: "Yes", value: { scope: "EU", timeZones: null } },
-      { label: "No", value: "No" },
+      { label: "No", value: "No", declines: true },
     ]);
-    // "Sure" would add what "Yes" adds; "Only Cork" isn't Dublin, so it isn't offered.
-    expect(dublin?.choices).toEqual([
-      { label: "Yes", value: { country: "IE", city: "Dublin", mode: "hybrid" } },
-      { label: "No", value: "No" },
+    expect(choicesOf("places:IE:Dublin:hybrid")).toEqual([
+      { label: "Yes", value: dublinHybrid },
+      { label: "Sure", value: dublinHybrid },
+      { label: "No", value: "No", declines: true },
+      { label: "Only Cork", value: "Only Cork", declines: true },
     ]);
-    expect(pay?.choices.map((c) => c.label)).toEqual([
+    expect(choicesOf("min_pay:CHF:year")?.map((c) => c.label)).toEqual([
       "CHF 110,000",
       "CHF 120,000",
       "No CHF roles",
     ]);
-    for (const need of [remote, dublin, pay]) {
-      if (!need) throw new Error("expected a need");
+    expect(choicesOf("places:IE:Cork:hybrid")).toEqual([
+      { label: "Absolutely not", value: "Absolutely not", declines: true },
+      { label: "Yes", value: { country: "IE", city: "Cork", mode: "hybrid" } },
+    ]);
+    expect(choicesOf("places:IE:Dublin")).toEqual([
+      { label: "Yes", value: "Yes" },
+      { label: "No", value: "No", declines: true },
+    ]);
+    expect(choicesOf("min_pay:CHF")).toEqual([
+      { label: "CHF 100k", value: "CHF 100k" },
+      { label: "No", value: "No", declines: true },
+    ]);
+    expect(choicesOf("places:IE:Galway:hybrid")).toEqual([
+      { label: "Так", value: { country: "IE", city: "Galway", mode: "hybrid" } },
+      { label: "Ні", value: "Ні", declines: true },
+    ]);
+    expect(choicesOf("work_permits:IE")).toEqual([
+      { label: "Stamp 4", value: { country: "IE", text: "Stamp 4" } },
+      { label: "いいえ", value: "いいえ", declines: true },
+      { label: "Unfortunately not", value: "Unfortunately not", declines: true },
+    ]);
+    for (const need of asked) {
       for (const choice of need.choices) {
-        const answer = answerOf(need, choice.value);
-        // A click never writes what its label doesn't say: a no is turned down, a yes is an item.
-        if (choice.label.startsWith("No")) {
-          expect(answer, choice.label).toEqual({ kind: "declined", words: choice.label });
-        } else {
-          expect(answer, choice.label).toEqual({ kind: "item", item: choice.value });
-        }
+        // A click never writes what the user turned down: a no is for the waiting roles only,
+        // and so is a choice no item can be made of; any other adds its item.
+        const expected =
+          typeof choice.value !== "string"
+            ? { kind: "item", item: choice.value }
+            : { kind: "words", words: choice.label, declines: choice.declines === true };
+        expect(answerOf(need, choice.value), choice.label).toEqual(expected);
+        // Typing its words is the same as clicking it.
+        expect(answerOf(need, ` ${choice.label.toLowerCase()} `), choice.label).toEqual(expected);
       }
-      // Typing the no is the same as clicking it; typing any other no doesn't fit.
-      expect(answerOf(need, "Nope")).toBeNull();
+      // Typing a no nobody offered makes no item either.
+      for (const text of NO_IN_ANY_LANGUAGE) {
+        if (need.choices.some((c) => c.label === text)) continue;
+        expect(answerOf(need, text), `${need.groupKey} "${text}"`).toMatchObject({
+          kind: "words",
+        });
+      }
     }
-    if (!remote) throw new Error("expected a need");
-    expect(answerOf(remote, "No")).toEqual({ kind: "declined", words: "No" });
+    // An extra question's answer is its words, a no included, so it is never asked again.
+    const [relocate] = needsFromQuestions([
+      {
+        profileKey: "extra.relocate",
+        groupKey: "extra.relocate",
+        question: "Would you relocate to Ireland?",
+        choices: [...offer("Yes"), no("No")],
+      },
+    ]);
+    if (!relocate) throw new Error("expected a need");
+    expect(relocate.choices).toEqual([
+      { label: "Yes", value: "Yes" },
+      { label: "No", value: "No" },
+    ]);
+    expect(answerOf(relocate, "No")).toEqual({ kind: "item", item: "No" });
   });
 });
 
@@ -508,8 +694,13 @@ describe("draft, ask or hold (F6.1, F7.1)", () => {
 
 describe("answers (F7.4)", () => {
   it("become one add Change of a single item with source decision; CHF keeps EUR", () => {
-    const item = answerItem({ profileKey: "min_pay", groupKey: chfNeed.groupKey }, "120,000");
-    expect(item).toEqual({ amount: 120000, currency: "CHF", period: "year", asWritten: "120,000" });
+    const item = answerItem({ profileKey: "min_pay", groupKey: chfNeed.groupKey }, "CHF 120,000");
+    expect(item).toEqual({
+      amount: 120000,
+      currency: "CHF",
+      period: "year",
+      asWritten: "CHF 120,000",
+    });
     const change = answerChange("min_pay", item ?? chf);
     expect(change).toEqual({ op: "add", target: "entry", key: "min_pay", value: [item] });
     const applied = applyChanges({ entries: maria.entries, rules: [] }, [change], {
@@ -535,8 +726,8 @@ describe("answers (F7.4)", () => {
   it("make free text an item of the decision's key, answering its group key", () => {
     const cases: [ProfileEntry["key"], string, string][] = [
       ["min_pay", "min_pay:CHF:year", "CHF 95'000"],
-      ["work_permits", "work_permits:IE", "Stamp 4"],
-      ["remote", "remote", "EU time zones"],
+      ["places", "places:IE:Dublin", "hybrid"],
+      ["remote", "remote:EU", "EU"],
       ["extra.relocate", "extra.relocate", "Maybe later"],
       ["deal_breakers", "deal_breakers", "On-call"],
       ["reply_threshold", "reply_threshold", "80"],
@@ -555,9 +746,15 @@ describe("answers (F7.4)", () => {
       expect(applied.ok, `${key} applies`).toBe(true);
       if (applied.ok) expect(answeredFor(applied, groupKey), `${key} answers`).not.toBeNull();
     }
-    expect(itemFromText("min_pay", "min_pay:CHF:year", "120k")).toMatchObject({ amount: 120000 });
-    expect(itemFromText("min_pay", "min_pay:CHF:year", "120.000")).toMatchObject({
+    expect(itemFromText("min_pay", "min_pay:CHF:year", "CHF 120k")).toMatchObject({
       amount: 120000,
+    });
+    expect(itemFromText("min_pay", "min_pay:CHF:year", "CHF 120.000")).toMatchObject({
+      amount: 120000,
+    });
+    expect(itemFromText("min_pay", "min_pay:EUR:year", "€95,000")).toMatchObject({
+      amount: 95000,
+      currency: "EUR",
     });
   });
 });
