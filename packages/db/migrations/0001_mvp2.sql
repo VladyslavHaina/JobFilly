@@ -139,10 +139,12 @@ CREATE TABLE "mailbox_sync" (
 	"last_synced_at" timestamp with time zone,
 	"failing_since" timestamp with time zone,
 	"last_error" text,
+	"last_error_reason" text,
 	"failures" integer DEFAULT 0 NOT NULL,
 	"next_attempt_at" timestamp with time zone,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "mailbox_sync_mailbox_id_folder_path_pk" PRIMARY KEY("mailbox_id","folder_path")
+	CONSTRAINT "mailbox_sync_mailbox_id_folder_path_pk" PRIMARY KEY("mailbox_id","folder_path"),
+	CONSTRAINT "mailbox_sync_last_error_reason_check" CHECK (last_error_reason is null or last_error_reason in ('wrong_password', 'unreachable', 'tls', 'insecure_refused', 'secret_error', 'error'))
 );
 --> statement-breakpoint
 CREATE TABLE "match_ai_answers" (

@@ -43,6 +43,7 @@ import type {
   StageOneVerdict,
   StopCause,
   StopReason,
+  SyncFailureReason,
   TaskId,
   TlsMode,
 } from "@jobfilly/schema";
@@ -949,9 +950,19 @@ export const profileHistory = pgTable(
   ],
 );
 
+const SYNC_FAILURE_REASONS = [
+  "wrong_password",
+  "unreachable",
+  "tls",
+  "insecure_refused",
+  "secret_error",
+  "error",
+] as const satisfies readonly SyncFailureReason[];
+
 /**
  * The continuous sync's state per mailbox and folder (F1): where it got to (UIDVALIDITY and the
- * last UID), when it last worked, since when it fails, and when it may try again (back-off, F1.4).
+ * last UID), when it last worked, since when it fails and why, and when it may try again
+ * (back-off, F1.4).
  */
 export const mailboxSync = pgTable(
   "mailbox_sync",
@@ -967,9 +978,17 @@ export const mailboxSync = pgTable(
     failingSince: at("failing_since"),
     /** Plain words, never the server's own text. */
     lastError: text("last_error"),
+    /** Why the last sync failed, for the UI to branch on; null with no failure. */
+    lastErrorReason: text("last_error_reason").$type<SyncFailureReason>(),
     failures: integer("failures").notNull().default(0),
     nextAttemptAt: at("next_attempt_at"),
     updatedAt: updatedAt(),
   },
-  (t) => [primaryKey({ columns: [t.mailboxId, t.folderPath] })],
+  (t) => [
+    primaryKey({ columns: [t.mailboxId, t.folderPath] }),
+    check(
+      "mailbox_sync_last_error_reason_check",
+      sql`last_error_reason is null or ${oneOf("last_error_reason", SYNC_FAILURE_REASONS)}`,
+    ),
+  ],
 );

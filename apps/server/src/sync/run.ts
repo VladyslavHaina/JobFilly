@@ -14,12 +14,13 @@ import {
   type SyncState,
   saveEnvelopes,
 } from "@jobfilly/db";
-import { type MailClient, MailUnavailableError } from "@jobfilly/mail";
+import { type MailClient, MailUnavailableError, UNAVAILABLE_MESSAGES } from "@jobfilly/mail";
 import {
   AI_BATCH_SIZE,
   type Envelope,
   SCAN_WINDOW_DAYS,
   type StoredMessage,
+  type SyncFailureReason,
   type Usage,
 } from "@jobfilly/schema";
 import { aiClientFor } from "../ai-usage";
@@ -90,10 +91,14 @@ export interface SyncOptions {
   stages?: Stages;
 }
 
-/** The sync couldn't go on; `code` is the log's cause, `message` what the status shows. */
+/**
+ * The sync couldn't go on; `code` is the log's cause, `reason` the status's code for the UI and
+ * `message` the words the status shows.
+ */
 class SyncFailed extends Error {
   constructor(
     readonly code: string,
+    readonly reason: SyncFailureReason,
     message: string,
   ) {
     super(message);
@@ -101,15 +106,17 @@ class SyncFailed extends Error {
   }
 }
 
-const UNREACHABLE = "Couldn't reach the mail server";
-
 function connect(deps: AppDeps, mailbox: StoredMailbox): MailClient {
   let password: string;
   try {
     password = open(deps.config.secretKey, mailbox.secretCiphertext);
   } catch {
     // Sealed under another JOBFILLY_SECRET_KEY: the server's configuration, not the mailbox.
-    throw new SyncFailed("secret_error", "The mailbox password can't be read on this server");
+    throw new SyncFailed(
+      "secret_error",
+      "secret_error",
+      "The mailbox password can't be read on this server",
+    );
   }
   return deps.mail.connect(
     {
@@ -214,7 +221,7 @@ async function analyze(
       jobs.push(...(await analyzeBatch(run, messages.slice(i, i + AI_BATCH_SIZE))).jobs);
     } catch (error) {
       if (error instanceof RunFailed && error.stopCause === "mailbox") {
-        throw new SyncFailed(error.code, UNREACHABLE);
+        throw new SyncFailed(error.code, "unreachable", UNAVAILABLE_MESSAGES.unreachable);
       }
       if (!(error instanceof RunFailed)) throw error;
       log.warn("pipeline.stage_failed", { stage: "analyze", error: error.code });
@@ -353,12 +360,16 @@ async function recordFailure(
   state: SyncState | null,
   error: unknown,
 ): Promise<SyncOutcome> {
-  const { code, message } =
+  const { code, reason, message } =
     error instanceof SyncFailed
-      ? { code: error.code, message: error.message }
+      ? { code: error.code, reason: error.reason, message: error.message }
       : error instanceof MailUnavailableError
-        ? { code: "mail_unavailable", message: error.message }
-        : { code: "error", message: "Something went wrong while syncing the mailbox" };
+        ? { code: "mail_unavailable", reason: error.reason, message: error.message }
+        : {
+            code: "error",
+            reason: "error" as const,
+            message: "Something went wrong while syncing the mailbox",
+          };
   const now = deps.clock.now();
   const failures = (state?.failures ?? 0) + 1;
   const retryMs = backoffMs(failures, deps.config.syncIntervalSeconds * 1000);
@@ -366,6 +377,7 @@ async function recordFailure(
     folderPath: SYNC_FOLDER,
     failures,
     nextAttemptAt: new Date(now.getTime() + retryMs),
+    reason,
     message,
     at: now,
   });

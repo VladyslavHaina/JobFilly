@@ -77,6 +77,7 @@ describe("the sync cursor", () => {
       lastSyncedAt: later(15),
       failingSince: null,
       lastError: null,
+      lastErrorReason: null,
       failures: 0,
       nextAttemptAt: null,
     });
@@ -84,6 +85,7 @@ describe("the sync cursor", () => {
       state: "ok",
       lastSyncedAt: later(15).toISOString(),
       failingSince: null,
+      reason: null,
       message: null,
     });
   });
@@ -110,6 +112,7 @@ describe("the sync cursor", () => {
         folderPath: "INBOX",
         failures: 1,
         nextAttemptAt: later(15),
+        reason: "error",
         message: "x",
         at: T0,
       }),
@@ -155,6 +158,7 @@ describe("a failing sync (F1.4)", () => {
       folderPath: "INBOX",
       failures: 1,
       nextAttemptAt: later(30),
+      reason: "unreachable",
       message: "Couldn't reach the mail server",
       at: later(15),
     });
@@ -162,7 +166,8 @@ describe("a failing sync (F1.4)", () => {
       folderPath: "INBOX",
       failures: 2,
       nextAttemptAt: later(90),
-      message: "Couldn't reach the mail server",
+      reason: "wrong_password",
+      message: "The mail server didn't accept the user name or password.",
       at: later(30),
     });
     expect(await getSyncState(conn.db, id, mailbox, "INBOX")).toEqual({
@@ -170,7 +175,8 @@ describe("a failing sync (F1.4)", () => {
       lastUid: 12,
       lastSyncedAt: T0,
       failingSince: later(15),
-      lastError: "Couldn't reach the mail server",
+      lastError: "The mail server didn't accept the user name or password.",
+      lastErrorReason: "wrong_password",
       failures: 2,
       nextAttemptAt: later(90),
     });
@@ -178,7 +184,8 @@ describe("a failing sync (F1.4)", () => {
       state: "failing",
       lastSyncedAt: T0.toISOString(),
       failingSince: later(15).toISOString(),
-      message: "Couldn't reach the mail server",
+      reason: "wrong_password",
+      message: "The mail server didn't accept the user name or password.",
     });
     expect(await status("a")).toBe("failing");
     expect(await status("b")).toBe("connected");
@@ -194,6 +201,7 @@ describe("a failing sync (F1.4)", () => {
       lastUid: 14,
       failingSince: null,
       lastError: null,
+      lastErrorReason: null,
       failures: 0,
       nextAttemptAt: null,
     });
@@ -206,6 +214,7 @@ describe("a failing sync (F1.4)", () => {
       folderPath: "INBOX",
       failures: 1,
       nextAttemptAt: later(15),
+      reason: "unreachable",
       message: "Couldn't reach the mail server",
       at: T0,
     });
@@ -218,6 +227,7 @@ describe("a failing sync (F1.4)", () => {
       state: "failing",
       lastSyncedAt: null,
       failingSince: T0.toISOString(),
+      reason: "unreachable",
       message: "Couldn't reach the mail server",
     });
   });
@@ -248,6 +258,7 @@ describe("listMailboxesToSync", () => {
       folderPath: "INBOX",
       failures: 1,
       nextAttemptAt: later(30),
+      reason: "error",
       message: "x",
       at: T0,
     });

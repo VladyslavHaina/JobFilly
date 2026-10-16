@@ -141,7 +141,13 @@ describe("sync status (MVP 2 F1.4)", () => {
     const mailboxId = await connected();
     expect((await listed(admin))[0]).toMatchObject({
       status: "connected",
-      sync: { state: "never", lastSyncedAt: null, failingSince: null, message: null },
+      sync: {
+        state: "never",
+        lastSyncedAt: null,
+        failingSince: null,
+        reason: null,
+        message: null,
+      },
     });
 
     await recordSyncSuccess(deps.db, workspaceId, mailboxId, {
@@ -163,6 +169,7 @@ describe("sync status (MVP 2 F1.4)", () => {
       folderPath: "INBOX",
       failures: 1,
       nextAttemptAt: new Date(failedAt.getTime() + 15_000),
+      reason: "unreachable",
       message: "Couldn't reach the mail server",
       at: failedAt,
     });
@@ -172,6 +179,7 @@ describe("sync status (MVP 2 F1.4)", () => {
         state: "failing",
         lastSyncedAt: T0.toISOString(),
         failingSince: failedAt.toISOString(),
+        reason: "unreachable",
         message: "Couldn't reach the mail server",
       },
     });

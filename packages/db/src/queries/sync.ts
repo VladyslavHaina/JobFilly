@@ -1,4 +1,4 @@
-import { type MailboxSyncStatus, NEVER_SYNCED } from "@jobfilly/schema";
+import { type MailboxSyncStatus, NEVER_SYNCED, type SyncFailureReason } from "@jobfilly/schema";
 import { and, eq, exists, sql } from "drizzle-orm";
 import type { Database } from "../client";
 import { mailboxes, mailboxSync, scans } from "../tables";
@@ -16,6 +16,8 @@ export interface SyncState {
   failingSince: Date | null;
   /** Plain words, never the server's own text. */
   lastError: string | null;
+  /** Why the last sync failed; null after one that worked. */
+  lastErrorReason: SyncFailureReason | null;
   /** Failed syncs in a row; 0 after one that worked. */
   failures: number;
   nextAttemptAt: Date | null;
@@ -38,6 +40,7 @@ export async function getSyncState(
       lastSyncedAt: mailboxSync.lastSyncedAt,
       failingSince: mailboxSync.failingSince,
       lastError: mailboxSync.lastError,
+      lastErrorReason: mailboxSync.lastErrorReason,
       failures: mailboxSync.failures,
       nextAttemptAt: mailboxSync.nextAttemptAt,
     })
@@ -73,6 +76,7 @@ export async function recordSyncSuccess(
       lastSyncedAt: input.at,
       failingSince: null,
       lastError: null,
+      lastErrorReason: null,
       failures: 0,
       nextAttemptAt: null,
       updatedAt: input.at,
@@ -91,8 +95,9 @@ export async function recordSyncSuccess(
 
 /**
  * A sync that failed (F1.4): `failures` in a row now, the next attempt at `nextAttemptAt`, the
- * reason in plain words, and failing since the first failure in a row (kept from an earlier
- * one). The cursor stays. The mailbox shows as failing. False when the mailbox is gone.
+ * reason as a code and in plain words, and failing since the first failure in a row (kept from
+ * an earlier one). The cursor stays. The mailbox shows as failing. False when the mailbox is
+ * gone.
  */
 export async function recordSyncFailure(
   db: Database,
@@ -102,6 +107,7 @@ export async function recordSyncFailure(
     folderPath: string;
     failures: number;
     nextAttemptAt: Date;
+    reason: SyncFailureReason;
     message: string;
     at: Date;
   },
@@ -112,6 +118,7 @@ export async function recordSyncFailure(
       failures: input.failures,
       nextAttemptAt: input.nextAttemptAt,
       lastError: input.message,
+      lastErrorReason: input.reason,
       updatedAt: input.at,
     };
     await tx
@@ -149,6 +156,7 @@ export async function getMailboxSyncStatus(
       lastSyncedAt: mailboxSync.lastSyncedAt,
       failingSince: mailboxSync.failingSince,
       lastError: mailboxSync.lastError,
+      lastErrorReason: mailboxSync.lastErrorReason,
     })
     .from(mailboxSync)
     .where(ofMailbox(workspaceId, mailboxId));
@@ -165,8 +173,7 @@ export async function getMailboxSyncStatus(
       state: "failing",
       lastSyncedAt: iso(lastSyncedAt),
       failingSince: iso(first.failingSince),
-      // No reason is stored yet: every failure reads as `error`.
-      reason: "error",
+      reason: first.lastErrorReason ?? "error",
       message: first.lastError,
     };
   }
