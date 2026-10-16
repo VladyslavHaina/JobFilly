@@ -59,8 +59,9 @@ export interface CompareOptions {
  * messages comparedForF53 selects: the not_job mail stage one sorts out and the job alerts'
  * roles included, own replies and the always-invalid message left out. A category a person
  * corrected (source "you", F5.4) is not the analysis's, so it is not compared; its roles are.
- * Roles are compared as a set of whole JobFacts objects, field by field; their order is not a
- * fact. An empty list means F5.3 holds for what has been analysed.
+ * Roles are compared as a set of JobFacts objects, field by field; their order is not a fact.
+ * Only the JobFacts fields are compared: what later MVPs add to a role (MVP 2's cvChoice and
+ * evaluation) is no extracted fact, so it is left out. An empty list means F5.3 holds for what has been analysed.
  *
  * From MVP 2 the mailbox also holds the mail `seed deliver` brought in, compared with its ground
  * truth in expected.json's `deliveries`. A run delivers it step by step, so `complete` never
@@ -133,10 +134,37 @@ function compareRoles(
   if (stored === null) {
     return isJobCategory(category) ? [{ messageId, field: "roles", expected, stored }] : [];
   }
+  const facts = stored.map(onlyFacts);
   const want = expected.map(canonical).sort();
-  const got = stored.map(canonical).sort();
+  const got = facts.map(canonical).sort();
   if (want.length === got.length && want.every((w, i) => w === got[i])) return [];
-  return [{ messageId, field: "roles", expected, stored }];
+  return [{ messageId, field: "roles", expected, stored: facts }];
+}
+
+/** Every field of JobFacts, the facts F5.3 compares. */
+const JOB_FACT_KEYS = [
+  "title",
+  "company",
+  "agency",
+  "places",
+  "workMode",
+  "remoteScope",
+  "timeZones",
+  "pay",
+  "contract",
+  "seniority",
+  "workPermit",
+  "skills",
+  "languages",
+  "applyUrl",
+  "extra",
+] as const satisfies readonly (keyof JobFacts)[];
+
+/** The role's JobFacts fields only; a missing one stays missing, so it still differs. */
+function onlyFacts(role: JobFacts): JobFacts {
+  return Object.fromEntries(
+    JOB_FACT_KEYS.filter((k) => k in role).map((k) => [k, role[k]]),
+  ) as unknown as JobFacts;
 }
 
 /** JSON with every object's keys sorted, so equal facts compare equal whatever the key order. */

@@ -87,6 +87,24 @@ describe("compareWithExpected (F5.3)", () => {
     expect(compareWithExpected("maria", stored)).toEqual([]);
   });
 
+  it("ignores what later MVPs add to a role, but not a changed or missing fact", () => {
+    const withExtras = (change: (r: Record<string, unknown>) => void) => {
+      const stored = storedFromExpected("maria");
+      const alert = find(stored, MARIA_KEY_MESSAGES.multiRoleAlert);
+      alert.roles = (alert.roles as JobFacts[]).map((r) => ({
+        ...r,
+        cvChoice: { cvId: null, source: "auto", reason: "No CV uploaded yet" },
+        evaluation: null,
+      }));
+      change(alert.roles[0] as unknown as Record<string, unknown>);
+      return compareWithExpected("maria", stored).map((d) => [d.messageId, d.field]);
+    };
+    const roles = [[MARIA_KEY_MESSAGES.multiRoleAlert, "roles"]];
+    expect(withExtras(() => {})).toEqual([]);
+    expect(withExtras((r) => (r.title = "Another title"))).toEqual(roles);
+    expect(withExtras((r) => delete r.skills)).toEqual(roles);
+  });
+
   it("reports a flipped category", () => {
     const stored = storedFromExpected("maria");
     find(stored, MARIA_KEY_MESSAGES.interviewInvite).category = "rejection";
