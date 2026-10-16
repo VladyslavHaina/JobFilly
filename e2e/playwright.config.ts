@@ -22,6 +22,9 @@ export default defineConfig({
   outputDir: "reports/playwright",
   use: {
     baseURL: "http://127.0.0.1:8080",
+    // The web formats pay and dates and reads amounts in the browser's locale; pinned so the
+    // specs' expected text doesn't depend on the machine's.
+    locale: "en-US",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },

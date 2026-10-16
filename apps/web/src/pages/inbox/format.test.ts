@@ -1,8 +1,9 @@
 import type { Pay } from "@jobfilly/schema";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   countryName,
   formatAgency,
+  formatListDate,
   formatPay,
   formatPlace,
   formatTimeZones,
@@ -135,5 +136,24 @@ describe("parseAmount", () => {
     for (const text of ["", "  ", "seventy", "-5", "€70,000"]) {
       expect(read(text), text).toEqual({ ok: false, message: "Enter the amount as a number" });
     }
+  });
+});
+
+describe("in the browser's locale (TBD-130)", () => {
+  const setLocale = (language: string) =>
+    Object.defineProperty(navigator, "language", { value: language, configurable: true });
+  afterEach(() => setLocale("en"));
+
+  it("formats pay and dates and reads amounts the way the browser writes them", () => {
+    setLocale("de");
+    expect(formatPay(pay({ min: 70000, currency: "EUR", period: "year" }))).toBe(
+      "from 70.000\u00a0€ per year",
+    );
+    expect(formatListDate("2026-10-15T12:00:00Z")).toBe("15.10.2026");
+    expect(parseAmount("1.234,56")).toEqual({ ok: true, amount: 1234.56 });
+    expect(parseAmount("1,234.56")).toEqual({
+      ok: false,
+      message: "Retype the amount, written like 1.234,50",
+    });
   });
 });

@@ -5,8 +5,12 @@ import type { Category, JobFacts, Pay, PayPeriod, Place, TimeZoneRange } from "@
 // (named with Intl.DisplayNames) and ISO 4217 currencies (formatted with Intl.NumberFormat).
 // Everything else (contract, seniority, work permit, remote scope) is shown as written.
 
-/** The UI's language: the app's copy is English, so names and numbers are written for it. */
-const UI_LOCALE = "en";
+/**
+ * The browser's locale, read on each call: pay, dates and typed amounts are written the way the
+ * user's browser writes numbers and dates (TBD-130). Country names stay in English, the language
+ * of the app's copy.
+ */
+const userLocale = () => navigator.language;
 
 export const NOT_STATED = "Not stated";
 
@@ -22,7 +26,7 @@ export const CATEGORY_LABELS: Record<Category, string> = {
   not_job: "Not job",
 };
 
-const regionNames = new Intl.DisplayNames([UI_LOCALE], { type: "region", fallback: "code" });
+const regionNames = new Intl.DisplayNames(["en"], { type: "region", fallback: "code" });
 
 /** "Germany" for "DE"; the code itself when the runtime has no name for it. */
 export function countryName(code: string): string {
@@ -84,14 +88,14 @@ export function formatPay(pay: Pay): string | null {
   const fractions = [min, max].some((v) => v !== null && !Number.isInteger(v)) ? 2 : 0;
   let format: Intl.NumberFormat;
   try {
-    format = new Intl.NumberFormat(UI_LOCALE, {
+    format = new Intl.NumberFormat(userLocale(), {
       ...(currency ? { style: "currency", currency, currencyDisplay: "narrowSymbol" } : {}),
       minimumFractionDigits: fractions,
       maximumFractionDigits: fractions,
     });
   } catch {
     // A currency code the runtime doesn't know: plain numbers followed by the code.
-    format = new Intl.NumberFormat(UI_LOCALE, { maximumFractionDigits: fractions });
+    format = new Intl.NumberFormat(userLocale(), { maximumFractionDigits: fractions });
   }
   const withCode = currency && format.resolvedOptions().style !== "currency";
   let amount: string;
@@ -110,13 +114,14 @@ export function formatPay(pay: Pay): string | null {
 export type ParsedAmount = { ok: true; amount: number } | { ok: false; message: string };
 
 /**
- * Reads an amount the user typed, with the separators of `locale` (the one amounts are shown in):
+ * Reads an amount the user typed, with the separators of `locale` (the one amounts are shown in,
+ * the browser's by default):
  * "70,000" and "1,234.56" in English, "70.000" and "1.234,56" in German. Spaces group digits in
  * any locale. Whatever the locale can't read for certain is refused, never guessed: a separator
  * that isn't its own or sits in the wrong place ("450,50" in English), and exactly three digits
  * after the decimal sign ("70.000" in English), which another locale writes as thousands.
  */
-export function parseAmount(text: string, locale: string = UI_LOCALE): ParsedAmount {
+export function parseAmount(text: string, locale: string = userLocale()): ParsedAmount {
   const parts = new Intl.NumberFormat(locale).formatToParts(1234567.8);
   const group = parts.find((p) => p.type === "group")?.value ?? null;
   const decimal = parts.find((p) => p.type === "decimal")?.value ?? ".";
@@ -186,8 +191,9 @@ export function safeLink(url: string): string | null {
   }
 }
 
-const listDate = new Intl.DateTimeFormat(UI_LOCALE, { dateStyle: "medium" });
-const fullDate = new Intl.DateTimeFormat(UI_LOCALE, { dateStyle: "medium", timeStyle: "short" });
-
-export const formatListDate = (iso: string) => listDate.format(new Date(iso));
-export const formatFullDate = (iso: string) => fullDate.format(new Date(iso));
+export const formatListDate = (iso: string) =>
+  new Intl.DateTimeFormat(userLocale(), { dateStyle: "medium" }).format(new Date(iso));
+export const formatFullDate = (iso: string) =>
+  new Intl.DateTimeFormat(userLocale(), { dateStyle: "medium", timeStyle: "short" }).format(
+    new Date(iso),
+  );
