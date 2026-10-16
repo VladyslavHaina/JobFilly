@@ -188,6 +188,51 @@ describe("answering (F7.4, F7.6)", () => {
     );
   });
 
+  it("never asks a draft's answered question again, whatever parts its group key has", async () => {
+    // draft.v1 asks with a group key whose part ("IE") isn't a field of the key's items.
+    const question = {
+      profileKey: "extra.relocate",
+      groupKey: "extra.relocate:IE",
+      question: "Would you relocate to Ireland?",
+      choices: ["Yes", "No"],
+    };
+    await h.deliver(DUBLIN);
+    h.ai.answers.draft[key(DUBLIN)] = draftAnswer({ questions: [question] });
+    await h.evaluate(DUBLIN);
+    await h.drain();
+    const [decision] = await inbox();
+    expect(decision).toMatchObject({
+      question: "Would you relocate to Ireland?",
+      waiting: [{ messageId: DUBLIN, position: 0 }],
+    });
+    expect(await h.live(DUBLIN)).toBeNull();
+
+    h.ai.answers.draft[key(DUBLIN)] = draftAnswer();
+    const res = await maria.post(`${base}/${decision?.id}/answer`, {
+      value: "Yes",
+      useForSimilar: true,
+    });
+    expect(res.status).toBe(200);
+    await h.drain();
+    expect(await h.live(DUBLIN)).toMatchObject({ status: "in_mailbox" });
+    const [profile] = await listProfiles(h.deps.db, h.ws);
+    const relocate = profile?.entries.find((e) => e.key.startsWith("extra.relocate"));
+    expect(relocate?.value).toEqual(["Yes"]);
+
+    // A later message whose draft asks the same question gets no decision; its draft uses it.
+    const created = events("decision.created").length;
+    await h.deliver(ZURICH_2);
+    h.ai.answers.draft[key(ZURICH_2)] = draftAnswer({ questions: [question] });
+    await h.evaluate(ZURICH_2);
+    await h.drain();
+    expect(await inbox()).toEqual([]);
+    expect(events("decision.created")).toHaveLength(created);
+    expect(await h.live(ZURICH_2)).toMatchObject({ status: "in_mailbox", origin: "auto" });
+    expect(h.draftInputs.at(-1)?.entries).toContainEqual(
+      expect.objectContaining({ key: relocate?.key, value: ["Yes"] }),
+    );
+  });
+
   it("takes free text made into an item of the key, and refuses one that doesn't fit", async () => {
     await seedThree();
     const chf = await decisionOf("min_pay:CHF:year");
