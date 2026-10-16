@@ -653,18 +653,21 @@ describe("hard conflicts (F4.2)", () => {
     conflict(["call"], { extra: { duties: "Weekly On-Call rotation" } }, "call");
   });
 
-  it("a soft conflict doesn't cap: a language you don't list, a title that doesn't fit", () => {
+  it("a soft conflict doesn't cap: a title that doesn't fit", () => {
     const { match } = matchRole(
-      input({
-        facts: facts({ languages: ["German"] }),
-        ai: { ...titleFits, titleFit: { verdict: "conflicts", reason: "not backend" } },
-      }),
+      input({ ai: { ...titleFits, titleFit: { verdict: "conflicts", reason: "not backend" } } }),
     );
     expect(match.capped).toBe(false);
+    expect(byKey(match.verdicts, "target_roles")).toMatchObject({ verdict: "conflicts" });
+  });
+
+  it("a language not worded like yours is unknown, never a conflict (Deutsch, German)", () => {
+    const { match } = matchRole(input({ facts: facts({ languages: ["Deutsch"] }) }));
     expect(byKey(match.verdicts, "languages")).toMatchObject({
-      verdict: "conflicts",
+      verdict: "unknown",
       hard: false,
-      reason: "Asks for German — not among your working languages ('English', 'Portuguese')",
+      need: null,
+      reason: "Asks for Deutsch — not worded like your working languages ('English', 'Portuguese')",
     });
   });
 });

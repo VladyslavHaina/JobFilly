@@ -229,7 +229,7 @@ describe("previewImpact (F8.2, F8.5)", () => {
     if (!added.ok || !updated.ok) throw new Error("expected previews");
     expect(added.after.entries).toMatchObject([{ key: "languages", value: ["English", "German"] }]);
     expect(updated.after.entries).toMatchObject([{ key: "languages", value: ["German"] }]);
-    // English roles still fit "English, German"; with "German" alone their language conflicts.
+    // English roles still fit "English, German"; with "German" alone their language is unknown.
     expect(added.impact.scoreMoves).toBe(0);
     expect(updated.impact.scoreMoves).toBe(roles.length);
   });

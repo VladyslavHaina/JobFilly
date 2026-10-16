@@ -520,10 +520,12 @@ function languageVerdict(input: MatchRoleInput): MatchVerdict | null {
   if (other.length === 0) {
     return verdict("languages", "fits", `${asked.join(", ")} — among your working languages`);
   }
+  // Languages are words as written, with no codes to compare: "Deutsch" may be your "German",
+  // so a name not worded like yours is unknown, never a conflict.
   return verdict(
     "languages",
-    "conflicts",
-    `Asks for ${other.join(", ")} — not among your working languages (${quoted(mine)})`,
+    "unknown",
+    `Asks for ${other.join(", ")} — not worded like your working languages (${quoted(mine)})`,
   );
 }
 
