@@ -143,6 +143,29 @@ export async function takeOverIntakeExtras(
 }
 
 /**
+ * Hands back the pending claim made at `claimedAt` (its call was abandoned): claimed_at becomes
+ * null, so the next caller takes it over at once. A newer claim or a stored outcome is left alone.
+ */
+export async function releaseIntakeExtras(
+  db: Database,
+  workspaceId: string,
+  claimedAt: Date,
+): Promise<boolean> {
+  const rows = await db
+    .update(intakeExtras)
+    .set({ claimedAt: null })
+    .where(
+      and(
+        eq(intakeExtras.workspaceId, workspaceId),
+        eq(intakeExtras.status, "pending"),
+        eq(intakeExtras.claimedAt, claimedAt),
+      ),
+    )
+    .returning({ workspaceId: intakeExtras.workspaceId });
+  return rows.length > 0;
+}
+
+/**
  * Stores the call's outcome. Only the current claim may: false when the claim was taken over in
  * the meantime (its result then wins).
  */

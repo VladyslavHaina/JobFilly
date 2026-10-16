@@ -15,6 +15,7 @@ import {
   hasProfile,
   listIntakeAnswers,
   loadIntakeInput,
+  releaseIntakeExtras,
   saveIntakeAnswer,
   takeOverIntakeExtras,
 } from "@jobfilly/db";
@@ -138,7 +139,7 @@ async function askForExtras(
       result = await untilAborted(client.intake(input), signal);
     } catch (error) {
       if (signal.aborted) {
-        await releaseClaim(deps, workspaceId, claim);
+        await releaseIntakeExtras(deps.db, workspaceId, claim.at);
         // Open forms ask again, and the first GET takes the claim over.
         await deps.live.publish(workspaceId, { type: "intake.updated", data: {} });
         return;
@@ -182,19 +183,6 @@ function untilAborted<T>(call: Promise<T>, signal: AbortSignal): Promise<T> {
     if (signal.aborted) return onAbort();
     signal.addEventListener("abort", onAbort, { once: true });
     call.then(resolve, reject).finally(() => signal.removeEventListener("abort", onAbort));
-  });
-}
-
-/**
- * Hands an abandoned claim back. The claim is backdated to the epoch, which makes it stale for
- * every caller, so the next GET /intake takes it over at once. Only this claim is released: a
- * newer one (a takeover since) is left alone, as is an outcome already stored.
- */
-async function releaseClaim(deps: AppDeps, workspaceId: string, claim: Claim): Promise<void> {
-  await takeOverIntakeExtras(deps.db, workspaceId, {
-    instance: claim.instance,
-    at: new Date(0),
-    staleBefore: new Date(claim.at.getTime() + 1),
   });
 }
 

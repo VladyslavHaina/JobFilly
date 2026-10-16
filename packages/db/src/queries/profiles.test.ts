@@ -11,6 +11,7 @@ import {
   hasProfile,
   listIntakeAnswers,
   listProfiles,
+  releaseIntakeExtras,
   saveIntakeAnswer,
   takeOverIntakeExtras,
   updateProfile,
@@ -172,6 +173,29 @@ describe("intake extras", () => {
         at,
       }),
     ).toBe(false);
+  });
+
+  it("releases only the claim it is given, and only while pending", async () => {
+    await claimIntakeExtras(conn.db, workspaceId, { instance: "app-a", at: t0 });
+    expect(await releaseIntakeExtras(conn.db, workspaceId, later(1))).toBe(false);
+    expect(await releaseIntakeExtras(conn.db, otherWorkspaceId, t0)).toBe(false);
+    expect(await releaseIntakeExtras(conn.db, workspaceId, t0)).toBe(true);
+    expect(await getIntakeExtras(conn.db, workspaceId)).toMatchObject({
+      status: "pending",
+      claimedAt: null,
+    });
+    // A released claim is taken over whatever the cut-off.
+    const at = later(1);
+    expect(
+      await takeOverIntakeExtras(conn.db, workspaceId, { instance: "app-b", at, staleBefore: t0 }),
+    ).toBe(true);
+    await finishIntakeExtras(conn.db, workspaceId, {
+      claim: { instance: "app-b", at },
+      status: "done",
+      questions: [],
+      at,
+    });
+    expect(await releaseIntakeExtras(conn.db, workspaceId, at)).toBe(false);
   });
 
   it("never takes over a finished call", async () => {
