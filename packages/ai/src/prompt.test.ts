@@ -25,6 +25,14 @@ describe("the prompt builder", () => {
     expect(user).toContain("\nMessage-ID: <a+b/c%d@mail.example>\n");
   });
 
+  it("tells classify.v1 that a job offer is job mail however suspicious; trust is judged later", () => {
+    const { system } = buildPrompt("classify.v1", [item()]);
+    expect(system).toContain(
+      "Mail that offers a job, asks the person to apply or recruits for a role is job mail, even when it looks suspicious, asks for money or documents, or comes from a free-mail address",
+    );
+    expect(system).toContain("judging whether a sender can be trusted is the sender check's job");
+  });
+
   it("tells prefs.v1 that restating another answer from the opposite side is no deal breaker", () => {
     const { system } = buildPrompt("prefs.v1", [item({ folder: "sent" })]);
     expect(system).toContain(
