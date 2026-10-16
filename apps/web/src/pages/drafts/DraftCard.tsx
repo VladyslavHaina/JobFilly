@@ -6,8 +6,8 @@ import { useWorkspace } from "../../hooks";
 import { STATUS_LABELS, useDiscardDraft, useEditDraft } from "./queries";
 
 // One draft (F6.4, F6.7): its status, the failed reason, the reply text, and for editors Edit
-// (saving replaces the copy in the mailbox) and Discard (deletes it there). Viewers read it; the
-// buttons stay visible but disabled, with why.
+// (saving replaces the copy in the mailbox) and Discard (deletes it there; a failed draft can be
+// discarded too). Viewers read it; the buttons stay visible but disabled, with why.
 
 const TONES = {
   saving: "info",
@@ -66,6 +66,8 @@ export function DraftCard({ draft, heading }: { draft: Draft; heading?: string }
   const discard = useDiscardDraft(workspaceId, draft.id);
   const live = draft.status === "in_mailbox" || draft.status === "edited";
   const changeable = can.edit && live;
+  // A failed draft can go too: an append that failed may still have left a copy, deleted with it.
+  const discardable = live || draft.status === "failed";
   const title =
     draft.subject ?? (draft.status === "saving" ? "Writing the reply…" : "No reply text");
 
@@ -100,12 +102,14 @@ export function DraftCard({ draft, heading }: { draft: Draft; heading?: string }
         )
       )}
 
-      {live && !editing && (
+      {discardable && !editing && (
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="secondary" disabled={!changeable} onClick={() => setEditing(true)}>
-            Edit
-          </Button>
-          <Button variant="danger" disabled={!changeable} onClick={() => setConfirming(true)}>
+          {live && (
+            <Button variant="secondary" disabled={!changeable} onClick={() => setEditing(true)}>
+              Edit
+            </Button>
+          )}
+          <Button variant="danger" disabled={!can.edit} onClick={() => setConfirming(true)}>
             Discard
           </Button>
           {!can.edit && (

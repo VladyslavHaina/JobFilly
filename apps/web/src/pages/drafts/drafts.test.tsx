@@ -153,6 +153,26 @@ describe("the draft panel (F6.4, F6.5)", () => {
     ]);
   });
 
+  it("discards a failed draft too, with no Edit for it", async () => {
+    let current: Draft = { ...(ALL[3] as Draft), messageId: BERLIN };
+    const seen = fakeApi({
+      [`GET ${BASE}`]: () => ({ items: [current] }),
+      [`POST ${BASE}/:id/discard`]: () => {
+        current = { ...current, status: "discarded" };
+        return current;
+      },
+    });
+    renderInWorkspace(<DraftPanel workspaceId={W} messageId={BERLIN} position={0} />);
+    await userEvent.click(await screen.findByRole("button", { name: "Discard" }));
+    expect(screen.queryByRole("button", { name: "Edit" })).toBeNull();
+    const dialog = screen.getByRole("dialog", { name: "Discard this draft?" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Discard" }));
+    expect(await screen.findByText(/You discarded the draft for this role/)).toBeTruthy();
+    expect(seen.filter((r) => r.method === "POST").map((r) => r.path)).toEqual([
+      `${BASE}/${current.id}/discard`,
+    ]);
+  });
+
   it("has Draft a reply for a role without a draft, and for a failed one", async () => {
     let items: Draft[] = [];
     const seen = fakeApi({
