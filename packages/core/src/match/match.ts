@@ -49,9 +49,10 @@ import {
 // - Words are compared by the one whole-word matcher in rules/words: a deal-breaker conflicts
 //   wherever the role mentions it ("crypto" in "Crypto-Exchange GmbH", never in "Cryptography");
 //   a contract, seniority, work permit or remote scope fits only when the role says it plainly,
-//   as the same wording or a clause of its own ("Permanent, full-time" for 'permanent'). Any
+//   as the same wording or as its last clause ("Full-time, permanent" for 'permanent'). Any
 //   other words in that clause ("Non-EU", "This isn't a permanent role", "Keine
-//   Festanstellung") make it unknown: no negation words are kept, in any language.
+//   Festanstellung") or any clause after it ("Permanent, no") make it unknown: no negation
+//   words are kept, in any language.
 //
 // The score adds up five parts, each worth fits 1, unknown about half, conflicts 0:
 //   title against the target roles 35, skills (the share matched) 25, place or remote 20,
@@ -254,15 +255,16 @@ const modeAccepted = (roleMode: "onsite" | "hybrid", mine: Place["mode"]) =>
 
 /**
  * Whether one of your remote scopes plainly covers the role's: the role's scope is it, or has it
- * as a clause of its own ("EU" or "EU, UK" for 'EU'; "within the EU" and "Non-EU" are unknown).
+ * as its last clause ("EU" or "UK, EU" for 'EU'; "EU, UK", "within the EU" and "Non-EU" are
+ * unknown).
  */
 const scopeCovered = (roleScope: string, remote: readonly Remote[]) =>
   remote.some((r) => saysPlainly(roleScope, r.scope));
 
 /**
  * Whether you plainly take a remote role stated for `place`: it is one of your places, or one of
- * your remote scopes names its country code or its city in a clause of its own ("DE", "PT,
- * Lisbon").
+ * your remote scopes names its country code or its city in its last clause ("DE", or "PT, Lisbon"
+ * for Lisbon).
  */
 function remotePlaceCovered(
   place: JobFacts["places"][number],

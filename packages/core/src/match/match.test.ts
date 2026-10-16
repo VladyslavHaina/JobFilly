@@ -176,7 +176,9 @@ describe("matchRole (F4.1)", () => {
       verdict: "fits",
       reason: "Remote, EU — fits your remote 'EU'",
     });
-    expect(remote({ remoteScope: "EU, UK" }).verdict?.verdict).toBe("fits");
+    expect(remote({ remoteScope: "UK, EU" }).verdict?.verdict).toBe("fits");
+    // A clause after yours may take it back ("EU, no"), so it is asked.
+    expect(remote({ remoteScope: "EU, UK" }).verdict?.verdict).toBe("unknown");
     expect(remote({}).verdict).toMatchObject({
       verdict: "fits",
       reason: "Remote — fits your remote 'EU'",
@@ -225,11 +227,12 @@ describe("matchRole (F4.1)", () => {
         entry("remote", [{ scope: "PT, Lisbon", timeZones: null }]),
       ],
     };
-    expect(remote({ places: [{ country: "PT", city: null }] }, lisbon).verdict?.verdict).toBe(
-      "fits",
-    );
     expect(remote({ places: [{ country: null, city: "Lisbon" }] }, lisbon).verdict?.verdict).toBe(
       "fits",
+    );
+    // Only the last clause of your scope names a place: a clause after "PT" may take it back.
+    expect(remote({ places: [{ country: "PT", city: null }] }, lisbon).verdict?.verdict).toBe(
+      "unknown",
     );
     // A remote scope only names a place in a clause of its own: "anywhere but PT" doesn't.
     const notPortugal = {
@@ -273,7 +276,9 @@ describe("matchRole (F4.1)", () => {
       verdict: "fits",
       reason: "\"Permanent\" — fits your 'permanent'",
     });
-    expect(contract("Permanent, full-time")?.verdict).toBe("fits");
+    expect(contract("Full-time, permanent")?.verdict).toBe("fits");
+    // A clause after yours may qualify or take it back, so it is asked.
+    expect(contract("Permanent, full-time")?.verdict).toBe("unknown");
     expect(contract("Non-permanent, 6 months")).toMatchObject({
       verdict: "unknown",
       reason: "\"Non-permanent, 6 months\" — not worded like your contracts ('permanent', 'B2B')",
@@ -283,7 +288,9 @@ describe("matchRole (F4.1)", () => {
 
     const seniority = (stated: string) =>
       byKey(matchRole(input({ facts: facts({ seniority: stated }) })).match.verdicts, "seniority");
-    expect(seniority("Senior / Lead")?.verdict).toBe("fits");
+    expect(seniority("Lead, senior")?.verdict).toBe("fits");
+    // A slash doesn't end a clause: "Senior / Lead" is more than your 'Senior'.
+    expect(seniority("Senior / Lead")?.verdict).toBe("unknown");
     expect(seniority("Non-senior")).toMatchObject({
       verdict: "unknown",
       reason: "\"Non-senior\" — not worded like your 'Senior'",
@@ -298,11 +305,13 @@ describe("matchRole (F4.1)", () => {
         matchRole(input({ profile: permits, facts: facts({ workPermit: asked }) })).match.verdicts,
         "work_permits",
       );
-    expect(permit("EU citizen; or a work permit")).toMatchObject({
+    expect(permit("Work permit; EU citizen")).toMatchObject({
       verdict: "fits",
-      reason: "\"EU citizen; or a work permit\" — fits your 'EU citizen'",
+      reason: "\"Work permit; EU citizen\" — fits your 'EU citizen'",
     });
-    // More words in the clause than yours: not read for what they mean, so unknown.
+    // A clause after yours, or more words in its clause than yours: not read for what they mean,
+    // so unknown.
+    expect(permit("EU citizen; or a work permit")?.verdict).toBe("unknown");
     expect(permit("EU citizen or work permit")?.verdict).toBe("unknown");
     expect(permit("Non-EU citizen")?.verdict).toBe("unknown");
     expect(permit("EU citizenship")?.verdict).toBe("unknown");
@@ -326,6 +335,12 @@ describe("matchRole (F4.1)", () => {
         "\"This isn't a permanent role\" — not worded like your contracts ('permanent', 'B2B')",
     });
     expect(contract("Permanent: no")?.verdict).toBe("unknown");
+    // Nor is a clause after the phrase: a "no" there takes it back.
+    expect(contract("Permanent, no")).toMatchObject({
+      verdict: "unknown",
+      reason: "\"Permanent, no\" — not worded like your contracts ('permanent', 'B2B')",
+    });
+    expect(contract("Permanent. Not offered.")?.verdict).toBe("unknown");
     const german = {
       entries: [
         ...maria.entries.filter((e) => e.key !== "contracts"),
@@ -341,7 +356,9 @@ describe("matchRole (F4.1)", () => {
       verdict: "unknown",
       reason: "\"Keine Festanstellung\" — not worded like your contracts ('Festanstellung')",
     });
-    expect(germanContract("Festanstellung, Vollzeit")?.verdict).toBe("fits");
+    expect(germanContract("Festanstellung, nein")?.verdict).toBe("unknown");
+    expect(germanContract("Festanstellung, Vollzeit")?.verdict).toBe("unknown");
+    expect(germanContract("Vollzeit, Festanstellung")?.verdict).toBe("fits");
     // A negation in another clause says nothing about this one.
     expect(contract("No relocation; permanent")?.verdict).toBe("fits");
 

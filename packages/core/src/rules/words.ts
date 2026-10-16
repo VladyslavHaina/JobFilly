@@ -67,20 +67,22 @@ export function orList(words: readonly string[]): string {
 //   "crypto" is in "Crypto-Exchange GmbH", "Java" in "Java-based", "Node" in "Node.js",
 //   "gambling" in "the gambling's industry"; but "crypto" isn't in "Cryptography", nor "Java" in
 //   "JavaScript". Finding a word is all a deal-breaker or a rule needs.
-// - saysPlainly (contracts, seniority, work permits, remote scopes, where a fit is claimed): one
-//   clause of the text is exactly the phrase, with no other words. "Permanent, full-time" plainly
-//   says 'permanent'; "Not permanent", "Non-permanent", "This isn't a permanent role",
-//   "Permanent: no" and "Keine Festanstellung" don't say 'permanent' or 'Festanstellung'. No
-//   list of negation words is kept, in any language: the app can't know every way of saying
-//   "not", so wording with anything more than the phrase is unknown, and so asked (F4.1).
+// - saysPlainly (contracts, seniority, work permits, remote scopes, where a fit is claimed): the
+//   text is the phrase and nothing more, or its last clause is. "Permanent" and "No relocation;
+//   permanent" plainly say 'permanent'; "Not permanent", "Non-permanent", "This isn't a
+//   permanent role", "Permanent: no" and "Keine Festanstellung" don't. Nor does a clause after
+//   the phrase: "Permanent, no", "Festanstellung, nein", "Permanent. Not offered." and even
+//   "Permanent, full-time" may take back or qualify what came before, so they don't say it
+//   either. No list of negation words is kept, in any language: the app can't know every way of
+//   saying "not", so wording with anything more than the phrase is unknown, and so asked (F4.1).
 //
-// A clause ends at a comma, a semicolon, a slash, a line break or a full stop before a space
-// ("Senior / Lead", "No relocation; permanent"). A colon, a dash, a bracket or a question mark
-// doesn't end one: "Permanent: no", "Permanent — no" and
-// "Permanent? No" keep the phrase and its answer together.
+// A clause ends at a comma, a semicolon, a line break or a full stop before a space ("No
+// relocation; permanent", "Not remote. Senior"). A slash, a colon, a dash, a bracket or a question
+// mark doesn't end one: "Not/Permanent", "Permanent: no", "Permanent — no" and "Permanent? No"
+// keep the phrase and the words around it together.
 
-/** What ends a clause: a comma, semicolon, slash, line break, or a full stop before a space. */
-const CLAUSE_BREAK = /[,;/\n]|\.\s/u;
+/** What ends a clause: a comma, semicolon, line break, or a full stop before a space. */
+const CLAUSE_BREAK = /[,;\n]|\.\s/u;
 
 /** The words of `s`, lower-cased, in order. */
 const wordsOf = (s: string): string[] =>
@@ -101,12 +103,18 @@ const sameWords = (a: readonly string[], b: readonly string[]) =>
   a.length === b.length && a.every((w, i) => w === b[i]);
 
 /**
- * Whether `haystack` plainly says `needle`: the two read the same once normalised, or one of
- * `haystack`'s clauses is `needle`'s words and nothing else. Anything more is unknown.
+ * Whether `haystack` plainly says `needle`: the two read the same once normalised, or
+ * `haystack`'s last clause with words is `needle`'s words and nothing else. Anything more,
+ * including any clause after the phrase, is unknown.
  */
 export function saysPlainly(haystack: string, needle: string): boolean {
   const want = wordsOf(needle);
   if (want.length === 0) return false;
   if (sameWords(wordsOf(haystack), want)) return true;
-  return haystack.split(CLAUSE_BREAK).some((clause) => sameWords(wordsOf(clause), want));
+  const clauses = haystack
+    .split(CLAUSE_BREAK)
+    .map(wordsOf)
+    .filter((words) => words.length > 0);
+  const last = clauses.at(-1);
+  return last !== undefined && sameWords(last, want);
 }

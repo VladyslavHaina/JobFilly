@@ -40,21 +40,32 @@ describe("saysPlainly", () => {
     ["No sponsorship needed", "No sponsorship needed"],
     ["Weekly On-Call rotation", "weekly on call rotation"],
     ["Festanstellung", "Festanstellung"],
-    // One clause is exactly the phrase.
-    ["Permanent, full-time", "permanent"],
+    ["Permanent.", "permanent"],
+    // The last clause is exactly the phrase.
     ["Full-time; permanent", "permanent"],
     ["No relocation; permanent", "permanent"],
+    ["Full-time, permanent. ", "permanent"],
     ["Not remote. Senior", "senior"],
-    ["Non-permanent, 6 months", "non-permanent"],
-    ["EU\nUS", "EU"],
-    ["Senior / Lead", "lead"],
+    ["6 months, non-permanent", "non-permanent"],
+    ["EU\nUS", "US"],
   ])("says it in %j: %j", (haystack, needle) => {
     expect(saysPlainly(haystack, needle)).toBe(true);
   });
 
   // No negation words are kept, in any language: anything more than the phrase in its clause is
-  // unknown, whether it negates the phrase or not (F4.1).
+  // unknown, whether it negates the phrase or not, and so is any clause after it (F4.1).
   it.each([
+    // A clause after the phrase may take it back, in any language: never read, so unknown.
+    ["Permanent, no", "permanent"],
+    ["Festanstellung, nein", "Festanstellung"],
+    ["Permanent. Not offered.", "permanent"],
+    ["Permanent\nNot available", "permanent"],
+    ["Permanent, full-time", "permanent"],
+    ["Non-permanent, 6 months", "non-permanent"],
+    ["EU\nUS", "EU"],
+    // A slash doesn't end a clause.
+    ["Not/Permanent", "permanent"],
+    ["Senior / Lead", "lead"],
     // Negated, in English.
     ["Not permanent, 6 months", "permanent"],
     ["Non-permanent, 6 months", "permanent"],
