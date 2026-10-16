@@ -61,16 +61,38 @@ export type RdapLookupResult = z.infer<typeof RdapLookupResultSchema>;
 export const MxLookupResultSchema = z.array(z.string());
 export type MxLookupResult = z.infer<typeof MxLookupResultSchema>;
 
+/** What a mark is on: one address, or every address of a domain. */
+export const SenderMarkScopeSchema = z.enum(["address", "domain"]);
+
+/** An address or a domain as a mark keys it: trimmed, lower case. */
+const MarkValueSchema = z.string().trim().toLowerCase().min(1).max(320);
+
 /**
  * PUT /senders/marks: mark an address or a whole domain trusted or blocked, or clear the mark
- * (null). Kept across syncs; the affected senders' checks are re-done.
+ * (null). Kept across syncs; the affected senders' checks are re-done. Clearing a mark that
+ * isn't there is a 404, so a clear never looks done while another mark still applies.
  */
 export const SenderMarkInputSchema = z.object({
-  scope: z.enum(["address", "domain"]),
-  value: z.string().trim().toLowerCase().min(1).max(320),
+  scope: SenderMarkScopeSchema,
+  value: MarkValueSchema,
   mark: SenderMarkSchema.nullable(),
 });
 export type SenderMarkInput = z.infer<typeof SenderMarkInputSchema>;
+
+/** GET /senders/marks?address=…: the sender whose mark is asked for. */
+export const SenderMarkQuerySchema = z.object({ address: MarkValueSchema });
+
+/**
+ * The answer of GET /senders/marks: the mark that applies to the address now (its own, or else
+ * its whole domain's) with what it is on, or null. A check names the mark it was made with; this
+ * is the mark as it stands, so the UI clears the one that applies (F5.4).
+ */
+export const AppliedSenderMarkSchema = z.object({
+  applied: z
+    .object({ scope: SenderMarkScopeSchema, value: MarkValueSchema, mark: SenderMarkSchema })
+    .nullable(),
+});
+export type AppliedSenderMark = z.infer<typeof AppliedSenderMarkSchema>;
 
 /** A lowercase hostname, as the sender data files list them. */
 const HostnameSchema = z

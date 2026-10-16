@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  AppliedSenderMarkSchema,
   AssistantOutputSchema,
   ChangeSchema,
   CORE_PROFILE_KEYS,
@@ -36,6 +37,7 @@ import {
   RuleSchema,
   SenderCheckSchema,
   SenderMarkInputSchema,
+  SenderMarkQuerySchema,
 } from "./index";
 
 const id = "11111111-1111-4111-8111-111111111111";
@@ -272,6 +274,15 @@ describe("evaluations, senders, drafts and decisions", () => {
     expect(
       SenderMarkInputSchema.parse({ scope: "address", value: " Ann@X.Example ", mark: "trusted" }),
     ).toEqual({ scope: "address", value: "ann@x.example", mark: "trusted" });
+    expect(SenderMarkQuerySchema.parse({ address: " Ann@X.Example" })).toEqual({
+      address: "ann@x.example",
+    });
+    const domainMark = { scope: "domain", value: "x.example", mark: "blocked" };
+    expect(AppliedSenderMarkSchema.parse({ applied: domainMark })).toEqual({ applied: domainMark });
+    expect(AppliedSenderMarkSchema.safeParse({ applied: null }).success).toBe(true);
+    expect(
+      AppliedSenderMarkSchema.safeParse({ applied: { ...domainMark, scope: "company" } }).success,
+    ).toBe(false);
     const draft = {
       id,
       messageId: "<a@x>",
