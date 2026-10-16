@@ -116,6 +116,16 @@ function fakeAi() {
   };
 }
 
+/**
+ * How long a check waits for background work (the intake.v1 call, its usage, its live event).
+ * vi.waitFor gives up after 1 second by default, and the work took longer than that on a machine
+ * at load 50; see vitest.config.ts.
+ */
+const WAIT = { timeout: 30_000 };
+
+/** vi.waitFor with room for a loaded machine. */
+const waitFor = <T>(check: () => T | Promise<T>) => vi.waitFor(check, WAIT);
+
 /** A promise the test resolves itself, to hold a model call open. */
 function deferred<T>() {
   let resolve: (value: T) => void = () => {};
@@ -291,7 +301,7 @@ async function form(client: TestClient) {
 
 /** Waits until the extra questions are no longer pending. */
 async function settledForm(client: TestClient) {
-  await vi.waitFor(async () => expect((await form(client)).extras.status).not.toBe("pending"));
+  await waitFor(async () => expect((await form(client)).extras.status).not.toBe("pending"));
   return form(client);
 }
 
@@ -344,7 +354,7 @@ describe("GET /intake (F6.1)", () => {
     const settled = await settledForm(viewer);
     expect(settled.extras).toEqual({ status: "done", questions: QUESTIONS });
     expect(ai.calls).toHaveLength(1);
-    await vi.waitFor(() => expect(events).toContainEqual({ type: "intake.updated", data: {} }));
+    await waitFor(() => expect(events).toContainEqual({ type: "intake.updated", data: {} }));
     // The opened key and the workspace's models reach the AI port; never the response.
     expect(ai.settings).toEqual([
       {
@@ -389,7 +399,7 @@ describe("GET /intake (F6.1)", () => {
     await seedMariaMail(ws.workspaceId);
     const scan = await stopFirstScan();
     await settledForm(viewer);
-    await vi.waitFor(async () =>
+    await waitFor(async () =>
       expect(await usageTotal(deps.db, ws.workspaceId)).toEqual({
         calls: 1,
         inputTokens: 530,
@@ -407,13 +417,11 @@ describe("GET /intake (F6.1)", () => {
     const [a, b] = await Promise.all([form(viewer), form(editor)]);
     expect([a.extras.status, b.extras.status]).toEqual(["pending", "pending"]);
     expect((await form(admin)).extras.status).toBe("pending");
-    await vi.waitFor(() => expect(ai.calls).toHaveLength(1));
+    await waitFor(() => expect(ai.calls).toHaveLength(1));
     held.resolve(answered(QUESTIONS.slice(0, 1)));
     const settled = await settledForm(admin);
     expect(settled.extras.questions).toEqual(QUESTIONS.slice(0, 1));
-    await vi.waitFor(() =>
-      expect(events.filter((e) => e.type === "intake.updated")).toHaveLength(1),
-    );
+    await waitFor(() => expect(events.filter((e) => e.type === "intake.updated")).toHaveLength(1));
     expect(ai.calls).toHaveLength(1);
   });
 
@@ -423,7 +431,7 @@ describe("GET /intake (F6.1)", () => {
     // The first claimant's replica dies mid-call: its answer never comes.
     ai.answerWith(() => new Promise<IntakeAnswer>(() => {}));
     await form(viewer);
-    await vi.waitFor(() => expect(ai.calls).toHaveLength(1));
+    await waitFor(() => expect(ai.calls).toHaveLength(1));
     deps.clock.advance(1 * MINUTE);
     expect((await form(viewer)).extras.status).toBe("pending");
     expect(ai.calls).toHaveLength(1);
@@ -498,9 +506,7 @@ describe("GET /intake (F6.1)", () => {
     expect(line?.error).toMatch(/Error$/);
     expect(deps.rawLogs.join("\n")).not.toContain("E2E-MARKER");
     expect(deps.logs.filter((l) => l.level === "error")).toEqual([]);
-    await vi.waitFor(() =>
-      expect(events.filter((e) => e.type === "intake.updated")).toHaveLength(1),
-    );
+    await waitFor(() => expect(events.filter((e) => e.type === "intake.updated")).toHaveLength(1));
     // Final, not an abandoned claim: no takeover asks the model again, and Confirm isn't held.
     deps.clock.advance(10 * MINUTE);
     expect((await form(viewer)).extras.status).toBe("failed");
@@ -536,7 +542,7 @@ describe("GET /intake (F6.1)", () => {
     const held = deferred<IntakeAnswer>();
     ai.answerWith(() => held.promise);
     await form(viewer);
-    await vi.waitFor(() => expect(ai.calls).toHaveLength(1));
+    await waitFor(() => expect(ai.calls).toHaveLength(1));
     deps.health.beginShutdown();
     held.resolve(answered(QUESTIONS));
     await deps.background.settled();
@@ -545,7 +551,7 @@ describe("GET /intake (F6.1)", () => {
       status: "done",
       questions: QUESTIONS,
     });
-    await vi.waitFor(() => expect(events).toContainEqual({ type: "intake.updated", data: {} }));
+    await waitFor(() => expect(events).toContainEqual({ type: "intake.updated", data: {} }));
     expect(deps.logs.filter((l) => l.level === "error" || l.level === "warn")).toEqual([]);
   });
 
@@ -555,13 +561,13 @@ describe("GET /intake (F6.1)", () => {
     // The model hasn't answered when shutdown reaches the job hand-back step.
     ai.answerWith(() => new Promise<IntakeAnswer>(() => {}));
     await form(viewer);
-    await vi.waitFor(() => expect(ai.calls).toHaveLength(1));
+    await waitFor(() => expect(ai.calls).toHaveLength(1));
     deps.health.beginShutdown();
     await deps.background.stop();
     expect(deps.background.running).toBe(0);
     expect(await usageTotal(deps.db, ws.workspaceId)).toMatchObject({ calls: 0 });
     expect(await getIntakeExtras(deps.db, ws.workspaceId)).toMatchObject({ status: "pending" });
-    await vi.waitFor(() => expect(events).toContainEqual({ type: "intake.updated", data: {} }));
+    await waitFor(() => expect(events).toContainEqual({ type: "intake.updated", data: {} }));
     expect(deps.logs.filter((l) => l.level === "error" || l.level === "warn")).toEqual([]);
 
     // Another replica, with no time passing: its first GET takes the claim over and asks again.
@@ -620,7 +626,7 @@ describe("PUT /intake/answers/:key (F6.4)", () => {
     expect(f.edits[0]?.updatedAt).toBe(NOW.toISOString());
     // The proposal stays what the scan found; the form shows the edit on top.
     expect(entryOf(f, "places")).toMatchObject({ value: MARIA_PREFS.places });
-    await vi.waitFor(() => expect(events).toContainEqual({ type: "intake.updated", data: {} }));
+    await waitFor(() => expect(events).toContainEqual({ type: "intake.updated", data: {} }));
   });
 
   it("is refused to viewers with 403 and to non-members with 404", async () => {

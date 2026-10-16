@@ -96,3 +96,18 @@ describe("startWork", () => {
     expect(runs).toEqual([]);
   });
 });
+
+// The backlog test above waits on the queue's background run with expect.poll, and every test
+// here starts PGlite in beforeEach. On a machine at load 50-119 the run outlasted expect.poll's
+// default second and a worker's first PGlite start Vitest's default hook timeout. vitest.config.ts
+// gives this project the room (hookTimeout and testTimeout are set together); these fail without it.
+describe("room on a loaded machine", () => {
+  it("gives a test and its hooks 120 seconds", ({ task }) => {
+    expect(task.timeout).toBeGreaterThanOrEqual(120_000);
+  });
+
+  it("keeps expect.poll polling past Vitest's 1-second default", async () => {
+    const start = Date.now();
+    await expect.poll(() => Date.now() - start).toBeGreaterThan(1_500);
+  });
+});
