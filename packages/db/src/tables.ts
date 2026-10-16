@@ -491,6 +491,8 @@ export const cvs = pgTable(
     /** What cv.v1 read, skills already checked against the text (F2.2); null until read. */
     metadata: jsonb("metadata").$type<CvReadOutput>(),
     tags: jsonb("tags").$type<CvTag[]>().notNull().default([]),
+    /** The CV to use when nothing else in a role tells the CVs apart (F2.3), set by the user. */
+    preferred: boolean("preferred").notNull().default(false),
     readStatus: text("read_status").$type<CvReadStatus>().notNull().default("pending"),
     createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
     createdAt: createdAt(),

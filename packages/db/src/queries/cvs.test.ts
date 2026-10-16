@@ -161,6 +161,7 @@ describe("CV base queries (F2)", () => {
       countryHints: [],
       formatHints: [],
       tags: [],
+      preferred: false,
       readStatus: "pending",
       uploadedAt: at.toISOString(),
     });
@@ -221,12 +222,16 @@ describe("reading and tags (F2.1)", () => {
     expect(await findCvReadByHash(conn.db, other, "b".repeat(64))).toBeNull();
   });
 
-  it("marks a failed read, edits tags, and touches only its own workspace", async () => {
+  it("marks a failed read, edits tags and preferred, and touches only its own workspace", async () => {
     const cv = await upload(ws, "CV");
     await markCvReadFailed(conn.db, ws, cv.id, at);
     expect((await getCv(conn.db, ws, cv.id))?.readStatus).toBe("failed");
-    const tags = [{ label: "preferred", source: "you" as const }];
+    const tags = [{ label: "remote", source: "you" as const }];
     expect((await updateCv(conn.db, ws, cv.id, { tags }, at))?.tags).toEqual(tags);
+    expect(await updateCv(conn.db, ws, cv.id, { preferred: true }, at)).toMatchObject({
+      tags,
+      preferred: true,
+    });
     expect(await updateCv(conn.db, other, cv.id, { tags: [] }, at)).toBeNull();
     expect(await saveCvRead(conn.db, other, cv.id, { metadata: READ, tags: [], at })).toBeNull();
     expect((await getCv(conn.db, ws, cv.id))?.tags).toEqual(tags);

@@ -48,10 +48,10 @@ describe("room on a loaded machine", () => {
 });
 
 describe("migrations", () => {
-  it("applies the MVP 1 and MVP 2 migrations once, then reports nothing to apply", async () => {
+  it("applies every migration (MVP 1, MVP 2, the CV preferred flag) once, then nothing", async () => {
     conn = await openTestDatabase({ migrated: false });
     expect(await conn.migrationState()).toBe("missing");
-    expect(await conn.migrate()).toEqual({ applied: 2 });
+    expect(await conn.migrate()).toEqual({ applied: 3 });
     expect(await conn.migrate()).toEqual({ applied: 0 });
     expect(await conn.migrationState()).toBe("current");
   });
@@ -249,7 +249,8 @@ describe("the MVP 2 migration", () => {
       sql`insert into ai_settings (workspace_id, provider, models) values (${ws}, 'anthropic',
         ${JSON.stringify({ classify: "small", extract: "big", prefs: "big", intake: "big" })}::jsonb)`,
     );
-    expect(await conn.migrate()).toEqual({ applied: 1 });
+    // MVP 2's migration, and the CV preferred flag's after it.
+    expect(await conn.migrate()).toEqual({ applied: 2 });
     const [row] = await queryRows<{ models: Record<string, string> }>(
       conn.db,
       sql`select models from ai_settings where workspace_id = ${ws}`,

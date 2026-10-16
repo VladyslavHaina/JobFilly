@@ -19,6 +19,7 @@ const cvColumns = {
   contentHash: cvs.contentHash,
   metadata: cvs.metadata,
   tags: cvs.tags,
+  preferred: cvs.preferred,
   readStatus: cvs.readStatus,
   createdAt: cvs.createdAt,
 };
@@ -41,6 +42,7 @@ function toCv(row: CvColumns): Cv {
     countryHints: m?.countryHints ?? [],
     formatHints: m?.formatHints ?? [],
     tags: row.tags,
+    preferred: row.preferred,
     readStatus: row.readStatus,
     uploadedAt: row.createdAt.toISOString(),
   };
@@ -270,14 +272,14 @@ export async function markCvReadFailed(
 /**
  * Replaces what the user edits of a CV (F2.1): its tags (AI tags kept or removed, their own
  * added), and of what cv.v1 read, the skills (the server checks an added one against the text,
- * F2.2) and the format hints. A field left out stays. The skills and format hints change only on
+ * F2.2) and the format hints; and whether it is the preferred CV. A field left out stays. The skills and format hints change only on
  * a CV that has been read; null when there is no such CV, or the CV is unread and they were given.
  */
 export async function updateCv(
   db: Database,
   workspaceId: string,
   cvId: string,
-  change: { tags?: CvTag[]; skills?: string[]; formatHints?: string[] },
+  change: { tags?: CvTag[]; skills?: string[]; formatHints?: string[]; preferred?: boolean },
   at: Date,
 ): Promise<Cv | null> {
   const read: Partial<Pick<CvReadOutput, "skills" | "formatHints">> = {};
@@ -288,6 +290,7 @@ export async function updateCv(
     .update(cvs)
     .set({
       ...(change.tags ? { tags: change.tags } : {}),
+      ...(change.preferred !== undefined ? { preferred: change.preferred } : {}),
       ...(editsRead ? { metadata: sql`${cvs.metadata} || ${JSON.stringify(read)}::jsonb` } : {}),
       updatedAt: at,
     })
