@@ -79,12 +79,10 @@ export const SenderMarkInputSchema = z.object({
 });
 export type SenderMarkInput = z.infer<typeof SenderMarkInputSchema>;
 
-/** GET /senders/marks?address=…: the sender whose mark is asked for. */
-export const SenderMarkQuerySchema = z.object({ address: MarkValueSchema });
-
 /**
- * The answer of GET /senders/marks: the mark that applies to the address now (its own, or else
- * its whole domain's) with what it is on, or null. A check names the mark it was made with; this
+ * The answer of GET /senders/messages/:messageId/mark: the mark that applies to that message's
+ * sender now (its address's own, or else its whole domain's) with what it is on, or null. Keyed by
+ * the message, so no address is ever in a URL. A check names the mark it was made with; this
  * is the mark as it stands, so the UI clears the one that applies (F5.4).
  */
 export const AppliedSenderMarkSchema = z.object({
