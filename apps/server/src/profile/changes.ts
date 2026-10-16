@@ -27,7 +27,9 @@ import { requestRun } from "../pipeline/reevaluate";
 /**
  * Marks the scope's evaluations stale (and, for a sender scope only, the sender checks), ends
  * the back-off of the scope's failing roles (a change is a new question, tried at once), asks
- * for a deduped pipeline.reevaluate, and tells open inboxes their scores are stale meanwhile.
+ * for a deduped pipeline.reevaluate, and tells open inboxes their scores are stale meanwhile:
+ * one messages.updated, naming the messages when the scope is a list of them. A caller doesn't
+ * publish its own messages.updated for the same change.
  */
 export async function requestReevaluation(
   deps: AppDeps,
@@ -38,7 +40,8 @@ export async function requestReevaluation(
   await markStale(deps.db, ws, scope, deps.clock.now());
   await clearStageFailures(deps.db, ws, scope);
   await requestRun(deps, ws, reason);
-  await deps.live.publish(ws, { type: "messages.updated", data: {} });
+  const data = "messageIds" in scope ? { messageIds: [...scope.messageIds] } : {};
+  await deps.live.publish(ws, { type: "messages.updated", data });
 }
 
 export interface ChangeRequest {

@@ -431,12 +431,13 @@ describe("PUT /messages/:messageId/category (F5.4)", () => {
       category: "offer",
       categorySource: "you",
     });
-    await expect
-      .poll(() => events)
-      .toContainEqual({
-        type: "messages.updated",
-        data: { messageIds: [id(2)] },
-      });
+    // One messages.updated, naming the message: everything published before a later event has
+    // arrived once that one has (one NOTIFY channel, in order).
+    await deps.live.publish(ws.workspaceId, { type: "workspace.updated", data: {} });
+    await expect.poll(() => events.some((e) => e.type === "workspace.updated")).toBe(true);
+    expect(events.filter((e) => e.type === "messages.updated")).toEqual([
+      { type: "messages.updated", data: { messageIds: [id(2)] } },
+    ]);
     unsubscribe();
 
     // A later analysis run refreshes the facts but keeps the person's category.
@@ -576,9 +577,13 @@ describe("the inbox of MVP 2 (F3.4, F2.3)", () => {
     expect((await outsider.put(cvPath, { cvId: null })).status).toBe(404);
     expect((await viewer.put(cvPath, { cvId: null })).status).toBe(403);
     expect((await editor.put(cvPath, { cvId: "not-a-uuid" })).status).toBe(400);
-    expect(
-      (await editor.put(`${path(ws.workspaceId, id(2))}/roles/x/cv`, { cvId: null })).status,
-    ).toBe(404);
+    // A position that isn't one, or past what the int4 position columns hold, is no role: a 404,
+    // never a database error.
+    for (const bad of ["x", "-1", "99999999999"]) {
+      expect(
+        (await editor.put(`${path(ws.workspaceId, id(2))}/roles/${bad}/cv`, { cvId: null })).status,
+      ).toBe(404);
+    }
     // cvs-senders writes the choice itself (cvs/override.ts).
     expect((await editor.put(cvPath, { cvId: null })).status).toBe(501);
   });

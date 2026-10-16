@@ -100,16 +100,13 @@ export function messageRoutes(deps: AppDeps) {
           );
           if (result === "not_found") return c.json(NOT_FOUND, 404);
           if (result === "own_reply") return c.json(OWN_REPLY, 409);
+          // Also tells open inboxes, with one messages.updated naming the message.
           await requestReevaluation(
             deps,
             workspaceId,
             { messageIds: [messageId] },
             "category.corrected",
           );
-          await deps.live.publish(workspaceId, {
-            type: "messages.updated",
-            data: { messageIds: [messageId] },
-          });
           const detail = await getInboxMessage(deps.db, workspaceId, messageId);
           if (!detail) return c.json(NOT_FOUND, 404);
           return c.json(detail satisfies MessageDetail);

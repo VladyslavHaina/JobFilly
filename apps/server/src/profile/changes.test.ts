@@ -83,7 +83,9 @@ describe("requestReevaluation", () => {
     await requestReevaluation(deps, ws, { messageIds: ["<a@x.example>"] }, "cv.deleted");
     expect((await listToEvaluate(deps.db, ws)).map((m) => m.messageId)).toEqual(["<a@x.example>"]);
     expect(await waiting()).toBe(true);
-    await expect.poll(() => events).toContainEqual({ type: "messages.updated", data: {} });
+    await expect
+      .poll(() => events)
+      .toContainEqual({ type: "messages.updated", data: { messageIds: ["<a@x.example>"] } });
   });
 
   it("re-checks senders only for a sender scope", async () => {
