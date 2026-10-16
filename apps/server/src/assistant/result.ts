@@ -6,7 +6,7 @@ import type { AppDeps } from "../deps";
 // refusal inside it rolls everything back.
 
 /** A refusal with its HTTP status and body. */
-export interface Failure {
+interface Failure {
   ok: false;
   status: 400 | 404 | 409 | 502;
   body: { error: string; message?: string };
