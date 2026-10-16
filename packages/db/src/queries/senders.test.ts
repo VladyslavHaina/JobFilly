@@ -249,6 +249,15 @@ describe("the stale flag a mark sets", () => {
     await saveSenderCheck(conn.db, ws, "<m1@x>", check, at);
     expect(await stale()).toEqual(["<m2@x>"]);
   });
+
+  it("takes an address's domain after its last '@', as packages/core does", async () => {
+    await seedChecked("<m1@x>", '"grace@home"@Tidewater.example');
+    const stale = async () => (await getSenderChecks(conn.db, ws, ["<m1@x>"]))[0]?.stale;
+    await markStale(conn.db, ws, { senderDomain: "home" }, at);
+    expect(await stale()).toBe(false);
+    await markStale(conn.db, ws, { senderDomain: "tidewater.example" }, at);
+    expect(await stale()).toBe(true);
+  });
 });
 
 describe("checks whose lookup failed (F5.3)", () => {
@@ -280,5 +289,12 @@ describe("checks whose lookup failed (F5.3)", () => {
     // Stale now, so not marked again before it has been checked again.
     expect(await markFailedLookupChecksStale(conn.db, ws, minutes(16))).toBe(0);
     expect(await listWorkspacesWithFailedLookups(conn.db, minutes(61))).toEqual([ws]);
+  });
+
+  it("finds the failure of an address with two '@' under its last one's domain", async () => {
+    await seedChecked("<m1@x>", '"grace@home"@tidewater.example', failed);
+    await failure("tidewater.example", minutes(15));
+    expect(await markFailedLookupChecksStale(conn.db, ws, minutes(10))).toBe(0);
+    expect(await markFailedLookupChecksStale(conn.db, ws, minutes(16))).toBe(1);
   });
 });

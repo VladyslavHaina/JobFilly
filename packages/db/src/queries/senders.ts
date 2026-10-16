@@ -9,6 +9,7 @@ import {
 import { and, eq, gt, or, type SQL, sql } from "drizzle-orm";
 import type { Database } from "../client";
 import { domainLookups, messages, senderChecks, senderMarks } from "../tables";
+import { fromDomain } from "./sender-domain";
 
 // The sender check's own state (F5): an editor's trusted or blocked marks on an address or a
 // domain (sender_marks, F5.4), kept across syncs because they are keyed by the sender, not by a
@@ -162,9 +163,6 @@ export async function saveDomainLookup<K extends DomainLookupKind>(
 }
 
 // --- Checks whose domain lookup failed (F5.3): looked up again once the failure has expired. ---
-
-/** The sender's domain of a message, lower case. */
-const fromDomain = sql`lower(split_part(${messages.fromAddress}, '@', 2))`;
 
 /**
  * A current check whose lookup failed, of a sender whose domain no longer has a failure in the
