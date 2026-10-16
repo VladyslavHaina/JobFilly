@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { docxWithText, pdfWithText } from "./test-files";
+import { docxWithText, pdfWithText } from "../testing";
 import { extractCvText, sniffCvType } from "./text";
 
 // The CV text is read in memory with unpdf (PDF) and mammoth (DOCX), from real files.

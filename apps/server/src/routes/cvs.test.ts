@@ -17,14 +17,15 @@ import {
 } from "@jobfilly/schema";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { type App, createApp } from "../app";
-import { docxWithText, pdfWithText } from "../cvs/test-files";
 import { requestRun } from "../pipeline/reevaluate";
 import {
   createFakeAi,
   createFakeMailbox,
   createTestDeps,
+  docxWithText,
   type FakeAiClient,
   type FakeMailbox,
+  pdfWithText,
   roleFacts,
   type SeededUser,
   seedAiSettings,

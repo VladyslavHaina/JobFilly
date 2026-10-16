@@ -6,6 +6,8 @@ import { type App, createApp } from "../app";
 import {
   createFakeAi,
   createTestDeps,
+  docxWithText,
+  pdfWithText,
   type SeededUser,
   seedAiSettings,
   seedUser,
@@ -13,7 +15,6 @@ import {
   TEST_AI_MODELS,
   type TestDeps,
 } from "../testing";
-import { docxWithText, pdfWithText } from "./test-files";
 
 // F2.4: CV files live in Postgres and no replica writes them to disk. Every fs function that
 // writes, creates or opens a file for writing is spied (the CommonJS object, with the ES module

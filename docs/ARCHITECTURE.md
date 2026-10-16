@@ -332,7 +332,8 @@ Every MVP keeps these true; the Helm chart after MVP 3 relies on them.
   slice tests with live there too: a fake mailbox (`createFakeMailbox`: INBOX with UIDs and
   UIDVALIDITY, `deliver`, a Drafts folder recording each draft, `pause`/`resume`, `failNext`,
   `setUidValidity`, `expunge`, call counts), a fake AI (`createFakeAi`, keyed like the test
-  stack's fake AI), a fake `DomainPort`, `seedCv`, and recording pipeline stages.
+  stack's fake AI), a fake `DomainPort`, `seedCv`, real PDF and DOCX files to upload
+  (`pdfWithText`, `docxWithText`), and recording pipeline stages.
 - `pnpm e2e` starts the test stack (`docker/compose.e2e.yaml`) and runs the Playwright specs.
   The root scripts run `node e2e/stack.ts run` (`pnpm e2e`), `node e2e/stack.ts stack up|down`
   and `node e2e/stack.ts specs [--mvp <n>]`.

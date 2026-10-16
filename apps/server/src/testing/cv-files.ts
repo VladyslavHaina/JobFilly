@@ -1,8 +1,8 @@
 import { crc32 } from "node:zlib";
 
-// Tests only: the smallest real PDF and DOCX files holding some lines of text, written by hand so
-// the upload tests read them with the same libraries production uses (unpdf, mammoth) and no
-// binary fixture is needed. ASCII text only.
+// The smallest real PDF and DOCX files holding some lines of text, written by hand so the upload
+// tests read them with the same libraries production uses (unpdf, mammoth) and no binary fixture
+// is needed. ASCII text only.
 
 const ascii = (s: string) => new TextEncoder().encode(s);
 
