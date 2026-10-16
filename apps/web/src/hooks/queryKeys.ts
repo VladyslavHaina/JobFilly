@@ -11,7 +11,9 @@ export type LiveArea =
   | "drafts"
   | "decisions"
   | "assistant"
-  | "mailbox";
+  | "mailbox"
+  /** The workspace's model calls and tokens per day (F1.5): every event a model call can lead to. */
+  | "usage";
 
 export const queryKeys = {
   session: ["session"] as const,

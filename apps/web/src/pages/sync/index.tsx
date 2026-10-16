@@ -127,7 +127,8 @@ function dayText(day: string): string {
 /** Settings › AI: the workspace's model calls and tokens per day (F1.5). */
 export function UsagePerDay({ workspaceId }: UsagePerDayProps) {
   const usage = useQuery({
-    queryKey: [...queryKeys.area(workspaceId, "messages"), "ai-usage"],
+    // Its own area: model calls come from CV reads and the assistant too, not only from mail.
+    queryKey: queryKeys.area(workspaceId, "usage"),
     queryFn: () => api(`${apiPaths.workspace(workspaceId)}/ai/usage`, AiUsageListSchema),
   });
   const number = (n: number) => n.toLocaleString();
