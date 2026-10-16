@@ -45,10 +45,10 @@ test("S4: intake form to profile", async ({ page }) => {
 
   await signIn(page, "maria");
   await page
-    .getByRole("navigation", { name: "Main" })
-    .getByRole("link", { name: "Intake" })
+    .getByRole("navigation", { name: "Main", exact: true })
+    .getByRole("link", { name: "Intake", exact: true })
     .click();
-  await expect(page.getByRole("heading", { name: "Your job search" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Your job search", exact: true })).toBeVisible();
 
   await test.step("the form is pre-filled, with how sure and why", async () => {
     for (const key of CORE_KEYS) {
@@ -77,17 +77,20 @@ test("S4: intake form to profile", async ({ page }) => {
     await card("min_pay")
       .getByRole("button", {
         name: evidence.length === 1 ? "Show the email" : `Show the ${evidence.length} emails`,
+        exact: true,
       })
       .click();
-    const links = page.getByRole("list", { name: "Evidence for Minimum pay" }).getByRole("link");
+    const links = page
+      .getByRole("list", { name: "Evidence for Minimum pay", exact: true })
+      .getByRole("link");
     await expect(links).toHaveCount(Math.min(evidence.length, 10));
     // The subjects load as the list opens; then the first one opens in the job inbox.
     await expect(links.first()).not.toHaveText(/^Email \d+$/);
     const subject = (await links.first().innerText()).replace(/^Your reply: /, "");
     await links.first().click();
-    await expect(page.getByRole("heading", { name: subject, level: 2 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: subject, level: 2, exact: true })).toBeVisible();
     await page.goBack();
-    await expect(page.getByRole("heading", { name: "Your job search" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Your job search", exact: true })).toBeVisible();
   });
 
   const amsterdam = chips("places").find((chip) => chip.startsWith("Amsterdam"));
@@ -106,11 +109,13 @@ test("S4: intake form to profile", async ({ page }) => {
   });
 
   await test.step("Confirm saves the profile, every entry with its source", async () => {
-    const confirm = page.getByRole("button", { name: "Confirm" });
+    const confirm = page.getByRole("button", { name: "Confirm", exact: true });
     await expect(confirm).toBeEnabled({ timeout: 60_000 });
     await confirm.click();
     await expect(page).toHaveURL(/\/profile$/);
-    await expect(page.getByRole("heading", { name: "My job search", level: 1 })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "My job search", level: 1, exact: true }),
+    ).toBeVisible();
     for (const key of CORE_KEYS) {
       const source = key === "places" ? "Set by you" : "From the scan";
       await expect(card(key).getByText(source, { exact: true })).toBeVisible();

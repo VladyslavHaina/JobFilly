@@ -11,23 +11,23 @@ async function sessionCookie(api: APIRequestContext): Promise<string> {
 }
 
 test("S10: sign-out", async ({ page, playwright, baseURL }) => {
-  const inbox = page.getByRole("heading", { name: "Job inbox" });
+  const inbox = page.getByRole("heading", { name: "Job inbox", exact: true });
   await signIn(page, "maria");
   await expect(inbox).toBeVisible();
 
   await test.step("Maria signs out; Back shows no workspace data", async () => {
     // A page of hers to go back to: Sign out replaces the one it was pressed on.
     await page
-      .getByRole("navigation", { name: "Main" })
-      .getByRole("link", { name: "Profile" })
+      .getByRole("navigation", { name: "Main", exact: true })
+      .getByRole("link", { name: "Profile", exact: true })
       .click();
-    await expect(page.getByRole("heading", { name: "My job search" })).toBeVisible();
-    await page.getByRole("button", { name: "Sign out" }).click();
-    await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "My job search", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Sign out", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Sign in", exact: true })).toBeVisible();
     await page.goBack();
-    await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Sign in", exact: true })).toBeVisible();
     await expect(inbox).toHaveCount(0);
-    await expect(page.getByRole("list", { name: "Messages" })).toHaveCount(0);
+    await expect(page.getByRole("list", { name: "Messages", exact: true })).toHaveCount(0);
     await expect(page.getByLabel("Workspace")).toHaveCount(0);
   });
 

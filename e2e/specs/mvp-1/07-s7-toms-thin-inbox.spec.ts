@@ -9,7 +9,7 @@ import {
   readJson,
 } from "../../fixtures/format.ts";
 import { ACCOUNTS } from "../../seed/accounts.ts";
-import { AI_KEY, FAKE_AI_URL, INTAKE_LABELS, signIn } from "../shared.ts";
+import { AI_KEY, FAKE_AI_URL, INTAKE_LABELS, openSettingsTab, signIn } from "../shared.ts";
 
 // S7 of docs/mvp/MVP-1.md: Tom's thin inbox (F2.5, F4.4, F6.6), in his own workspace. The two
 // answers he fills in are his own words (docs/mvp/MVP-1.md › Personas): no mail of his says them.
@@ -30,13 +30,13 @@ async function fillMailbox(page: Page) {
   await page.getByLabel("Port").fill("3143");
   await page.getByLabel("Security").selectOption({ label: "None (plain text)" });
   await page.getByLabel("Password", { exact: true }).fill(ACCOUNTS.tom.password);
-  await page.getByRole("button", { name: "Test connection" }).click();
+  await page.getByRole("button", { name: "Test connection", exact: true }).click();
   await expect(page.getByText("Connected: Inbox, Sent")).toBeVisible();
 }
 
 /** The connected mailbox, with no way to add another one (one per workspace until MVP 3). */
 async function expectOneMailbox(page: Page) {
-  await expect(page.getByRole("heading", { name: "Connected mailbox" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Connected mailbox", exact: true })).toBeVisible();
   await expect(page.getByText(PERSONA_ADDRESSES.tom)).toBeVisible();
   await expect(page.getByText("A workspace has one mailbox.", { exact: false })).toBeVisible();
   await expect(page.getByLabel("Mail provider")).toHaveCount(0);
@@ -44,23 +44,29 @@ async function expectOneMailbox(page: Page) {
 
 test("S7: Tom's thin inbox", async ({ page }) => {
   test.setTimeout(10 * 60_000);
-  const nav = page.getByRole("navigation", { name: "Main" });
+  const nav = page.getByRole("navigation", { name: "Main", exact: true });
 
   await signIn(page, "tom");
-  await expect(page.getByRole("heading", { name: "Connect your mailbox", level: 1 })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Connect your mailbox", level: 1, exact: true }),
+  ).toBeVisible();
   await expect(page.getByText("in Tom's workspace")).toBeVisible();
 
   await test.step("Tom connects his mailbox", async () => {
     await fillMailbox(page);
-    await page.getByRole("button", { name: "Save and continue" }).click();
-    await expect(page.getByRole("heading", { name: "Pick your AI", level: 1 })).toBeVisible();
+    await page.getByRole("button", { name: "Save and continue", exact: true }).click();
+    await expect(
+      page.getByRole("heading", { name: "Pick your AI", level: 1, exact: true }),
+    ).toBeVisible();
   });
 
   await test.step("disconnects it and connects it again; never a second one", async () => {
-    await nav.getByRole("link", { name: "Settings" }).click();
+    await openSettingsTab(page, "Mailbox");
     await expectOneMailbox(page);
     await page.getByRole("button", { name: "Disconnect", exact: true }).click();
-    await page.getByRole("button", { name: "Disconnect and delete the stored password" }).click();
+    await page
+      .getByRole("button", { name: "Disconnect and delete the stored password", exact: true })
+      .click();
     await expect(page.getByLabel("Mail provider")).toBeVisible();
     await fillMailbox(page);
     await page.getByRole("button", { name: "Save", exact: true }).click();
@@ -68,10 +74,7 @@ test("S7: Tom's thin inbox", async ({ page }) => {
   });
 
   await test.step("sets up the AI in his own workspace", async () => {
-    await page
-      .getByRole("navigation", { name: "Settings" })
-      .getByRole("link", { name: "AI" })
-      .click();
+    await openSettingsTab(page, "AI");
     await page.getByLabel("AI provider").selectOption({ label: "OpenAI-compatible endpoint" });
     await page.getByLabel("Base URL").fill(FAKE_AI_URL);
     await page.getByLabel("API key (optional)").fill(AI_KEY);
@@ -82,16 +85,16 @@ test("S7: Tom's thin inbox", async ({ page }) => {
   });
 
   await test.step("the scan stops with done", async () => {
-    await nav.getByRole("link", { name: "Scan" }).click();
-    await page.getByRole("button", { name: "Start scan" }).click();
+    await nav.getByRole("link", { name: "Scan", exact: true }).click();
+    await page.getByRole("button", { name: "Start scan", exact: true }).click();
     await expect(page.getByText(/^Stopped: done, /)).toBeVisible({ timeout: 5 * 60_000 });
   });
 
   const card = (key: CoreKey) =>
     page.getByRole("region", { name: INTAKE_LABELS[key], exact: true });
   await test.step("the intake form says “Not enough evidence” where his mail says nothing", async () => {
-    await page.getByRole("link", { name: "Review your answers" }).click();
-    await expect(page.getByRole("heading", { name: "Your job search" })).toBeVisible();
+    await page.getByRole("link", { name: "Review your answers", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Your job search", exact: true })).toBeVisible();
     const empty = CORE_KEYS.filter((key) => expected.profile.answers[key].values.length === 0);
     expect(empty.length).toBeGreaterThanOrEqual(FILLED.length);
     for (const key of empty) {
@@ -106,16 +109,22 @@ test("S7: Tom's thin inbox", async ({ page }) => {
         .getByRole("textbox", { name: `Add to ${label}`, exact: true })
         .fill(value);
       await card(key).getByRole("button", { name: "Add", exact: true }).click();
-      await expect(card(key).getByRole("button", { name: `Remove ${value}` })).toBeVisible();
+      await expect(
+        card(key).getByRole("button", { name: `Remove ${value}`, exact: true }),
+      ).toBeVisible();
       await expect(card(key).getByText("Set by you")).toBeVisible();
     }
-    const confirm = page.getByRole("button", { name: "Confirm" });
+    const confirm = page.getByRole("button", { name: "Confirm", exact: true });
     await expect(confirm).toBeEnabled({ timeout: 60_000 });
     await confirm.click();
-    await expect(page.getByRole("heading", { name: "My job search", level: 1 })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "My job search", level: 1, exact: true }),
+    ).toBeVisible();
     for (const { key, value } of FILLED) {
       await expect(card(key).getByText("Set by you", { exact: true })).toBeVisible();
-      await expect(card(key).getByRole("button", { name: `Remove ${value}` })).toBeVisible();
+      await expect(
+        card(key).getByRole("button", { name: `Remove ${value}`, exact: true }),
+      ).toBeVisible();
     }
   });
 });

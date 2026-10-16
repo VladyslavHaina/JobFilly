@@ -112,7 +112,27 @@ export async function ready(port: number): Promise<number | null> {
 export async function submitSignIn(page: Page, persona: Persona) {
   await page.getByLabel("Email").fill(PERSONA_ADDRESSES[persona]);
   await page.getByLabel("Password").fill(LOGIN_PASSWORDS[persona]);
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+}
+
+/** The tabs of Settings, as its navigation names them. */
+type SettingsTab = "Mailbox" | "AI";
+
+/**
+ * Opens a tab of Settings through the Main navigation, as an admin does. Every role here is
+ * found by its exact name: Playwright otherwise matches names as case-insensitive substrings, and
+ * "AI" alone also finds "Mailbox" (m-ai-lbox), a strict-mode error that left MVP 1 unconfigured.
+ */
+export async function openSettingsTab(page: Page, name: SettingsTab) {
+  await page
+    .getByRole("navigation", { name: "Main", exact: true })
+    .getByRole("link", { name: "Settings", exact: true })
+    .click();
+  const tab = page
+    .getByRole("navigation", { name: "Settings", exact: true })
+    .getByRole("link", { name, exact: true });
+  await tab.click();
+  await expect(tab).toHaveAttribute("aria-current", "page");
 }
 
 /** Opens the start page, the one URL a person types, and signs in there. */
@@ -129,7 +149,7 @@ export const workspaceIdOf = (page: Page): string =>
 export async function openMessage(page: Page, subject: string) {
   await page.getByLabel("Search sender or subject").fill(subject);
   await page
-    .getByRole("list", { name: "Messages" })
+    .getByRole("list", { name: "Messages", exact: true })
     .getByRole("link")
     .filter({ hasText: subject })
     .first()

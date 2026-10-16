@@ -18,7 +18,7 @@ test("the start page loads through the proxy", async ({ page }) => {
   await page.goto("/");
 
   await expect(page).toHaveTitle("JobFilly");
-  await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Sign in", exact: true })).toBeVisible();
   expect(problems).toEqual([]);
 });
 

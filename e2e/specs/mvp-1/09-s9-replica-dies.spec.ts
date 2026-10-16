@@ -27,7 +27,7 @@ test("S9: a replica dies mid-run", async ({ page }) => {
   test.setTimeout(15 * 60_000);
 
   await signIn(page, "maria");
-  await expect(page.getByRole("heading", { name: "Job inbox" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Job inbox", exact: true })).toBeVisible();
   const workspaceId = workspaceIdOf(page);
   const earlier = new Set(logged("scan.started", { workspaceId }).map((l) => l.scanId));
 
@@ -36,7 +36,7 @@ test("S9: a replica dies mid-run", async ({ page }) => {
   await withCleanup(
     async () => {
       await test.step("Maria presses Analyze them; the replica running it is killed", async () => {
-        await page.getByRole("button", { name: "Analyze them" }).click();
+        await page.getByRole("button", { name: "Analyze them", exact: true }).click();
         await expect(page.getByText(/^(Analyze them started…|Analyzing the rest: )/)).toBeVisible();
         const started = () =>
           logged("scan.started", { workspaceId }).filter((l) => !earlier.has(l.scanId));
@@ -72,12 +72,12 @@ test("S9: a replica dies mid-run", async ({ page }) => {
         compose(["start", String(killed)]);
         await waitReady(DIRECT_PORTS[killed ?? "app-a"]);
         await page.reload();
-        await expect(page.getByRole("heading", { name: "Job inbox" })).toBeVisible();
+        await expect(page.getByRole("heading", { name: "Job inbox", exact: true })).toBeVisible();
         // F1.3: page loads spread over both replicas never ask to sign in again.
         for (let i = 0; i < 20; i++) {
           await page.reload();
-          await expect(page.getByRole("heading", { name: "Job inbox" })).toBeVisible();
-          await expect(page.getByRole("heading", { name: "Sign in" })).toHaveCount(0);
+          await expect(page.getByRole("heading", { name: "Job inbox", exact: true })).toBeVisible();
+          await expect(page.getByRole("heading", { name: "Sign in", exact: true })).toHaveCount(0);
         }
       });
 

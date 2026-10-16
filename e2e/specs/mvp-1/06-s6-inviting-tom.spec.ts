@@ -38,24 +38,24 @@ test("S6: inviting Tom, roles enforced", async ({ page, browser, playwright, bas
   const tomContext = await browser.newContext({ baseURL });
   const tom = await tomContext.newPage();
   const tomApi = await apiContext(playwright.request, baseURL);
-  const tomNav = tom.getByRole("navigation", { name: "Main" });
+  const tomNav = tom.getByRole("navigation", { name: "Main", exact: true });
 
   try {
     await test.step("Tom registers in a browser of his own", async () => {
       await tom.goto("/");
-      await tom.getByRole("link", { name: "Create account" }).click();
+      await tom.getByRole("link", { name: "Create account", exact: true }).click();
       await tom.getByLabel("Name").fill(PERSONA_NAMES.tom);
       await tom.getByLabel("Email").fill(PERSONA_ADDRESSES.tom);
       await tom.getByLabel("Password").fill(LOGIN_PASSWORDS.tom);
-      await tom.getByRole("button", { name: "Create account" }).click();
+      await tom.getByRole("button", { name: "Create account", exact: true }).click();
       await expect(
-        tom.getByRole("heading", { name: "Connect your mailbox", level: 1 }),
+        tom.getByRole("heading", { name: "Connect your mailbox", level: 1, exact: true }),
       ).toBeVisible();
       await expect(tom.getByText("in Tom's workspace")).toBeVisible();
     });
 
     await signIn(page, "maria");
-    await expect(page.getByRole("heading", { name: "Job inbox" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Job inbox", exact: true })).toBeVisible();
     const mariaWorkspace = workspaceIdOf(page);
     const message = MARIA_KEY_MESSAGES.germanRecruiter;
     const workspaceApi = `/api/workspaces/${mariaWorkspace}`;
@@ -70,12 +70,12 @@ test("S6: inviting Tom, roles enforced", async ({ page, browser, playwright, bas
 
     await test.step("Maria invites Tom as a viewer", async () => {
       await page
-        .getByRole("navigation", { name: "Main" })
-        .getByRole("link", { name: "Members" })
+        .getByRole("navigation", { name: "Main", exact: true })
+        .getByRole("link", { name: "Members", exact: true })
         .click();
       await page.getByLabel("Email").fill(PERSONA_ADDRESSES.tom);
       await page.getByLabel("Role", { exact: true }).selectOption({ label: "Viewer" });
-      await page.getByRole("button", { name: "Send invite" }).click();
+      await page.getByRole("button", { name: "Send invite", exact: true }).click();
       await expect(page.getByText(`Invited ${PERSONA_ADDRESSES.tom} as Viewer`)).toBeVisible();
       await expect(page.getByLabel("Invite link")).toHaveValue(/^http/);
     });
@@ -84,17 +84,17 @@ test("S6: inviting Tom, roles enforced", async ({ page, browser, playwright, bas
       await tom.reload();
       const invitation = tom.getByText("Maria invited you to “Maria's workspace” as a viewer");
       await expect(invitation).toBeVisible();
-      await tom.getByRole("button", { name: "Accept" }).click();
-      await expect(tom.getByRole("heading", { name: "Job inbox" })).toBeVisible();
+      await tom.getByRole("button", { name: "Accept", exact: true }).click();
+      await expect(tom.getByRole("heading", { name: "Job inbox", exact: true })).toBeVisible();
       await expect(tom.getByLabel("Workspace").locator("option:checked")).toHaveText(
         "Maria's workspace",
       );
       await expect(
-        tom.getByRole("list", { name: "Messages" }).getByRole("link").first(),
+        tom.getByRole("list", { name: "Messages", exact: true }).getByRole("link").first(),
       ).toBeVisible();
     });
 
-    const rename = tom.getByRole("button", { name: "Rename" });
+    const rename = tom.getByRole("button", { name: "Rename", exact: true });
     const removeEntry = tom.getByRole("button", { name: /^Remove / }).first();
     await test.step("as a viewer, correcting and changing the profile are disabled", async () => {
       await openMessage(tom, subjectOf(message));
@@ -102,10 +102,12 @@ test("S6: inviting Tom, roles enforced", async ({ page, browser, playwright, bas
       await expect(
         tom.getByText("Only editors and admins can correct the category."),
       ).toBeVisible();
-      await expect(tomNav.getByRole("link", { name: "Members" })).toHaveCount(0);
+      await expect(tomNav.getByRole("link", { name: "Members", exact: true })).toHaveCount(0);
       // An editor may change the confirmed profile, so these are disabled for the role alone.
-      await tomNav.getByRole("link", { name: "Profile" }).click();
-      await expect(tom.getByRole("heading", { name: "My job search", level: 1 })).toBeVisible();
+      await tomNav.getByRole("link", { name: "Profile", exact: true }).click();
+      await expect(
+        tom.getByRole("heading", { name: "My job search", level: 1, exact: true }),
+      ).toBeVisible();
       await expect(
         tom.getByText("You can see the profile; only editors and admins can change it."),
       ).toBeVisible();
@@ -142,14 +144,16 @@ test("S6: inviting Tom, roles enforced", async ({ page, browser, playwright, bas
 
     await test.step("now Tom can change the profile and correct a category", async () => {
       await tom.reload();
-      await expect(tom.getByRole("heading", { name: "My job search", level: 1 })).toBeVisible();
+      await expect(
+        tom.getByRole("heading", { name: "My job search", level: 1, exact: true }),
+      ).toBeVisible();
       await expect(rename).toBeEnabled();
       await expect(removeEntry).toBeEnabled();
       await expect(
         tom.getByText("You can see the profile; only editors and admins can change it."),
       ).toHaveCount(0);
 
-      await tomNav.getByRole("link", { name: "Inbox" }).click();
+      await tomNav.getByRole("link", { name: "Inbox", exact: true }).click();
       await openMessage(tom, subjectOf(MARIA_KEY_MESSAGES.alwaysInvalid));
       const category = tom.getByLabel("Category", { exact: true });
       await expect(category).toBeEnabled();

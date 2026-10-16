@@ -21,14 +21,14 @@ test("S1: Maria registers and connects her mailbox", async ({ page, playwright, 
 
   await test.step("she creates her account from the start page", async () => {
     await page.goto("/");
-    await page.getByRole("link", { name: "Create account" }).click();
+    await page.getByRole("link", { name: "Create account", exact: true }).click();
     await page.getByLabel("Name").fill(PERSONA_NAMES.maria);
     await page.getByLabel("Email").fill(PERSONA_ADDRESSES.maria);
     await page.getByLabel("Password").fill(LOGIN_PASSWORDS.maria);
-    await page.getByRole("button", { name: "Create account" }).click();
+    await page.getByRole("button", { name: "Create account", exact: true }).click();
 
     await expect(
-      page.getByRole("heading", { name: "Connect your mailbox", level: 1 }),
+      page.getByRole("heading", { name: "Connect your mailbox", level: 1, exact: true }),
     ).toBeVisible();
     await expect(page.getByText("in Maria's workspace")).toBeVisible();
     await expect(page.getByLabel("Workspace").locator("option:checked")).toHaveText(
@@ -54,12 +54,12 @@ test("S1: Maria registers and connects her mailbox", async ({ page, playwright, 
     await provider.selectOption({ label: "Gmail" });
     await expect(page.getByText("Gmail needs an app password")).toBeVisible();
     await expect(
-      page.getByRole("link", { name: "How to create an app password at Gmail" }),
+      page.getByRole("link", { name: "How to create an app password at Gmail", exact: true }),
     ).toHaveAttribute("href", /^https:\/\//);
   });
 
   const password = page.getByLabel("Password", { exact: true });
-  const testConnection = page.getByRole("button", { name: "Test connection" });
+  const testConnection = page.getByRole("button", { name: "Test connection", exact: true });
   await test.step("Other IMAP with a wrong password gives a plain error without it", async () => {
     await provider.selectOption({ label: "Other IMAP" });
     await page.getByLabel("Email address").fill(PERSONA_ADDRESSES.maria);
@@ -78,8 +78,10 @@ test("S1: Maria registers and connects her mailbox", async ({ page, playwright, 
     await password.fill(ACCOUNTS.maria.password);
     await testConnection.click();
     await expect(page.getByText("Connected: Inbox, Sent")).toBeVisible();
-    await page.getByRole("button", { name: "Save and continue" }).click();
-    await expect(page.getByRole("heading", { name: "Pick your AI", level: 1 })).toBeVisible();
+    await page.getByRole("button", { name: "Save and continue", exact: true }).click();
+    await expect(
+      page.getByRole("heading", { name: "Pick your AI", level: 1, exact: true }),
+    ).toBeVisible();
   });
 
   const workspaceId = workspaceIdOf(page);

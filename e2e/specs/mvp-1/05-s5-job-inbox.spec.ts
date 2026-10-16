@@ -66,11 +66,11 @@ function normalisedPay(pay: NonNullable<JobFacts["pay"]>): string {
 /** Maria signs in and lands in her job inbox; returns her workspace's id. */
 async function signInToInbox(page: Page): Promise<string> {
   await signIn(page, "maria");
-  await expect(page.getByRole("heading", { name: "Job inbox" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Job inbox", exact: true })).toBeVisible();
   return workspaceIdOf(page);
 }
 
-const messageList = (page: Page) => page.getByRole("list", { name: "Messages" });
+const messageList = (page: Page) => page.getByRole("list", { name: "Messages", exact: true });
 const search = (page: Page) => page.getByLabel("Search sender or subject");
 const open = (page: Page, messageId: string) => openMessage(page, subjectOf(messageId));
 
@@ -102,7 +102,7 @@ async function checkGermanRecruiter(page: Page) {
   await expect(role).toContainText(`As written: “${facts.pay.asWritten}”`);
   if (facts.contract) await expect(role).toContainText(facts.contract);
   // The body as plain text, fetched from the mailbox: its words, no markup.
-  const body = page.getByRole("region", { name: "Message" });
+  const body = page.getByRole("region", { name: "Message", exact: true });
   const opening = envelopes.find(
     (e) => e.messageId === MARIA_KEY_MESSAGES.germanRecruiter,
   )?.snippet;
@@ -132,7 +132,9 @@ test("S5: the job inbox", async ({ page, playwright, baseURL }) => {
     await open(page, MARIA_KEY_MESSAGES.multiRoleAlert);
     const roles = truthOf(MARIA_KEY_MESSAGES.multiRoleAlert).facts ?? [];
     expect(roles.length).toBeGreaterThan(1);
-    await expect(page.getByRole("heading", { name: `${roles.length} roles` })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: `${roles.length} roles`, exact: true }),
+    ).toBeVisible();
     for (const [i, role] of roles.entries()) {
       const region = page.getByRole("region", { name: `Role ${i + 1}`, exact: true });
       if (role.title) await expect(region).toContainText(role.title);
@@ -150,7 +152,7 @@ test("S5: the job inbox", async ({ page, playwright, baseURL }) => {
   await test.step("the message the AI answers invalidly is “Couldn't analyze”", async () => {
     await open(page, invalid);
     await expect(page.getByText("Couldn't analyze", { exact: true }).first()).toBeVisible();
-    await page.getByRole("button", { name: "Set the category" }).click();
+    await page.getByRole("button", { name: "Set the category", exact: true }).click();
     const select = page.getByLabel("Category", { exact: true });
     await expect(select).toBeFocused();
     await select.selectOption({ label: CATEGORY_LABELS[corrected] });
@@ -159,7 +161,9 @@ test("S5: the job inbox", async ({ page, playwright, baseURL }) => {
 
   await test.step("the correction is kept after a reload", async () => {
     await page.reload();
-    await expect(page.getByRole("heading", { name: subjectOf(invalid), level: 2 })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: subjectOf(invalid), level: 2, exact: true }),
+    ).toBeVisible();
     await expect(page.getByLabel("Category", { exact: true })).toHaveValue(corrected);
     await expect(page.getByText("Corrected by hand: later analysis keeps it.")).toBeVisible();
   });
@@ -209,7 +213,7 @@ test("S5: the job inbox", async ({ page, playwright, baseURL }) => {
       .toBe(true);
     await search(page).fill("");
     // Unfiltered again once the search settles: the "not included" note goes away.
-    await expect(page.getByRole("note", { name: "Not included" })).toHaveCount(0);
+    await expect(page.getByRole("note", { name: "Not included", exact: true })).toHaveCount(0);
   });
 
   await test.step("keyboard only: Tab to the list, Enter opens, Esc closes", async () => {
@@ -223,7 +227,7 @@ test("S5: the job inbox", async ({ page, playwright, baseURL }) => {
     await expect(first).toBeFocused();
     await page.keyboard.press("Enter");
     await expect(page).toHaveURL(/\/inbox\/[^/]+$/);
-    await expect(page.getByRole("region", { name: "Message" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Message", exact: true })).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(page).toHaveURL(/\/inbox$/);
     await expect(first).toBeFocused();
