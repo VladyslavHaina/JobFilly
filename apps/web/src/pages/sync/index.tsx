@@ -6,11 +6,11 @@ import { Card, Loading } from "../../components";
 import { queryKeys } from "../../hooks";
 import { apiPaths } from "../../paths";
 
-// Continuous sync in the UI (F1.4, F1.5): the mailbox status in the inbox header ("Synced 2
-// minutes ago", "Can't reach the mail server since 10:42") and the model usage per day in
-// Settings › AI. The status refetches on every mailbox.updated event (the "mailbox" live area)
-// and its wording follows the clock; the usage refetches whenever messages were analysed (the
-// "messages" area), which is when the sync and the scans call the model.
+// Continuous sync in the UI (F1.4, F1.5): the mailbox status in the inbox header and in
+// Settings › Mailbox ("Synced 2 minutes ago", "Can't reach the mail server since 10:42") and the
+// model usage per day in Settings › AI. The status refetches on every mailbox.updated event (the
+// "mailbox" live area) and its wording follows the clock; the usage refetches whenever messages
+// were analysed (the "messages" area), which is when the sync and the scans call the model.
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
@@ -69,10 +69,12 @@ const statusKey = (workspaceId: string) =>
 
 interface MailboxStatusProps {
   workspaceId: string;
+  /** Right-aligned in a page header (the default), left-aligned at the top of a page's content. */
+  align?: "end" | "start";
 }
 
-/** The inbox header's mailbox status (F1.4); nothing while no mailbox is connected. */
-export function MailboxStatus({ workspaceId }: MailboxStatusProps) {
+/** The mailbox status (F1.4) of the inbox header and Settings › Mailbox; nothing without one. */
+export function MailboxStatus({ workspaceId, align = "end" }: MailboxStatusProps) {
   const now = useNow(30_000);
   const mailboxes = useQuery({
     queryKey: statusKey(workspaceId),
@@ -83,7 +85,10 @@ export function MailboxStatus({ workspaceId }: MailboxStatusProps) {
   const { line, detail } = statusText(sync, now);
   const failing = sync.state === "failing";
   return (
-    <div role="status" className="flex flex-col items-end text-right text-sm">
+    <div
+      role="status"
+      className={`flex flex-col text-sm ${align === "end" ? "items-end text-right" : "items-start"}`}
+    >
       <p className={failing ? "font-medium text-red-700" : "text-stone-600"}>
         <span
           aria-hidden="true"

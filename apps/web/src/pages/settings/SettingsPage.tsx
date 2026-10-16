@@ -4,14 +4,17 @@ import { useWorkspace } from "../../hooks";
 import { paths, type SettingsTab } from "../../paths";
 import { AiForm } from "../ai";
 import { MailboxForm } from "../mailbox";
-import { UsagePerDay } from "../sync";
+import { MailboxStatus, UsagePerDay } from "../sync";
 
 const TABS: { id: SettingsTab; label: string }[] = [
   { id: "mailbox", label: "Mailbox" },
   { id: "ai", label: "AI" },
 ];
 
-/** Settings › Mailbox and Settings › AI, mounting the connect slice's forms in settings mode. */
+/**
+ * Settings › Mailbox and Settings › AI, mounting the connect slice's forms in settings mode: the
+ * mailbox's sync status above its form (F1.4), the model usage per day below the AI's (F1.5).
+ */
 export function SettingsPage() {
   const { workspaceId } = useWorkspace();
   const { tab } = useParams();
@@ -37,7 +40,10 @@ export function SettingsPage() {
         ))}
       </nav>
       {current === "mailbox" ? (
-        <MailboxForm workspaceId={workspaceId} mode="settings" />
+        <div className="flex flex-col gap-6">
+          <MailboxStatus workspaceId={workspaceId} align="start" />
+          <MailboxForm workspaceId={workspaceId} mode="settings" />
+        </div>
       ) : (
         <div className="flex flex-col gap-6">
           <AiForm workspaceId={workspaceId} mode="settings" />
