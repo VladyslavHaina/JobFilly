@@ -11,6 +11,5 @@ export * from "./intake/index";
 export * from "./match/index";
 export * from "./policy/index";
 export * from "./profile/index";
-export * from "./rules/index";
 export * from "./scan/index";
 export * from "./sender/index";
