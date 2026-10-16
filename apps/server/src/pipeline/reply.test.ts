@@ -490,6 +490,29 @@ describe("a mailbox that can't take the draft", () => {
     });
   });
 
+  it("doesn't retry a failed draft while its sender check failed (F5.3)", async () => {
+    await h.deliver(BERLIN);
+    h.ai.answers.draft[key(BERLIN)] = draftAnswer();
+    h.mailbox.failNext("saveDraft");
+    await h.evaluate(BERLIN);
+    await h.drain();
+    expect(await h.live(BERLIN)).toMatchObject({ status: "failed", failureKind: "mailbox" });
+
+    // The sender is checked again (a mark changed) and the check fails: it is no check, so the
+    // retry waits for one instead of saving the draft on what was known before.
+    h.setSender(BERLIN, "fails");
+    await markStale(
+      h.deps.db,
+      h.ws,
+      { senderAddress: "recruiter@agency.example" },
+      h.deps.clock.now(),
+    );
+    expect((await reevaluateWorkspace(h.deps, h.ws, { stages: h.stages })).retried).toBe(0);
+    await h.drain();
+    expect(h.mailbox.drafts()).toEqual([]);
+    expect(await h.live(BERLIN)).toMatchObject({ status: "failed", failureKind: "mailbox" });
+  });
+
   it("retries a failed Draft a reply whatever the policy says (F6.5)", async () => {
     await h.deliver(BERLIN, { roles: [{ score: 40 }], receivedAt: daysAgo(13) });
     await h.evaluate(BERLIN);

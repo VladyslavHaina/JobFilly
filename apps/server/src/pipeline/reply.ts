@@ -18,7 +18,13 @@ import {
   roleDecisions,
   roleKey,
 } from "@jobfilly/db";
-import type { DecisionNeed, DraftOrigin, Profile, RoleEvaluation } from "@jobfilly/schema";
+import {
+  CHECK_FAILED_SIGNAL,
+  type DecisionNeed,
+  type DraftOrigin,
+  type Profile,
+  type RoleEvaluation,
+} from "@jobfilly/schema";
 import type { AppDeps } from "../deps";
 import { requestDraft } from "../drafts/request";
 import type { ReplyStage } from "./stages";
@@ -91,9 +97,9 @@ function needsOf(
 
 /**
  * What the sweep does with a draft to retry: try it again; wait for a later sweep while the role
- * has no current evaluation or sender check (the mailbox may be down, the very reason it failed);
- * or hold it for good, with the policy's reasons. A Draft a reply that failed is retried as
- * on_demand, which nothing holds (F6.5).
+ * has no current evaluation or sender check, or its check failed (the mailbox may be down, the
+ * very reason it failed); or hold it for good, with the policy's reasons. A Draft a reply that
+ * failed is retried as on_demand, which nothing holds (F6.5).
  */
 type RetryPlan = { kind: "retry" } | { kind: "wait" } | { kind: "hold"; reason: string };
 
@@ -113,7 +119,10 @@ export async function retryPlan(
   const evaluation = (await getEvaluations(deps.db, ws, [draft.messageId])).find(
     (e) => e.position === draft.position && !e.stale,
   );
-  if (!profile || !evaluation || !check || check.stale) return { kind: "wait" };
+  // A check whose stage failed isn't one (F5.3): the retry waits for a real one, as the reply
+  // stage does (sender_check_pending).
+  const checkFailed = check?.reasons.some((r) => r.signal === CHECK_FAILED_SIGNAL);
+  if (!profile || !evaluation || !check || check.stale || checkFailed) return { kind: "wait" };
   const { needs } = needsOf(await roleDecisions(deps.db, ws, [role]), evaluation, profile);
   const history = (await draftHistory(deps.db, ws, [role])).get(roleKey(role));
   const eligibility = replyEligibility({
