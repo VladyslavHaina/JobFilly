@@ -1,5 +1,6 @@
+import { MailUnavailableError } from "@jobfilly/mail";
 import { describe, expect, it } from "vitest";
-import { createLogger, REDACTED, redact } from "./log";
+import { createLogger, failureFields, MAX_FAILURE_REASON, REDACTED, redact } from "./log";
 
 function capture(level: "debug" | "info" | "warn" | "error" = "info") {
   const lines: Record<string, unknown>[] = [];
@@ -191,5 +192,94 @@ describe("MVP 2's secret fields (F8.10)", () => {
     log.info("assistant.proposal_created", { proposalId: "p1", changes: 2, ...fields });
     expect(lines[0]).not.toMatch(/E2E-CHAT|CHF|UTC\+05|Hide/);
     expect(JSON.parse(lines[0] ?? "{}")).toMatchObject({ proposalId: "p1", changes: 2 });
+  });
+});
+
+describe("why a pipeline stage failed (failureFields)", () => {
+  // The shape of an AI SDK call error: the prompt and the provider's answer ride along.
+  function sdkError() {
+    return Object.assign(new Error("Bad Request from the provider"), {
+      name: "AI_APICallError",
+      requestBodyValues: { messages: [{ content: "BODYSENTINEL-prompt E2E-SECRET-ai-key" }] },
+      responseBody: "BODYSENTINEL-answer",
+      text: "BODYSENTINEL-text",
+      stack: "Error\n    at BODYSENTINEL-stack",
+    });
+  }
+
+  it("says why with the name, the kind or code, and a short masked reason", () => {
+    const { log, lines } = capture();
+    const ai = Object.assign(new Error("match.v1 gave no answer: unreachable"), {
+      name: "MatchAiError",
+      kind: "unreachable",
+    });
+    const mail = Object.assign(new Error("The mail server can't be reached."), {
+      name: "MailError",
+      reason: "unreachable",
+    });
+    const socket = Object.assign(
+      new Error("connect ECONNREFUSED imap.example as maria@x.example"),
+      {
+        code: "ECONNREFUSED",
+      },
+    );
+    log.warn("pipeline.stage_failed", { stage: "match", position: 0, ...failureFields(ai) });
+    log.warn("pipeline.stage_failed", { stage: "sender", ...failureFields(mail) });
+    log.warn("pipeline.stage_failed", { stage: "sender", ...failureFields(socket) });
+    log.warn("pipeline.stage_failed", {
+      stage: "sender",
+      ...failureFields(new MailUnavailableError()),
+    });
+    log.warn("pipeline.stage_failed", { stage: "reply", ...failureFields("a string") });
+    expect(lines).toMatchObject([
+      {
+        error: "MatchAiError",
+        kind: "unreachable",
+        reason: "match.v1 gave no answer: unreachable",
+      },
+      { error: "MailError", kind: "unreachable", reason: "The mail server can't be reached." },
+      {
+        error: "Error",
+        code: "ECONNREFUSED",
+        reason: `connect ECONNREFUSED imap.example as ${REDACTED}`,
+      },
+      {
+        error: "MailUnavailableError",
+        kind: "mailbox_unavailable",
+        reason: "Couldn't reach the mail server",
+      },
+      { error: "unknown", reason: "Something that isn't an error was thrown" },
+    ]);
+  });
+
+  it("never carries bodies, prompts, secrets, stacks or a failed query's values", () => {
+    const { log, lines } = capture();
+    const query = new DrizzleQueryError(SQL, ["BODYSENTINEL-1", "E2E-SECRET-maria-imap"]);
+    const wrapped = Object.assign(new Error("the stage failed"), {
+      cause: sdkError(),
+      password: "E2E-SECRET-maria-imap",
+      body: "BODYSENTINEL-2",
+    });
+    for (const error of [sdkError(), query, wrapped]) {
+      log.warn("pipeline.stage_failed", { stage: "match", ...failureFields(error) });
+    }
+    const text = lines.map((l) => JSON.stringify(l)).join("\n");
+    for (const leak of ["BODYSENTINEL", "E2E-SECRET", "insert into", "params", "stack"]) {
+      expect(text).not.toContain(leak);
+    }
+    expect(lines).toMatchObject([
+      { error: "AI_APICallError", reason: "Bad Request from the provider" },
+      { error: "DrizzleQueryError", reason: "Failed query" },
+      { error: "Error", reason: "the stage failed" },
+    ]);
+  });
+
+  it("keeps the reason on one bounded line", () => {
+    const long = new Error(`first line\n${"x".repeat(500)}`);
+    const { reason } = failureFields(long);
+    expect(reason).toHaveLength(MAX_FAILURE_REASON);
+    expect(reason.startsWith("first line x")).toBe(true);
+    expect(reason.endsWith("…")).toBe(true);
+    expect(failureFields(new Error("")).reason).toBe("No reason given");
   });
 });

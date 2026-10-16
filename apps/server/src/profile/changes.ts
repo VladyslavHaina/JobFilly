@@ -3,6 +3,7 @@ import { type AppliedChanges, applyChanges, type ChangeError } from "@jobfilly/c
 import {
   type ApplyProfileChangesResult,
   applyProfileChanges,
+  clearStageFailures,
   markStale,
   type StaleScope,
 } from "@jobfilly/db";
@@ -24,7 +25,8 @@ import { requestRun } from "../pipeline/reevaluate";
 // (foundation, routes/messages.ts: the message's roles, as reply_to reads the category).
 
 /**
- * Marks the scope's evaluations stale (and, for a sender scope only, the sender checks), asks
+ * Marks the scope's evaluations stale (and, for a sender scope only, the sender checks), ends
+ * the back-off of the scope's failing roles (a change is a new question, tried at once), asks
  * for a deduped pipeline.reevaluate, and tells open inboxes their scores are stale meanwhile.
  */
 export async function requestReevaluation(
@@ -34,6 +36,7 @@ export async function requestReevaluation(
   reason: string,
 ): Promise<void> {
   await markStale(deps.db, ws, scope, deps.clock.now());
+  await clearStageFailures(deps.db, ws, scope);
   await requestRun(deps, ws, reason);
   await deps.live.publish(ws, { type: "messages.updated", data: {} });
 }

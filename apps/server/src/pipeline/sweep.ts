@@ -9,7 +9,10 @@ import { enqueue } from "../jobs/queue";
 // profile was confirmed before MVP 2 is evaluated without any user action (F1.6); the scheduler
 // (sync/scheduler.ts) runs it every JOBFILLY_SYNC_INTERVAL_SECONDS whatever the syncs did, so a
 // role whose evaluation failed and a draft that failed with kind mailbox or ai are retried
-// within one interval. listWorkspacesWithWork reads across workspaces, like the job claim.
+// within one interval. A stage that fails again then waits a back-off (one interval, doubling up
+// to an hour, stage_failures in packages/db): listWorkspacesWithWork counts only what is due at
+// the clock's time, so a workspace whose only work is waiting gets no run. It reads across
+// workspaces, like the job claim.
 
 /** Enqueues the re-evaluations; returns how many workspaces got one (a waiting one counts). */
 export async function sweep(deps: AppDeps): Promise<number> {

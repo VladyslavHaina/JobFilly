@@ -133,6 +133,48 @@ describe("the sweep", () => {
     expect(await listToEvaluate(deps.db, ws)).toEqual([]);
   });
 
+  it("backs off a stage that keeps failing: not retried on every tick, and again after the wait", async () => {
+    await confirm();
+    await seedJobMail(deps, ws, mailbox, { messageId: "<a@x.example>", receivedAt: NOW });
+    stages.failing.match = "*";
+    const scheduler = createScheduler(deps);
+    const interval = deps.config.syncIntervalSeconds * 1000;
+    const matches = () => stages.calls.filter((c) => c.startsWith("match")).length;
+    /** One scheduler tick; whether it ran a re-evaluation. */
+    const tick = async (advance: number) => {
+      deps.clock.advance(advance);
+      await scheduler.tick();
+      return deps.queue.runOnce();
+    };
+
+    expect(await tick(0)).toBe(true); // the first try
+    expect(await tick(interval)).toBe(true); // the first retry, within one interval
+    expect(matches()).toBe(2);
+    // Now it waits one interval, then two: the ticks between do nothing.
+    expect(await tick(interval / 2)).toBe(false);
+    expect(await tick(interval / 2)).toBe(true);
+    expect(matches()).toBe(3);
+    expect(await tick(interval)).toBe(false);
+    expect(await tick(interval)).toBe(true);
+    expect(matches()).toBe(4);
+    expect(
+      deps.logs
+        .filter((l) => l.event === "pipeline.stage_failed")
+        .map((l) => [l.stage, l.failures, l.reason]),
+    ).toEqual([
+      ["match", 1, "match stage failed"],
+      ["match", 2, "match stage failed"],
+      ["match", 3, "match stage failed"],
+      ["match", 4, "match stage failed"],
+    ]);
+
+    // Once it works, the role is evaluated and the ticks have nothing more to do.
+    stages.failing = {};
+    expect(await tick(interval * 4)).toBe(true);
+    expect(await listToEvaluate(deps.db, ws)).toEqual([]);
+    expect(await tick(interval)).toBe(false);
+  });
+
   it("checks a message gone from the mailbox once, then leaves it alone until it is seen again", async () => {
     await confirm();
     const envelope = await seedJobMail(deps, ws, mailbox, {

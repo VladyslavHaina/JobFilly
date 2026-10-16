@@ -9,6 +9,7 @@ import {
 } from "@jobfilly/db";
 import type { LiveEvent } from "@jobfilly/schema";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { requestReevaluation } from "../profile/changes";
 import {
   createFakeMailbox,
   createTestDeps,
@@ -157,25 +158,158 @@ describe("evaluateMessage", () => {
     expect(mailbox.calls.fetchBody).toBe(2);
   });
 
-  it("keeps the check missing when the sender stage fails, and still matches the roles", async () => {
+  it("shows an incomplete check when the sender stage fails, keeps it to do, and still matches the roles", async () => {
     await confirm();
     await seedJobMail(deps, ws, mailbox, { messageId: "<a@x.example>", receivedAt: daysAgo(1) });
     mailbox.pause();
-    await evaluate("<a@x.example>");
-    expect(await getSenderChecks(deps.db, ws, ["<a@x.example>"])).toEqual([]);
+    const outcome = await evaluate("<a@x.example>");
+    expect(outcome).toMatchObject({ senderChecked: false, evaluated: [0], failed: [] });
+    // Incomplete and neutral, never "looks fine" (F5.3): the inbox shows the check didn't happen.
+    expect(await getSenderChecks(deps.db, ws, ["<a@x.example>"])).toEqual([
+      {
+        messageId: "<a@x.example>",
+        verdict: "caution",
+        complete: false,
+        reasons: [
+          {
+            signal: "check_failed",
+            reason: "Couldn't check this sender yet. JobFilly tries again shortly.",
+          },
+        ],
+        mark: null,
+        stale: false,
+      },
+    ]);
     expect(stages.calls).toEqual([
       "sender <a@x.example>",
       "cvChoice <a@x.example>#0",
       "match <a@x.example>#0",
       "reply <a@x.example>",
     ]);
+    // The reply waits for a real check.
     expect(stages.replies[0]?.sender).toBeNull();
     expect(deps.logs.filter((l) => l.event === "pipeline.stage_failed")).toMatchObject([
-      { level: "warn", stage: "sender" },
+      {
+        level: "warn",
+        stage: "sender",
+        error: "MailUnavailableError",
+        kind: "mailbox_unavailable",
+        reason: "Couldn't reach the mail server",
+        failures: 1,
+        retryAt: NOW.toISOString(),
+      },
     ]);
     expect(await listToEvaluate(deps.db, ws)).toMatchObject([
       { messageId: "<a@x.example>", sender: { state: "missing" }, roles: [] },
     ]);
+
+    // The next try reads the text and stores the real check.
+    mailbox.resume();
+    stages.calls.length = 0;
+    expect(await evaluate("<a@x.example>", "reevaluate")).toMatchObject({ senderChecked: true });
+    expect(stages.calls).toEqual(["sender <a@x.example>", "reply <a@x.example>"]);
+    expect((await getSenderChecks(deps.db, ws, ["<a@x.example>"]))[0]).toMatchObject({
+      verdict: "looks_fine",
+      complete: true,
+    });
+    expect(stages.replies.at(-1)?.sender).toMatchObject({ verdict: "looks_fine" });
+    expect(await listToEvaluate(deps.db, ws)).toEqual([]);
+  });
+
+  it("says why a match stage failed, and backs off a stage that keeps failing", async () => {
+    await confirm();
+    await seedJobMail(deps, ws, mailbox, { messageId: "<a@x.example>", receivedAt: daysAgo(1) });
+    await evaluate("<a@x.example>");
+    await markStale(deps.db, ws, { all: true }, NOW);
+    stages.failing.match = "*";
+    stages.calls.length = 0;
+    const interval = deps.config.syncIntervalSeconds * 1000;
+
+    // The first failure is tried again at once (the next sweep), the second waits one interval.
+    await evaluate("<a@x.example>", "reevaluate");
+    await evaluate("<a@x.example>", "reevaluate");
+    const failures = deps.logs.filter((l) => l.event === "pipeline.stage_failed");
+    expect(failures).toMatchObject([
+      {
+        stage: "match",
+        position: 0,
+        error: "Error",
+        reason: "match stage failed",
+        failures: 1,
+        retryAt: NOW.toISOString(),
+      },
+      { stage: "match", failures: 2, retryAt: new Date(NOW.getTime() + interval).toISOString() },
+    ]);
+
+    // While it waits, the message is left alone: no stage call, no log line.
+    stages.calls.length = 0;
+    const lines = deps.logs.length;
+    await evaluate("<a@x.example>", "reevaluate");
+    expect(stages.calls).toEqual([]);
+    expect(deps.logs.length).toBe(lines);
+    expect(await listToEvaluate(deps.db, ws, { now: NOW })).toEqual([]);
+
+    // Once the wait is over it runs again; when it works, the role is evaluated.
+    deps.clock.advance(interval);
+    stages.failing = {};
+    expect(await evaluate("<a@x.example>", "reevaluate")).toMatchObject({ evaluated: [0] });
+    expect(await listToEvaluate(deps.db, ws, { now: deps.clock.now() })).toEqual([]);
+  });
+
+  it("tries a waiting role again at once after a change, even one never evaluated", async () => {
+    await confirm();
+    await seedJobMail(deps, ws, mailbox, { messageId: "<a@x.example>", receivedAt: daysAgo(1) });
+    stages.failing.match = "*";
+    await evaluate("<a@x.example>", "backlog");
+    await evaluate("<a@x.example>", "reevaluate");
+    await evaluate("<a@x.example>", "reevaluate");
+    const matches = () => stages.calls.filter((c) => c.startsWith("match")).length;
+    expect(matches()).toBe(2);
+    stages.failing = {};
+    await evaluate("<a@x.example>", "reevaluate");
+    expect(matches()).toBe(2);
+
+    // A profile change (say, the AI was fixed and a rule edited): no wait.
+    await requestReevaluation(deps, ws, { all: true }, "profile.changed");
+    expect(await listToEvaluate(deps.db, ws, { now: NOW })).toHaveLength(1);
+    expect(await evaluate("<a@x.example>", "reevaluate")).toMatchObject({ evaluated: [0] });
+    expect(matches()).toBe(3);
+  });
+
+  it("checks a backlog message's sender and evaluates its roles with no one doing anything (F1.6)", async () => {
+    // A profile confirmed earlier, and the first scan's backlog never evaluated.
+    await confirm();
+    await seedJobMail(deps, ws, mailbox, {
+      messageId: "<backlog@x.example>",
+      receivedAt: daysAgo(20),
+      roles: [roleFacts({ title: "A" }), roleFacts({ title: "B" })],
+    });
+    expect(await listToEvaluate(deps.db, ws, { now: NOW })).toMatchObject([
+      { messageId: "<backlog@x.example>", sender: { state: "missing" } },
+    ]);
+    // The startup sweep's run (pipeline.reevaluate) evaluates it as backlog.
+    const outcome = await evaluate("<backlog@x.example>", "backlog");
+    expect(outcome).toEqual({ found: true, senderChecked: true, evaluated: [0, 1], failed: [] });
+    expect((await getSenderChecks(deps.db, ws, ["<backlog@x.example>"]))[0]).toMatchObject({
+      verdict: "looks_fine",
+      complete: true,
+      stale: false,
+    });
+    expect(
+      (await getEvaluations(deps.db, ws, ["<backlog@x.example>"])).map((e) => [
+        e.position,
+        e.match?.score,
+        e.stale,
+      ]),
+    ).toEqual([
+      [0, 75, false],
+      [1, 75, false],
+    ]);
+    expect(deps.logs.filter((l) => l.event === "pipeline.message_processed")).toMatchObject([
+      { origin: "backlog", senderChecked: true, rolesEvaluated: 2, rolesFailed: 0 },
+    ]);
+    expect(deps.logs.filter((l) => l.event === "pipeline.stage_failed")).toEqual([]);
+    expect(await listToEvaluate(deps.db, ws)).toEqual([]);
   });
 
   it("stores an incomplete check for a message gone from the mailbox, so it isn't fetched again", async () => {

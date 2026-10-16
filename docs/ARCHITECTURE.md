@@ -198,7 +198,15 @@ Rules:
   with a confirmed profile and work (`listWorkspacesWithWork`): once at startup (`startWork` in
   `apps/server/src/start.ts`, before the queue and the scheduler start), so a deployment
   confirmed before MVP 2 is evaluated without anyone doing anything, and on every scheduler tick
-  whatever the syncs did, so failed evaluations and drafts are retried within one interval.
+  whatever the syncs did, so failed evaluations and drafts are retried within one interval. A
+  stage that fails again then backs off: `stage_failures` (`packages/db`, so every replica
+  agrees) holds the message's sender check or the role for one interval, doubling up to an hour,
+  and `listWorkspacesWithWork` and `evaluateMessage` skip what still waits, so a deterministic
+  failure doesn't repeat its calls and log lines on every tick. `requestReevaluation` and any
+  change that marks the item stale end the wait at once. Each failure logs
+  `pipeline.stage_failed` with why (`failureFields` in `apps/server/src/log.ts`: name, kind or
+  code, a short masked reason) and when it is tried again; a failed sender check is stored
+  incomplete with the `check_failed` reason, never "looks fine", and still counts as missing.
 - The reply policy is one pure function, `replyEligibility` (`packages/core/src/policy`): reply_to
   (default recruiter outreach), the reply window (`reply_window_days`, default 14), the threshold
   (`reply_threshold`, default 70), a sender check present and not high risk, no hide, no_draft or
