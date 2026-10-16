@@ -115,9 +115,10 @@ Rules:
 - Secrets (mail passwords, OAuth tokens, AI keys) are encrypted with AES-256-GCM using
   `JOBFILLY_SECRET_KEY` before they are stored. They are never returned by the API or logged.
   Every place that hands a workspace's AI key to the AI port (the AI settings routes, the scan job,
-  the intake.v1 call, the match stage's match.v1 call in `apps/server/src/pipeline/match.ts`)
-  opens it with `openAiKey` in `apps/server/src/secrets.ts`, so a key that was never stored and
-  one cleared on purpose (stored sealed as "") both read as no key.
+  the intake.v1 call, the match stage's match.v1 call in `apps/server/src/pipeline/match.ts`, the
+  assistant.v1 call in `apps/server/src/assistant/service.ts`) opens it with `openAiKey` in
+  `apps/server/src/secrets.ts`, so a key that was never stored and one cleared on purpose
+  (stored sealed as "") both read as no key.
 
 ## Background work and live updates
 
@@ -266,7 +267,10 @@ Rules:
   (`changeLines`, packages/core).
 - The impact preview (`previewImpact`, packages/core) runs `applyChanges`, the rules engine, the
   match and `replyEligibility` over `listRoleStates` before and after, with each role's stored
-  match.v1 answer (`listStoredMatchAnswers`) picked by its input hash: no model call, no mailbox.
+  match.v1 answer (`listStoredMatchAnswers`) picked by its CV and input hash, as the match stage
+  picks it: no model call, no mailbox. A role with no answer for that hash (its target roles or
+  skills changed and the re-evaluation hasn't asked the model yet) is previewed with none, its
+  title not compared yet, never with an older answer.
 - Apply marks the proposal applied and Undo marks the history entry undone in the transaction
   that runs `applyAndReevaluate` on it (a savepoint), so each happens once; live events raised
   inside are sent only after the commit. Undo restores the entry's `before` (`restoreChanges`)
