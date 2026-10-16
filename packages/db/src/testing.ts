@@ -1,11 +1,13 @@
 import { PGlite } from "@electric-sql/pglite";
 import { pg_trgm } from "@electric-sql/pglite/contrib/pg_trgm";
-import { sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
-import { type DatabaseConnection, queryRows } from "./client";
+import { type Database, type DatabaseConnection, queryRows } from "./client";
 import { migrateLocked, pendingMigrations } from "./migrate";
 import { checkChannel, type Notifier } from "./notify";
+import type { RoleRef } from "./queries/evaluations";
+import { drafts } from "./tables";
 
 // Tests run against PGlite (Postgres compiled to WebAssembly) in memory: no Docker, no network.
 // Starting PGlite takes about a second, so each test process migrates once, copies the result
@@ -104,4 +106,30 @@ export async function openTestDatabase(
       }
     },
   };
+}
+
+/**
+ * Puts the role's claimed draft in the mailbox state, as draft.create leaves it once the copy is
+ * in the Drafts folder: for tests that need a draft the user may already be editing there. Only a
+ * `saving` row of the workspace moves; returns whether one did.
+ */
+export async function markTestDraftInMailbox(
+  db: Database,
+  workspaceId: string,
+  role: RoleRef,
+  now: Date,
+): Promise<boolean> {
+  const rows = await db
+    .update(drafts)
+    .set({ status: "in_mailbox", claimedAt: null, updatedAt: now })
+    .where(
+      and(
+        eq(drafts.workspaceId, workspaceId),
+        eq(drafts.messageId, role.messageId),
+        eq(drafts.position, role.position),
+        eq(drafts.status, "saving"),
+      ),
+    )
+    .returning({ id: drafts.id });
+  return rows.length > 0;
 }

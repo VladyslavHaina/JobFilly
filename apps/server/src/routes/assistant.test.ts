@@ -9,6 +9,7 @@ import {
   listThreadMessages,
   markDraftFailed,
 } from "@jobfilly/db";
+import { markTestDraftInMailbox } from "@jobfilly/db/testing";
 import {
   type AssistantOutput,
   AssistantStateSchema,
@@ -138,8 +139,8 @@ function arrangeStages(): RecordingStages {
 }
 
 /**
- * Maria's workspace with Tom as a viewer and a stranger outside it, a connected mailbox and model
- * (both fakes), and a confirmed profile open to remote roles worldwide.
+ * Maria's workspace with Tom as a viewer and a stranger who owns another workspace, a connected
+ * mailbox and model (both fakes), and a confirmed profile open to remote roles worldwide.
  */
 async function arrange(d: TestDeps) {
   const fakes = { mailbox: createFakeMailbox(), ai: createFakeAi() };
@@ -149,6 +150,7 @@ async function arrange(d: TestDeps) {
   const viewer = await seedUser(d, { name: "Tom Okafor" });
   const stranger = await seedUser(d, { name: "Stranger" });
   const w = await seedWorkspace(d, { owner, members: [{ user: viewer, role: "viewer" }] });
+  await seedWorkspace(d, { owner: stranger, name: "Stranger's workspace" });
   const app = createApp(d);
   const clients = {
     maria: await signedIn(app, d, owner),
@@ -224,26 +226,13 @@ async function drain() {
   while (await deps.queue.runOnce()) {}
 }
 
-/** The test database's own client: PGlite, which takes bound parameters. */
-interface TestDatabaseClient {
-  query(text: string, params: unknown[]): Promise<{ affectedRows?: number }>;
-}
-
 /**
  * Marks the role's claimed draft saved to the mailbox, as the replies slice's draft.create does
- * once the copy is in the Drafts folder. This branch has no packages/db function for it (the
- * replies slice adds markDraftSaved, which this should call once both are integrated), and the
- * server has no drizzle of its own, so it is one statement on the test database, scoped to the
- * workspace, with every value a bound parameter.
+ * once the copy is in the Drafts folder.
  */
 async function markInMailbox(messageId: string) {
-  const client = (deps.db as unknown as { $client: TestDatabaseClient }).$client;
-  const { affectedRows } = await client.query(
-    `update drafts set status = 'in_mailbox', claimed_at = null
-     where workspace_id = $1 and message_id = $2 and position = 0 and status = 'saving'`,
-    [ws.workspaceId, messageId],
-  );
-  expect(affectedRows).toBe(1);
+  const role = { messageId, position: 0 };
+  expect(await markTestDraftInMailbox(deps.db, ws.workspaceId, role, NOW)).toBe(true);
 }
 
 /**
@@ -586,15 +575,20 @@ describe("Apply (F8.3, F8.5, F8.8)", () => {
     expect(await hiddenIds(tom)).toEqual([]);
   });
 
-  it("answers 404 for another member's proposal", async () => {
+  it("answers 404 for another member's proposal and to another workspace's session", async () => {
     ai.answers.assistant[ASIA_REQUEST] = proposalAnswer([
       { op: "add", target: "rule", rule: asiaRule() },
     ]);
     const card = (await send(tom, ASIA_REQUEST)).proposal;
     if (!card) throw new Error("expected a proposal");
+    const edit = { changes: [{ op: "add", target: "rule", rule: asiaRule("UTC+11:00") }] };
+    expect((await maria.patch(proposalUrl(card.id), edit)).status).toBe(404);
     expect((await maria.post(proposalUrl(card.id, "apply"))).status).toBe(404);
     expect((await maria.post(proposalUrl(card.id, "discard"))).status).toBe(404);
+    expect((await outsider.patch(proposalUrl(card.id), edit)).status).toBe(404);
+    expect((await outsider.post(proposalUrl(card.id, "apply"))).status).toBe(404);
     expect((await outsider.post(proposalUrl(card.id, "discard"))).status).toBe(404);
+    expect(await listRules(deps.db, ws.workspaceId, profile.id)).toEqual([]);
   });
 });
 
