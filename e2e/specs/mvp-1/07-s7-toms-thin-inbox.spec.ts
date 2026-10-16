@@ -9,30 +9,16 @@ import {
   readJson,
 } from "../../fixtures/format.ts";
 import { ACCOUNTS } from "../../seed/accounts.ts";
+import { AI_KEY, FAKE_AI_URL, INTAKE_LABELS, signIn } from "../shared.ts";
 
 // S7 of docs/mvp/MVP-1.md: Tom's thin inbox (F2.5, F4.4, F6.6), in his own workspace. The two
 // answers he fills in are his own words (docs/mvp/MVP-1.md › Personas): no mail of his says them.
 // The test stack's imap service speaks plain-text IMAP on 3143 (docker/compose.e2e.yaml).
 
-const LOGIN = "E2E-SECRET-tom-login";
-const FILLED: { key: CoreKey; label: string; value: string }[] = [
-  { key: "target_roles", label: "Roles you're looking for", value: "Band 6 nurse" },
-  { key: "languages", label: "Working languages", value: "English" },
+const FILLED: { key: CoreKey; value: string }[] = [
+  { key: "target_roles", value: "Band 6 nurse" },
+  { key: "languages", value: "English" },
 ];
-
-/** The intake form's label of each core question (the app's own words). */
-const LABELS: Record<CoreKey, string> = {
-  target_roles: "Roles you're looking for",
-  seniority: "Seniority",
-  places: "Places you'd work onsite or hybrid",
-  remote: "Remote work",
-  contracts: "Contracts",
-  min_pay: "Minimum pay",
-  languages: "Working languages",
-  work_permits: "Work permits",
-  reply_to: "Mail that should get a reply",
-  deal_breakers: "Deal-breakers",
-};
 
 const expected = readJson<ExpectedFile>(`${fixturesDir()}${personaPaths("tom").expected}`);
 
@@ -60,10 +46,7 @@ test("S7: Tom's thin inbox", async ({ page }) => {
   test.setTimeout(10 * 60_000);
   const nav = page.getByRole("navigation", { name: "Main" });
 
-  await page.goto("/");
-  await page.getByLabel("Email").fill(PERSONA_ADDRESSES.tom);
-  await page.getByLabel("Password").fill(LOGIN);
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await signIn(page, "tom");
   await expect(page.getByRole("heading", { name: "Connect your mailbox", level: 1 })).toBeVisible();
   await expect(page.getByText("in Tom's workspace")).toBeVisible();
 
@@ -90,8 +73,8 @@ test("S7: Tom's thin inbox", async ({ page }) => {
       .getByRole("link", { name: "AI" })
       .click();
     await page.getByLabel("AI provider").selectOption({ label: "OpenAI-compatible endpoint" });
-    await page.getByLabel("Base URL").fill("http://fake-ai:8080/v1");
-    await page.getByLabel("API key (optional)").fill("E2E-SECRET-ai-key");
+    await page.getByLabel("Base URL").fill(FAKE_AI_URL);
+    await page.getByLabel("API key (optional)").fill(AI_KEY);
     await page.getByRole("button", { name: "Test", exact: true }).click();
     await expect(page.getByText("Test succeeded: the AI answered.")).toBeVisible();
     await page.getByRole("button", { name: "Save", exact: true }).click();
@@ -104,7 +87,8 @@ test("S7: Tom's thin inbox", async ({ page }) => {
     await expect(page.getByText(/^Stopped: done, /)).toBeVisible({ timeout: 5 * 60_000 });
   });
 
-  const card = (key: CoreKey) => page.getByRole("region", { name: LABELS[key], exact: true });
+  const card = (key: CoreKey) =>
+    page.getByRole("region", { name: INTAKE_LABELS[key], exact: true });
   await test.step("the intake form says “Not enough evidence” where his mail says nothing", async () => {
     await page.getByRole("link", { name: "Review your answers" }).click();
     await expect(page.getByRole("heading", { name: "Your job search" })).toBeVisible();
@@ -116,9 +100,10 @@ test("S7: Tom's thin inbox", async ({ page }) => {
   });
 
   await test.step("he fills two answers and confirms", async () => {
-    for (const { key, label, value } of FILLED) {
+    for (const { key, value } of FILLED) {
+      const label = INTAKE_LABELS[key].toLowerCase();
       await card(key)
-        .getByRole("textbox", { name: `Add to ${label.toLowerCase()}`, exact: true })
+        .getByRole("textbox", { name: `Add to ${label}`, exact: true })
         .fill(value);
       await card(key).getByRole("button", { name: "Add", exact: true }).click();
       await expect(card(key).getByRole("button", { name: `Remove ${value}` })).toBeVisible();

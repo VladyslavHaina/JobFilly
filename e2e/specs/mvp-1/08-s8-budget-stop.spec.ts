@@ -1,12 +1,13 @@
 import { expect, type Page, test } from "@playwright/test";
-import { PERSONA_ADDRESSES } from "../../fixtures/format.ts";
+import { signIn, withCleanup } from "../shared.ts";
 
 // S8 of docs/mvp/MVP-1.md: the budget stop (F4.4, F4.5, F4.10). Maria's first scan stopped
 // confident with likely job mail unread (S3); with a budget of 5, Analyze them stops for budget
-// after 5 calls and analyzes some of it. The budget goes back to 300 at the end.
+// after 5 calls and analyzes some of it. The budget goes back to 300 at the end, and if a step
+// fails before that, the cleanup still sets it back so the specs after this one start from 300.
 
-const LOGIN = "E2E-SECRET-maria-login";
 const NOT_ANALYZED = /^(\d+) more likely job emails? not analyzed$/;
+const BUDGET = 300;
 
 async function setBudget(page: Page, budget: number) {
   await page
@@ -33,42 +34,51 @@ test("S8: budget stop", async ({ page }) => {
   test.setTimeout(5 * 60_000);
   const nav = page.getByRole("navigation", { name: "Main" });
 
-  await page.goto("/");
-  await page.getByLabel("Email").fill(PERSONA_ADDRESSES.maria);
-  await page.getByLabel("Password").fill(LOGIN);
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await signIn(page, "maria");
   await expect(page.getByRole("heading", { name: "Job inbox" })).toBeVisible();
 
-  await test.step("Maria sets the budget to 5 in Settings › AI", async () => {
-    await setBudget(page, 5);
-  });
+  let restored = false;
+  await withCleanup(
+    async () => {
+      await test.step("Maria sets the budget to 5 in Settings › AI", async () => {
+        await setBudget(page, 5);
+      });
 
-  let before = 0;
-  await test.step("Analyze them stops for budget and fewer are left unread", async () => {
-    await nav.getByRole("link", { name: "Inbox" }).click();
-    await expect(page.getByText(NOT_ANALYZED)).toBeVisible();
-    before = await notAnalyzed(page);
-    expect(before).toBeGreaterThan(0);
-    await page.getByRole("button", { name: "Analyze them" }).click();
-    await expect(
-      page.getByText(/^Stopped: the AI budget for this run was used up after /),
-    ).toBeVisible({
-      timeout: 3 * 60_000,
-    });
-    await expect.poll(() => notAnalyzed(page)).toBeLessThan(before);
-  });
+      let before = 0;
+      await test.step("Analyze them stops for budget and fewer are left unread", async () => {
+        await nav.getByRole("link", { name: "Inbox" }).click();
+        await expect(page.getByText(NOT_ANALYZED)).toBeVisible();
+        before = await notAnalyzed(page);
+        expect(before).toBeGreaterThan(0);
+        await page.getByRole("button", { name: "Analyze them" }).click();
+        await expect(
+          page.getByText(/^Stopped: the AI budget for this run was used up after /),
+        ).toBeVisible({
+          timeout: 3 * 60_000,
+        });
+        await expect.poll(() => notAnalyzed(page)).toBeLessThan(before);
+      });
 
-  await test.step("the scan screen says it stopped after 5 calls", async () => {
-    await nav.getByRole("link", { name: "Scan" }).click();
-    await expect(
-      page.getByText(/^Stopped: the AI budget for this run was used up after /),
-    ).toBeVisible();
-    const calls = page.getByText("AI calls this run", { exact: true }).locator("xpath=..");
-    await expect(calls.getByRole("definition")).toHaveText("5");
-    await expect(page.getByRole("button", { name: "Analyze them" })).toBeVisible();
-  });
+      await test.step("the scan screen says it stopped after 5 calls", async () => {
+        await nav.getByRole("link", { name: "Scan" }).click();
+        await expect(
+          page.getByText(/^Stopped: the AI budget for this run was used up after /),
+        ).toBeVisible();
+        const calls = page.getByText("AI calls this run", { exact: true }).locator("xpath=..");
+        await expect(calls.getByRole("definition")).toHaveText("5");
+        await expect(page.getByRole("button", { name: "Analyze them" })).toBeVisible();
+      });
 
-  await test.step("the budget goes back to 300", async () => {
-    await setBudget(page, 300);
-  });
+      await test.step(`the budget goes back to ${BUDGET}`, async () => {
+        await setBudget(page, BUDGET);
+        restored = true;
+      });
+    },
+    async () => {
+      if (!restored) {
+        await test.step(`cleanup: the budget goes back to ${BUDGET}`, () =>
+          setBudget(page, BUDGET));
+      }
+    },
+  );
 });

@@ -1,35 +1,16 @@
-import { execFileSync } from "node:child_process";
-import { join, resolve } from "node:path";
 import { expect, test } from "@playwright/test";
 import {
   CORE_KEYS,
   type CoreKey,
   type ExpectedFile,
   fixturesDir,
-  PERSONA_ADDRESSES,
   personaPaths,
   readJson,
 } from "../../fixtures/format.ts";
-import { COMPOSE_FILE, fileState } from "../../stack.ts";
+import { eventsSince, INTAKE_LABELS, logMark, signIn } from "../shared.ts";
 
 // S4 of docs/mvp/MVP-1.md: from the intake form to the profile (F6.1–F6.5). The proposals are
 // checked against Maria's expected.json (F6.6); she removes Amsterdam with a click and confirms.
-
-const LOGIN = "E2E-SECRET-maria-login";
-
-/** The intake form's label of each core question (the app's own words). */
-const LABELS: Record<CoreKey, string> = {
-  target_roles: "Roles you're looking for",
-  seniority: "Seniority",
-  places: "Places you'd work onsite or hybrid",
-  remote: "Remote work",
-  contracts: "Contracts",
-  min_pay: "Minimum pay",
-  languages: "Working languages",
-  work_permits: "Work permits",
-  reply_to: "Mail that should get a reply",
-  deal_breakers: "Deal-breakers",
-};
 
 const expected = readJson<ExpectedFile>(`${fixturesDir()}${personaPaths("maria").expected}`);
 const answers = expected.profile.answers;
@@ -57,45 +38,12 @@ function chips(key: CoreKey): string[] {
   }
 }
 
-const ROOT = resolve(import.meta.dirname, "../../..");
-/** The running stack's compose project: the one stack.ts passes on, else e2e/.stack's. */
-const project = process.env.JOBFILLY_E2E_PROJECT ?? fileState(join(ROOT, "e2e", ".stack")).read();
-const REPLICAS = ["app-a", "app-b"];
-type LogLine = { event?: unknown; [field: string]: unknown };
-
-function replicaLog(replica: string): LogLine[] {
-  if (!project) throw new Error('No test stack is up: start one with "pnpm e2e:stack up"');
-  const args = ["compose", "-p", project, "-f", COMPOSE_FILE, "logs", "--no-color"];
-  const out = execFileSync("docker", [...args, "--no-log-prefix", replica], {
-    cwd: ROOT,
-    encoding: "utf8",
-    maxBuffer: 1 << 30,
-  });
-  return out.split("\n").flatMap((line) => {
-    try {
-      return line.startsWith("{") ? [JSON.parse(line) as LogLine] : [];
-    } catch {
-      return [];
-    }
-  });
-}
-
-/** The events both replicas logged since `mark` (each replica's line count then). */
-const eventsSince = (mark: number[]) =>
-  REPLICAS.flatMap((replica, i) =>
-    replicaLog(replica)
-      .slice(mark[i])
-      .map((l) => l.event),
-  );
-
 test("S4: intake form to profile", async ({ page }) => {
-  const mark = REPLICAS.map((replica) => replicaLog(replica).length);
-  const card = (key: CoreKey) => page.getByRole("region", { name: LABELS[key], exact: true });
+  const mark = logMark();
+  const card = (key: CoreKey) =>
+    page.getByRole("region", { name: INTAKE_LABELS[key], exact: true });
 
-  await page.goto("/");
-  await page.getByLabel("Email").fill(PERSONA_ADDRESSES.maria);
-  await page.getByLabel("Password").fill(LOGIN);
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await signIn(page, "maria");
   await page
     .getByRole("navigation", { name: "Main" })
     .getByRole("link", { name: "Intake" })

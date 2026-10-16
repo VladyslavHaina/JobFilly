@@ -1,5 +1,3 @@
-import { execFileSync } from "node:child_process";
-import { join, resolve } from "node:path";
 import { expect, type Page, test } from "@playwright/test";
 import {
   type Category,
@@ -8,18 +6,15 @@ import {
   fixturesDir,
   type JobFacts,
   MARIA_KEY_MESSAGES,
-  PERSONA_ADDRESSES,
   personaPaths,
   readJson,
 } from "../../fixtures/format.ts";
-import { COMPOSE_FILE, fileState } from "../../stack.ts";
+import { apiContext, apiSignIn, logged, openMessage, signIn, workspaceIdOf } from "../shared.ts";
 
 // S5 of docs/mvp/MVP-1.md: the job inbox (F5.1–F5.5, F3.4, F3.5), after the first scan (S3).
 // The messages it opens, their facts and categories come from Maria's fixtures. The category it
 // corrects is the always-invalid message's, which the scan couldn't analyze: Maria sets it to
 // what the mail is. It is marked narrow, so the inbox is walked again at 1024×768.
-
-const LOGIN = "E2E-SECRET-maria-login";
 
 const dir = fixturesDir();
 const expected = readJson<ExpectedFile>(`${dir}${personaPaths("maria").expected}`);
@@ -68,48 +63,27 @@ function normalisedPay(pay: NonNullable<JobFacts["pay"]>): string {
   return `${amount} per ${pay.period}`;
 }
 
-const ROOT = resolve(import.meta.dirname, "../../..");
-/** The running stack's compose project: the one stack.ts passes on, else e2e/.stack's. */
-const project = process.env.JOBFILLY_E2E_PROJECT ?? fileState(join(ROOT, "e2e", ".stack")).read();
-const REPLICAS = ["app-a", "app-b"];
-type LogLine = { event?: unknown; [field: string]: unknown };
-
-function replicaLog(replica: string): LogLine[] {
-  if (!project) throw new Error('No test stack is up: start one with "pnpm e2e:stack up"');
-  const args = ["compose", "-p", project, "-f", COMPOSE_FILE, "logs", "--no-color"];
-  const out = execFileSync("docker", [...args, "--no-log-prefix", replica], {
-    cwd: ROOT,
-    encoding: "utf8",
-    maxBuffer: 1 << 30,
-  });
-  return out.split("\n").flatMap((line) => {
-    try {
-      return line.startsWith("{") ? [JSON.parse(line) as LogLine] : [];
-    } catch {
-      return [];
-    }
-  });
-}
-
-async function signIn(page: Page): Promise<string> {
-  await page.goto("/");
-  await page.getByLabel("Email").fill(PERSONA_ADDRESSES.maria);
-  await page.getByLabel("Password").fill(LOGIN);
-  await page.getByRole("button", { name: "Sign in" }).click();
+/** Maria signs in and lands in her job inbox; returns her workspace's id. */
+async function signInToInbox(page: Page): Promise<string> {
+  await signIn(page, "maria");
   await expect(page.getByRole("heading", { name: "Job inbox" })).toBeVisible();
-  return new URL(page.url()).pathname.split("/")[2] ?? "";
+  return workspaceIdOf(page);
 }
 
 const messageList = (page: Page) => page.getByRole("list", { name: "Messages" });
 const search = (page: Page) => page.getByLabel("Search sender or subject");
+const open = (page: Page, messageId: string) => openMessage(page, subjectOf(messageId));
 
-/** Finds a message by its subject with the search field and opens it. */
-async function open(page: Page, messageId: string) {
-  const subject = subjectOf(messageId);
-  await search(page).fill(subject);
-  await messageList(page).getByRole("link").filter({ hasText: subject }).first().click();
-  await expect(page.getByRole("heading", { name: subject, level: 2, exact: true })).toBeVisible();
-}
+/** The job inbox's response to the list with this category filter. */
+const listResponse = (page: Page, category: Category) =>
+  page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return (
+      url.pathname.endsWith("/messages") &&
+      url.searchParams.get("category") === category &&
+      response.ok()
+    );
+  });
 
 /** The German recruiter's email with its facts (F5.2). */
 async function checkGermanRecruiter(page: Page) {
@@ -138,7 +112,7 @@ async function checkGermanRecruiter(page: Page) {
 
 test("S5: the job inbox", async ({ page, playwright, baseURL }) => {
   test.setTimeout(5 * 60_000);
-  const workspaceId = await signIn(page);
+  const workspaceId = await signInToInbox(page);
 
   await test.step("non-job mail is hidden behind a count", async () => {
     const stageOneNotJob = Object.values(expected.messages).filter(
@@ -197,17 +171,28 @@ test("S5: the job inbox", async ({ page, playwright, baseURL }) => {
     const rows = messageList(page).getByRole("link");
     await expect(rows).toHaveCount(1);
     await expect(rows.first()).toContainText(subjectOf(MARIA_KEY_MESSAGES.interviewInvite));
-    // Nothing became an offer because the injected mail said so (F3.5).
-    await page.getByRole("button", { name: "Offer", exact: true }).click();
+  });
+
+  await test.step("filter Offer: only the offer, so the injected mail became none (F3.5)", async () => {
+    // The list keeps showing the Interview rows until the Offer page has come (it keeps the
+    // previous data while the next loads), so the rows are read once that page is shown.
+    // At least one row: the offer in Maria's mail, read by the first scan (S3).
     const offers = Object.entries(expected.messages)
       .filter(([, m]) => m.category === "offer")
       .map(([id]) => subjectOf(id));
-    for (const text of await messageList(page).getByRole("link").allInnerTexts()) {
-      expect(
-        offers.some((subject) => text.includes(subject)),
-        text,
-      ).toBe(true);
-    }
+    expect(offers).toContain(subjectOf(MARIA_KEY_MESSAGES.offer));
+    const loaded = listResponse(page, "offer");
+    await page.getByRole("button", { name: "Offer", exact: true }).click();
+    await loaded;
+    await expect
+      .poll(async () => {
+        const texts = await messageList(page).getByRole("link").allInnerTexts();
+        return (
+          texts.length > 0 &&
+          texts.every((text) => offers.some((subject) => text.includes(subject)))
+        );
+      })
+      .toBe(true);
     await page.getByRole("button", { name: "All", exact: true }).click();
   });
 
@@ -245,16 +230,9 @@ test("S5: the job inbox", async ({ page, playwright, baseURL }) => {
   });
 
   await test.step("probe: the first page of the list, 20 times, p95 under a second", async () => {
-    const origin = new URL(baseURL ?? "http://127.0.0.1:8080").origin;
-    const api = await playwright.request.newContext({
-      baseURL: origin,
-      extraHTTPHeaders: { Origin: origin },
-    });
+    const api = await apiContext(playwright.request, baseURL);
     try {
-      const signIn = await api.post("/api/auth/sign-in", {
-        data: { email: PERSONA_ADDRESSES.maria, password: LOGIN },
-      });
-      expect(signIn.status()).toBe(200);
+      await apiSignIn(api, "maria");
       const times: number[] = [];
       for (let i = 0; i < 20; i++) {
         const started = performance.now();
@@ -271,8 +249,7 @@ test("S5: the job inbox", async ({ page, playwright, baseURL }) => {
   });
 
   await test.step("logs: the invalid answer was logged", async () => {
-    const events = REPLICAS.flatMap(replicaLog).map((l) => l.event);
-    expect(events).toContain("ai.output_invalid");
+    expect(logged("ai.output_invalid", {}).length).toBeGreaterThan(0);
   });
 });
 
@@ -280,7 +257,7 @@ test.describe("narrow", () => {
   test.use({ viewport: { width: 1024, height: 768 } });
 
   test("S5 at 1024×768: list, a message and a filter", async ({ page }) => {
-    await signIn(page);
+    await signInToInbox(page);
     await expect(page.getByText(/^\d+ non-job emails? hidden$/)).toBeVisible();
     await checkGermanRecruiter(page);
     await page.keyboard.press("Escape");

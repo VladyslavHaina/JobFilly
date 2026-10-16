@@ -1,57 +1,30 @@
-import { execFileSync } from "node:child_process";
-import { join, resolve } from "node:path";
 import { expect, test } from "@playwright/test";
 import { PERSONA_ADDRESSES, PERSONA_NAMES } from "../../fixtures/format.ts";
 import { ACCOUNTS } from "../../seed/accounts.ts";
-import { COMPOSE_FILE, fileState } from "../../stack.ts";
+import {
+  apiContext,
+  apiSignIn,
+  eventsSince,
+  LOGIN_PASSWORDS,
+  logMark,
+  workspaceIdOf,
+} from "../shared.ts";
 
 // S1 of docs/mvp/MVP-1.md: Maria registers and connects her mailbox (F1.1, F1.2, F2.1–F2.3).
-// She ends on "Pick your AI", where S2 goes on. The test stack's imap service speaks plain-text
-// IMAP on port 3143 (docker/compose.e2e.yaml), which only the test stack allows (F2.4).
+// She ends on "Pick your AI"; S2 picks it in Settings › AI. The test stack's imap service speaks
+// plain-text IMAP on port 3143 (docker/compose.e2e.yaml), which only the test stack allows (F2.4).
 
-const LOGIN = "E2E-SECRET-maria-login";
 const WRONG_PASSWORD = "E2E-SECRET-maria-wrong";
 
-const ROOT = resolve(import.meta.dirname, "../../..");
-/** The running stack's compose project: the one stack.ts passes on, else e2e/.stack's. */
-const project = process.env.JOBFILLY_E2E_PROJECT ?? fileState(join(ROOT, "e2e", ".stack")).read();
-const REPLICAS = ["app-a", "app-b"];
-type LogLine = { event?: unknown; [field: string]: unknown };
-
-function replicaLog(replica: string): LogLine[] {
-  if (!project) throw new Error('No test stack is up: start one with "pnpm e2e:stack up"');
-  const args = ["compose", "-p", project, "-f", COMPOSE_FILE, "logs", "--no-color"];
-  const out = execFileSync("docker", [...args, "--no-log-prefix", replica], {
-    cwd: ROOT,
-    encoding: "utf8",
-    maxBuffer: 1 << 30,
-  });
-  return out.split("\n").flatMap((line) => {
-    try {
-      return line.startsWith("{") ? [JSON.parse(line) as LogLine] : [];
-    } catch {
-      return [];
-    }
-  });
-}
-
-/** The events both replicas logged since `mark` (each replica's line count then). */
-const eventsSince = (mark: number[]) =>
-  REPLICAS.flatMap((replica, i) =>
-    replicaLog(replica)
-      .slice(mark[i])
-      .map((l) => l.event),
-  );
-
 test("S1: Maria registers and connects her mailbox", async ({ page, playwright, baseURL }) => {
-  const mark = REPLICAS.map((replica) => replicaLog(replica).length);
+  const mark = logMark();
 
   await test.step("she creates her account from the start page", async () => {
     await page.goto("/");
     await page.getByRole("link", { name: "Create account" }).click();
     await page.getByLabel("Name").fill(PERSONA_NAMES.maria);
     await page.getByLabel("Email").fill(PERSONA_ADDRESSES.maria);
-    await page.getByLabel("Password").fill(LOGIN);
+    await page.getByLabel("Password").fill(LOGIN_PASSWORDS.maria);
     await page.getByRole("button", { name: "Create account" }).click();
 
     await expect(
@@ -109,19 +82,12 @@ test("S1: Maria registers and connects her mailbox", async ({ page, playwright, 
     await expect(page.getByRole("heading", { name: "Pick your AI", level: 1 })).toBeVisible();
   });
 
-  const workspaceId = new URL(page.url()).pathname.split("/")[2] ?? "";
+  const workspaceId = workspaceIdOf(page);
 
   await test.step("probe: the mailbox settings carry no password", async () => {
-    const origin = new URL(baseURL ?? "http://127.0.0.1:8080").origin;
-    const api = await playwright.request.newContext({
-      baseURL: origin,
-      extraHTTPHeaders: { Origin: origin },
-    });
+    const api = await apiContext(playwright.request, baseURL);
     try {
-      const signIn = await api.post("/api/auth/sign-in", {
-        data: { email: PERSONA_ADDRESSES.maria, password: LOGIN },
-      });
-      expect(signIn.status()).toBe(200);
+      await apiSignIn(api, "maria");
       const response = await api.get(`/api/workspaces/${workspaceId}/mailboxes`);
       expect(response.status()).toBe(200);
       const text = await response.text();

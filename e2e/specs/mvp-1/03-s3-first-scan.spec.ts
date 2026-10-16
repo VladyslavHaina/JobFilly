@@ -1,45 +1,10 @@
-import { execFileSync } from "node:child_process";
-import { join, resolve } from "node:path";
 import { expect, type Page, test } from "@playwright/test";
-import { PERSONA_ADDRESSES } from "../../fixtures/format.ts";
-import { COMPOSE_FILE, fileState } from "../../stack.ts";
+import { DIRECT_PORTS, logged, REPLICAS, signIn, workspaceIdOf } from "../shared.ts";
 
 // S3 of docs/mvp/MVP-1.md: the first scan stops when confident (F4.1–F4.7, F3.6). Maria starts
 // it from the scan screen; a second view of that screen, opened through the direct port of the
-// replica that is not running the scan, keeps updating too (F4.6).
-
-const LOGIN = "E2E-SECRET-maria-login";
-/** Each replica's direct port on the test stack's proxy, for read-only views. */
-const DIRECT_PORTS: Record<string, number> = { "app-a": 8081, "app-b": 8082 };
-
-const ROOT = resolve(import.meta.dirname, "../../..");
-/** The running stack's compose project: the one stack.ts passes on, else e2e/.stack's. */
-const project = process.env.JOBFILLY_E2E_PROJECT ?? fileState(join(ROOT, "e2e", ".stack")).read();
-const REPLICAS = ["app-a", "app-b"];
-type LogLine = { event?: unknown; instance?: unknown; [field: string]: unknown };
-
-function replicaLog(replica: string): LogLine[] {
-  if (!project) throw new Error('No test stack is up: start one with "pnpm e2e:stack up"');
-  const args = ["compose", "-p", project, "-f", COMPOSE_FILE, "logs", "--no-color"];
-  const out = execFileSync("docker", [...args, "--no-log-prefix", replica], {
-    cwd: ROOT,
-    encoding: "utf8",
-    maxBuffer: 1 << 30,
-  });
-  return out.split("\n").flatMap((line) => {
-    try {
-      return line.startsWith("{") ? [JSON.parse(line) as LogLine] : [];
-    } catch {
-      return [];
-    }
-  });
-}
-
-/** Every line both replicas logged with this event and these fields. */
-const logged = (event: string, fields: Record<string, unknown>) =>
-  REPLICAS.flatMap(replicaLog).filter(
-    (l) => l.event === event && Object.entries(fields).every(([k, v]) => l[k] === v),
-  );
+// replica that is not running the scan (the one address besides the start URL the scenario has
+// typed), keeps updating too (F4.6).
 
 const STOPPED_CONFIDENT = /^Stopped: confident after (\d+) of (\d+) likely job emails?$/;
 
@@ -57,13 +22,10 @@ const analyzed = (page: Page) =>
 test("S3: the first scan stops when confident", async ({ page, context }) => {
   test.setTimeout(15 * 60_000);
 
-  await page.goto("/");
-  await page.getByLabel("Email").fill(PERSONA_ADDRESSES.maria);
-  await page.getByLabel("Password").fill(LOGIN);
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await signIn(page, "maria");
   await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Scan" }).click();
   await expect(page).toHaveURL(/\/w\/[^/]+\/scan$/);
-  const workspaceId = new URL(page.url()).pathname.split("/")[2] ?? "";
+  const workspaceId = workspaceIdOf(page);
 
   await test.step("she presses Start scan and the counts change", async () => {
     await page.getByRole("button", { name: "Start scan" }).click();
@@ -74,17 +36,16 @@ test("S3: the first scan stops when confident", async ({ page, context }) => {
     await expect.poll(() => stat(page, "Analyzed"), { timeout: 120_000 }).toBeGreaterThan(0);
   });
 
-  let instance = "";
   await test.step("the other replica's direct port shows the scan updating too", async () => {
     await expect
       .poll(() => logged("scan.started", { workspaceId }).length, { timeout: 60_000 })
       .toBe(1);
-    instance = String(logged("scan.started", { workspaceId })[0]?.instance);
-    const other = REPLICAS.find((r) => r !== instance);
-    expect(other, `scan.started names a replica: ${instance}`).toBeDefined();
+    const instance = logged("scan.started", { workspaceId })[0]?.instance;
+    expect(REPLICAS, `scan.started names a replica: ${instance}`).toContain(instance);
+    const other = REPLICAS.find((r) => r !== instance) ?? REPLICAS[0];
 
     const second = await context.newPage();
-    await second.goto(`http://127.0.0.1:${DIRECT_PORTS[other ?? ""]}/w/${workspaceId}/scan`);
+    await second.goto(`http://127.0.0.1:${DIRECT_PORTS[other]}/w/${workspaceId}/scan`);
     await expect(
       second.getByRole("progressbar", { name: "Likely job emails analyzed" }),
     ).toBeVisible();
