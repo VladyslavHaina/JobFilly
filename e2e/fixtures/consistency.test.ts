@@ -1065,25 +1065,6 @@ function analysed(persona: Persona): [string, ExpectedMessageAll][] {
   );
 }
 
-const signals = readJson<{ languages: Record<string, Record<string, string[]>> }>(
-  join(root, "../../packages/core/src/sender/data/message-signals.json"),
-);
-const freeMail = new Set(
-  readJson<{ domains: string[] }>(
-    join(root, "../../packages/core/src/sender/data/free-mail-domains.json"),
-  ).domains,
-);
-
-/** The signal phrases (of every language) a text contains, as "<signal>: <phrase>". */
-function signalsIn(text: string): string[] {
-  const lower = text.toLowerCase();
-  return Object.values(signals.languages).flatMap((bySignal) =>
-    Object.entries(bySignal).flatMap(([signal, phrases]) =>
-      phrases.filter((p) => lower.includes(p)).map((p) => `${signal}: ${p}`),
-    ),
-  );
-}
-
 describe("the CVs (MVP 2)", () => {
   it("are Maria's three and Tom's one, in the formats the spec names", () => {
     const list = (p: Persona) => mvp2[p].cvList.map((c) => [c.name, c.mediaType]);
@@ -1479,60 +1460,31 @@ describe("the first scan's backlog (MVP 2)", () => {
 });
 
 describe("the sender ground truth (MVP 2)", () => {
-  const texts = (persona: Persona) =>
-    analysed(persona).map(([id, t]) => {
-      const env = data[persona].byId.get(id);
-      const delivery = [...mvp2[persona].delivered.values()].find((x) => x.entry.messageId === id);
-      const eml = env ? data[persona].eml.get(env.file) : delivery?.eml;
-      const from = env
-        ? env.from.address
-        : (parseAddresses(delivery?.eml.headers.get("from"))[0]?.address ?? "");
-      return { id, t, text: (eml as ParsedEml).text, domain: domainOf(from) };
-    });
+  // Whether the scams' words and the free-mail sender trip the sender check's own phrase and
+  // domain lists is checked from packages/core (src/sender/fixtures.test.ts): e2e reads no
+  // package code. Here, the words the spec names.
   const scams = [MARIA_KEY_MESSAGES.scam, mvp2.maria.delivered.get("scam")?.entry.messageId];
+  const freemail = mvp2.maria.delivered.get("freemail");
 
-  it("gives both scams a phrase for a fee and one for a passport from message-signals.json", () => {
-    for (const { id, text } of texts("maria").filter((x) => scams.includes(x.id))) {
-      const found = signalsIn(text);
-      expect(
-        found.some((s) => s.startsWith("asks_for_fee: ")),
-        id,
-      ).toBe(true);
-      expect(
-        found.some((s) => s.startsWith("asks_for_id: ") && s.includes("passport")),
-        id,
-      ).toBe(true);
+  it("has both scams ask for a fee and a passport, and the free-mail recruiter write from one", () => {
+    const backlog = data.maria.eml.get(data.maria.byId.get(MARIA_KEY_MESSAGES.scam)?.file ?? "");
+    for (const text of [backlog?.text, mvp2.maria.delivered.get("scam")?.eml.text]) {
+      expect(text).toMatch(/\bfee\b/);
+      expect(text).toMatch(/\bpassport\b/);
     }
-  });
-
-  it.each(PERSONAS)("gives no other job mail of %s a signal phrase", (persona) => {
-    for (const { id, text } of texts(persona)) {
-      if (!scams.includes(id)) expect(signalsIn(text), id).toEqual([]);
-    }
-  });
-
-  it("writes the free-mail recruiter from a domain in free-mail-domains.json, and nobody else", () => {
-    const free = PERSONAS.flatMap((p) =>
-      texts(p)
-        .filter((x) => freeMail.has(x.domain))
-        .map((x) => x.id),
-    );
-    expect(free).toEqual([mvp2.maria.delivered.get("freemail")?.entry.messageId]);
+    expect(parseAddresses(freemail?.eml.headers.get("from"))[0]?.address).toMatch(/@gmail\.com$/);
   });
 
   it.each(PERSONAS)(
     "calls %s's scams high risk, the free-mail recruiter caution, the rest fine",
     (persona) => {
-      const verdicts = Object.fromEntries(
-        texts(persona).map(({ id, t }) => [id, t.sender?.verdict]),
-      );
-      for (const [id, verdict] of Object.entries(verdicts)) {
+      for (const [id, t] of analysed(persona)) {
         const want = scams.includes(id)
           ? "high_risk"
-          : id === mvp2.maria.delivered.get("freemail")?.entry.messageId
+          : id === freemail?.entry.messageId
             ? "caution"
             : "looks_fine";
-        expect(verdict, id).toBe(want);
+        expect(t.sender?.verdict, id).toBe(want);
       }
     },
   );

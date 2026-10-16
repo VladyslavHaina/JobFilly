@@ -401,6 +401,23 @@ describe("docker/e2e.Dockerfile", () => {
   });
 });
 
+describe("e2e's own code", () => {
+  // e2e imports no app or package code (e2e/package.json), and reads none of their files either:
+  // a check that needs both, such as the sender data against the fixtures, lives in the package
+  // and reads e2e/fixtures from there (packages/core/src/sender/fixtures.test.ts).
+  const sources = readdirSync(E2E, { recursive: true, encoding: "utf8" })
+    .filter((f) => f.endsWith(".ts") && !/^(node_modules|\.stack|reports)\//.test(f))
+    .map((f) => [f, readFileSync(join(E2E, f), "utf8")] as const);
+
+  it("imports nothing from @jobfilly/ and names no path into packages/ or apps/", () => {
+    expect(sources.length).toBeGreaterThan(20);
+    for (const [file, text] of sources) {
+      expect(text, file).not.toMatch(/from\s+["']@jobfilly\//);
+      expect(text, file).not.toMatch(/["'`](?:\.\.\/)+(?:packages|apps)\//);
+    }
+  });
+});
+
 /** haproxy.cfg as sections of directive lines, comments dropped. */
 function haproxySections(text: string): Map<string, string[]> {
   const sections = new Map<string, string[]>();
