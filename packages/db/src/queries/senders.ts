@@ -1,4 +1,5 @@
 import {
+  type AppliedMark,
   type AppliedSenderMark,
   LOOKUP_FAILED_SIGNAL,
   type MxLookupResult,
@@ -6,6 +7,7 @@ import {
   type RdapLookupResult,
   RdapLookupResultSchema,
   type SenderMark,
+  type SenderMarkScope,
 } from "@jobfilly/schema";
 import { and, eq, gt, or, type SQL, sql } from "drizzle-orm";
 import type { Database } from "../client";
@@ -16,8 +18,6 @@ import { fromDomain } from "./sender-domain";
 // domain (sender_marks, F5.4), kept across syncs because they are keyed by the sender, not by a
 // message; and the cache of domain lookups (domain_lookups, TBD-165), per workspace. The checks
 // themselves are saved and read with saveSenderCheck and getSenderChecks in ./evaluations.ts.
-
-export type SenderMarkScope = "address" | "domain";
 
 /** Marks an address or a domain trusted or blocked (lower case), replacing an earlier mark. */
 export async function setSenderMark(
@@ -60,7 +60,7 @@ export async function findSenderMark(
   db: Database,
   workspaceId: string,
   address: string,
-): Promise<{ mark: SenderMark; scope: SenderMarkScope; value: string } | null> {
+): Promise<AppliedMark | null> {
   const lower = address.toLowerCase();
   const domain = lower.includes("@") ? lower.slice(lower.lastIndexOf("@") + 1) : null;
   const rows = await db
