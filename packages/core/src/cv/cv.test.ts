@@ -100,6 +100,7 @@ const backendEn: CvCandidate = {
   roleFamilies: ["Backend engineering"],
   seniority: "Senior",
   tags: [tag("en"), tag("Backend engineering"), tag("Senior")],
+  preferred: false,
 };
 const backendDe: CvCandidate = {
   id: "cv-backend-de",
@@ -109,6 +110,7 @@ const backendDe: CvCandidate = {
   roleFamilies: ["Backend engineering"],
   seniority: "Senior",
   tags: [tag("de"), tag("Backend engineering"), tag("Senior")],
+  preferred: false,
 };
 const dataEn: CvCandidate = {
   id: "cv-data-en",
@@ -118,6 +120,7 @@ const dataEn: CvCandidate = {
   roleFamilies: ["Data engineering"],
   seniority: "Senior",
   tags: [tag("en"), tag("Data engineering"), tag("Senior")],
+  preferred: false,
 };
 const all = [backendEn, backendDe, dataEn];
 
@@ -164,8 +167,8 @@ describe("the CV choice per role (F2.3)", () => {
     expect(choice.reason).toBe("English data role → Data engineering (EN)");
   });
 
-  it("lets a CV tagged preferred win a tie, and names the tag", () => {
-    const preferred = { ...backendDe, tags: [...backendDe.tags, tag("preferred", "you")] };
+  it("lets the preferred CV win a tie, and says so", () => {
+    const preferred = { ...backendDe, preferred: true };
     const choice = chooseCv({
       role: role("Platform Engineer"),
       language: null,
@@ -174,7 +177,16 @@ describe("the CV choice per role (F2.3)", () => {
     });
     expect(choice.cv?.id).toBe(backendDe.id);
     expect(choice.reason).toBe(
-      "Nothing in this role points to another CV → Backend (DE), tagged preferred",
+      "Nothing in this role points to another CV → Backend (DE), your preferred CV",
+    );
+  });
+
+  it("reads the preferred flag, never a tag's words: a tag 'preferred' is a tag like any", () => {
+    const tagged = { ...backendDe, tags: [...backendDe.tags, tag("preferred", "you")] };
+    const input = { role: role("Platform Engineer"), language: null, override: null };
+    expect(chooseCv({ ...input, cvs: [backendEn, tagged] }).cv?.id).toBe(backendEn.id);
+    expect(chooseCv({ ...input, cvs: [backendEn, { ...backendDe, preferred: true }] }).cv?.id).toBe(
+      backendDe.id,
     );
   });
 
@@ -210,7 +222,7 @@ describe("the CV choice per role (F2.3)", () => {
 
   it("needs every word of a family: one word in common doesn't make it that family's role", () => {
     // The scam of the e2e fixtures: "data" alone doesn't make it a data engineering role.
-    const preferred = { ...backendEn, tags: [...backendEn.tags, tag("preferred", "you")] };
+    const preferred = { ...backendEn, preferred: true };
     const choice = chooseCv({
       role: role("Remote Data Entry Assistant"),
       language: "en",
@@ -218,8 +230,8 @@ describe("the CV choice per role (F2.3)", () => {
       override: null,
     });
     expect(choice.cv?.id).toBe(backendEn.id);
-    expect(choice.reason).toBe("English role → Backend (EN), tagged preferred");
-    // Without the tag the one word still counts for a little, as much as one skill.
+    expect(choice.reason).toBe("English role → Backend (EN), your preferred CV");
+    // Without the flag the one word still counts for a little, as much as one skill.
     expect(
       chooseCv({
         role: role("Python Backend Developer", ["Python"]),
@@ -237,13 +249,13 @@ describe("the CV choice per role (F2.3)", () => {
   ])("lets the preferred CV outweigh one skill more for %s", (title, skills) => {
     const backend = { ...backendEn, skills: [...backendEn.skills, "Kafka"] };
     const data = { ...dataEn, skills: [...dataEn.skills, "Kafka"] };
-    const preferred = { ...backend, tags: [...backend.tags, tag("preferred", "you")] };
+    const preferred = { ...backend, preferred: true };
     const input = { role: role(title, skills), language: "en", override: null };
-    // Untagged, the CV with more of the role's skills wins.
+    // Not preferred, the CV with more of the role's skills wins.
     expect(chooseCv({ ...input, cvs: [backend, backendDe, data] }).cv?.id).toBe(dataEn.id);
     expect(chooseCv({ ...input, cvs: [preferred, backendDe, data] })).toMatchObject({
       cv: { id: backendEn.id },
-      reason: "English role → Backend (EN), tagged preferred",
+      reason: "English role → Backend (EN), your preferred CV",
     });
   });
 

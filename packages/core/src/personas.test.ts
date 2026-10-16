@@ -4,7 +4,6 @@ import {
   type Category,
   CategorySchema,
   CvReadOutputSchema,
-  type CvTag,
   DraftOutputSchema,
   type JobFacts,
   JobFactsSchema,
@@ -46,7 +45,7 @@ import {
 //
 // The inputs are the fixtures' as the test stack serves them: the facts and categories the fake
 // AI's extract and classify answers give (expected.json holds the same), the CVs as cv.v1 reads
-// them with the tag Maria adds in MVP 2 S1 ("preferred" on Backend (EN)), the domain ages the fake
+// them with the preferred mark Maria gives Backend (EN) in MVP 2 S1, the domain ages the fake
 // RDAP service serves (e2e/rdap/domains.json; every sender domain also has an MX record), and the
 // profile each persona has when MVP 2 starts: her confirmed intake, with Amsterdam removed in
 // MVP 1 S4. The tests read the fixtures with node:fs, as sender/fixtures.test.ts does.
@@ -198,9 +197,9 @@ interface Persona {
   mail: JobMessage[];
 }
 
-/** The tags each persona adds to its CVs in MVP 2 S1, by CV name. */
-const USER_TAGS: Record<string, Record<string, string[]>> = {
-  maria: { "Backend (EN)": ["preferred"] },
+/** The CVs each persona marks preferred in MVP 2 S1, by name. */
+const USER_PREFERRED: Record<string, string[]> = {
+  maria: ["Backend (EN)"],
 };
 
 function loadPersona(name: string): Persona {
@@ -221,10 +220,6 @@ function loadPersona(name: string): Persona {
     const read = CvReadOutputSchema.parse(cvRead[file.contentHash]);
     const kept = expected.cvs.find((c) => c.name === file.name);
     if (!kept) throw new Error(`${name}: no expected CV ${file.name}`);
-    const userTags: CvTag[] = (USER_TAGS[name]?.[file.name] ?? []).map((label) => ({
-      label,
-      source: "you",
-    }));
     return {
       id: `cv-${i}`,
       name: file.name,
@@ -233,7 +228,8 @@ function loadPersona(name: string): Persona {
       skills: kept.skills,
       roleFamilies: read.roleFamilies,
       seniority: read.seniority,
-      tags: tagsAfterRead(read, userTags),
+      tags: tagsAfterRead(read, []),
+      preferred: USER_PREFERRED[name]?.includes(file.name) ?? false,
     };
   });
   const matchAi = Object.fromEntries(
@@ -430,9 +426,9 @@ describe("the engine against the personas' ground truth (e2e/fixtures)", () => {
     expect(tom?.mail.length).toBeGreaterThan(0);
   });
 
-  it("chooses Backend (EN) for the delivered scam by the preferred tag Maria adds in S1", () => {
+  it("chooses Backend (EN) for the delivered scam by the preferred mark Maria gives it in S1", () => {
     // "Remote Data Entry Assistant" shares one word with the data engineering CV's role family,
-    // which counts as one skill; English is both CVs' language. Only the preferred tag on
+    // which counts as one skill; English is both CVs' language. Only the preferred mark on
     // Backend (EN) tells them apart, as expected.json says: without it, the data CV wins.
     const maria = personas.find((p) => p.name === "maria");
     const scam = maria?.mail.find((m) => m.messageId.startsWith("<maria-deliver-scam@"));
@@ -442,11 +438,8 @@ describe("the engine against the personas' ground truth (e2e/fixtures)", () => {
     const choose = (cvs: CvCandidate[]) =>
       chooseCv({ role, language, cvs, override: null }).cv?.name;
     expect(choose(maria.cvs)).toBe("Backend (EN)");
-    const untagged = maria.cvs.map((cv) => ({
-      ...cv,
-      tags: cv.tags.filter((t) => t.source !== "you"),
-    }));
-    expect(choose(untagged)).toBe("Data engineering (EN)");
+    const unmarked = maria.cvs.map((cv) => ({ ...cv, preferred: false }));
+    expect(choose(unmarked)).toBe("Data engineering (EN)");
   });
 
   for (const persona of personas) {

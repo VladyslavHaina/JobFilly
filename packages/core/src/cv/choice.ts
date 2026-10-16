@@ -15,6 +15,8 @@ export interface CvCandidate {
   roleFamilies: readonly string[];
   seniority: string | null;
   tags: readonly CvTag[];
+  /** The user's flag for the CV to use when nothing else tells them apart (Cv.preferred). */
+  preferred: boolean;
 }
 
 export interface CvChoiceInput {
@@ -33,16 +35,11 @@ export interface CvChoiceOutcome {
   source: "auto" | "you";
 }
 
-/**
- * The tag that makes a CV the one to use when nothing else tells them apart: it outweighs one
- * matching skill more, not a language or a role family.
- */
-const PREFERRED = "preferred";
-
 // A role family the title names outweighs the language (a data engineering CV for a German data
-// engineering role beats a German backend CV); both outweigh the preferred tag and the skills.
-// A title that shares only one word with a family ("Python Backend Developer", "Data Entry
-// Assistant") counts as much as one skill, so the preferred tag outweighs it.
+// engineering role beats a German backend CV); both outweigh the preferred flag and the skills.
+// The preferred flag (a flag, never a tag's words) outweighs one matching skill more. A title
+// that shares only one word with a family ("Python Backend Developer", "Data Entry Assistant")
+// counts as much as one skill, so the preferred flag outweighs it.
 const WEIGHT = {
   family: 5,
   language: 4,
@@ -66,15 +63,12 @@ interface Scored {
   preferred: boolean;
 }
 
-const isPreferred = (cv: CvCandidate) => cv.tags.some((t) => fold(t.label) === PREFERRED);
-
 /**
  * The labels that say what roles a CV is for: its tags, or its role families when untagged,
- * without its language (as code or name), its seniority and "preferred".
+ * without its language (as code or name) and its seniority.
  */
 function familyLabels(cv: CvCandidate): string[] {
   const skip = new Set([
-    PREFERRED,
     fold(cv.language ?? ""),
     fold(languageName(cv.language) ?? ""),
     fold(cv.seniority ?? ""),
@@ -126,7 +120,7 @@ function score(cv: CvCandidate, input: CvChoiceInput): Scored {
     cv.seniority !== null &&
     (fold(cv.seniority) === fold(input.role.seniority ?? "") ||
       words(input.role.title ?? "").includes(fold(cv.seniority)));
-  const preferred = isPreferred(cv);
+  const preferred = cv.preferred;
   return {
     cv,
     languageMatch,
@@ -148,7 +142,7 @@ const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 /** "German backend role → Backend (DE)", from what the chosen CV matched. */
 function reasonFor(best: Scored, input: CvChoiceInput): string {
-  const tagged = best.preferred ? ", tagged preferred" : "";
+  const tagged = best.preferred ? ", your preferred CV" : "";
   const phrase = [
     best.languageMatch ? languageName(input.language) : null,
     best.familyWords.length > 0 ? best.familyWords.join(" ") : null,
@@ -163,7 +157,7 @@ function reasonFor(best: Scored, input: CvChoiceInput): string {
     return `${capitalize(best.cv.seniority)} role → ${best.cv.name}${tagged}`;
   }
   if (best.preferred)
-    return `Nothing in this role points to another CV → ${best.cv.name}, tagged preferred`;
+    return `Nothing in this role points to another CV → ${best.cv.name}, your preferred CV`;
   if (input.cvs.length === 1) return `Your only CV → ${best.cv.name}`;
   return `Nothing in this role points to one CV → ${best.cv.name}, your first`;
 }
@@ -176,7 +170,7 @@ export function overrideReason(name: string): string {
 /**
  * The CV for a role: an editor's choice when it is still one of the CVs, otherwise the CV that
  * best fits the role's family (a CV tag or role family the title names), language, skills and
- * seniority, with a CV tagged "preferred" winning a tie or a difference of one skill; a tie
+ * seniority, with the preferred CV winning a tie or a difference of one skill; a tie
  * left goes to the older CV. Null when there is no CV.
  */
 export function chooseCv(input: CvChoiceInput): CvChoiceOutcome {
