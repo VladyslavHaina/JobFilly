@@ -25,7 +25,12 @@ import { AssistantLauncher } from ".";
 // editor can edit and apply, and a viewer can only read or discard.
 
 // The pages around the launcher are probes: only the shell's launcher is under test.
-vi.mock("../inbox", () => ({ InboxPage: () => <p>inbox page</p> }));
+vi.mock("../inbox", () => ({
+  InboxPage: ({ messageId }: { messageId: string | null }) => (
+    <p>{messageId ? `message ${messageId}` : "inbox page"}</p>
+  ),
+}));
+vi.mock("../profile", () => ({ ProfilePage: () => <p>profile page</p> }));
 vi.mock("../scan/NotAnalyzedBanner", () => ({ NotAnalyzedBanner: () => null }));
 vi.mock("../sync", () => ({ MailboxStatus: () => null, UsagePerDay: () => null }));
 vi.mock("../drafts", () => ({ DraftsPage: () => <p>drafts page</p>, DraftPanel: () => null }));
@@ -122,6 +127,8 @@ async function openPanel() {
 describe("the launcher (F8.1)", () => {
   it.each([
     ["inbox page", paths.inbox(WS)],
+    ["message <role@berlin.example>", paths.message(WS, "<role@berlin.example>")],
+    ["profile page", paths.profile(WS)],
     ["drafts page", paths.drafts(WS)],
     ["decisions page", paths.decisions(WS)],
     ["cvs page", paths.cvs(WS)],
