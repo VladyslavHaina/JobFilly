@@ -1,9 +1,10 @@
-Message-ID: <maria-0374@gonews.example>
-Date: Thu, 03 Sep 2026 01:00:00 +0000
-From: "Go Newsletter" <news@gonews.example>
+Message-ID: <maria-0473@eurobackendconf.example>
+Date: Thu, 03 Sep 2026 00:46:00 +0000
+From: "EuroBackendConf" <news@eurobackendconf.example>
 To: "Maria Santos" <maria.santos@inbox.example>
-Subject: Go News: profiling made easy
-List-Unsubscribe: <https://gonews.example/unsubscribe?u=32083>, <mailto:unsubscribe@gonews.example>
+Subject: See you in Porto!
+List-Id: EuroBackendConf <news.eurobackendconf.example>
+List-Unsubscribe: <https://eurobackendconf.example/unsubscribe?u=98826>, <mailto:unsubscribe@eurobackendconf.example>
 MIME-Version: 1.0
 Content-Type: multipart/alternative; boundary="=_jf_maria_inbox_0197"
 
@@ -11,11 +12,11 @@ Content-Type: multipart/alternative; boundary="=_jf_maria_inbox_0197"
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: quoted-printable
 
-A tutorial on pprof.
+Travel tips for attendees.
 
-New in the standard library this month.
+Workshops on observability and data modelling.
 
-Read the full issue online: https://gonews.example/issues/32083
+Read the full issue online: https://eurobackendconf.example/issues/98826
 
 You are receiving this email because you subscribed to our newsletter or bo=
 ught something from us. If you no longer want to receive these emails, you =
@@ -34,11 +35,6 @@ Did someone forward you this email? Sign up on our website to get the next =
 issue straight to your inbox. Have feedback or a story idea? Just reply and=
  tell us, we read every message.
 
-You are receiving this email because you subscribed to our newsletter or bo=
-ught something from us. If you no longer want to receive these emails, you =
-can unsubscribe at any time using the link in the header of this message or=
- in your account settings.
-
 Ref: BODYSENTINEL-maria-inbox-0197
 
 --=_jf_maria_inbox_0197
@@ -48,9 +44,10 @@ Content-Transfer-Encoding: quoted-printable
 <!DOCTYPE html>
 <html><head><meta charset=3D"utf-8"></head>
 <body style=3D"font-family: sans-serif">
-<p>A tutorial on pprof.</p>
-<p>New in the standard library this month.</p>
-<p>Read the full issue online: https://gonews.example/issues/32083</p>
+<p>Travel tips for attendees.</p>
+<p>Workshops on observability and data modelling.</p>
+<p>Read the full issue online: https://eurobackendconf.example/issues/98826=
+</p>
 <p>You are receiving this email because you subscribed to our newsletter or=
  bought something from us. If you no longer want to receive these emails, y=
 ou can unsubscribe at any time using the link in the header of this message=
@@ -64,10 +61,6 @@ find out how we look after your data and how to ask us to delete it.</p>
 <p>Did someone forward you this email? Sign up on our website to get the ne=
 xt issue straight to your inbox. Have feedback or a story idea? Just reply =
 and tell us, we read every message.</p>
-<p>You are receiving this email because you subscribed to our newsletter or=
- bought something from us. If you no longer want to receive these emails, y=
-ou can unsubscribe at any time using the link in the header of this message=
- or in your account settings.</p>
 <p>Ref: BODYSENTINEL-maria-inbox-0197<br>
 </p>
 </body></html>

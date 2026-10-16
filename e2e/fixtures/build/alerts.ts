@@ -203,6 +203,7 @@ export interface AlertMail {
   footer: readonly string[];
   listUnsubscribe: string;
   facts: JobFacts[];
+  language: Lang;
 }
 
 /** One alert from `board` listing `roles`. */
@@ -241,5 +242,6 @@ export function alertMail(rnd: Random, board: Board, roles: AlertRole[]): AlertM
     footer: ALERT_FOOTER,
     listUnsubscribe: board.unsubscribe(alertId),
     facts,
+    language: board.lang,
   };
 }

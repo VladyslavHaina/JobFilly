@@ -1,0 +1,211 @@
+[
+  {
+    "language": "en",
+    "text": "Lately I don't want jobs in Asian time zones anymore, ignore them",
+    "expected": [
+      {
+        "op": "add",
+        "target": "rule",
+        "rule": {
+          "description": "Hide roles whose working hours are UTC+5 or later",
+          "when": [
+            {
+              "fact": "timeZones",
+              "op": "within",
+              "value": {
+                "from": "UTC+05:00",
+                "to": "UTC+14:00"
+              }
+            }
+          ],
+          "then": "hide",
+          "enabled": true
+        }
+      }
+    ]
+  },
+  {
+    "language": "en",
+    "text": "Ask me first before replying to anyone from hirewave.example",
+    "expected": [
+      {
+        "op": "add",
+        "target": "rule",
+        "rule": {
+          "description": "Ask me before drafting a reply to mail from hirewave.example",
+          "when": [
+            {
+              "fact": "sender.domain",
+              "op": "in",
+              "value": [
+                "hirewave.example"
+              ]
+            }
+          ],
+          "then": "ask_first",
+          "enabled": true
+        }
+      }
+    ]
+  },
+  {
+    "language": "en",
+    "text": "Stop showing me roles in the Netherlands",
+    "expected": [
+      {
+        "op": "add",
+        "target": "rule",
+        "rule": {
+          "description": "Hide roles in the Netherlands",
+          "when": [
+            {
+              "fact": "places.country",
+              "op": "in",
+              "value": [
+                "NL"
+              ]
+            }
+          ],
+          "then": "hide",
+          "enabled": true
+        }
+      }
+    ]
+  },
+  {
+    "language": "en",
+    "text": "I'd now also take a hybrid job in Munich",
+    "expected": [
+      {
+        "op": "add",
+        "target": "entry",
+        "key": "places",
+        "value": [
+          {
+            "country": "DE",
+            "city": "Munich",
+            "mode": "hybrid"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "language": "en",
+    "text": "Raise my minimum salary to €75,000 a year",
+    "expected": [
+      {
+        "op": "update",
+        "target": "entry",
+        "key": "min_pay",
+        "value": [
+          {
+            "amount": 75000,
+            "currency": "EUR",
+            "period": "year",
+            "asWritten": "€75,000 a year"
+          },
+          {
+            "amount": 450,
+            "currency": "EUR",
+            "period": "day",
+            "asWritten": "€450 a day"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "language": "de",
+    "text": "Zeig mir keine befristeten Stellen mehr",
+    "expected": [
+      {
+        "op": "add",
+        "target": "rule",
+        "rule": {
+          "description": "Stellen mit befristetem Vertrag ausblenden",
+          "when": [
+            {
+              "fact": "contract",
+              "op": "contains",
+              "value": [
+                "befristet auf",
+                "fixed-term",
+                "tijdelijk",
+                "a termo"
+              ]
+            }
+          ],
+          "then": "hide",
+          "enabled": true
+        }
+      }
+    ]
+  },
+  {
+    "language": "de",
+    "text": "Ich spreche inzwischen auch Deutsch, nimm das bitte in mein Profil auf",
+    "expected": [
+      {
+        "op": "add",
+        "target": "entry",
+        "key": "languages",
+        "value": [
+          "German"
+        ]
+      }
+    ]
+  },
+  {
+    "language": "de",
+    "text": "Entwürfe bitte nur noch ab einem Fit-Score von 80",
+    "expected": [
+      {
+        "op": "update",
+        "target": "entry",
+        "key": "reply_threshold",
+        "value": [
+          80
+        ]
+      }
+    ]
+  },
+  {
+    "language": "pt",
+    "text": "Só quero rascunhos para emails dos últimos 7 dias",
+    "expected": [
+      {
+        "op": "update",
+        "target": "entry",
+        "key": "reply_window_days",
+        "value": [
+          7
+        ]
+      }
+    ]
+  },
+  {
+    "language": "pt",
+    "text": "Esconde as vagas presenciais, só quero híbrido ou remoto",
+    "expected": [
+      {
+        "op": "add",
+        "target": "rule",
+        "rule": {
+          "description": "Esconder vagas presenciais",
+          "when": [
+            {
+              "fact": "workMode",
+              "op": "in",
+              "value": [
+                "onsite"
+              ]
+            }
+          ],
+          "then": "hide",
+          "enabled": true
+        }
+      }
+    ]
+  }
+]

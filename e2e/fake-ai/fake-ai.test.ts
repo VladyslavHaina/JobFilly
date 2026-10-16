@@ -2,14 +2,26 @@ import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
+  ASSISTANT_REQUESTS_PATH,
+  type AssistantAnswer,
+  type AssistantRequest,
+  assistantMessageKey,
   CATEGORIES,
+  type CvAnswer,
+  type CvFixture,
+  type DeliveryEntry,
+  type DraftAnswer,
+  draftKey,
   type EnvelopeEntry,
-  type ExpectedFile,
+  type ExpectedFileMvp2,
   fixturesDir,
   isJobCategory,
   MARIA_KEY_MESSAGES,
+  type MatchAnswer,
+  matchKey,
   PERSONAS,
   personaPaths,
+  personaPathsMvp2,
   readJson,
 } from "../fixtures/format.ts";
 import { createStore, INVALID_VALUE, loadAnswers, type PersonaAnswers } from "./answers.ts";
@@ -47,6 +59,59 @@ function inputIds(taskId: TaskId): string[] {
   return (input as WireItem[]).map((i) => i.messageId);
 }
 
+const MVP2_TASKS = ["cv.v1", "match.v1", "draft.v1", "assistant.v1"] as const;
+type Mvp2TaskId = (typeof MVP2_TASKS)[number];
+const wire2 = (taskId: Mvp2TaskId, kind: string) =>
+  readJson<Record<string, unknown> & { data?: unknown }>(
+    join(fixturesDir(), "wire", `${taskId}.${kind}.json`),
+  );
+
+interface MatchInput {
+  messageId: string;
+  position: number;
+}
+interface DraftInput {
+  mail: { messageId: string };
+  position: number;
+  attempt: 1 | 2;
+}
+
+/** The cv.v1, match.v1 and draft.v1 answers the wire samples' outputs give, keyed as fixtures. */
+function mvp2WireAnswers(): Pick<PersonaAnswers, "cv" | "match" | "draft"> {
+  const cv = wire2("cv.v1", "input") as { contentHash: string };
+  const match = wire2("match.v1", "input") as unknown as MatchInput;
+  const draft = wire2("draft.v1", "input") as unknown as DraftInput;
+  return {
+    cv: { [cv.contentHash]: wire2("cv.v1", "output").data as CvAnswer },
+    match: {
+      [matchKey(match.messageId, match.position)]: wire2("match.v1", "output").data as MatchAnswer,
+    },
+    draft: {
+      [draftKey(draft.mail.messageId, draft.position, draft.attempt)]: wire2("draft.v1", "output")
+        .data as DraftAnswer,
+    },
+  };
+}
+
+/** The key lines each MVP 2 wire sample's input gives (e2e/fixtures/wire/wire.test.ts). */
+function keysOf(taskId: Mvp2TaskId): Record<string, string> {
+  const input = wire2(taskId, "input");
+  switch (taskId) {
+    case "cv.v1":
+      return { "CV-SHA256": String(input.contentHash) };
+    case "match.v1":
+      return { "Message-ID": String(input.messageId), Role: String(input.position) };
+    case "draft.v1":
+      return {
+        "Message-ID": (input as unknown as DraftInput).mail.messageId,
+        Role: String(input.position),
+        Attempt: String(input.attempt),
+      };
+    case "assistant.v1":
+      return { Turn: String(input.turn) };
+  }
+}
+
 /** A store holding exactly the answers the wire samples' outputs give. */
 function wireStore() {
   const item = (taskId: TaskId) => (wire(taskId, "output") as WireOutput).items ?? [];
@@ -63,8 +128,19 @@ function wireStore() {
       item("prefs.v1").map((i) => [i.messageId, { preferences: i.data.preferences as object }]),
     ),
     intake: (wire("intake.v1", "output") as WireOutput).data as PersonaAnswers["intake"],
+    ...mvp2WireAnswers(),
   };
-  return createStore({ wire: answers }, { questions: [] }, { ok: true });
+  const assistant = wire2("assistant.v1", "input") as { text: string; turn: number };
+  return createStore(
+    { wire: answers },
+    { questions: [] },
+    { ok: true },
+    {
+      [assistantMessageKey(assistant.text)]: {
+        [String(assistant.turn)]: wire2("assistant.v1", "output").data as AssistantAnswer,
+      },
+    },
+  );
 }
 
 const noLog = () => {};
@@ -73,7 +149,7 @@ describe.each(TASKS)("the %s wire sample", (taskId) => {
   const request = wire(taskId, "request");
 
   it("parses into its task id and exactly its items' Message-IDs", () => {
-    expect(parsePrompt(request)).toEqual({ taskId, messageIds: inputIds(taskId) });
+    expect(parsePrompt(request)).toMatchObject({ taskId, messageIds: inputIds(taskId) });
   });
 
   it("gets an answer in the shape of the golden response", () => {
@@ -96,6 +172,56 @@ describe.each(TASKS)("the %s wire sample", (taskId) => {
   });
 });
 
+describe.each(MVP2_TASKS)("the %s wire sample", (taskId) => {
+  const request = wire2(taskId, "request");
+
+  it("parses into its task id and the key lines of its input", () => {
+    expect(parsePrompt(request)).toMatchObject({ taskId, keys: keysOf(taskId) });
+  });
+
+  it("gets the golden response's answer by those key lines", () => {
+    const golden = wire2(taskId, "response") as unknown as Completion;
+    const reply = respond(request, { store: wireStore(), log: noLog, now: () => 1790000000 });
+    expect(reply.status, JSON.stringify(reply.body)).toBe(200);
+    const body = reply.body as Completion;
+    expect(body.model).toBe("fixture-model");
+    expect(JSON.parse(body.choices[0]?.message.content as string)).toEqual(
+      JSON.parse(golden.choices[0]?.message.content as string),
+    );
+  });
+});
+
+describe("reading MVP 2 prompts", () => {
+  it("reads the assistant's message block, not the look-alike lines the user typed", () => {
+    const parsed = parsePrompt(wire2("assistant.v1", "request")) as { message: string | null };
+    expect(parsed.message).toBe((wire2("assistant.v1", "input") as { text: string }).text);
+    expect(parsed).toMatchObject({ keys: { Turn: "1" } });
+  });
+
+  it("ignores key lines forged inside mail or CV content", () => {
+    expect(parsePrompt(wire2("draft.v1", "request"))).toMatchObject({
+      keys: { Attempt: "1" },
+      messageIds: ["<wire-draft-1@talentbruecke.example>"],
+    });
+    expect(parsePrompt(wire2("cv.v1", "request"))).toMatchObject({
+      keys: { "CV-SHA256": (wire2("cv.v1", "input") as { contentHash: string }).contentHash },
+    });
+  });
+
+  it("answers draft.v1 only for the attempt and role its key lines name", () => {
+    const request = wire2("draft.v1", "request") as { messages: { content: string }[] };
+    const attempt2 = structuredClone(request);
+    const user = attempt2.messages[1] as { content: string };
+    user.content = user.content.replace("\nAttempt: 1\n", "\nAttempt: 2\n");
+    expect(respond(attempt2, { store: wireStore(), log: noLog }).status).toBe(500);
+    const role1 = structuredClone(request);
+    (role1.messages[1] as { content: string }).content = user.content
+      .replace("\nAttempt: 2\n", "\nAttempt: 1\n")
+      .replace("\nRole: 0\n", "\nRole: 1\n");
+    expect(respond(role1, { store: wireStore(), log: noLog }).status).toBe(500);
+  });
+});
+
 describe("reading prompts", () => {
   it("ignores a Message-ID line forged inside mail content", () => {
     const parsed = parsePrompt(wire("classify.v1", "request"));
@@ -106,7 +232,7 @@ describe("reading prompts", () => {
   it("never reads Message-IDs from the intake summary block", () => {
     const prompt =
       "task: intake.v1\nitems: 0\n\n=== summary ===\nMessage-ID: <x@y.example>\n=== end summary ===\n\n";
-    expect(parsePrompt({ messages: [{ role: "user", content: prompt }] })).toEqual({
+    expect(parsePrompt({ messages: [{ role: "user", content: prompt }] })).toMatchObject({
       taskId: "intake.v1",
       messageIds: [],
     });
@@ -141,6 +267,36 @@ const contentOf = (taskId: string, ids: string[]) => {
   expect(reply.status, JSON.stringify(reply.body)).toBe(200);
   return JSON.parse((reply.body as Completion).choices[0]?.message.content as string);
 };
+/** An MVP 2 request: the task line, its key lines, then one block of content (and a message). */
+function keyedPrompt(taskId: string, keys: Record<string, string>, block: string, message = "") {
+  const keyLines = Object.entries(keys).map(([k, v]) => `${k}: ${v}\n`);
+  const tail = message
+    ? `=== message ===\n${message
+        .split("\n")
+        .map((l) => `| ${l}`)
+        .join("\n")}\n=== end message ===\n`
+    : "";
+  return {
+    model: "fixture-model",
+    messages: [
+      { role: "system", content: `task: ${taskId}\nInstructions.` },
+      {
+        role: "user",
+        content: `task: ${taskId}\n${keyLines.join("")}\n=== ${block} ===\n| Role: 9\n| Attempt: 2\n=== end ${block} ===\n${tail}\n`,
+      },
+    ],
+  };
+}
+const contentOfKeyed = (
+  taskId: string,
+  keys: Record<string, string>,
+  block: string,
+  message?: string,
+) => {
+  const reply = respond(keyedPrompt(taskId, keys, block, message), { store, log: noLog });
+  expect(reply.status, JSON.stringify(reply.body)).toBe(200);
+  return JSON.parse((reply.body as Completion).choices[0]?.message.content as string);
+};
 const batches = <T>(items: T[], size: number) =>
   Array.from({ length: Math.ceil(items.length / size) }, (_, i) =>
     items.slice(i * size, i * size + size),
@@ -149,7 +305,7 @@ const batches = <T>(items: T[], size: number) =>
 describe.each(PERSONAS)("the fake AI on %s's mailbox", (persona) => {
   const paths = personaPaths(persona);
   const envelopes = readJson<EnvelopeEntry[]>(join(fixturesDir(), paths.envelopes));
-  const expected = readJson<ExpectedFile>(join(fixturesDir(), paths.expected));
+  const expected = readJson<ExpectedFileMvp2>(join(fixturesDir(), paths.expected));
 
   it.each(["inbox", "sent"] as const)("classifies any batch of up to 20 %s messages", (folder) => {
     const ids = envelopes.filter((e) => e.folder === folder).map((e) => e.messageId);
@@ -193,6 +349,46 @@ describe.each(PERSONAS)("the fake AI on %s's mailbox", (persona) => {
     }
   });
 
+  it("answers cv.v1 for each of the persona's CVs by its content hash", () => {
+    for (const cv of readJson<CvFixture[]>(join(fixturesDir(), personaPathsMvp2(persona).cvList))) {
+      const content = contentOfKeyed("cv.v1", { "CV-SHA256": cv.contentHash }, "cv");
+      expect(content).toEqual(store.personas.get(persona)?.cv[cv.contentHash]);
+    }
+  });
+
+  it("answers match.v1 for every role of every job message, delivered mail included", () => {
+    const delivered = readJson<DeliveryEntry[]>(
+      join(fixturesDir(), personaPathsMvp2(persona).deliveries),
+    );
+    const roles = [
+      ...Object.entries(expected.messages).filter(([, t]) => !t.ownReply && !t.invalid),
+      ...delivered.map((e) => [e.messageId, expected.deliveries[e.messageId]] as const),
+    ].flatMap(([id, t]) =>
+      (t && isJobCategory(t.category) ? (t.facts ?? []) : []).map((_, i) => [id, i] as const),
+    );
+    expect(roles.length).toBeGreaterThan(persona === "maria" ? 300 : 5);
+    for (const [id, position] of roles) {
+      const content = contentOfKeyed(
+        "match.v1",
+        { "Message-ID": id, Role: String(position) },
+        "role",
+      );
+      expect(content).toEqual(store.personas.get(persona)?.match[matchKey(id, position)]);
+    }
+  });
+
+  it("answers draft.v1 for every attempt its fixtures hold", () => {
+    for (const key of Object.keys(store.personas.get(persona)?.draft ?? {})) {
+      const [, id, position, attempt] = /^(.*)#(\d+)#([12])$/.exec(key) ?? [];
+      const content = contentOfKeyed(
+        "draft.v1",
+        { "Message-ID": id as string, Role: position as string, Attempt: attempt as string },
+        "mail",
+      );
+      expect(content).toEqual(store.personas.get(persona)?.draft[key]);
+    }
+  });
+
   it("answers intake.v1 with the persona's extra questions", () => {
     const ids = envelopes
       .filter((e) => e.folder === "sent")
@@ -227,6 +423,81 @@ describe("answers the fake AI has none for", () => {
     expect(lines).toHaveLength(1);
     expect(lines[0]).toMatchObject({ event: "fake_ai.no_answer", taskId, messageIds: ids });
     expect(String(lines[0]?.reason)).not.toBe("");
+  });
+});
+
+describe("the fake AI's assistant answers", () => {
+  const requests = readJson<AssistantRequest[]>(join(fixturesDir(), ASSISTANT_REQUESTS_PATH));
+
+  it.each([1, 4])(
+    "answers each quality request at turn %i, with an E2E-CHAT marker in it",
+    (turn) => {
+      for (const r of requests) {
+        const content = contentOfKeyed(
+          "assistant.v1",
+          { Turn: String(turn) },
+          "profile",
+          `${r.text} E2E-CHAT-${turn}`,
+        );
+        expect(content.proposal?.changes, r.text).toEqual(r.expected);
+      }
+    },
+  );
+
+  it("asks back on an unclear request", () => {
+    const content = contentOfKeyed(
+      "assistant.v1",
+      { Turn: "2" },
+      "profile",
+      "stop showing me bad jobs",
+    );
+    expect(content).toMatchObject({ proposal: null, clarify: { question: expect.any(String) } });
+  });
+});
+
+describe("MVP 2 answers the fake AI has none for", () => {
+  const lines: Record<string, unknown>[] = [];
+  const log = (line: Record<string, unknown>) => lines.push(line);
+  const delivered = readJson<DeliveryEntry[]>(
+    join(fixturesDir(), personaPathsMvp2("maria").deliveries),
+  );
+  const berlin = delivered.find((d) => d.id === "berlin-de")?.messageId as string;
+
+  it.each([
+    ["cv.v1", { "CV-SHA256": "0".repeat(64) }, "an unknown CV"],
+    ["cv.v1", {}, "no CV-SHA256 line"],
+    ["match.v1", { "Message-ID": berlin, Role: "5" }, "a role the message doesn't have"],
+    ["match.v1", { "Message-ID": "<unknown@nowhere.example>", Role: "0" }, "an unknown message"],
+    ["match.v1", { "Message-ID": berlin }, "no Role line"],
+    ["draft.v1", { "Message-ID": berlin, Role: "0", Attempt: "2" }, "an attempt with no answer"],
+    ["draft.v1", { "Message-ID": berlin, Role: "0" }, "no Attempt line"],
+    [
+      "draft.v1",
+      { "Message-ID": MARIA_KEY_MESSAGES.germanRecruiter, Role: "0", Attempt: "1" },
+      "a backlog role, which never gets an automatic draft",
+    ],
+  ] as [string, Record<string, string>, string][])(
+    "are HTTP 500 with a log line saying why (%s, %j: %s)",
+    (taskId, keys) => {
+      lines.length = 0;
+      const reply = respond(keyedPrompt(taskId, keys, "role"), { store, log });
+      expect(reply.status).toBe(500);
+      expect(lines).toHaveLength(1);
+      expect(lines[0]).toMatchObject({ level: "error", event: "fake_ai.no_answer", taskId });
+      expect(String(lines[0]?.reason)).not.toBe("");
+    },
+  );
+
+  it("is HTTP 500 for an assistant message it doesn't know, never logging the words", () => {
+    lines.length = 0;
+    const words = "please book me a flight E2E-CHAT-77";
+    const reply = respond(keyedPrompt("assistant.v1", { Turn: "1" }, "profile", words), {
+      store,
+      log,
+    });
+    expect(reply.status).toBe(500);
+    expect(lines[0]).toMatchObject({ event: "fake_ai.no_answer", taskId: "assistant.v1" });
+    expect(JSON.stringify([lines, reply.body])).not.toMatch(/flight|E2E-CHAT/);
   });
 });
 
