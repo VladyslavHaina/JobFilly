@@ -196,7 +196,10 @@ async function writeReply(
       }
       return { kind: "questions" };
     }
-    const placeholders = findPlaceholders(`${out.subject}\n${out.body}`);
+    const placeholders = findPlaceholders(`${out.subject}\n${out.body}`, {
+      subject: original.subject,
+      text: original.text,
+    });
     if (placeholders.length > 0) {
       log.warn("draft.rejected_placeholder", { draftId: draft.id, attempt });
       continue;

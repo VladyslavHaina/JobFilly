@@ -349,6 +349,19 @@ describe("a template placeholder (F6.2)", () => {
     expect(events("draft.created")).toEqual([expect.objectContaining({ attempt: 2 })]);
   });
 
+  it("is not seen in brackets copied from the original message", async () => {
+    await h.deliver(REMOTE, { subject: "[External] Backend Engineer" });
+    h.ai.answers.draft[key(REMOTE, 1)] = draftAnswer({
+      subject: "Re: [External] Backend Engineer",
+    });
+    await h.evaluate(REMOTE);
+    await h.drain();
+    expect(events("draft.rejected_placeholder")).toEqual([]);
+    expect(h.mailbox.drafts().map((d) => d.reply.subject)).toEqual([
+      "Re: [External] Backend Engineer",
+    ]);
+  });
+
   it("twice marks the draft failed with kind content, never retried automatically", async () => {
     await h.deliver(REMOTE);
     h.ai.answers.draft[key(REMOTE, 1)] = draftAnswer({ body: "Dear [Name]," });
