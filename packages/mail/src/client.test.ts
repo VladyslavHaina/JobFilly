@@ -156,6 +156,14 @@ describe("test (F2.1)", () => {
     ],
     ["unreachable", Object.assign(new Error("getaddrinfo ENOTFOUND"), { code: "ENOTFOUND" })],
     [
+      // imapflow's words for a server that never greets; its code says what happened.
+      "unreachable",
+      Object.assign(
+        new Error("Failed to receive greeting from server in required time. Maybe should use TLS?"),
+        { code: "GREETING_TIMEOUT" },
+      ),
+    ],
+    [
       "tls",
       Object.assign(new Error("wrong version number"), { code: "ERR_SSL_WRONG_VERSION_NUMBER" }),
     ],
