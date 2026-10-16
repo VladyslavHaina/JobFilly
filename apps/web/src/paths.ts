@@ -40,4 +40,7 @@ export const apiPaths = {
   cvs: (workspaceId: string) => `${api(workspaceId)}/cvs`,
   cv: (workspaceId: string, cvId: string) => `${api(workspaceId)}/cvs/${encodeURIComponent(cvId)}`,
   senderMarks: (workspaceId: string) => `${api(workspaceId)}/senders/marks`,
+  /** The mark on a message's sender, asked by the message: no email address is ever in a URL. */
+  messageSenderMark: (workspaceId: string, messageId: string) =>
+    `${api(workspaceId)}/senders/messages/${encodeURIComponent(messageId)}/mark`,
 };

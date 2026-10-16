@@ -17,6 +17,8 @@ configure({ asyncUtilTimeout: 4000 });
 
 const ws = testWorkspace();
 const marksUrl = `/api/workspaces/${ws.id}/senders/marks`;
+// The mark is asked by the message (encoded as one path segment), never by the address.
+const markOfMessageUrl = `/api/workspaces/${ws.id}/senders/messages/%3Cm%40x%3E/mark`;
 const from = { address: "hr.department@globalcareers-mail.example", name: "Global Careers HR" };
 
 const scam: SenderCheck = {
@@ -52,7 +54,7 @@ type Applied = AppliedSenderMark["applied"];
 function markServer(initial: Applied, options: { keep?: boolean } = {}) {
   let applied = initial;
   return fakeApi({
-    [`GET ${marksUrl}`]: () => ({ applied }),
+    [`GET ${markOfMessageUrl}`]: () => ({ applied }),
     [`PUT ${marksUrl}`]: (req: FakeRequest) => {
       const input = req.body as SenderMarkInput;
       if (options.keep) return input;
@@ -119,6 +121,13 @@ describe("SenderPanel", () => {
       path: marksUrl,
       body: { scope: "address", value: from.address, mark: "blocked" },
     });
+    // The mark is read by the message: no request line carries the sender's address, as proxies
+    // and ingresses log request lines.
+    const gets = seen.filter((r) => r.method === "GET");
+    expect(gets.map((r) => r.path)).toContain(markOfMessageUrl);
+    for (const r of seen) {
+      expect(`${r.path}?${r.search}`).not.toMatch(/hr\.department|globalcareers/);
+    }
   });
 
   it("clears a mark when its button is pressed again", async () => {

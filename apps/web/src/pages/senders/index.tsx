@@ -54,21 +54,18 @@ const markedText = (m: AppliedMark | null, address: string) => {
  * tells it (its address's own, or else its whole domain's), so pressing it again clears that very
  * mark; while a change is on its way, the one asked for.
  */
-function MarkButtons({ from }: { from: Address }) {
+function MarkButtons({ messageId, from }: { messageId: string; from: Address }) {
   const { workspaceId } = useWorkspace();
   const client = useQueryClient();
   const messages = queryKeys.area(workspaceId, "messages");
   const address = from.address.toLowerCase();
   const applied = useQuery({
-    // Under the messages area, so a sender's re-done check refreshes its mark too.
-    queryKey: [...messages, "sender-mark", address],
+    // Under the messages area, so a sender's re-done check refreshes its mark too. Asked by the
+    // message, whose sender the server reads: an email address is never in a URL.
+    queryKey: [...messages, "sender-mark", messageId],
     queryFn: async () =>
-      (
-        await api(
-          `${apiPaths.senderMarks(workspaceId)}?address=${encodeURIComponent(address)}`,
-          AppliedSenderMarkSchema,
-        )
-      ).applied,
+      (await api(apiPaths.messageSenderMark(workspaceId, messageId), AppliedSenderMarkSchema))
+        .applied,
   });
   const set = useMutation({
     mutationFn: ({ input }: { press: SenderMark; input: SenderMarkInput }) =>
@@ -169,7 +166,7 @@ export function SenderPanel(props: {
           </p>
         </>
       )}
-      {can.edit && <MarkButtons from={from} />}
+      {can.edit && <MarkButtons messageId={props.messageId} from={from} />}
     </section>
   );
 }
