@@ -1,7 +1,10 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
+    // No Node types: domain logic does no I/O. The tests, which read the e2e fixtures from disk,
+    // are typechecked with Node types by tsconfig.test.json.
     "types": []
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts"]
 }

@@ -25,3 +25,16 @@ export function CategoryChip({ category }: { category: Category }) {
 export function CouldNotAnalyze() {
   return <span className={`${chip} bg-red-50 text-red-800 ring-red-200`}>Couldn't analyze</span>;
 }
+
+/**
+ * Why a row says Couldn't analyze, and what to do about it. Nothing analyzes a failed message
+ * again (Analyze them takes pending mail only), so the way on is setting the category by hand.
+ */
+export function CouldNotAnalyzeReason({ canEdit }: { canEdit: boolean }) {
+  return (
+    <span className="mt-1 block text-xs text-red-800">
+      The AI's answer didn't fit, so nothing was guessed.{" "}
+      {canEdit ? "Open it to set the category." : "Open it to read it."}
+    </span>
+  );
+}

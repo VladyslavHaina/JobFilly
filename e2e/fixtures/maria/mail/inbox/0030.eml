@@ -1,9 +1,10 @@
-Message-ID: <maria-0043@linkedin.com>
-Date: Sun, 27 Sep 2026 05:36:00 +0000
-From: "LinkedIn Job Alerts" <jobalerts-noreply@linkedin.com>
+Message-ID: <maria-0283@pgdigest.example>
+Date: Fri, 25 Sep 2026 04:21:00 +0000
+From: "Postgres Digest" <digest@pgdigest.example>
 To: "Maria Santos" <maria.santos@inbox.example>
-Subject: 2 new jobs for "backend engineer"
-List-Unsubscribe: <https://www.linkedin.com/comm/jobs/alerts/unsubscribe?alertId=254641>
+Subject: Postgres Digest: indexes that pay off
+List-Id: Postgres Digest <news.pgdigest.example>
+List-Unsubscribe: <https://pgdigest.example/unsubscribe?u=23760>, <mailto:unsubscribe@pgdigest.example>
 MIME-Version: 1.0
 Content-Type: multipart/alternative; boundary="=_jf_maria_inbox_0030"
 
@@ -11,31 +12,28 @@ Content-Type: multipart/alternative; boundary="=_jf_maria_inbox_0030"
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: quoted-printable
 
-Your job alert for "backend engineer" in European Union: 2 new jobs.
+A practical look at partial indexes.
 
-Software Engineer =E2=80=93 Backend
-Nordlicht Payments =C2=B7 Madrid, Spain =C2=B7 Hybrid
-View job: https://www.linkedin.com/jobs/view/3252994249
+Reader tip: use EXPLAIN (ANALYZE, BUFFERS).
 
-Backend Developer
-Elbwerk Software GmbH =C2=B7 Berlin, Germany =C2=B7 Hybrid
-View job: https://www.linkedin.com/jobs/view/3348895940
+Read the full issue online: https://pgdigest.example/issues/23760
 
-You are receiving job alert emails because you created a job alert. You can=
- change how often you receive these alerts, edit your search or stop the al=
-ert at any time from your alert settings.
+You are receiving this email because you subscribed to our newsletter or bo=
+ught something from us. If you no longer want to receive these emails, you =
+can unsubscribe at any time using the link in the header of this message or=
+ in your account settings.
 
-Jobs are listed by the employers and recruiters who post them; check every =
-listing carefully and never pay a fee or share identity documents to apply.=
- Salaries and locations are shown as the employer provided them.
+Prices and availability are correct at the time of sending and may change. =
+Offers are subject to availability and cannot be combined with other promot=
+ions unless stated. See our website for full terms and conditions.
 
-This email was sent to you by the job platform. Our privacy policy explains=
- how we use your search activity to recommend jobs. To stop receiving all m=
-arketing and alert emails, use the unsubscribe link in your settings.
+We care about your privacy. We use your email address only to send you the =
+updates you asked for, and we never sell it. Read our privacy policy to fin=
+d out how we look after your data and how to ask us to delete it.
 
-You are receiving job alert emails because you created a job alert. You can=
- change how often you receive these alerts, edit your search or stop the al=
-ert at any time from your alert settings.
+Did someone forward you this email? Sign up on our website to get the next =
+issue straight to your inbox. Have feedback or a story idea? Just reply and=
+ tell us, we read every message.
 
 Ref: BODYSENTINEL-maria-inbox-0030
 
@@ -46,27 +44,22 @@ Content-Transfer-Encoding: quoted-printable
 <!DOCTYPE html>
 <html><head><meta charset=3D"utf-8"></head>
 <body style=3D"font-family: sans-serif">
-<p>Your job alert for &quot;backend engineer&quot; in European Union: 2 new=
- jobs.</p>
-<p>Software Engineer =E2=80=93 Backend<br>
-Nordlicht Payments =C2=B7 Madrid, Spain =C2=B7 Hybrid<br>
-View job: https://www.linkedin.com/jobs/view/3252994249</p>
-<p>Backend Developer<br>
-Elbwerk Software GmbH =C2=B7 Berlin, Germany =C2=B7 Hybrid<br>
-View job: https://www.linkedin.com/jobs/view/3348895940</p>
-<p>You are receiving job alert emails because you created a job alert. You =
-can change how often you receive these alerts, edit your search or stop the=
- alert at any time from your alert settings.</p>
-<p>Jobs are listed by the employers and recruiters who post them; check eve=
-ry listing carefully and never pay a fee or share identity documents to app=
-ly. Salaries and locations are shown as the employer provided them.</p>
-<p>This email was sent to you by the job platform. Our privacy policy expla=
-ins how we use your search activity to recommend jobs. To stop receiving al=
-l marketing and alert emails, use the unsubscribe link in your settings.</p=
->
-<p>You are receiving job alert emails because you created a job alert. You =
-can change how often you receive these alerts, edit your search or stop the=
- alert at any time from your alert settings.</p>
+<p>A practical look at partial indexes.</p>
+<p>Reader tip: use EXPLAIN (ANALYZE, BUFFERS).</p>
+<p>Read the full issue online: https://pgdigest.example/issues/23760</p>
+<p>You are receiving this email because you subscribed to our newsletter or=
+ bought something from us. If you no longer want to receive these emails, y=
+ou can unsubscribe at any time using the link in the header of this message=
+ or in your account settings.</p>
+<p>Prices and availability are correct at the time of sending and may chang=
+e. Offers are subject to availability and cannot be combined with other pro=
+motions unless stated. See our website for full terms and conditions.</p>
+<p>We care about your privacy. We use your email address only to send you t=
+he updates you asked for, and we never sell it. Read our privacy policy to =
+find out how we look after your data and how to ask us to delete it.</p>
+<p>Did someone forward you this email? Sign up on our website to get the ne=
+xt issue straight to your inbox. Have feedback or a story idea? Just reply =
+and tell us, we read every message.</p>
 <p>Ref: BODYSENTINEL-maria-inbox-0030<br>
 </p>
 </body></html>

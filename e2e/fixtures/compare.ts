@@ -1,7 +1,7 @@
 import {
   type Category,
   comparedForF53,
-  type ExpectedFile,
+  type ExpectedFileMvp2,
   fixturesDir,
   isJobCategory,
   type JobFacts,
@@ -61,6 +61,10 @@ export interface CompareOptions {
  * corrected (source "you", F5.4) is not the analysis's, so it is not compared; its roles are.
  * Roles are compared as a set of whole JobFacts objects, field by field; their order is not a
  * fact. An empty list means F5.3 holds for what has been analysed.
+ *
+ * From MVP 2 the mailbox also holds the mail `seed deliver` brought in, compared with its ground
+ * truth in expected.json's `deliveries`. A run delivers it step by step, so `complete` never
+ * requires it.
  */
 export function compareWithExpected(
   persona: Persona,
@@ -68,12 +72,12 @@ export function compareWithExpected(
   options: CompareOptions = {},
 ): Difference[] {
   const dir = options.dir ?? fixturesDir();
-  const expected = readJson<ExpectedFile>(`${dir}${personaPaths(persona).expected}`);
+  const expected = readJson<ExpectedFileMvp2>(`${dir}${personaPaths(persona).expected}`);
   const differences: Difference[] = [];
   const seen = new Set<string>();
   for (const s of stored) {
     seen.add(s.id);
-    const truth = expected.messages[s.id];
+    const truth = expected.messages[s.id] ?? expected.deliveries[s.id];
     if (truth === undefined) {
       differences.push({ messageId: s.id, field: "message", expected: null, stored: s.id });
       continue;

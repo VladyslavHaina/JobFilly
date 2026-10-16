@@ -1,8 +1,10 @@
-Message-ID: <maria-0216@personio.de>
-Date: Wed, 23 Sep 2026 13:48:00 +0000
-From: "Elbwerk Software GmbH" <noreply@personio.de>
+Message-ID: <maria-0391@pgdigest.example>
+Date: Sat, 19 Sep 2026 04:48:00 +0000
+From: "Postgres Digest" <digest@pgdigest.example>
 To: "Maria Santos" <maria.santos@inbox.example>
-Subject: Ihre Bewerbung als Backend-Entwickler (m/w/d)
+Subject: Postgres Digest: JSONB patterns
+List-Id: Postgres Digest <news.pgdigest.example>
+List-Unsubscribe: <https://pgdigest.example/unsubscribe?u=13204>, <mailto:unsubscribe@pgdigest.example>
 MIME-Version: 1.0
 Content-Type: multipart/alternative; boundary="=_jf_maria_inbox_0054"
 
@@ -10,33 +12,28 @@ Content-Type: multipart/alternative; boundary="=_jf_maria_inbox_0054"
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: quoted-printable
 
-Hallo Frau Santos,
+How autovacuum decides what to clean.
 
-vielen Dank f=C3=BCr Ihre Bewerbung als Backend-Entwickler (m/w/d) bei der =
-Elbwerk Software GmbH. Wir haben Ihre Unterlagen erhalten und melden uns in=
-nerhalb von zwei Wochen bei Ihnen.
+Reader tip: use EXPLAIN (ANALYZE, BUFFERS).
 
-Mit freundlichen Gr=C3=BC=C3=9Fen
-Ihr Recruiting-Team der Elbwerk Software GmbH
+Read the full issue online: https://pgdigest.example/issues/13204
 
-This message was sent to you by the hiring team through their applicant tra=
-cking system. Please do not reply to this email; replies to this address ar=
-e not monitored. If you have questions about your application, contact the =
-hiring team directly.
+You are receiving this email because you subscribed to our newsletter or bo=
+ught something from us. If you no longer want to receive these emails, you =
+can unsubscribe at any time using the link in the header of this message or=
+ in your account settings.
 
-You are receiving this email because you applied for a position. Your perso=
-nal data is processed in line with the employer's candidate privacy notice,=
- which explains how long your application is kept and how you can ask for i=
-t to be deleted.
+Prices and availability are correct at the time of sending and may change. =
+Offers are subject to availability and cannot be combined with other promot=
+ions unless stated. See our website for full terms and conditions.
 
-Powered by the employer's recruiting platform. To withdraw your application=
- or update your details, sign in to the candidate portal with the email add=
-ress you applied with.
+We care about your privacy. We use your email address only to send you the =
+updates you asked for, and we never sell it. Read our privacy policy to fin=
+d out how we look after your data and how to ask us to delete it.
 
-This message was sent to you by the hiring team through their applicant tra=
-cking system. Please do not reply to this email; replies to this address ar=
-e not monitored. If you have questions about your application, contact the =
-hiring team directly.
+Did someone forward you this email? Sign up on our website to get the next =
+issue straight to your inbox. Have feedback or a story idea? Just reply and=
+ tell us, we read every message.
 
 Ref: BODYSENTINEL-maria-inbox-0054
 
@@ -47,27 +44,22 @@ Content-Transfer-Encoding: quoted-printable
 <!DOCTYPE html>
 <html><head><meta charset=3D"utf-8"></head>
 <body style=3D"font-family: sans-serif">
-<p>Hallo Frau Santos,</p>
-<p>vielen Dank f=C3=BCr Ihre Bewerbung als Backend-Entwickler (m/w/d) bei d=
-er Elbwerk Software GmbH. Wir haben Ihre Unterlagen erhalten und melden uns=
- innerhalb von zwei Wochen bei Ihnen.</p>
-<p>Mit freundlichen Gr=C3=BC=C3=9Fen<br>
-Ihr Recruiting-Team der Elbwerk Software GmbH</p>
-<p>This message was sent to you by the hiring team through their applicant =
-tracking system. Please do not reply to this email; replies to this address=
- are not monitored. If you have questions about your application, contact t=
-he hiring team directly.</p>
-<p>You are receiving this email because you applied for a position. Your pe=
-rsonal data is processed in line with the employer's candidate privacy noti=
-ce, which explains how long your application is kept and how you can ask fo=
-r it to be deleted.</p>
-<p>Powered by the employer's recruiting platform. To withdraw your applicat=
-ion or update your details, sign in to the candidate portal with the email =
-address you applied with.</p>
-<p>This message was sent to you by the hiring team through their applicant =
-tracking system. Please do not reply to this email; replies to this address=
- are not monitored. If you have questions about your application, contact t=
-he hiring team directly.</p>
+<p>How autovacuum decides what to clean.</p>
+<p>Reader tip: use EXPLAIN (ANALYZE, BUFFERS).</p>
+<p>Read the full issue online: https://pgdigest.example/issues/13204</p>
+<p>You are receiving this email because you subscribed to our newsletter or=
+ bought something from us. If you no longer want to receive these emails, y=
+ou can unsubscribe at any time using the link in the header of this message=
+ or in your account settings.</p>
+<p>Prices and availability are correct at the time of sending and may chang=
+e. Offers are subject to availability and cannot be combined with other pro=
+motions unless stated. See our website for full terms and conditions.</p>
+<p>We care about your privacy. We use your email address only to send you t=
+he updates you asked for, and we never sell it. Read our privacy policy to =
+find out how we look after your data and how to ask us to delete it.</p>
+<p>Did someone forward you this email? Sign up on our website to get the ne=
+xt issue straight to your inbox. Have feedback or a story idea? Just reply =
+and tell us, we read every message.</p>
 <p>Ref: BODYSENTINEL-maria-inbox-0054<br>
 </p>
 </body></html>

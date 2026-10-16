@@ -1,9 +1,9 @@
-Message-ID: <maria-0248@gonews.example>
-Date: Tue, 22 Sep 2026 19:23:00 +0000
-From: "Go Newsletter" <news@gonews.example>
+Message-ID: <maria-0351@lojastejo.example>
+Date: Wed, 16 Sep 2026 18:31:00 +0000
+From: "Lojas Tejo" <news@lojastejo.example>
 To: "Maria Santos" <maria.santos@inbox.example>
-Subject: Go News: structured logging
-List-Unsubscribe: <https://gonews.example/unsubscribe?u=89843>, <mailto:unsubscribe@gonews.example>
+Subject: =?UTF-8?B?QXTDqSA0MCUgZGUgZGVzY29udG8gZXN0ZSBmaW0gZGUgc2VtYW5h?=
+List-Unsubscribe: <https://lojastejo.example/unsubscribe?u=37475>, <mailto:unsubscribe@lojastejo.example>
 MIME-Version: 1.0
 Content-Type: multipart/alternative; boundary="=_jf_maria_inbox_0064"
 
@@ -11,11 +11,11 @@ Content-Type: multipart/alternative; boundary="=_jf_maria_inbox_0064"
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: quoted-printable
 
-Community conferences coming up.
+Envios gr=C3=A1tis em compras acima de 30 =E2=82=AC.
 
-New in the standard library this month.
+Descubra a nova cole=C3=A7=C3=A3o de outono.
 
-Read the full issue online: https://gonews.example/issues/89843
+Read the full issue online: https://lojastejo.example/issues/37475
 
 You are receiving this email because you subscribed to our newsletter or bo=
 ught something from us. If you no longer want to receive these emails, you =
@@ -43,9 +43,9 @@ Content-Transfer-Encoding: quoted-printable
 <!DOCTYPE html>
 <html><head><meta charset=3D"utf-8"></head>
 <body style=3D"font-family: sans-serif">
-<p>Community conferences coming up.</p>
-<p>New in the standard library this month.</p>
-<p>Read the full issue online: https://gonews.example/issues/89843</p>
+<p>Envios gr=C3=A1tis em compras acima de 30 =E2=82=AC.</p>
+<p>Descubra a nova cole=C3=A7=C3=A3o de outono.</p>
+<p>Read the full issue online: https://lojastejo.example/issues/37475</p>
 <p>You are receiving this email because you subscribed to our newsletter or=
  bought something from us. If you no longer want to receive these emails, y=
 ou can unsubscribe at any time using the link in the header of this message=

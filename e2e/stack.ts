@@ -7,8 +7,10 @@ import { PERSONAS } from "./fixtures/format.ts";
 //   pnpm e2e                  node e2e/stack.ts run [--mvp <n>]    fresh stack, specs, down
 //   pnpm e2e:stack up|down    node e2e/stack.ts stack up|down
 //   pnpm e2e:specs            node e2e/stack.ts specs [--mvp <n>]  specs against the running stack
-// `up` starts docker/compose.e2e.yaml under a project name of its own, waits until the proxy and
-// both replicas answer /api/health/ready, loads the mail of every persona of fixtures/format.ts
+// `up` checks that no Docker network holds the stack's fixed subnet, starts
+// docker/compose.e2e.yaml under a project name of its own, waits until the proxy and both
+// replicas answer /api/health/ready, checks from inside app-a that the fixture DNS zones and the
+// fake RDAP service answer (MVP 2, F5), loads the mail of every persona of fixtures/format.ts
 // with `seed load <persona>`, prints the name and keeps it in e2e/.stack/project. `down` removes
 // that project's containers (one-off seed runs too), networks and volumes, checks nothing is left
 // and removes e2e/.stack. Only one stack runs at a time: the proxy's ports are fixed. Ctrl-C stops
@@ -29,6 +31,52 @@ export const READY_TIMEOUT_MS = 180_000;
 /** The exit code of a run stopped by Ctrl-C (128 + SIGINT). */
 export const INTERRUPTED = 130;
 const READY_POLL_MS = 1_000;
+
+/**
+ * The stack network's subnet in docker/compose.e2e.yaml. It is fixed because the replicas name
+ * the dns service by address, so `up` refuses to start while another Docker network overlaps it.
+ */
+export const STACK_SUBNET = "10.253.53.0/24";
+
+/**
+ * Sender domains of the fixtures that app-a must resolve through the fixture zones (e2e/dns) and
+ * find in the fake RDAP service before the mail loads. gmail.com's MX in the zone isn't the real
+ * one, so an answer from the internet's DNS fails the check too.
+ */
+export const WIRING_PROBES = [
+  { domain: "kiezwerk.example", mx: "mx.kiezwerk.example" },
+  { domain: "gmail.com", mx: "mx.gmail.com" },
+];
+
+/**
+ * Run with `node -e` inside app-a, the domains as arguments: what the app's own resolver and its
+ * JOBFILLY_RDAP_URL answer for each, as one JSON line of { domain, mx, rdap, error }.
+ */
+export const WIRING_SCRIPT = [
+  'const { Resolver } = require("node:dns").promises;',
+  "const resolver = new Resolver({ timeout: 3000, tries: 2 });",
+  "(async () => {",
+  "  const out = [];",
+  "  for (const domain of process.argv.slice(1)) {",
+  "    const row = { domain, mx: null, rdap: null, error: [] };",
+  "    try {",
+  "      row.mx = (await resolver.resolveMx(domain)).map((r) => r.exchange);",
+  "    } catch (e) {",
+  '      row.error.push("MX lookup: " + (e.code ?? e.message));',
+  "    }",
+  "    try {",
+  '      const url = new URL("domain/" + domain, process.env.JOBFILLY_RDAP_URL);',
+  "      const res = await fetch(url, { signal: AbortSignal.timeout(5000) });",
+  "      const body = await res.json().catch(() => ({}));",
+  "      row.rdap = { status: res.status, ldhName: body.ldhName ?? null };",
+  "    } catch (e) {",
+  '      row.error.push("RDAP: " + (e.cause?.code ?? e.message));',
+  "    }",
+  "    out.push(row);",
+  "  }",
+  "  console.log(JSON.stringify(out));",
+  "})();",
+].join("\n");
 
 const USAGE = [
   "Usage:",
@@ -124,6 +172,12 @@ async function up(deps: StackDeps): Promise<number> {
     );
     return 1;
   }
+  // Before anything starts: compose would fail on an overlapping pool with a vaguer message.
+  const clash = await subnetClash(deps);
+  if (clash) {
+    deps.error(`The test stack can't start: ${clash}`);
+    return 1;
+  }
   const project = projectName(deps.now());
   // Kept before anything starts, so `down` can clean up even after an interrupted `up`.
   deps.state.write(project);
@@ -151,6 +205,24 @@ async function up(deps: StackDeps): Promise<number> {
   if (notReady) {
     return failed(`${notReady} did not answer 200 within ${READY_TIMEOUT_MS / 1000} s`);
   }
+  const probed = await deps.run({
+    ...compose(project, [
+      "exec",
+      "-T",
+      "app-a",
+      "node",
+      "-e",
+      WIRING_SCRIPT,
+      ...WIRING_PROBES.map((p) => p.domain),
+    ]),
+    capture: true,
+  });
+  if (deps.interrupted()) return stopped();
+  const wiring =
+    probed.code === 0 ? wiringProblems(probed.stdout) : [`the check exited ${probed.code}`];
+  if (wiring.length > 0) {
+    return failed(`app-a doesn't reach the fixture DNS zones and RDAP: ${wiring.join("; ")}`);
+  }
   for (const persona of PERSONAS) {
     const seeded = await deps.run(compose(project, ["run", "--rm", "seed", "load", persona]));
     if (deps.interrupted()) return stopped();
@@ -163,6 +235,89 @@ async function up(deps: StackDeps): Promise<number> {
   );
   deps.print("  Down:  pnpm e2e:stack down");
   return 0;
+}
+
+/** The first and last address of an IPv4 CIDR as numbers; null for anything else (IPv6). */
+function ipv4Range(cidr: string): [number, number] | null {
+  const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\/(\d{1,2})$/.exec(cidr.trim());
+  if (!m) return null;
+  const [a, b, c, d, bits] = m.slice(1).map(Number) as [number, number, number, number, number];
+  if ([a, b, c, d].some((n) => n > 255) || bits > 32) return null;
+  const address = ((a * 256 + b) * 256 + c) * 256 + d;
+  const size = 2 ** (32 - bits);
+  const first = Math.floor(address / size) * size;
+  return [first, first + size - 1];
+}
+
+/** Whether two IPv4 CIDRs share an address. */
+export function subnetsOverlap(x: string, y: string): boolean {
+  const a = ipv4Range(x);
+  const b = ipv4Range(y);
+  return a !== null && b !== null && a[0] <= b[1] && b[0] <= a[1];
+}
+
+const NETWORK_SUBNETS = "{{.Name}}{{range .IPAM.Config}} {{.Subnet}}{{end}}";
+
+/** Why the stack's subnet is taken: the Docker network overlapping it; null when it is free. */
+async function subnetClash(deps: StackDeps): Promise<string | null> {
+  const docker = (args: string[]) => deps.run({ cmd: "docker", args, cwd: ROOT, capture: true });
+  const listed = await docker(["network", "ls", "--quiet"]);
+  if (listed.code !== 0) {
+    return `could not list Docker's networks to check that ${STACK_SUBNET} is free (is Docker running?)`;
+  }
+  const ids = listed.stdout.split(/\s+/).filter(Boolean);
+  if (ids.length === 0) return null;
+  // A network removed since the listing makes inspect fail; the others are still printed.
+  const inspected = await docker(["network", "inspect", "--format", NETWORK_SUBNETS, ...ids]);
+  for (const line of inspected.stdout.split("\n")) {
+    const [name, ...subnets] = line.trim().split(/\s+/);
+    const taken = subnets.find((s) => subnetsOverlap(s, STACK_SUBNET));
+    if (name && taken) {
+      return (
+        `Docker network ${name} uses ${taken}, which overlaps the stack's fixed ${STACK_SUBNET}. ` +
+        `Take down the stack that owns it, or remove it with "docker network rm ${name}".`
+      );
+    }
+  }
+  return null;
+}
+
+interface WiringRow {
+  domain: string;
+  mx: string[] | null;
+  rdap: { status: number; ldhName: string | null } | null;
+  error: string[];
+}
+
+/** What is wrong with WIRING_SCRIPT's output against WIRING_PROBES; [] when nothing is. */
+export function wiringProblems(stdout: string): string[] {
+  let rows: WiringRow[];
+  try {
+    rows = JSON.parse(stdout.trim().split("\n").at(-1) ?? "") as WiringRow[];
+  } catch {
+    return [`the check printed no result (${JSON.stringify(stdout.trim().slice(0, 200))})`];
+  }
+  const problems: string[] = [];
+  for (const probe of WIRING_PROBES) {
+    const row = Array.isArray(rows) ? rows.find((r) => r.domain === probe.domain) : undefined;
+    if (!row) {
+      problems.push(`${probe.domain}: not checked`);
+      continue;
+    }
+    // A lookup that threw has no answer and says why in `error`.
+    const errors = (row.error ?? []).map((e) => `${probe.domain}: ${e}`);
+    const mx = row.mx?.map((h) => h.toLowerCase().replace(/\.$/, ""));
+    if (mx && !mx.includes(probe.mx)) {
+      const got = mx.join(", ") || "none";
+      problems.push(`${probe.domain}: MX ${got}, not the fixture zone's ${probe.mx}`);
+    }
+    if (row.rdap && (row.rdap.status !== 200 || row.rdap.ldhName !== probe.domain)) {
+      problems.push(`${probe.domain}: RDAP answered ${row.rdap.status}, not its registration`);
+    }
+    if ((!mx || !row.rdap) && errors.length === 0) problems.push(`${probe.domain}: no answer`);
+    problems.push(...errors);
+  }
+  return problems;
 }
 
 /**

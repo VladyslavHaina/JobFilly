@@ -284,6 +284,18 @@ describe("the list (F5.1)", () => {
     renderApp(paths.inbox(ws.id));
     const rows = within(await messageList()).getAllByRole("link");
     expect(within(rows[2] as HTMLElement).getByText("Couldn't analyze")).toBeTruthy();
+    // The row says why, and what to do about it.
+    expect(rows[2]?.textContent).toContain(
+      "The AI's answer didn't fit, so nothing was guessed. Open it to set the category.",
+    );
+    expect(rows[0]?.textContent).not.toContain("didn't fit");
+  });
+
+  it("tells a viewer the failed row is there to read", async () => {
+    const { ws } = inboxApi({ role: "viewer" });
+    renderApp(paths.inbox(ws.id));
+    const rows = within(await messageList()).getAllByRole("link");
+    expect(rows[2]?.textContent).toContain("nothing was guessed. Open it to read it.");
   });
 
   it("hides non-job mail behind a count and a Show toggle", async () => {
@@ -597,6 +609,18 @@ describe("the detail (F5.2)", () => {
     const card = heading.closest("section") as HTMLElement;
     expect(within(card).getAllByText("Couldn't analyze").length).toBeGreaterThan(0);
     expect(within(card).getByText(/nothing was guessed/)).toBeTruthy();
+    // The alert offers the way on: setting the category by hand.
+    await userEvent.setup().click(within(card).getByRole("button", { name: "Set the category" }));
+    expect(document.activeElement).toBe(within(card).getByLabelText("Category"));
+  });
+
+  it("tells a viewer who can set the category of a message the model failed on", async () => {
+    const { ws } = inboxApi({ role: "viewer" });
+    renderApp(paths.message(ws.id, FAILED.id));
+    const heading = await screen.findByRole("heading", { name: "Quick question" });
+    const card = heading.closest("section") as HTMLElement;
+    expect(within(card).getByText(/an editor or admin can set its category/)).toBeTruthy();
+    expect(within(card).queryByRole("button", { name: "Set the category" })).toBeNull();
   });
 
   it("promises a sender check for job mail only (F5.1)", async () => {

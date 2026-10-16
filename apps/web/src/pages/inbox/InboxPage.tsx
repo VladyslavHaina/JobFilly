@@ -15,7 +15,7 @@ import { FitScore, HiddenFilter, HiddenReason } from "../match";
 import { likelyJobEmails, useCurrentScan } from "../scan/queries";
 import { SenderBadge } from "../senders";
 import { MailboxStatus } from "../sync";
-import { CategoryChip, CouldNotAnalyze } from "./badges";
+import { CategoryChip, CouldNotAnalyze, CouldNotAnalyzeReason } from "./badges";
 import { CATEGORY_LABELS, formatListDate } from "./format";
 import { MessageDetailView } from "./MessageDetail";
 
@@ -124,6 +124,7 @@ function LeftOutNote({ workspaceId }: { workspaceId: string }) {
 
 function MessageRow(props: { workspaceId: string; message: MessageListItem; open: boolean }) {
   const { message: m } = props;
+  const { can } = useWorkspace();
   return (
     <li>
       <Link
@@ -152,6 +153,7 @@ function MessageRow(props: { workspaceId: string; message: MessageListItem; open
           <SenderBadge sender={m.sender} category={m.category} analysisStatus={m.analysisStatus} />
           <HiddenReason hidden={m.hidden} />
         </span>
+        {m.analysisStatus === "failed" && <CouldNotAnalyzeReason canEdit={can.edit} />}
       </Link>
     </li>
   );

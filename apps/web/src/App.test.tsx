@@ -11,6 +11,7 @@ import {
 } from "./components/testing";
 import { MembersPage } from "./pages/members";
 import { paths } from "./paths";
+import { routes } from "./routes";
 
 // The slice-owned pages are replaced by probes that show the props the routes pass them.
 vi.mock("./pages/inbox", () => ({
@@ -312,6 +313,31 @@ describe("the app shell (F1.7, F1.8)", () => {
     await router.navigate(-1);
     expect(await screen.findByRole("heading", { name: "Sign in" })).toBeTruthy();
     expect(screen.queryByTestId("inbox")).toBeNull();
+  });
+
+  it("asks for no workspace data once signed out, however late the page changes", async () => {
+    let signedOut = false;
+    const requests = signedIn({
+      "GET /api/auth/session": () => ({ user: signedOut ? null : TEST_USER }),
+      "GET /api/workspaces": () =>
+        signedOut ? json({ error: "unauthorized" }, 401) : { items: [ws, other] },
+      "POST /api/auth/sign-out": () => {
+        signedOut = true;
+        return new Response(null, { status: 204 });
+      },
+    });
+    // In the browser the shell re-renders before the route change lands; a slow Sign in route
+    // makes that gap deterministic here.
+    const slowSignIn = routes.map((r) =>
+      r.path === "/sign-in" ? { ...r, loader: () => new Promise((ok) => setTimeout(ok, 30)) } : r,
+    );
+    renderApp(paths.inbox(ws.id), slowSignIn);
+    await screen.findByTestId("inbox");
+    await userEvent.setup().click(screen.getByRole("button", { name: "Sign out" }));
+    expect(await screen.findByRole("heading", { name: "Sign in" })).toBeTruthy();
+    await new Promise((r) => setTimeout(r, 30));
+    const after = requests.slice(requests.findIndex((r) => r.path === "/api/auth/sign-out") + 1);
+    expect(after.map((r) => `${r.method} ${r.path}`)).toEqual([]);
   });
 });
 

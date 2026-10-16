@@ -3,5 +3,6 @@ import { defineProject } from "vitest/config";
 
 export default defineProject({
   plugins: [react()],
-  test: { environment: "jsdom" },
+  // test-setup.ts gives every test's findBy* and waitFor room on a loaded machine.
+  test: { environment: "jsdom", setupFiles: ["./src/test-setup.ts"] },
 });

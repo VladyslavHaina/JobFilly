@@ -18,6 +18,8 @@ export const queryKeys = {
   workspaces: ["workspaces"] as const,
   invitations: ["invitations"] as const,
   area: (workspaceId: string, area: LiveArea) => ["w", workspaceId, area] as const,
+  /** GET /scans/current: the scan page and the inbox banner; live scan events update it. */
+  currentScan: (workspaceId: string) => ["w", workspaceId, "scan", "current"] as const,
   members: (workspaceId: string) => ["w", workspaceId, "workspace", "members"] as const,
   invites: (workspaceId: string) => ["w", workspaceId, "workspace", "invites"] as const,
 };

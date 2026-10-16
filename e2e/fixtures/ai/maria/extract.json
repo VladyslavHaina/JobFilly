@@ -70,154 +70,6 @@
       }
     ]
   },
-  "<maria-0001@talentbruecke.example>": {
-    "roles": [
-      {
-        "title": "Senior Backend-Entwickler (m/w/d)",
-        "company": "Spreeblick Mobility GmbH",
-        "agency": {
-          "name": "Talentbrücke Recruiting",
-          "client": "Spreeblick Mobility GmbH"
-        },
-        "places": [
-          {
-            "country": "DE",
-            "city": "Berlin"
-          }
-        ],
-        "workMode": "hybrid",
-        "remoteScope": null,
-        "timeZones": null,
-        "pay": {
-          "min": 75000,
-          "max": 85000,
-          "currency": "EUR",
-          "period": "year",
-          "asWritten": "75.000–85.000 € brutto pro Jahr"
-        },
-        "contract": "unbefristet",
-        "seniority": "Senior",
-        "workPermit": null,
-        "skills": [
-          "Go",
-          "PostgreSQL",
-          "Kubernetes"
-        ],
-        "languages": [
-          "Englisch"
-        ],
-        "applyUrl": null,
-        "extra": {}
-      }
-    ]
-  },
-  "<maria-0148@quaysidebank.example>": {
-    "roles": [
-      {
-        "title": "Software Engineer, Payments",
-        "company": "Quayside Bank",
-        "agency": null,
-        "places": [
-          {
-            "country": "NL",
-            "city": "Amsterdam"
-          }
-        ],
-        "workMode": "hybrid",
-        "remoteScope": null,
-        "timeZones": null,
-        "pay": {
-          "min": 400,
-          "max": 500,
-          "currency": "EUR",
-          "period": "day",
-          "asWritten": "€400–500 a day"
-        },
-        "contract": "freelance",
-        "seniority": null,
-        "workPermit": null,
-        "skills": [
-          "Kafka",
-          "TypeScript",
-          "Terraform"
-        ],
-        "languages": [],
-        "applyUrl": "https://careers.quaysidebank.example/jobs/9822",
-        "extra": {}
-      }
-    ]
-  },
-  "<maria-0172@rheinpfad.example>": {
-    "roles": [
-      {
-        "title": "Backend Engineer (m/w/d)",
-        "company": "Rheinpfad Energie AG",
-        "agency": null,
-        "places": [
-          {
-            "country": "DE",
-            "city": "Berlin"
-          }
-        ],
-        "workMode": "hybrid",
-        "remoteScope": null,
-        "timeZones": null,
-        "pay": {
-          "min": 450,
-          "max": 550,
-          "currency": "EUR",
-          "period": "day",
-          "asWritten": "450–550 € pro Tag"
-        },
-        "contract": "freiberuflich",
-        "seniority": null,
-        "workPermit": null,
-        "skills": [
-          "Python",
-          "Java",
-          "Kotlin",
-          "TypeScript"
-        ],
-        "languages": [
-          "Englisch"
-        ],
-        "applyUrl": null,
-        "extra": {}
-      }
-    ]
-  },
-  "<maria-0131@rheinpfad.example>": {
-    "roles": [
-      {
-        "title": "Platform Engineer (m/w/d)",
-        "company": "Rheinpfad Energie AG",
-        "agency": null,
-        "places": [],
-        "workMode": "remote",
-        "remoteScope": "innerhalb der EU",
-        "timeZones": null,
-        "pay": {
-          "min": 55000,
-          "max": 70000,
-          "currency": "EUR",
-          "period": "year",
-          "asWritten": "55.000–70.000 € brutto pro Jahr"
-        },
-        "contract": "befristet auf 12 Monate",
-        "seniority": null,
-        "workPermit": "Arbeitserlaubnis für die EU",
-        "skills": [
-          "PostgreSQL",
-          "Java",
-          "AWS",
-          "Terraform"
-        ],
-        "languages": [],
-        "applyUrl": null,
-        "extra": {}
-      }
-    ]
-  },
   "<maria-0041@linkedin.com>": {
     "roles": [
       {
@@ -374,126 +226,8 @@
       }
     ]
   },
-  "<maria-0228@teamtailor.com>": {
-    "roles": [
-      {
-        "title": "Backend Engineer",
-        "company": "Lumen Freight",
-        "agency": null,
-        "places": [],
-        "workMode": null,
-        "remoteScope": null,
-        "timeZones": null,
-        "pay": null,
-        "contract": null,
-        "seniority": null,
-        "workPermit": null,
-        "skills": [],
-        "languages": [],
-        "applyUrl": null,
-        "extra": {}
-      }
-    ]
-  },
-  "<maria-0144@alfamalabs.example>": {
-    "roles": [
-      {
-        "title": "Programador(a) Backend",
-        "company": "Alfama Labs",
-        "agency": null,
-        "places": [],
-        "workMode": "remote",
-        "remoteScope": "em qualquer país da UE",
-        "timeZones": null,
-        "pay": {
-          "min": 45000,
-          "max": 55000,
-          "currency": "EUR",
-          "period": "year",
-          "asWritten": "45.000–55.000 € brutos por ano"
-        },
-        "contract": null,
-        "seniority": "Intermédio",
-        "workPermit": null,
-        "skills": [
-          "PostgreSQL",
-          "AWS",
-          "Java"
-        ],
-        "languages": [],
-        "applyUrl": null,
-        "extra": {}
-      }
-    ]
-  },
-  "<maria-0209@personio.de>": {
-    "roles": [
-      {
-        "title": "Senior Backend Engineer (m/w/d)",
-        "company": "Elbwerk Software GmbH",
-        "agency": null,
-        "places": [],
-        "workMode": null,
-        "remoteScope": null,
-        "timeZones": null,
-        "pay": null,
-        "contract": null,
-        "seniority": "Senior",
-        "workPermit": null,
-        "skills": [],
-        "languages": [],
-        "applyUrl": null,
-        "extra": {}
-      }
-    ]
-  },
-  "<maria-0004@hirewave.example>": {
-    "roles": [
-      {
-        "title": "Python Developer",
-        "company": null,
-        "agency": {
-          "name": "HireWave",
-          "client": null
-        },
-        "places": [],
-        "workMode": "remote",
-        "remoteScope": null,
-        "timeZones": null,
-        "pay": null,
-        "contract": null,
-        "seniority": null,
-        "workPermit": null,
-        "skills": [],
-        "languages": [],
-        "applyUrl": null,
-        "extra": {}
-      }
-    ]
-  },
   "<maria-0005@polder-talent.example>": {
     "invalid": true
-  },
-  "<maria-0199@smartrecruiters.com>": {
-    "roles": [
-      {
-        "title": "Platform Engineer",
-        "company": "Brightwave Health",
-        "agency": null,
-        "places": [],
-        "workMode": null,
-        "remoteScope": null,
-        "timeZones": null,
-        "pay": null,
-        "contract": null,
-        "seniority": null,
-        "workPermit": null,
-        "skills": [],
-        "languages": [],
-        "applyUrl": null,
-        "extra": {}
-      }
-    ]
   },
   "<maria-0043@linkedin.com>": {
     "roles": [
@@ -613,44 +347,6 @@
       }
     ]
   },
-  "<maria-0080@grachtwerk.example>": {
-    "roles": [
-      {
-        "title": "Platform Engineer",
-        "company": null,
-        "agency": {
-          "name": "Grachtwerk Recruitment",
-          "client": null
-        },
-        "places": [
-          {
-            "country": "NL",
-            "city": "Utrecht"
-          }
-        ],
-        "workMode": "onsite",
-        "remoteScope": null,
-        "timeZones": null,
-        "pay": {
-          "min": 80000,
-          "max": 90000,
-          "currency": "EUR",
-          "period": "year",
-          "asWritten": "€ 80.000 – € 90.000 bruto per jaar"
-        },
-        "contract": "tijdelijk contract van 12 maanden",
-        "seniority": "Senior",
-        "workPermit": null,
-        "skills": [],
-        "languages": [
-          "Nederlands",
-          "Engels"
-        ],
-        "applyUrl": null,
-        "extra": {}
-      }
-    ]
-  },
   "<maria-0042@indeed.com>": {
     "roles": [
       {
@@ -711,324 +407,6 @@
       }
     ]
   },
-  "<maria-0116@quaysidebank.example>": {
-    "roles": [
-      {
-        "title": "Python Backend Developer",
-        "company": "Quayside Bank",
-        "agency": null,
-        "places": [
-          {
-            "country": "DE",
-            "city": "Berlin"
-          }
-        ],
-        "workMode": "onsite",
-        "remoteScope": null,
-        "timeZones": null,
-        "pay": {
-          "min": 80000,
-          "max": 100000,
-          "currency": "EUR",
-          "period": "year",
-          "asWritten": "€80,000–100,000 a year"
-        },
-        "contract": null,
-        "seniority": "Senior",
-        "workPermit": "right to work in the EU",
-        "skills": [
-          "Terraform",
-          "Redis",
-          "Kubernetes"
-        ],
-        "languages": [],
-        "applyUrl": null,
-        "extra": {}
-      }
-    ]
-  },
-  "<maria-0126@dourofintech.example>": {
-    "roles": [
-      {
-        "title": "Engenheiro(a) de Backend",
-        "company": "Douro Fintech",
-        "agency": null,
-        "places": [
-          {
-            "country": "PT",
-            "city": "Coimbra"
-          }
-        ],
-        "workMode": "hybrid",
-        "remoteScope": null,
-        "timeZones": null,
-        "pay": {
-          "min": 55000,
-          "max": 70000,
-          "currency": "EUR",
-          "period": "year",
-          "asWritten": "55.000–70.000 € brutos por ano"
-        },
-        "contract": null,
-        "seniority": "Sénior",
-        "workPermit": null,
-        "skills": [
-          "Redis",
-          "Java",
-          "Go"
-        ],
-        "languages": [],
-        "applyUrl": "https://careers.dourofintech.example/jobs/9918",
-        "extra": {}
-      }
-    ]
-  },
-  "<maria-0012@inbox.example>": {
-    "roles": []
-  },
-  "<maria-0136@grachtwerk.example>": {
-    "roles": [
-      {
-        "title": "Backend Developer",
-        "company": null,
-        "agency": {
-          "name": "Grachtwerk Recruitment",
-          "client": null
-        },
-        "places": [
-          {
-            "country": "NL",
-            "city": "Amsterdam"
-          }
-        ],
-        "workMode": "hybrid",
-        "remoteScope": null,
-        "timeZones": null,
-        "pay": {
-          "min": 65000,
-          "max": 80000,
-          "currency": "EUR",
-          "period": "year",
-          "asWritten": "€ 65.000 – € 80.000 bruto per jaar"
-        },
-        "contract": "tijdelijk contract van 12 maanden",
-        "seniority": "Senior",
-        "workPermit": "werkvergunning voor de EU",
-        "skills": [
-          "Python",
-          "Kotlin",
-          "Terraform",
-          "TypeScript"
-        ],
-        "languages": [
-          "Nederlands",
-          "Engels"
-        ],
-        "applyUrl": null,
-        "extra": {}
-      }
-    ]
-  },
-  "<maria-0207@hire.lever.co>": {
-    "roles": [
-      {
-        "title": "Backend Engineer",
-        "company": "Copperleaf Analytics",
-        "agency": null,
-        "places": [],
-        "workMode": null,
-        "remoteScope": null,
-        "timeZones": null,
-        "pay": null,
-        "contract": null,
-        "seniority": null,
-        "workPermit": null,
-        "skills": [],
-        "languages": [],
-        "applyUrl": null,
-        "extra": {}
-      }
-    ]
-  },
-  "<maria-0151@atlantico-talent.example>": {
-    "roles": [
-      {
-        "title": "Programador(a) Java",
-        "company": null,
-        "agency": {
-          "name": "Atlântico Talent",
-          "client": null
-        },
-        "places": [
-          {
-            "country": "PT",
-            "city": "Lisboa"
-          }
-        ],
-        "workMode": "hybrid",
-        "remoteScope": null,
-        "timeZones": null,
-        "pay": {
-          "min": 50000,
-          "max": 65000,
-          "currency": "EUR",
-          "period": "year",
-          "asWritten": "50.000–65.000 € brutos por ano"
-        },
-        "contract": null,
-        "seniority": "Intermédio",
-        "workPermit": null,
-        "skills": [
-          "TypeScript",
-          "Terraform"
-        ],
-        "languages": [],
-        "applyUrl": "https://careers.atlantico-talent.example/jobs/5654",
-        "extra": {}
-      }
-    ]
-  },
-  "<maria-0011@talentbruecke.example>": {
-    "roles": [
-      {
-        "title": "Go-Entwickler (m/w/d)",
-        "company": null,
-        "agency": {
-          "name": "Talentbrücke Recruiting",
-          "client": null
-        },
-        "places": [],
-        "workMode": "remote",
-        "remoteScope": "innerhalb Deutschlands",
-        "timeZones": null,
-        "pay": {
-          "min": 70000,
-          "max": 85000,
-          "currency": "EUR",
-          "period": "year",
-          "asWritten": "70.000–85.000 € brutto pro Jahr"
-        },
-        "contract": null,
-        "seniority": "Professional",
-        "workPermit": null,
-        "skills": [
-          "Python",
-          "Kubernetes",
-          "AWS"
-        ],
-        "languages": [
-          "Deutsch",
-          "Englisch"
-        ],
-        "applyUrl": null,
-        "extra": {}
-      }
-    ]
-  },
-  "<maria-0201@greenhouse-mail.io>": {
-    "roles": [
-      {
-        "title": "Backend Developer",
-        "company": "Lumen Freight",
-        "agency": null,
-        "places": [],
-        "workMode": null,
-        "remoteScope": null,
-        "timeZones": null,
-        "pay": null,
-        "contract": null,
-        "seniority": null,
-        "workPermit": null,
-        "skills": [],
-        "languages": [],
-        "applyUrl": null,
-        "extra": {}
-      }
-    ]
-  },
-  "<maria-0216@personio.de>": {
-    "roles": [
-      {
-        "title": "Backend-Entwickler (m/w/d)",
-        "company": "Elbwerk Software GmbH",
-        "agency": null,
-        "places": [],
-        "workMode": null,
-        "remoteScope": null,
-        "timeZones": null,
-        "pay": null,
-        "contract": null,
-        "seniority": null,
-        "workPermit": null,
-        "skills": [],
-        "languages": [],
-        "applyUrl": null,
-        "extra": {}
-      }
-    ]
-  },
-  "<maria-0198@alfamalabs.example>": {
-    "roles": [
-      {
-        "title": "Engenheiro(a) de Backend",
-        "company": "Alfama Labs",
-        "agency": null,
-        "places": [
-          {
-            "country": "PT",
-            "city": "Coimbra"
-          }
-        ],
-        "workMode": "hybrid",
-        "remoteScope": null,
-        "timeZones": null,
-        "pay": null,
-        "contract": null,
-        "seniority": "Intermédio",
-        "workPermit": null,
-        "skills": [
-          "Kafka",
-          "Kubernetes"
-        ],
-        "languages": [],
-        "applyUrl": "https://careers.alfamalabs.example/jobs/8002",
-        "extra": {}
-      }
-    ]
-  },
-  "<maria-0157@isar-personal.example>": {
-    "roles": [
-      {
-        "title": "Backend-Entwickler (m/w/d)",
-        "company": null,
-        "agency": {
-          "name": "Isar Personal",
-          "client": null
-        },
-        "places": [
-          {
-            "country": "DE",
-            "city": "München"
-          }
-        ],
-        "workMode": "hybrid",
-        "remoteScope": null,
-        "timeZones": null,
-        "pay": null,
-        "contract": null,
-        "seniority": null,
-        "workPermit": "Arbeitserlaubnis für die EU",
-        "skills": [
-          "Kotlin",
-          "Python",
-          "TypeScript"
-        ],
-        "languages": [],
-        "applyUrl": "https://careers.isar-personal.example/jobs/8708",
-        "extra": {}
-      }
-    ]
-  },
   "<maria-0007@kanaalstraat.example>": {
     "roles": [
       {
@@ -1060,161 +438,6 @@
         "extra": {
           "start date": "1 December"
         }
-      }
-    ]
-  },
-  "<maria-0232@greenhouse-mail.io>": {
-    "roles": [
-      {
-        "title": "Backend Developer",
-        "company": "Quayside Bank",
-        "agency": null,
-        "places": [],
-        "workMode": null,
-        "remoteScope": null,
-        "timeZones": null,
-        "pay": null,
-        "contract": null,
-        "seniority": null,
-        "workPermit": null,
-        "skills": [],
-        "languages": [],
-        "applyUrl": null,
-        "extra": {}
-      }
-    ]
-  },
-  "<maria-0195@dourofintech.example>": {
-    "roles": [
-      {
-        "title": "Engenheiro(a) de Backend",
-        "company": "Douro Fintech",
-        "agency": null,
-        "places": [
-          {
-            "country": "PT",
-            "city": "Braga"
-          }
-        ],
-        "workMode": "hybrid",
-        "remoteScope": null,
-        "timeZones": null,
-        "pay": {
-          "min": 50000,
-          "max": 65000,
-          "currency": "EUR",
-          "period": "year",
-          "asWritten": "50.000–65.000 € brutos por ano"
-        },
-        "contract": null,
-        "seniority": null,
-        "workPermit": null,
-        "skills": [
-          "gRPC",
-          "Python",
-          "Terraform",
-          "Kotlin"
-        ],
-        "languages": [
-          "português",
-          "inglês"
-        ],
-        "applyUrl": null,
-        "extra": {}
-      }
-    ]
-  },
-  "<maria-0202@personio.de>": {
-    "roles": [
-      {
-        "title": "Backend-Entwickler (m/w/d)",
-        "company": "Elbwerk Software GmbH",
-        "agency": null,
-        "places": [],
-        "workMode": null,
-        "remoteScope": null,
-        "timeZones": null,
-        "pay": null,
-        "contract": null,
-        "seniority": null,
-        "workPermit": null,
-        "skills": [],
-        "languages": [],
-        "applyUrl": null,
-        "extra": {}
-      }
-    ]
-  },
-  "<maria-0102@grachtwerk.example>": {
-    "roles": [
-      {
-        "title": "Backend Engineer",
-        "company": "Zuidas Payments",
-        "agency": {
-          "name": "Grachtwerk Recruitment",
-          "client": "Zuidas Payments"
-        },
-        "places": [
-          {
-            "country": "NL",
-            "city": "Amsterdam"
-          }
-        ],
-        "workMode": "hybrid",
-        "remoteScope": null,
-        "timeZones": null,
-        "pay": null,
-        "contract": "tijdelijk contract van 12 maanden",
-        "seniority": null,
-        "workPermit": null,
-        "skills": [
-          "Kotlin",
-          "AWS"
-        ],
-        "languages": [
-          "Nederlands",
-          "Engels"
-        ],
-        "applyUrl": "https://careers.grachtwerk.example/jobs/3051",
-        "extra": {}
-      }
-    ]
-  },
-  "<maria-0082@northbridge-talent.example>": {
-    "roles": [
-      {
-        "title": "Backend Engineer (Kotlin)",
-        "company": "Orbitly",
-        "agency": {
-          "name": "Northbridge Talent",
-          "client": "Orbitly"
-        },
-        "places": [
-          {
-            "country": "IE",
-            "city": "Dublin"
-          }
-        ],
-        "workMode": "onsite",
-        "remoteScope": null,
-        "timeZones": null,
-        "pay": {
-          "min": 75000,
-          "max": 90000,
-          "currency": "EUR",
-          "period": "year",
-          "asWritten": "€75,000–90,000 a year"
-        },
-        "contract": null,
-        "seniority": null,
-        "workPermit": null,
-        "skills": [],
-        "languages": [
-          "English",
-          "Spanish"
-        ],
-        "applyUrl": "https://careers.northbridge-talent.example/jobs/1335",
-        "extra": {}
       }
     ]
   },
@@ -1364,166 +587,6 @@
       }
     ]
   },
-  "<maria-0081@atlantictech.example>": {
-    "roles": [
-      {
-        "title": "Site Reliability Engineer",
-        "company": "Orbitly",
-        "agency": {
-          "name": "Atlantic Tech Search",
-          "client": "Orbitly"
-        },
-        "places": [
-          {
-            "country": "ES",
-            "city": "Barcelona"
-          }
-        ],
-        "workMode": "hybrid",
-        "remoteScope": null,
-        "timeZones": null,
-        "pay": {
-          "min": 60000,
-          "max": 75000,
-          "currency": "EUR",
-          "period": "year",
-          "asWritten": "€60,000–75,000 a year"
-        },
-        "contract": null,
-        "seniority": null,
-        "workPermit": null,
-        "skills": [
-          "TypeScript",
-          "Python",
-          "PostgreSQL",
-          "Kotlin"
-        ],
-        "languages": [],
-        "applyUrl": null,
-        "extra": {}
-      }
-    ]
-  },
-  "<maria-0014@inbox.example>": {
-    "roles": []
-  },
-  "<maria-0154@northbridge-talent.example>": {
-    "roles": [
-      {
-        "title": "Data Engineer",
-        "company": "Orbitly",
-        "agency": {
-          "name": "Northbridge Talent",
-          "client": "Orbitly"
-        },
-        "places": [],
-        "workMode": "remote",
-        "remoteScope": "within the EU",
-        "timeZones": null,
-        "pay": null,
-        "contract": "B2B",
-        "seniority": "Mid-level",
-        "workPermit": null,
-        "skills": [
-          "Kotlin",
-          "Kafka"
-        ],
-        "languages": [
-          "English",
-          "Spanish"
-        ],
-        "applyUrl": "https://careers.northbridge-talent.example/jobs/4421",
-        "extra": {}
-      }
-    ]
-  },
-  "<maria-0094@tidewater.example>": {
-    "roles": [
-      {
-        "title": "Platform Engineer",
-        "company": "Tidewater Systems",
-        "agency": null,
-        "places": [],
-        "workMode": "remote",
-        "remoteScope": "between UTC+0 and UTC+3",
-        "timeZones": {
-          "from": "UTC+00:00",
-          "to": "UTC+03:00"
-        },
-        "pay": {
-          "min": 70000,
-          "max": 90000,
-          "currency": "EUR",
-          "period": "year",
-          "asWritten": "€70,000–90,000 a year"
-        },
-        "contract": null,
-        "seniority": "Lead",
-        "workPermit": null,
-        "skills": [
-          "TypeScript",
-          "AWS",
-          "gRPC",
-          "PostgreSQL"
-        ],
-        "languages": [],
-        "applyUrl": null,
-        "extra": {}
-      }
-    ]
-  },
-  "<maria-0013@polder-talent.example>": {
-    "roles": [
-      {
-        "title": "Platform Engineer",
-        "company": "Kanaalstraat Labs",
-        "agency": {
-          "name": "Polder Talent",
-          "client": "Kanaalstraat Labs"
-        },
-        "places": [],
-        "workMode": "remote",
-        "remoteScope": "binnen Nederland",
-        "timeZones": null,
-        "pay": null,
-        "contract": "vast contract",
-        "seniority": "Medior",
-        "workPermit": null,
-        "skills": [
-          "Redis",
-          "PostgreSQL",
-          "Kotlin",
-          "Go"
-        ],
-        "languages": [
-          "Engels"
-        ],
-        "applyUrl": null,
-        "extra": {}
-      }
-    ]
-  },
-  "<maria-0230@myworkday.com>": {
-    "roles": [
-      {
-        "title": "Backend Developer",
-        "company": "Brightwave Health",
-        "agency": null,
-        "places": [],
-        "workMode": null,
-        "remoteScope": null,
-        "timeZones": null,
-        "pay": null,
-        "contract": null,
-        "seniority": null,
-        "workPermit": null,
-        "skills": [],
-        "languages": [],
-        "applyUrl": null,
-        "extra": {}
-      }
-    ]
-  },
   "<maria-0063@net-empregos.com>": {
     "roles": [
       {
@@ -1595,155 +658,8 @@
       }
     ]
   },
-  "<maria-0211@personio.de>": {
-    "roles": [
-      {
-        "title": "Backend-Entwickler (m/w/d)",
-        "company": "Spreeblick Mobility GmbH",
-        "agency": null,
-        "places": [],
-        "workMode": null,
-        "remoteScope": null,
-        "timeZones": null,
-        "pay": null,
-        "contract": null,
-        "seniority": null,
-        "workPermit": null,
-        "skills": [],
-        "languages": [],
-        "applyUrl": null,
-        "extra": {}
-      }
-    ]
-  },
-  "<maria-0226@smartrecruiters.com>": {
-    "roles": [
-      {
-        "title": "Backend Developer",
-        "company": "Brightwave Health",
-        "agency": null,
-        "places": [],
-        "workMode": null,
-        "remoteScope": null,
-        "timeZones": null,
-        "pay": null,
-        "contract": null,
-        "seniority": null,
-        "workPermit": null,
-        "skills": [],
-        "languages": [],
-        "applyUrl": null,
-        "extra": {}
-      }
-    ]
-  },
-  "<maria-0107@brightwave.example>": {
-    "roles": [
-      {
-        "title": "Platform Engineer",
-        "company": "Brightwave Health",
-        "agency": null,
-        "places": [
-          {
-            "country": "ES",
-            "city": "Barcelona"
-          }
-        ],
-        "workMode": "hybrid",
-        "remoteScope": null,
-        "timeZones": null,
-        "pay": null,
-        "contract": "freelance",
-        "seniority": "Senior",
-        "workPermit": null,
-        "skills": [],
-        "languages": [
-          "English"
-        ],
-        "applyUrl": null,
-        "extra": {}
-      }
-    ]
-  },
-  "<maria-0167@tidewater.example>": {
-    "roles": [
-      {
-        "title": "Backend Engineer",
-        "company": "Tidewater Systems",
-        "agency": null,
-        "places": [
-          {
-            "country": "DE",
-            "city": "Berlin"
-          }
-        ],
-        "workMode": "onsite",
-        "remoteScope": null,
-        "timeZones": null,
-        "pay": {
-          "min": 400,
-          "max": 500,
-          "currency": "EUR",
-          "period": "day",
-          "asWritten": "€400–500 a day"
-        },
-        "contract": "B2B",
-        "seniority": "Staff",
-        "workPermit": null,
-        "skills": [
-          "Kotlin",
-          "TypeScript",
-          "PostgreSQL"
-        ],
-        "languages": [
-          "English",
-          "German"
-        ],
-        "applyUrl": "https://careers.tidewater.example/jobs/5363",
-        "extra": {}
-      }
-    ]
-  },
-  "<maria-0096@polder-talent.example>": {
-    "roles": [
-      {
-        "title": "Platform Engineer",
-        "company": null,
-        "agency": {
-          "name": "Polder Talent",
-          "client": null
-        },
-        "places": [
-          {
-            "country": "NL",
-            "city": "Rotterdam"
-          }
-        ],
-        "workMode": "onsite",
-        "remoteScope": null,
-        "timeZones": null,
-        "pay": {
-          "min": 60000,
-          "max": 80000,
-          "currency": "EUR",
-          "period": "year",
-          "asWritten": "€ 60.000 – € 80.000 bruto per jaar"
-        },
-        "contract": "tijdelijk contract van 12 maanden",
-        "seniority": null,
-        "workPermit": "werkvergunning voor de EU",
-        "skills": [
-          "Go",
-          "TypeScript"
-        ],
-        "languages": [
-          "Nederlands",
-          "Engels"
-        ],
-        "applyUrl": null,
-        "extra": {}
-      }
-    ]
+  "<maria-0012@inbox.example>": {
+    "roles": []
   },
   "<maria-0061@stepstone.de>": {
     "roles": [
@@ -1811,6 +727,138 @@
         "skills": [],
         "languages": [],
         "applyUrl": "https://www.stepstone.de/stellenangebote--3171905853-inline.html",
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-0001@talentbruecke.example>": {
+    "roles": [
+      {
+        "title": "Senior Backend-Entwickler (m/w/d)",
+        "company": "Spreeblick Mobility GmbH",
+        "agency": {
+          "name": "Talentbrücke Recruiting",
+          "client": "Spreeblick Mobility GmbH"
+        },
+        "places": [
+          {
+            "country": "DE",
+            "city": "Berlin"
+          }
+        ],
+        "workMode": "hybrid",
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": {
+          "min": 75000,
+          "max": 85000,
+          "currency": "EUR",
+          "period": "year",
+          "asWritten": "75.000–85.000 € brutto pro Jahr"
+        },
+        "contract": "unbefristet",
+        "seniority": "Senior",
+        "workPermit": null,
+        "skills": [
+          "Go",
+          "PostgreSQL",
+          "Kubernetes"
+        ],
+        "languages": [
+          "Englisch"
+        ],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-0014@inbox.example>": {
+    "roles": []
+  },
+  "<maria-0004@hirewave.example>": {
+    "roles": [
+      {
+        "title": "Python Developer",
+        "company": null,
+        "agency": {
+          "name": "HireWave",
+          "client": null
+        },
+        "places": [],
+        "workMode": "remote",
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": null,
+        "contract": null,
+        "seniority": null,
+        "workPermit": null,
+        "skills": [],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-0006@globalcareers-mail.example>": {
+    "roles": [
+      {
+        "title": "Remote Software Engineer",
+        "company": "Global Careers International",
+        "agency": null,
+        "places": [],
+        "workMode": "remote",
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": {
+          "min": 6500,
+          "max": 6500,
+          "currency": "USD",
+          "period": "month",
+          "asWritten": "USD 6,500 per month"
+        },
+        "contract": null,
+        "seniority": null,
+        "workPermit": null,
+        "skills": [],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-0011@talentbruecke.example>": {
+    "roles": [
+      {
+        "title": "Go-Entwickler (m/w/d)",
+        "company": null,
+        "agency": {
+          "name": "Talentbrücke Recruiting",
+          "client": null
+        },
+        "places": [],
+        "workMode": "remote",
+        "remoteScope": "innerhalb Deutschlands",
+        "timeZones": null,
+        "pay": {
+          "min": 70000,
+          "max": 85000,
+          "currency": "EUR",
+          "period": "year",
+          "asWritten": "70.000–85.000 € brutto pro Jahr"
+        },
+        "contract": null,
+        "seniority": "Professional",
+        "workPermit": null,
+        "skills": [
+          "Python",
+          "Kubernetes",
+          "AWS"
+        ],
+        "languages": [
+          "Deutsch",
+          "Englisch"
+        ],
+        "applyUrl": null,
         "extra": {}
       }
     ]
@@ -1929,6 +977,37 @@
       }
     ]
   },
+  "<maria-0013@polder-talent.example>": {
+    "roles": [
+      {
+        "title": "Platform Engineer",
+        "company": "Kanaalstraat Labs",
+        "agency": {
+          "name": "Polder Talent",
+          "client": "Kanaalstraat Labs"
+        },
+        "places": [],
+        "workMode": "remote",
+        "remoteScope": "binnen Nederland",
+        "timeZones": null,
+        "pay": null,
+        "contract": "vast contract",
+        "seniority": "Medior",
+        "workPermit": null,
+        "skills": [
+          "Redis",
+          "PostgreSQL",
+          "Kotlin",
+          "Go"
+        ],
+        "languages": [
+          "Engels"
+        ],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
   "<maria-0135@atlantictech.example>": {
     "roles": [
       {
@@ -1961,6 +1040,42 @@
           "English"
         ],
         "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-0148@quaysidebank.example>": {
+    "roles": [
+      {
+        "title": "Software Engineer, Payments",
+        "company": "Quayside Bank",
+        "agency": null,
+        "places": [
+          {
+            "country": "NL",
+            "city": "Amsterdam"
+          }
+        ],
+        "workMode": "hybrid",
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": {
+          "min": 400,
+          "max": 500,
+          "currency": "EUR",
+          "period": "day",
+          "asWritten": "€400–500 a day"
+        },
+        "contract": "freelance",
+        "seniority": null,
+        "workPermit": null,
+        "skills": [
+          "Kafka",
+          "TypeScript",
+          "Terraform"
+        ],
+        "languages": [],
+        "applyUrl": "https://careers.quaysidebank.example/jobs/9822",
         "extra": {}
       }
     ]
@@ -2106,6 +1221,77 @@
       }
     ]
   },
+  "<maria-0172@rheinpfad.example>": {
+    "roles": [
+      {
+        "title": "Backend Engineer (m/w/d)",
+        "company": "Rheinpfad Energie AG",
+        "agency": null,
+        "places": [
+          {
+            "country": "DE",
+            "city": "Berlin"
+          }
+        ],
+        "workMode": "hybrid",
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": {
+          "min": 450,
+          "max": 550,
+          "currency": "EUR",
+          "period": "day",
+          "asWritten": "450–550 € pro Tag"
+        },
+        "contract": "freiberuflich",
+        "seniority": null,
+        "workPermit": null,
+        "skills": [
+          "Python",
+          "Java",
+          "Kotlin",
+          "TypeScript"
+        ],
+        "languages": [
+          "Englisch"
+        ],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-0131@rheinpfad.example>": {
+    "roles": [
+      {
+        "title": "Platform Engineer (m/w/d)",
+        "company": "Rheinpfad Energie AG",
+        "agency": null,
+        "places": [],
+        "workMode": "remote",
+        "remoteScope": "innerhalb der EU",
+        "timeZones": null,
+        "pay": {
+          "min": 55000,
+          "max": 70000,
+          "currency": "EUR",
+          "period": "year",
+          "asWritten": "55.000–70.000 € brutto pro Jahr"
+        },
+        "contract": "befristet auf 12 Monate",
+        "seniority": null,
+        "workPermit": "Arbeitserlaubnis für die EU",
+        "skills": [
+          "PostgreSQL",
+          "Java",
+          "AWS",
+          "Terraform"
+        ],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
   "<maria-0016@inbox.example>": {
     "roles": []
   },
@@ -2239,6 +1425,58 @@
       }
     ]
   },
+  "<maria-0228@teamtailor.com>": {
+    "roles": [
+      {
+        "title": "Backend Engineer",
+        "company": "Lumen Freight",
+        "agency": null,
+        "places": [],
+        "workMode": null,
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": null,
+        "contract": null,
+        "seniority": null,
+        "workPermit": null,
+        "skills": [],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-0144@alfamalabs.example>": {
+    "roles": [
+      {
+        "title": "Programador(a) Backend",
+        "company": "Alfama Labs",
+        "agency": null,
+        "places": [],
+        "workMode": "remote",
+        "remoteScope": "em qualquer país da UE",
+        "timeZones": null,
+        "pay": {
+          "min": 45000,
+          "max": 55000,
+          "currency": "EUR",
+          "period": "year",
+          "asWritten": "45.000–55.000 € brutos por ano"
+        },
+        "contract": null,
+        "seniority": "Intermédio",
+        "workPermit": null,
+        "skills": [
+          "PostgreSQL",
+          "AWS",
+          "Java"
+        ],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
   "<maria-0057@indeed.com>": {
     "roles": [
       {
@@ -2317,6 +1555,27 @@
         "skills": [],
         "languages": [],
         "applyUrl": "https://www.indeed.com/viewjob?jk=bf24a684",
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-0209@personio.de>": {
+    "roles": [
+      {
+        "title": "Senior Backend Engineer (m/w/d)",
+        "company": "Elbwerk Software GmbH",
+        "agency": null,
+        "places": [],
+        "workMode": null,
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": null,
+        "contract": null,
+        "seniority": "Senior",
+        "workPermit": null,
+        "skills": [],
+        "languages": [],
+        "applyUrl": null,
         "extra": {}
       }
     ]
@@ -2517,23 +1776,17 @@
       }
     ]
   },
-  "<maria-0006@globalcareers-mail.example>": {
+  "<maria-0199@smartrecruiters.com>": {
     "roles": [
       {
-        "title": "Remote Software Engineer",
-        "company": "Global Careers International",
+        "title": "Platform Engineer",
+        "company": "Brightwave Health",
         "agency": null,
         "places": [],
-        "workMode": "remote",
+        "workMode": null,
         "remoteScope": null,
         "timeZones": null,
-        "pay": {
-          "min": 6500,
-          "max": 6500,
-          "currency": "USD",
-          "period": "month",
-          "asWritten": "USD 6,500 per month"
-        },
+        "pay": null,
         "contract": null,
         "seniority": null,
         "workPermit": null,
@@ -2617,6 +1870,44 @@
           "Englisch"
         ],
         "applyUrl": "https://careers.rheinpfad.example/jobs/3292",
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-0080@grachtwerk.example>": {
+    "roles": [
+      {
+        "title": "Platform Engineer",
+        "company": null,
+        "agency": {
+          "name": "Grachtwerk Recruitment",
+          "client": null
+        },
+        "places": [
+          {
+            "country": "NL",
+            "city": "Utrecht"
+          }
+        ],
+        "workMode": "onsite",
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": {
+          "min": 80000,
+          "max": 90000,
+          "currency": "EUR",
+          "period": "year",
+          "asWritten": "€ 80.000 – € 90.000 bruto per jaar"
+        },
+        "contract": "tijdelijk contract van 12 maanden",
+        "seniority": "Senior",
+        "workPermit": null,
+        "skills": [],
+        "languages": [
+          "Nederlands",
+          "Engels"
+        ],
+        "applyUrl": null,
         "extra": {}
       }
     ]
@@ -2792,6 +2083,42 @@
       }
     ]
   },
+  "<maria-0116@quaysidebank.example>": {
+    "roles": [
+      {
+        "title": "Python Backend Developer",
+        "company": "Quayside Bank",
+        "agency": null,
+        "places": [
+          {
+            "country": "DE",
+            "city": "Berlin"
+          }
+        ],
+        "workMode": "onsite",
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": {
+          "min": 80000,
+          "max": 100000,
+          "currency": "EUR",
+          "period": "year",
+          "asWritten": "€80,000–100,000 a year"
+        },
+        "contract": null,
+        "seniority": "Senior",
+        "workPermit": "right to work in the EU",
+        "skills": [
+          "Terraform",
+          "Redis",
+          "Kubernetes"
+        ],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
   "<maria-0115@alfamalabs.example>": {
     "roles": [
       {
@@ -2846,6 +2173,106 @@
       }
     ]
   },
+  "<maria-0126@dourofintech.example>": {
+    "roles": [
+      {
+        "title": "Engenheiro(a) de Backend",
+        "company": "Douro Fintech",
+        "agency": null,
+        "places": [
+          {
+            "country": "PT",
+            "city": "Coimbra"
+          }
+        ],
+        "workMode": "hybrid",
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": {
+          "min": 55000,
+          "max": 70000,
+          "currency": "EUR",
+          "period": "year",
+          "asWritten": "55.000–70.000 € brutos por ano"
+        },
+        "contract": null,
+        "seniority": "Sénior",
+        "workPermit": null,
+        "skills": [
+          "Redis",
+          "Java",
+          "Go"
+        ],
+        "languages": [],
+        "applyUrl": "https://careers.dourofintech.example/jobs/9918",
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-0136@grachtwerk.example>": {
+    "roles": [
+      {
+        "title": "Backend Developer",
+        "company": null,
+        "agency": {
+          "name": "Grachtwerk Recruitment",
+          "client": null
+        },
+        "places": [
+          {
+            "country": "NL",
+            "city": "Amsterdam"
+          }
+        ],
+        "workMode": "hybrid",
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": {
+          "min": 65000,
+          "max": 80000,
+          "currency": "EUR",
+          "period": "year",
+          "asWritten": "€ 65.000 – € 80.000 bruto per jaar"
+        },
+        "contract": "tijdelijk contract van 12 maanden",
+        "seniority": "Senior",
+        "workPermit": "werkvergunning voor de EU",
+        "skills": [
+          "Python",
+          "Kotlin",
+          "Terraform",
+          "TypeScript"
+        ],
+        "languages": [
+          "Nederlands",
+          "Engels"
+        ],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-0207@hire.lever.co>": {
+    "roles": [
+      {
+        "title": "Backend Engineer",
+        "company": "Copperleaf Analytics",
+        "agency": null,
+        "places": [],
+        "workMode": null,
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": null,
+        "contract": null,
+        "seniority": null,
+        "workPermit": null,
+        "skills": [],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
   "<maria-0109@talentbruecke.example>": {
     "roles": [
       {
@@ -2875,6 +2302,44 @@
         ],
         "languages": [],
         "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-0151@atlantico-talent.example>": {
+    "roles": [
+      {
+        "title": "Programador(a) Java",
+        "company": null,
+        "agency": {
+          "name": "Atlântico Talent",
+          "client": null
+        },
+        "places": [
+          {
+            "country": "PT",
+            "city": "Lisboa"
+          }
+        ],
+        "workMode": "hybrid",
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": {
+          "min": 50000,
+          "max": 65000,
+          "currency": "EUR",
+          "period": "year",
+          "asWritten": "50.000–65.000 € brutos por ano"
+        },
+        "contract": null,
+        "seniority": "Intermédio",
+        "workPermit": null,
+        "skills": [
+          "TypeScript",
+          "Terraform"
+        ],
+        "languages": [],
+        "applyUrl": "https://careers.atlantico-talent.example/jobs/5654",
         "extra": {}
       }
     ]
@@ -3155,6 +2620,77 @@
       }
     ]
   },
+  "<maria-0201@greenhouse-mail.io>": {
+    "roles": [
+      {
+        "title": "Backend Developer",
+        "company": "Lumen Freight",
+        "agency": null,
+        "places": [],
+        "workMode": null,
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": null,
+        "contract": null,
+        "seniority": null,
+        "workPermit": null,
+        "skills": [],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-0216@personio.de>": {
+    "roles": [
+      {
+        "title": "Backend-Entwickler (m/w/d)",
+        "company": "Elbwerk Software GmbH",
+        "agency": null,
+        "places": [],
+        "workMode": null,
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": null,
+        "contract": null,
+        "seniority": null,
+        "workPermit": null,
+        "skills": [],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-0198@alfamalabs.example>": {
+    "roles": [
+      {
+        "title": "Engenheiro(a) de Backend",
+        "company": "Alfama Labs",
+        "agency": null,
+        "places": [
+          {
+            "country": "PT",
+            "city": "Coimbra"
+          }
+        ],
+        "workMode": "hybrid",
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": null,
+        "contract": null,
+        "seniority": "Intermédio",
+        "workPermit": null,
+        "skills": [
+          "Kafka",
+          "Kubernetes"
+        ],
+        "languages": [],
+        "applyUrl": "https://careers.alfamalabs.example/jobs/8002",
+        "extra": {}
+      }
+    ]
+  },
   "<maria-0071@linkedin.com>": {
     "roles": [
       {
@@ -3243,6 +2779,121 @@
       }
     ]
   },
+  "<maria-0157@isar-personal.example>": {
+    "roles": [
+      {
+        "title": "Backend-Entwickler (m/w/d)",
+        "company": null,
+        "agency": {
+          "name": "Isar Personal",
+          "client": null
+        },
+        "places": [
+          {
+            "country": "DE",
+            "city": "München"
+          }
+        ],
+        "workMode": "hybrid",
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": null,
+        "contract": null,
+        "seniority": null,
+        "workPermit": "Arbeitserlaubnis für die EU",
+        "skills": [
+          "Kotlin",
+          "Python",
+          "TypeScript"
+        ],
+        "languages": [],
+        "applyUrl": "https://careers.isar-personal.example/jobs/8708",
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-0232@greenhouse-mail.io>": {
+    "roles": [
+      {
+        "title": "Backend Developer",
+        "company": "Quayside Bank",
+        "agency": null,
+        "places": [],
+        "workMode": null,
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": null,
+        "contract": null,
+        "seniority": null,
+        "workPermit": null,
+        "skills": [],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-0195@dourofintech.example>": {
+    "roles": [
+      {
+        "title": "Engenheiro(a) de Backend",
+        "company": "Douro Fintech",
+        "agency": null,
+        "places": [
+          {
+            "country": "PT",
+            "city": "Braga"
+          }
+        ],
+        "workMode": "hybrid",
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": {
+          "min": 50000,
+          "max": 65000,
+          "currency": "EUR",
+          "period": "year",
+          "asWritten": "50.000–65.000 € brutos por ano"
+        },
+        "contract": null,
+        "seniority": null,
+        "workPermit": null,
+        "skills": [
+          "gRPC",
+          "Python",
+          "Terraform",
+          "Kotlin"
+        ],
+        "languages": [
+          "português",
+          "inglês"
+        ],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-0202@personio.de>": {
+    "roles": [
+      {
+        "title": "Backend-Entwickler (m/w/d)",
+        "company": "Elbwerk Software GmbH",
+        "agency": null,
+        "places": [],
+        "workMode": null,
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": null,
+        "contract": null,
+        "seniority": null,
+        "workPermit": null,
+        "skills": [],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
   "<maria-0118@dijkstra-logistics.example>": {
     "roles": [
       {
@@ -3271,6 +2922,79 @@
         ],
         "languages": [],
         "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-0102@grachtwerk.example>": {
+    "roles": [
+      {
+        "title": "Backend Engineer",
+        "company": "Zuidas Payments",
+        "agency": {
+          "name": "Grachtwerk Recruitment",
+          "client": "Zuidas Payments"
+        },
+        "places": [
+          {
+            "country": "NL",
+            "city": "Amsterdam"
+          }
+        ],
+        "workMode": "hybrid",
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": null,
+        "contract": "tijdelijk contract van 12 maanden",
+        "seniority": null,
+        "workPermit": null,
+        "skills": [
+          "Kotlin",
+          "AWS"
+        ],
+        "languages": [
+          "Nederlands",
+          "Engels"
+        ],
+        "applyUrl": "https://careers.grachtwerk.example/jobs/3051",
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-0082@northbridge-talent.example>": {
+    "roles": [
+      {
+        "title": "Backend Engineer (Kotlin)",
+        "company": "Orbitly",
+        "agency": {
+          "name": "Northbridge Talent",
+          "client": "Orbitly"
+        },
+        "places": [
+          {
+            "country": "IE",
+            "city": "Dublin"
+          }
+        ],
+        "workMode": "onsite",
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": {
+          "min": 75000,
+          "max": 90000,
+          "currency": "EUR",
+          "period": "year",
+          "asWritten": "€75,000–90,000 a year"
+        },
+        "contract": null,
+        "seniority": null,
+        "workPermit": null,
+        "skills": [],
+        "languages": [
+          "English",
+          "Spanish"
+        ],
+        "applyUrl": "https://careers.northbridge-talent.example/jobs/1335",
         "extra": {}
       }
     ]
@@ -3467,8 +3191,113 @@
       }
     ]
   },
+  "<maria-0081@atlantictech.example>": {
+    "roles": [
+      {
+        "title": "Site Reliability Engineer",
+        "company": "Orbitly",
+        "agency": {
+          "name": "Atlantic Tech Search",
+          "client": "Orbitly"
+        },
+        "places": [
+          {
+            "country": "ES",
+            "city": "Barcelona"
+          }
+        ],
+        "workMode": "hybrid",
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": {
+          "min": 60000,
+          "max": 75000,
+          "currency": "EUR",
+          "period": "year",
+          "asWritten": "€60,000–75,000 a year"
+        },
+        "contract": null,
+        "seniority": null,
+        "workPermit": null,
+        "skills": [
+          "TypeScript",
+          "Python",
+          "PostgreSQL",
+          "Kotlin"
+        ],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
   "<maria-0237@atlantictech.example>": {
     "roles": []
+  },
+  "<maria-0154@northbridge-talent.example>": {
+    "roles": [
+      {
+        "title": "Data Engineer",
+        "company": "Orbitly",
+        "agency": {
+          "name": "Northbridge Talent",
+          "client": "Orbitly"
+        },
+        "places": [],
+        "workMode": "remote",
+        "remoteScope": "within the EU",
+        "timeZones": null,
+        "pay": null,
+        "contract": "B2B",
+        "seniority": "Mid-level",
+        "workPermit": null,
+        "skills": [
+          "Kotlin",
+          "Kafka"
+        ],
+        "languages": [
+          "English",
+          "Spanish"
+        ],
+        "applyUrl": "https://careers.northbridge-talent.example/jobs/4421",
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-0094@tidewater.example>": {
+    "roles": [
+      {
+        "title": "Platform Engineer",
+        "company": "Tidewater Systems",
+        "agency": null,
+        "places": [],
+        "workMode": "remote",
+        "remoteScope": "between UTC+0 and UTC+3",
+        "timeZones": {
+          "from": "UTC+00:00",
+          "to": "UTC+03:00"
+        },
+        "pay": {
+          "min": 70000,
+          "max": 90000,
+          "currency": "EUR",
+          "period": "year",
+          "asWritten": "€70,000–90,000 a year"
+        },
+        "contract": null,
+        "seniority": "Lead",
+        "workPermit": null,
+        "skills": [
+          "TypeScript",
+          "AWS",
+          "gRPC",
+          "PostgreSQL"
+        ],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
   },
   "<maria-0173@quaysidebank.example>": {
     "roles": [
@@ -3536,14 +3365,77 @@
       }
     ]
   },
+  "<maria-0230@myworkday.com>": {
+    "roles": [
+      {
+        "title": "Backend Developer",
+        "company": "Brightwave Health",
+        "agency": null,
+        "places": [],
+        "workMode": null,
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": null,
+        "contract": null,
+        "seniority": null,
+        "workPermit": null,
+        "skills": [],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
   "<maria-0020@inbox.example>": {
     "roles": []
+  },
+  "<maria-0211@personio.de>": {
+    "roles": [
+      {
+        "title": "Backend-Entwickler (m/w/d)",
+        "company": "Spreeblick Mobility GmbH",
+        "agency": null,
+        "places": [],
+        "workMode": null,
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": null,
+        "contract": null,
+        "seniority": null,
+        "workPermit": null,
+        "skills": [],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
   },
   "<maria-0220@greenhouse-mail.io>": {
     "roles": [
       {
         "title": "Backend Engineer",
         "company": "Orbitly",
+        "agency": null,
+        "places": [],
+        "workMode": null,
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": null,
+        "contract": null,
+        "seniority": null,
+        "workPermit": null,
+        "skills": [],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-0226@smartrecruiters.com>": {
+    "roles": [
+      {
+        "title": "Backend Developer",
+        "company": "Brightwave Health",
         "agency": null,
         "places": [],
         "workMode": null,
@@ -3592,6 +3484,34 @@
       }
     ]
   },
+  "<maria-0107@brightwave.example>": {
+    "roles": [
+      {
+        "title": "Platform Engineer",
+        "company": "Brightwave Health",
+        "agency": null,
+        "places": [
+          {
+            "country": "ES",
+            "city": "Barcelona"
+          }
+        ],
+        "workMode": "hybrid",
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": null,
+        "contract": "freelance",
+        "seniority": "Senior",
+        "workPermit": null,
+        "skills": [],
+        "languages": [
+          "English"
+        ],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
   "<maria-0142@brightwave.example>": {
     "roles": [
       {
@@ -3615,6 +3535,45 @@
           "English"
         ],
         "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-0167@tidewater.example>": {
+    "roles": [
+      {
+        "title": "Backend Engineer",
+        "company": "Tidewater Systems",
+        "agency": null,
+        "places": [
+          {
+            "country": "DE",
+            "city": "Berlin"
+          }
+        ],
+        "workMode": "onsite",
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": {
+          "min": 400,
+          "max": 500,
+          "currency": "EUR",
+          "period": "day",
+          "asWritten": "€400–500 a day"
+        },
+        "contract": "B2B",
+        "seniority": "Staff",
+        "workPermit": null,
+        "skills": [
+          "Kotlin",
+          "TypeScript",
+          "PostgreSQL"
+        ],
+        "languages": [
+          "English",
+          "German"
+        ],
+        "applyUrl": "https://careers.tidewater.example/jobs/5363",
         "extra": {}
       }
     ]
@@ -3851,6 +3810,47 @@
           "German"
         ],
         "applyUrl": "https://careers.brightwave.example/jobs/8666",
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-0096@polder-talent.example>": {
+    "roles": [
+      {
+        "title": "Platform Engineer",
+        "company": null,
+        "agency": {
+          "name": "Polder Talent",
+          "client": null
+        },
+        "places": [
+          {
+            "country": "NL",
+            "city": "Rotterdam"
+          }
+        ],
+        "workMode": "onsite",
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": {
+          "min": 60000,
+          "max": 80000,
+          "currency": "EUR",
+          "period": "year",
+          "asWritten": "€ 60.000 – € 80.000 bruto per jaar"
+        },
+        "contract": "tijdelijk contract van 12 maanden",
+        "seniority": null,
+        "workPermit": "werkvergunning voor de EU",
+        "skills": [
+          "Go",
+          "TypeScript"
+        ],
+        "languages": [
+          "Nederlands",
+          "Engels"
+        ],
+        "applyUrl": null,
         "extra": {}
       }
     ]
@@ -8730,6 +8730,457 @@
         "skills": [],
         "languages": [],
         "applyUrl": "https://www.stepstone.de/stellenangebote--3683636808-inline.html",
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-deliver-berlin-de@kiezwerk.example>": {
+    "roles": [
+      {
+        "title": "Senior Backend-Entwicklerin (m/w/d)",
+        "company": "Kiezwerk Software GmbH",
+        "agency": null,
+        "places": [
+          {
+            "country": "DE",
+            "city": "Berlin"
+          }
+        ],
+        "workMode": "hybrid",
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": {
+          "min": 80000,
+          "max": 90000,
+          "currency": "EUR",
+          "period": "year",
+          "asWritten": "80.000–90.000 € brutto pro Jahr"
+        },
+        "contract": null,
+        "seniority": "Senior",
+        "workPermit": null,
+        "skills": [
+          "Go",
+          "PostgreSQL",
+          "Kubernetes",
+          "Redis"
+        ],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-deliver-remote-eu@fjordline.example>": {
+    "roles": [
+      {
+        "title": "Senior Backend Engineer",
+        "company": "Fjordline Analytics",
+        "agency": null,
+        "places": [],
+        "workMode": "remote",
+        "remoteScope": "within the EU",
+        "timeZones": {
+          "from": "UTC+01:00",
+          "to": "UTC+02:00"
+        },
+        "pay": {
+          "min": 85000,
+          "max": 95000,
+          "currency": "EUR",
+          "period": "year",
+          "asWritten": "€85,000–95,000 a year"
+        },
+        "contract": "permanent",
+        "seniority": "Senior",
+        "workPermit": null,
+        "skills": [
+          "Go",
+          "Kafka",
+          "PostgreSQL"
+        ],
+        "languages": [
+          "English"
+        ],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-deliver-amsterdam@grachtenbank.example>": {
+    "roles": [
+      {
+        "title": "Backend Engineer",
+        "company": "Grachten Bank",
+        "agency": null,
+        "places": [
+          {
+            "country": "NL",
+            "city": "Amsterdam"
+          }
+        ],
+        "workMode": "hybrid",
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": {
+          "min": 80000,
+          "max": 90000,
+          "currency": "EUR",
+          "period": "year",
+          "asWritten": "€80,000–90,000 a year"
+        },
+        "contract": "permanent",
+        "seniority": null,
+        "workPermit": null,
+        "skills": [
+          "Go"
+        ],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-deliver-singapore@merlion-pay.example>": {
+    "roles": [
+      {
+        "title": "Senior Backend Engineer",
+        "company": "Merlion Pay",
+        "agency": null,
+        "places": [
+          {
+            "country": "SG",
+            "city": "Singapore"
+          }
+        ],
+        "workMode": "onsite",
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": null,
+        "contract": null,
+        "seniority": "Senior",
+        "workPermit": null,
+        "skills": [
+          "Go",
+          "PostgreSQL"
+        ],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-deliver-apac-1@lanterncommerce.example>": {
+    "roles": [
+      {
+        "title": "Senior Backend Engineer",
+        "company": "Lantern Commerce",
+        "agency": null,
+        "places": [],
+        "workMode": "remote",
+        "remoteScope": "from anywhere",
+        "timeZones": {
+          "from": "UTC+08:00",
+          "to": "UTC+08:00"
+        },
+        "pay": {
+          "min": 80000,
+          "max": 95000,
+          "currency": "EUR",
+          "period": "year",
+          "asWritten": "€80,000–95,000 a year"
+        },
+        "contract": "permanent",
+        "seniority": "Senior",
+        "workPermit": null,
+        "skills": [
+          "Go",
+          "PostgreSQL",
+          "Kubernetes"
+        ],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-deliver-apac-2@harborline.example>": {
+    "roles": [
+      {
+        "title": "Backend Developer",
+        "company": "Harborline Logistics",
+        "agency": null,
+        "places": [],
+        "workMode": "remote",
+        "remoteScope": "from anywhere",
+        "timeZones": {
+          "from": "UTC+08:00",
+          "to": "UTC+08:00"
+        },
+        "pay": {
+          "min": 50000,
+          "max": 60000,
+          "currency": "EUR",
+          "period": "year",
+          "asWritten": "€50,000–60,000 a year"
+        },
+        "contract": null,
+        "seniority": null,
+        "workPermit": null,
+        "skills": [
+          "Go",
+          "Redis"
+        ],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-deliver-apac-3@wattledata.example>": {
+    "roles": [
+      {
+        "title": "Backend Engineer",
+        "company": "Wattle Data",
+        "agency": null,
+        "places": [],
+        "workMode": "remote",
+        "remoteScope": null,
+        "timeZones": {
+          "from": "UTC+10:00",
+          "to": "UTC+10:00"
+        },
+        "pay": {
+          "min": 55000,
+          "max": 65000,
+          "currency": "EUR",
+          "period": "year",
+          "asWritten": "€55,000–65,000 a year"
+        },
+        "contract": null,
+        "seniority": null,
+        "workPermit": null,
+        "skills": [
+          "Kotlin",
+          "PostgreSQL"
+        ],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-deliver-data-eng@nordkap-data.example>": {
+    "roles": [
+      {
+        "title": "Data Engineer",
+        "company": "Nordkap Data",
+        "agency": null,
+        "places": [],
+        "workMode": "remote",
+        "remoteScope": "within the EU",
+        "timeZones": null,
+        "pay": {
+          "min": 60000,
+          "max": 65000,
+          "currency": "EUR",
+          "period": "year",
+          "asWritten": "€60,000–65,000 a year"
+        },
+        "contract": null,
+        "seniority": null,
+        "workPermit": null,
+        "skills": [
+          "Python",
+          "SQL",
+          "Apache Airflow",
+          "dbt"
+        ],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-deliver-zurich@limmatledger.example>": {
+    "roles": [
+      {
+        "title": "Senior Backend Engineer",
+        "company": "Limmat Ledger AG",
+        "agency": null,
+        "places": [],
+        "workMode": "remote",
+        "remoteScope": "within the EU and Switzerland",
+        "timeZones": null,
+        "pay": {
+          "min": 120000,
+          "max": 135000,
+          "currency": "CHF",
+          "period": "year",
+          "asWritten": "CHF 120,000–135,000 a year"
+        },
+        "contract": "permanent",
+        "seniority": "Senior",
+        "workPermit": null,
+        "skills": [
+          "Go",
+          "PostgreSQL"
+        ],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {
+          "office": "Zurich"
+        }
+      }
+    ]
+  },
+  "<maria-deliver-basel@rheinknie.example>": {
+    "roles": [
+      {
+        "title": "Senior Backend-Entwickler (m/w/d)",
+        "company": "Rheinknie Health AG",
+        "agency": null,
+        "places": [],
+        "workMode": "remote",
+        "remoteScope": "innerhalb der EU und der Schweiz",
+        "timeZones": null,
+        "pay": {
+          "min": 115000,
+          "max": 135000,
+          "currency": "CHF",
+          "period": "year",
+          "asWritten": "CHF 115.000–135.000 pro Jahr"
+        },
+        "contract": "unbefristet",
+        "seniority": "Senior",
+        "workPermit": null,
+        "skills": [
+          "Go",
+          "Kubernetes"
+        ],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {
+          "office": "Basel"
+        }
+      }
+    ]
+  },
+  "<maria-deliver-dublin@liffeylabs.example>": {
+    "roles": [
+      {
+        "title": "Senior Backend Engineer",
+        "company": "Liffey Labs",
+        "agency": null,
+        "places": [],
+        "workMode": "remote",
+        "remoteScope": "within the EU",
+        "timeZones": null,
+        "pay": {
+          "min": 85000,
+          "max": 100000,
+          "currency": "EUR",
+          "period": "year",
+          "asWritten": "€85,000–100,000 a year"
+        },
+        "contract": "permanent",
+        "seniority": "Senior",
+        "workPermit": null,
+        "skills": [
+          "Go",
+          "PostgreSQL"
+        ],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {
+          "office": "Dublin"
+        }
+      }
+    ]
+  },
+  "<maria-deliver-zurich-2@uetliberg.example>": {
+    "roles": [
+      {
+        "title": "Backend Engineer (Go)",
+        "company": "Uetliberg Systems AG",
+        "agency": null,
+        "places": [],
+        "workMode": "remote",
+        "remoteScope": "within the EU and Switzerland",
+        "timeZones": null,
+        "pay": {
+          "min": 125000,
+          "max": 140000,
+          "currency": "CHF",
+          "period": "year",
+          "asWritten": "CHF 125,000–140,000 a year"
+        },
+        "contract": "permanent",
+        "seniority": null,
+        "workPermit": null,
+        "skills": [
+          "Go"
+        ],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {
+          "office": "Zurich"
+        }
+      }
+    ]
+  },
+  "<maria-deliver-scam@quickhire-global.example>": {
+    "roles": [
+      {
+        "title": "Remote Data Entry Assistant",
+        "company": "QuickHire Global",
+        "agency": null,
+        "places": [],
+        "workMode": "remote",
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": null,
+        "contract": null,
+        "seniority": null,
+        "workPermit": null,
+        "skills": [],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-deliver-freemail@gmail.com>": {
+    "roles": [
+      {
+        "title": "Backend Engineer",
+        "company": "Hanseatic Freight Group",
+        "agency": null,
+        "places": [
+          {
+            "country": "DE",
+            "city": "Hamburg"
+          }
+        ],
+        "workMode": "onsite",
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": {
+          "min": 75000,
+          "max": 85000,
+          "currency": "EUR",
+          "period": "year",
+          "asWritten": "€75,000–85,000 a year"
+        },
+        "contract": null,
+        "seniority": null,
+        "workPermit": null,
+        "skills": [
+          "Java",
+          "PostgreSQL"
+        ],
+        "languages": [],
+        "applyUrl": null,
         "extra": {}
       }
     ]
