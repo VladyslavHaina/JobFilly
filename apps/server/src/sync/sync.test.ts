@@ -8,6 +8,7 @@ import {
   getMailboxSyncStatus,
   getStoredMessages,
   getSyncState,
+  saveEnvelopes,
   stopScan,
 } from "@jobfilly/db";
 import { type MailClient, MailUnavailableError } from "@jobfilly/mail";
@@ -581,6 +582,70 @@ describe("a new UIDVALIDITY (F1.3)", () => {
         uid: 1,
       }),
     ).not.toBeNull();
+  });
+
+  it("still sorts mail a sync held the cursor for, under its new UID, but not the first scan's", async () => {
+    await confirm();
+    // The first scan stored both; it left the first for "Analyze them".
+    const backlog = mailbox.deliver({
+      messageId: "<backlog@agency.example>",
+      date: minutesAgo(90).toISOString(),
+      text: "A role for you.",
+    });
+    await saveEnvelopes(deps.db, ws, [{ envelope: backlog, verdict: "likely_job", reason: null }]);
+    await seedJobMail(deps, ws, mailbox, {
+      messageId: "<sorted@agency.example>",
+      receivedAt: minutesAgo(60),
+    });
+    // A sync stores <a> (UID 3), but the model can't sort it yet: the cursor stays before it.
+    deliver("<a@agency.example>");
+    knownToAi("<a@agency.example>");
+    ai.failNext("classify", "unreachable");
+    await interval();
+    expect(await getSyncState(deps.db, ws, mailboxId, SYNC_FOLDER)).toMatchObject({
+      uidValidity: 100,
+      lastUid: 2,
+    });
+    expect((await getStoredMessages(deps.db, ws, ["<a@agency.example>"]))[0]).toMatchObject({
+      analysisStatus: "pending",
+    });
+    const calls = ai.log.length;
+
+    // The folder is rebuilt without <sorted>: <a> is UID 2 now.
+    mailbox.expunge("<sorted@agency.example>");
+    mailbox.setUidValidity("inbox", 200);
+    deps.clock.advance(INTERVAL);
+    await interval();
+
+    expect(ai.log.slice(calls)).toEqual([
+      { task: "classify.v1", key: "<a@agency.example>" },
+      { task: "extract.v1", key: "<a@agency.example>" },
+    ]);
+    const stored = await getStoredMessages(deps.db, ws, [
+      "<a@agency.example>",
+      "<backlog@agency.example>",
+    ]);
+    const byId = Object.fromEntries(stored.map((m) => [m.envelope.messageId, m]));
+    expect(byId["<a@agency.example>"]).toMatchObject({
+      envelope: { uidValidity: 200, uid: 2 },
+      category: "recruiter_outreach",
+      analysisStatus: "done",
+    });
+    expect(byId["<backlog@agency.example>"]).toMatchObject({
+      envelope: { uidValidity: 200, uid: 1 },
+      analysisStatus: "pending",
+    });
+    expect(stages.calls).toEqual([
+      "sender <a@agency.example>",
+      "cvChoice <a@agency.example>#0",
+      "match <a@agency.example>#0",
+      "reply <a@agency.example>",
+    ]);
+    expect(await getSyncState(deps.db, ws, mailboxId, SYNC_FOLDER)).toMatchObject({
+      uidValidity: 200,
+      lastUid: 2,
+    });
+    expect(logged("sync.completed").at(-1)).toMatchObject({ new: 0, waiting: 0 });
   });
 });
 

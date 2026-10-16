@@ -7,6 +7,7 @@ import {
   getMailboxConnection,
   getStoredMessages,
   getSyncState,
+  listHeldBySync,
   newestStoredUid,
   recordSyncFailure,
   recordSyncSuccess,
@@ -38,7 +39,8 @@ import { open, openAiKey } from "../secrets";
 //
 // - re-indexes by Message-ID (F1.3): every message the mailbox returns that is stored already
 //   gets its new UID, and nothing else changes; after a new UIDVALIDITY that is the whole folder
-//   (logged as sync.uidvalidity_changed), and corrections, decisions and drafts stay;
+//   (logged as sync.uidvalidity_changed), and corrections, decisions and drafts stay; mail the
+//   cursor was held for is still sorted, under its new UID;
 // - sorts the new messages by their headers (stage one) and stores them, then sorts and extracts
 //   the likely job mail with the model (pipeline/analyze.ts), and runs each job message through
 //   the rest of the pipeline (evaluate.ts: sender check, CV choice and match, reply), so it shows
@@ -302,6 +304,17 @@ export async function syncMailbox(
       });
     }
 
+    // After a new UIDVALIDITY the cursor's UIDs name other messages, so what it is held for (mail
+    // an earlier sync stored but the model couldn't sort yet) is found by them before re-indexing.
+    const held =
+      result.changed && cursor.uidValidity !== null
+        ? await listHeldBySync(db, workspaceId, {
+            folderPath: SYNC_FOLDER,
+            uidValidity: cursor.uidValidity,
+            afterUid: cursor.lastUid,
+          })
+        : [];
+
     // Stored messages move to their UIDs now; the rest is new. After a known cursor that is
     // every one of them; reading the whole folder, only what arrived within the scan's window.
     const known = await reindexMessages(db, workspaceId, result.messages);
@@ -322,10 +335,12 @@ export async function syncMailbox(
     ]);
     if (fresh.length > 0) await publish(deps, log, workspaceId, "messages.updated");
 
-    // The new likely job mail, and mail an earlier sync stored but couldn't have sorted yet.
-    // After a new UIDVALIDITY, mail already stored is only re-indexed: what still waits there
-    // is the first scan's, which "Analyze them" handles.
-    const candidates = [...fresh.map((e) => e.messageId), ...(result.changed ? [] : [...known])];
+    // The new likely job mail, and mail an earlier sync stored but couldn't have sorted yet:
+    // after a known cursor, every stored message read is after it. After a new UIDVALIDITY the
+    // whole folder is read, so of the stored mail only what the cursor was held for is sorted
+    // here; the first scan's own mail still waiting is left to "Analyze them".
+    const carried = result.changed ? held.filter((id) => known.has(id)) : [...known];
+    const candidates = [...fresh.map((e) => e.messageId), ...carried];
     const toAnalyze = (await getStoredMessages(db, workspaceId, candidates))
       .filter(waitsForModel)
       .sort(byUid);
