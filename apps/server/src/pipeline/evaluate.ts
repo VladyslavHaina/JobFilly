@@ -2,7 +2,6 @@ import { withinReplyWindow } from "@jobfilly/core";
 import {
   draftHistory,
   getEvaluations,
-  getMailboxConnection,
   getSenderChecks,
   listProfiles,
   listRules,
@@ -22,7 +21,7 @@ import {
   type SenderCheck,
 } from "@jobfilly/schema";
 import type { AppDeps } from "../deps";
-import { open } from "../secrets";
+import { connectMailbox } from "../mailbox";
 import { cvChoiceStage } from "./cv-choice";
 import { matchStage } from "./match";
 import { replyStage } from "./reply";
@@ -92,7 +91,7 @@ export function mailboxSession(deps: AppDeps, ws: string): MailboxSession {
   let opened: Promise<MailClient | null> | null = null;
   return {
     get() {
-      opened ??= openMailbox(deps, ws);
+      opened ??= connectMailbox(deps, ws);
       return opened;
     },
     async close() {
@@ -101,22 +100,6 @@ export function mailboxSession(deps: AppDeps, ws: string): MailboxSession {
       await client?.close().catch(() => {});
     },
   };
-}
-
-/** Opens the workspace's mailbox, or null when none is connected. */
-async function openMailbox(deps: AppDeps, ws: string): Promise<MailClient | null> {
-  const mailbox = await getMailboxConnection(deps.db, ws);
-  if (!mailbox) return null;
-  return deps.mail.connect(
-    {
-      host: mailbox.host,
-      port: mailbox.port,
-      tlsMode: mailbox.tlsMode,
-      username: mailbox.username,
-      password: open(deps.config.secretKey, mailbox.secretCiphertext),
-    },
-    { allowInsecure: deps.config.allowInsecureMail },
-  );
 }
 
 const errorName = (error: unknown) => (error instanceof Error ? error.name : "unknown");
