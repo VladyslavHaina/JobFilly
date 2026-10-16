@@ -5521,3 +5521,16 @@ These make sign-off possible; without them the build goes on and records an open
 - **If you decide otherwise:** Matching by Message-ID when envelopes are saved or a folder is re-indexed would also compare the From address, and a mismatch would be stored as a new message.
 - **Refs:** F1.3; packages/db/src/queries/messages.ts saveEnvelopes
 - **Status:** open
+
+## TBD-441 · Gmail is the only OAuth mail provider
+- **Kind:** decision
+- **Where:** MVP 3 · Spec (owner change before the MVP 3 build)
+- **Context:** MVP 3 F3 planned OAuth sign-in for Microsoft and Google. The owner said on 2026-10-16: "needs to support only gmail, i dont care about microsoft and outlook".
+- **Options:**
+  1. Keep Microsoft and Google OAuth
+  2. Google (Gmail) OAuth only; IMAP with an app password stays open to any provider
+- **Chosen:** Option 2, by the owner. docs/mvp/MVP-3.md F3 structure, F3.2 and S4, and docs/NORTH_STAR.md, now name Google only.
+- **If you decide otherwise:** Restore the Microsoft client settings, F3.2's Microsoft button and S4's Microsoft step.
+- **Refs:** MVP-3 F3.1–F3.3, S4
+- **Status:** accepted
+

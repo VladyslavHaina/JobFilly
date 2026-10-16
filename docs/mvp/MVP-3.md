@@ -84,20 +84,18 @@ writing `profile_history`.
 **Structure**
 
 - `packages/mail`: XOAUTH2 for IMAP and SMTP; SMTP settings per mailbox.
-- `apps/server`: OAuth authorisation-code flow with PKCE for Microsoft and Google, enabled when
-  their client settings are in the environment (`JOBFILLY_MICROSOFT_CLIENT_ID`,
-  `JOBFILLY_MICROSOFT_CLIENT_SECRET`, `JOBFILLY_GOOGLE_CLIENT_ID`, `JOBFILLY_GOOGLE_CLIENT_SECRET`);
-  encrypted tokens with automatic refresh. The test stack overrides each provider's endpoints with
-  `JOBFILLY_<PROVIDER>_AUTHORIZE_URL`, `_TOKEN_URL`, `_IMAP_HOST` and `_SMTP_HOST`; the authorize URL
-  goes through the proxy so the browser can reach it.
+- `apps/server`: OAuth authorisation-code flow with PKCE for Google (Gmail) only, enabled when its
+  client settings are in the environment (`JOBFILLY_GOOGLE_CLIENT_ID`,
+  `JOBFILLY_GOOGLE_CLIENT_SECRET`); encrypted tokens with automatic refresh. The test stack overrides
+  Google's endpoints with `JOBFILLY_GOOGLE_AUTHORIZE_URL`, `_TOKEN_URL`, `_IMAP_HOST` and
+  `_SMTP_HOST`; the authorize URL goes through the proxy so the browser can reach it.
 - `apps/web`: mailboxes list; a mailbox filter in the inbox.
 
 **Acceptance criteria**
 
 - **F3.1** An admin connects several mailboxes to a workspace. Every message shows which mailbox it
   came from, and the inbox can be filtered by mailbox.
-- **F3.2** **Sign in with Microsoft** and **Sign in with Google** appear only when the server has
-  their client settings. Tokens are encrypted and refreshed automatically; a revoked token turns the
+- **F3.2** **Sign in with Google** appears only when the server has its client settings. Tokens are encrypted and refreshed automatically; a revoked token turns the
   mailbox to "Reconnect needed", and nothing is lost. A callback with a wrong `state` is refused.
 - **F3.3** The OAuth flow is tested against the fake authorisation server. IMAP login with the token
   is tested against the test mail server if it supports XOAUTH2, otherwise in an integration test
@@ -223,7 +221,7 @@ header set). Logs capture all three replicas.
 | S1 | **Moving to Germany** 📸 `seed deliver` the Germany batch → Maria presses **Re-run setup**, types the hint → the scan stops → a new intake form proposes German places, EUR per year, permanent → **Confirm** as "Germany permanent" → both profiles listed and on. Logs: `scan.started kind=rerun`, `intake.confirmed`. | F1.1, F1.2 |
 | S2 | **Roles go to the right profile** Munich and Hamburg roles show "→ Germany permanent" with the reason; a remote EU role still shows the first profile → reassign one by hand → its match and CV choice update. Logs: `profile.assigned`. | F1.3, F1.4 |
 | S3 | **Editing by hand** Create a rule by hand: hide roles in UTC+5 or later → it hides the Asia-Pacific roles and says how many → edit its range to UTC+6 or later → change the reply threshold to 80 → switch the rule off → each change says how many roles changed → **Undo** the last change → profile history lists every change with its source. Logs: `profile.updated`, `rule.applied`, `profile.change_undone`. | F2.1–F2.3 |
-| S4 | **Second mailbox** Connect the personal mailbox → its job email appears, marked with that mailbox → filter by mailbox → **Sign in with Microsoft** completes against the fake authorisation server. Probe: the OAuth callback with a wrong `state` → refused. Logs: `mailbox.connected`, `mailbox.oauth_connected`. | F3.1–F3.3 |
+| S4 | **Second mailbox** Connect the personal mailbox → its job email appears, marked with that mailbox → filter by mailbox → **Sign in with Google** completes against the fake authorisation server. Probe: the OAuth callback with a wrong `state` → refused. Logs: `mailbox.connected`, `mailbox.oauth_connected`. | F3.1–F3.3 |
 | S5 | **Send, then undo** 📸 Add SMTP settings to Maria's main mailbox (the preset fills them) → **Test** → open the Berlin draft → **Send** → the confirmation shows recipient, subject, attachment and text → confirm → **Undo** within 10 seconds → `seed inspect smtp` shows nothing → **Send** again and let it go → `seed inspect smtp` shows exactly one message with the exact text, `seed inspect sent maria` one copy, the draft is gone, the activity log shows it. Open another draft's confirmation, then edit the draft → sending asks to confirm again. Probes: a send without a confirmation token, and one with a token for older content → both refused. Logs: `send.confirmed`, `send.undone`, `send.completed`. | F4.1–F4.5, F9.1 |
 | S6 | **Pipeline** 📸 `seed deliver` the pipeline threads → the pipeline shows the offer thread under Offer, the rejection under Rejected, the silent application flagged after 21 days, and the role from two agencies once with both senders → move a role to Interview by hand → it stays there after the next sync. Logs: `pipeline.stage_changed`. | F5.1–F5.3 |
 | S7 | **Sharing with control** Maria changes Tom to **Job pipeline only** → Tom sees roles, matches and the pipeline but no message bodies or drafts; asking the assistant for a message's text gets "not available". Probes: Tom's session on a message body and on a draft → 404 each. Logs: `member.scope_changed`. | F6.1, F6.2, F8.3 |

@@ -17,7 +17,7 @@ them (a partner, a friend, a career coach), who can be invited into their worksp
 
 1. **Sign up.** Anyone who can reach the server can register. Everyone gets their own workspace.
 2. **Connect mail** over IMAP: an app password where the provider offers one, OAuth over IMAP
-   where a provider requires it (Outlook.com, for example).
+   for Gmail. Gmail is the main provider; Microsoft and Outlook sign-in are out of scope.
 3. **Pick an AI provider.** A short guided choice; every provider is an equal option, local or
    cloud. One honest line says which provider reads the mail — no price tables, no lecture.
 4. **First scan:** the last 90 days, smart, and it stops once it's confident.
