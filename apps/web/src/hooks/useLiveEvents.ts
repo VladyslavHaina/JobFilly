@@ -79,15 +79,53 @@ const AREA: Record<LiveEvent["type"], LiveArea[]> = {
   "mailbox.updated": ["mailbox"],
 };
 
-/** Refetches the queries of the area an event touches; mounted once by the app shell. */
+/** A burst of events settles into one refetch: it waits this long after the last event... */
+export const LIVE_SETTLE_MS = 150;
+/** ...but no longer than this after the first, so a steady stream still shows progress. */
+export const LIVE_MAX_WAIT_MS = 1000;
+
+/**
+ * Refetches the queries of the areas events touch; mounted once by the app shell. Processing a
+ * batch sends tens of events within a fraction of a second, so the areas are collected and
+ * invalidated together once the burst settles: one refetch per active query, not one per event.
+ */
 export function useLiveInvalidation(workspaceId: string): { connected: boolean } {
   const client = useQueryClient();
-  return useLiveEvents(workspaceId, (event) => {
-    for (const area of AREA[event.type]) {
-      void client.invalidateQueries({ queryKey: queryKeys.area(workspaceId, area) });
-    }
-    if (event.type === "workspace.updated") {
-      void client.invalidateQueries({ queryKey: queryKeys.workspaces });
-    }
-  });
+  const collect = useRef<(event: LiveEvent) => void>(() => {});
+
+  // One batch per workspace: a switch (or unmount) drops what the old one had collected.
+  useEffect(() => {
+    const pending = new Set<LiveArea | "workspaces">();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let since: number | null = null;
+    const flush = () => {
+      timer = undefined;
+      since = null;
+      const areas = [...pending];
+      pending.clear();
+      for (const area of areas) {
+        void client.invalidateQueries({
+          queryKey:
+            area === "workspaces" ? queryKeys.workspaces : queryKeys.area(workspaceId, area),
+        });
+      }
+    };
+    collect.current = (event) => {
+      for (const area of AREA[event.type]) pending.add(area);
+      if (event.type === "workspace.updated") pending.add("workspaces");
+      const now = Date.now();
+      since ??= now;
+      clearTimeout(timer);
+      timer = setTimeout(
+        flush,
+        Math.max(0, Math.min(LIVE_SETTLE_MS, since + LIVE_MAX_WAIT_MS - now)),
+      );
+    };
+    return () => {
+      clearTimeout(timer);
+      collect.current = () => {};
+    };
+  }, [client, workspaceId]);
+
+  return useLiveEvents(workspaceId, (event) => collect.current(event));
 }
