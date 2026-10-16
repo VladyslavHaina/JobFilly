@@ -76,3 +76,12 @@ export type CvChoice = z.infer<typeof CvChoiceSchema>;
 /** PUT /messages/:messageId/roles/:position/cv: an editor's choice; null goes back to automatic. */
 export const CvChoiceOverrideSchema = z.object({ cvId: z.uuid().nullable() });
 export type CvChoiceOverride = z.infer<typeof CvChoiceOverrideSchema>;
+
+/**
+ * The path of PUT /messages/:messageId/roles/:position/cv: the Message-ID (decoded by the router)
+ * and the role's position, a nonnegative integer like every other role position.
+ */
+export const RoleParamsSchema = z.object({
+  messageId: z.string().min(1),
+  position: z.coerce.number().int().nonnegative(),
+});

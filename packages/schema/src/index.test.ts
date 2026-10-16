@@ -17,6 +17,7 @@ import {
   ExtraAnswerSchema,
   ExtractOutputSchema,
   ExtraQuestionSchema,
+  IntakeAnswerParamsSchema,
   IntakeExtraInputSchema,
   IntakeExtraOutputSchema,
   IntakeProposalSchema,
@@ -36,9 +37,11 @@ import {
   PrefsOutputSchema,
   ProfileEntrySchema,
   ProfileKeySchema,
+  ProfileParamsSchema,
   ProfilePatchSchema,
   profileValueSchema,
   RegisterInputSchema,
+  RoleParamsSchema,
   roleAtLeast,
   StageOneOutcomeSchema,
   StageOneResultSchema,
@@ -505,6 +508,32 @@ describe("path params and the live envelope", () => {
       expect(MemberParamsSchema.safeParse({ userId: bad }).success).toBe(false);
       expect(InviteParamsSchema.safeParse({ inviteId: bad }).success).toBe(false);
       expect(MailboxParamsSchema.safeParse({ mailboxId: bad }).success).toBe(false);
+    }
+  });
+
+  it("take a role's position as a nonnegative integer, coerced from the path", () => {
+    const messageId = "<abc+1/2%3@mail.example>";
+    expect(RoleParamsSchema.parse({ messageId, position: "0" })).toEqual({
+      messageId,
+      position: 0,
+    });
+    expect(RoleParamsSchema.parse({ messageId, position: "12" }).position).toBe(12);
+    // No upper bound, like every other role position.
+    expect(RoleParamsSchema.parse({ messageId, position: "10001" }).position).toBe(10001);
+    for (const bad of ["x", "-1", "1.5", "NaN"]) {
+      expect(RoleParamsSchema.safeParse({ messageId, position: bad }).success).toBe(false);
+    }
+    expect(RoleParamsSchema.safeParse({ messageId: "", position: "0" }).success).toBe(false);
+  });
+
+  it("take a profile by its id and an intake answer by its profile key", () => {
+    expect(ProfileParamsSchema.safeParse({ profileId: id }).success).toBe(true);
+    expect(ProfileParamsSchema.safeParse({ profileId: "xyz" }).success).toBe(false);
+    for (const key of ["min_pay", "reply_window_days", "extra.b2b"]) {
+      expect(IntakeAnswerParamsSchema.safeParse({ key }).success).toBe(true);
+    }
+    for (const key of ["", "spam", "extra.", "extra.Not Slug"]) {
+      expect(IntakeAnswerParamsSchema.safeParse({ key }).success).toBe(false);
     }
   });
 
