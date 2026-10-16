@@ -74,7 +74,10 @@ export type LogEvent =
   // Operational: a mailbox copy a change made, which should have gone again (it lost a race),
   // couldn't be deleted safely (reason delete_failed or uid_unknown), so it may still be in the
   // Drafts folder beside the draft's own copy.
-  | "draft.copy_left";
+  | "draft.copy_left"
+  // Operational: an edit of a draft whose CV was deleted (F2.5) couldn't read the file back from
+  // its mailbox copy (the copy is gone), so the new copy has no attachment.
+  | "draft.attachment_lost";
 
 export type LogFields = Record<string, unknown>;
 

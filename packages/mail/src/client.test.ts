@@ -252,7 +252,7 @@ describe("fetchEnvelopes", () => {
       folder: "inbox",
       since,
     });
-    expect(newest?.messageId).toBe("<inbox.7.3@jobfilly.invalid>");
+    expect(newest?.messageId).toMatch(/^<inbox\.[0-9a-f]{32}@jobfilly\.invalid>$/);
     expect(newest?.snippet).toBe("hello there");
   });
 

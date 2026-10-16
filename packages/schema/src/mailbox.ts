@@ -109,8 +109,8 @@ export const SNIPPET_MAX_LENGTH = 200;
 /**
  * The headers of one message, as packages/mail reads them. `messageId` is the RFC Message-ID,
  * verbatim from the header with its angle brackets, or a stable synthetic
- * "<folder.uidvalidity.uid@jobfilly.invalid>" when the header is missing. Everywhere outside the
- * database primary key a message is named by this string.
+ * "<folder.digest@jobfilly.invalid>" when the header is missing (syntheticMessageId). Everywhere
+ * outside the database primary key a message is named by this string.
  */
 export const EnvelopeSchema = z.object({
   messageId: z.string().min(1),
@@ -154,16 +154,30 @@ export function isMsgId(value: string): boolean {
   return MSG_ID.test(value);
 }
 
-/** The synthetic Message-ID of a message whose header is missing or not of the msg-id shape. */
-export function syntheticMessageId(folder: MailFolder, uidValidity: number, uid: number): string {
-  return `<${folder}.${uidValidity}.${uid}@jobfilly.invalid>`;
-}
-
-const SYNTHETIC_MESSAGE_ID = /^<(inbox|sent)\.\d+\.\d+@jobfilly\.invalid>$/;
+/** A synthetic Message-ID's digest: 32 lower-case hex digits (128 bits of a SHA-256). */
+const DIGEST = /^[0-9a-f]{32}$/;
 
 /**
- * Whether a Message-ID is one syntheticMessageId made up: no message in any mailbox has it, so
- * a reply has nothing to thread to.
+ * The synthetic Message-ID of a message whose header is missing or not of the msg-id shape:
+ * "<inbox.<digest>@jobfilly.invalid>". The digest is of what the message says, never of where it
+ * is (packages/mail hashes its From, Date, Subject and the start of its text), so the message
+ * keeps its id when its folder is rebuilt under a new UIDVALIDITY and is matched again (F1.3).
+ */
+export function syntheticMessageId(folder: MailFolder, digest: string): string {
+  if (!DIGEST.test(digest)) throw new Error("syntheticMessageId: the digest is 32 hex digits");
+  return `<${folder}.${digest}@jobfilly.invalid>`;
+}
+
+/**
+ * Both shapes a synthetic Message-ID has had: the digest one, and the one MVP 1 built from the
+ * folder's UIDVALIDITY and the UID ("<inbox.7.12@jobfilly.invalid>"), which rows stored before
+ * still carry.
+ */
+const SYNTHETIC_MESSAGE_ID = /^<(inbox|sent)\.(\d+\.\d+|[0-9a-f]{32})@jobfilly\.invalid>$/;
+
+/**
+ * Whether a Message-ID is one syntheticMessageId made up (now or before): no message in any
+ * mailbox has it, so a reply has nothing to thread to.
  */
 export function isSyntheticMessageId(messageId: string): boolean {
   return SYNTHETIC_MESSAGE_ID.test(messageId);

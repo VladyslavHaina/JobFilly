@@ -378,6 +378,32 @@ describe("replaceDraft and deleteDraft (F6.4)", () => {
     expect(left).toEqual([keep.draftMessageId, `<x${ref.draftMessageId.slice(1, -1)}x>`]);
   });
 
+  it("reads back the file a saved draft carries, by its Message-ID after a rebuild (F2.5)", async () => {
+    const box = mailbox();
+    const server = fakeServer(box);
+    const client = mailClientWith(conn, secure, server.factory);
+    const ref = await client.saveDraft(input());
+    const bare = await client.saveDraft(input({ attachment: null }));
+    const cv = { fileName: "Backend (DE).pdf", contentType: "application/pdf", bytes: CV };
+    expect(await client.draftAttachment(ref)).toEqual(cv);
+    expect(await client.draftAttachment(bare)).toBeNull();
+    // Read-only: the Drafts folder isn't opened for changes to read it.
+    expect(server.calls.filter((c) => c.startsWith("open-rw"))).toEqual([]);
+
+    // The folder is rebuilt: the copy is found by its Message-ID.
+    const folder = box.contents["[Gmail]/Entwürfe"];
+    if (!folder) throw new Error("no drafts folder");
+    folder.uidValidity = 99;
+    folder.messages = folder.messages.map((m, i) => ({ ...m, uid: i + 10 }));
+    expect(await client.draftAttachment(ref)).toEqual(cv);
+
+    // An edit that takes it from there keeps it on the new copy.
+    const edited = await client.replaceDraft(ref, input({ attachment: cv }));
+    expect(await client.draftAttachment(edited)).toEqual(cv);
+    await client.deleteDraft(edited);
+    expect(await client.draftAttachment(edited)).toBeNull();
+  });
+
   it("fails with MailUnavailableError when the server can't be reached", async () => {
     const box = mailbox();
     const client = mailClientWith(conn, secure, fakeServer(box).factory);
@@ -387,6 +413,7 @@ describe("replaceDraft and deleteDraft (F6.4)", () => {
     await expect(other.deleteDraft(ref)).rejects.toBeInstanceOf(MailUnavailableError);
     await expect(other.replaceDraft(ref, input())).rejects.toBeInstanceOf(MailUnavailableError);
     await expect(other.ensureDraftsFolder()).rejects.toBeInstanceOf(MailUnavailableError);
+    await expect(other.draftAttachment(ref)).rejects.toBeInstanceOf(MailUnavailableError);
   });
 });
 

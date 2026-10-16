@@ -696,7 +696,8 @@ export const senderChecks = pgTable(
 
 /**
  * A pipeline stage that keeps failing for one message (queries/stage-failures.ts): its sender
- * check (stage sender, position -1) or one role's cv-choice and match (stage match). It is tried
+ * check (stage sender, position -1), one role's cv-choice and match (stage match), or its reply
+ * stage (stage reply, position -1: it works on every role of the message at once). It is tried
  * again at the next sweep after its first failure, then with a back-off that doubles up to a cap
  * (retry_at), unless a change makes the item stale again. Stored here, so every replica agrees.
  * `stale_since` is the role evaluation's as it was when the stage failed: a later markStale
@@ -707,7 +708,7 @@ export const stageFailures = pgTable(
   {
     workspaceId: workspaceId(),
     messageId: text("message_id").notNull(),
-    stage: text("stage").$type<"sender" | "match">().notNull(),
+    stage: text("stage").$type<"sender" | "match" | "reply">().notNull(),
     position: integer("position").notNull(),
     failures: integer("failures").notNull(),
     failedAt: at("failed_at").notNull(),
@@ -721,7 +722,7 @@ export const stageFailures = pgTable(
       columns: [t.workspaceId, t.messageId],
       foreignColumns: [messages.workspaceId, messages.messageId],
     }).onDelete("cascade"),
-    check("stage_failures_stage_check", oneOf("stage", ["sender", "match"])),
+    check("stage_failures_stage_check", oneOf("stage", ["sender", "match", "reply"])),
   ],
 );
 
@@ -791,6 +792,12 @@ export const drafts = pgTable(
     body: text("body"),
     language: text("language"),
     cvId: uuid("cv_id"),
+    /**
+     * The file name of the CV attached to the mailbox copy, null when it has none. It stays when
+     * the CV is deleted (cv_id goes null, F2.5): the copy keeps the file, and an edit takes it
+     * from there.
+     */
+    attachmentName: text("attachment_name"),
     /** Where the mailbox copy is. */
     mailboxFolder: text("mailbox_folder"),
     uid: bigint("uid", { mode: "number" }),

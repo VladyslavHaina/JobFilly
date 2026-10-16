@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import {
   type Address,
+  type DraftAttachment,
   type DraftMailInput,
   type DraftRef,
   DraftRefSchema,
@@ -21,8 +22,10 @@ import { usableDate } from "./dates";
 import { buildDraftMime } from "./drafts/index";
 import { FAILURE_MESSAGES, failureReason, isMailFailure, MailError } from "./errors";
 import {
+  attachmentFromSource,
   bodyText,
   conformed,
+  ENVELOPE_SOURCE_BYTES,
   envelopeFromSource,
   fallbackEnvelope,
   originalFromSource,
@@ -114,15 +117,19 @@ export interface MailClient {
    */
   replaceDraft(ref: DraftRef, input: DraftMailInput): Promise<DraftRef>;
   /**
+   * The file attached to a saved draft (its CV), read from the copy in the Drafts folder, found
+   * by its Message-ID when the folder's UIDVALIDITY changed; null when the copy is gone or has
+   * none. An edit made after the CV was deleted (F2.5) attaches the file again from here, so the
+   * attachment the draft was made with stays.
+   */
+  draftAttachment(ref: DraftRef): Promise<DraftAttachment | null>;
+  /**
    * Deletes a saved draft (discard, F6.4), found by its Message-ID when the Drafts folder's
    * UIDVALIDITY changed; a draft already gone is not an error.
    */
   deleteDraft(ref: DraftRef): Promise<void>;
   close(): Promise<void>;
 }
-
-/** Only the start of each message is read for its envelope: the headers and the snippet. */
-const ENVELOPE_SOURCE_BYTES = 64 * 1024;
 
 const SENT_NAME = /^sent( items| messages| mail)?$/i;
 const DRAFTS_NAME = /^drafts?$/i;
@@ -256,7 +263,7 @@ export function mailClientWith(
         uid: message.uid,
         internalDate: usableDate(message.internalDate),
       };
-      const fallback = fallbackEnvelope(info);
+      const fallback = fallbackEnvelope(info, message.source);
       const envelope = await envelopeFromSource(message.source, info).catch(() => fallback);
       const receivedAt = info.internalDate?.toISOString() ?? envelope.date;
       const checked = conformed(
@@ -409,7 +416,7 @@ export function mailClientWith(
           const original = await originalFromSource(message.source, info);
           // Checked on its own, as each envelope is: a field that fails its schema is the
           // fallback envelope's, and every field of that one passes, so it is never refused.
-          const fallback = fallbackEnvelope(info);
+          const fallback = fallbackEnvelope(info, message.source);
           return conformed(OriginalMessageSchema, original, {
             messageId: fallback.messageId,
             references: fallback.references,
@@ -433,6 +440,20 @@ export function mailClientWith(
         // delete then finds nothing) leaves exactly one, never two.
         await remove(s, ref);
         return append(s, input);
+      }),
+
+    draftAttachment: (ref) =>
+      available(async (s) => {
+        const { uidValidity } = await s.open(ref.path);
+        const [uid] =
+          uidValidity === ref.uidValidity
+            ? [ref.uid]
+            : await findByMessageId(s, ref.path, uidValidity, ref.draftMessageId);
+        if (uid === undefined) return null;
+        for await (const message of s.fetch([uid], {})) {
+          if (message.uid === uid) return attachmentFromSource(message.source);
+        }
+        return null;
       }),
 
     deleteDraft: (ref) => available((s) => remove(s, ref)),

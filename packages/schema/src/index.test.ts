@@ -25,6 +25,7 @@ import {
   InviteLinkQuerySchema,
   InviteParamsSchema,
   isMsgId,
+  isSyntheticMessageId,
   JOB_CATEGORIES,
   JobFactsSchema,
   JobPlatformsFileSchema,
@@ -174,7 +175,15 @@ describe("mail", () => {
   it("keeps a Message-ID verbatim and limits the snippet to 200 characters", () => {
     expect(EnvelopeSchema.parse(envelope).messageId).toBe("<abc+1/2%3@mail.example>");
     expect(EnvelopeSchema.safeParse({ ...envelope, snippet: "x".repeat(201) }).success).toBe(false);
-    expect(syntheticMessageId("sent", 7, 9)).toBe("<sent.7.9@jobfilly.invalid>");
+    const digest = "0123456789abcdef0123456789abcdef";
+    expect(syntheticMessageId("sent", digest)).toBe(`<sent.${digest}@jobfilly.invalid>`);
+    expect(() => syntheticMessageId("inbox", "7.9")).toThrow();
+    expect(() => syntheticMessageId("inbox", digest.toUpperCase())).toThrow();
+    // Both shapes are told apart from a real Message-ID: the digest one and MVP 1's by location.
+    expect(isSyntheticMessageId(syntheticMessageId("inbox", digest))).toBe(true);
+    expect(isSyntheticMessageId("<sent.7.9@jobfilly.invalid>")).toBe(true);
+    expect(isSyntheticMessageId("<abc+1/2%3@mail.example>")).toBe(false);
+    expect(isSyntheticMessageId(`<inbox.${digest}@drafts.jobfilly.invalid>`)).toBe(false);
   });
 
   it("knows the msg-id shape: one <...> token, nothing that could hide or break a line", () => {

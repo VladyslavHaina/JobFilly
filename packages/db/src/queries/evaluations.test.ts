@@ -143,7 +143,7 @@ describe("what the pipeline has to evaluate", () => {
     await seedMessage(4, { w: other });
     const list = await listToEvaluate(conn.db, ws);
     expect(list).toEqual([
-      { messageId: id(2), sender: { state: "missing", staleSince: null }, roles: [] },
+      { messageId: id(2), sender: { state: "missing", staleSince: null }, roles: [], reply: false },
       {
         messageId: id(1),
         sender: { state: "missing", staleSince: null },
@@ -151,6 +151,7 @@ describe("what the pipeline has to evaluate", () => {
           { position: 0, state: "missing", staleSince: null },
           { position: 1, state: "missing", staleSince: null },
         ],
+        reply: false,
       },
     ]);
   });
@@ -164,6 +165,7 @@ describe("what the pipeline has to evaluate", () => {
         messageId: id(1),
         sender: null,
         roles: [{ position: 1, state: "missing", staleSince: null }],
+        reply: false,
       },
     ]);
     await saveEvaluation(conn.db, ws, id(1), evaluation(1), t0);

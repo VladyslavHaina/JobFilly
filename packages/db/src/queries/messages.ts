@@ -112,14 +112,24 @@ const CHUNK = 200;
  * what they see through here, so a sender check made while the message couldn't be found in the
  * mailbox (the message_gone signal) goes stale: the message is there again, under the reference
  * just saved, and its sender is checked again with its text.
+ *
+ * One row per Message-ID: two envelopes with the same id (two copies of one message, or two
+ * messages without a Message-ID whose synthetic ids agree because they say the same) are one
+ * message, stored once where the newest copy (the highest UID) is, as reindexMessages keeps it.
  */
 export async function saveEnvelopes(
   db: Database,
   workspaceId: string,
   items: readonly StageOneResult[],
 ): Promise<void> {
-  for (let i = 0; i < items.length; i += CHUNK) {
-    const chunk = items.slice(i, i + CHUNK);
+  const byId = new Map<string, StageOneResult>();
+  for (const item of items) {
+    const seen = byId.get(item.envelope.messageId);
+    if (!seen || item.envelope.uid > seen.envelope.uid) byId.set(item.envelope.messageId, item);
+  }
+  const unique = [...byId.values()];
+  for (let i = 0; i < unique.length; i += CHUNK) {
+    const chunk = unique.slice(i, i + CHUNK);
     await db
       .insert(messages)
       .values(
@@ -182,8 +192,9 @@ export async function saveEnvelopes(
  * evaluations, sender checks and marks, decision links and drafts. A sender check made while
  * the message couldn't be found (message_gone) goes stale, as in saveEnvelopes. Returns the
  * Message-IDs that were stored; the others are new to the workspace. A message without a
- * Message-ID header has a synthetic id built from its UIDVALIDITY and UID, so a rebuilt folder
- * gives it a new one: it can't be matched and comes back as new.
+ * Message-ID header has a synthetic id from what it says (packages/mail), not from its UID, so a
+ * rebuilt folder gives it the same id and it is matched like any other. Only a row stored with
+ * MVP 1's synthetic id (by UIDVALIDITY and UID) can't be matched, and comes back once as new.
  */
 export async function reindexMessages(
   db: Database,

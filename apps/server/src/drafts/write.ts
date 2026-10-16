@@ -294,6 +294,7 @@ export async function createDraft(
     const saved = await markDraftSaved(deps.db, ws, draft.id, {
       ref,
       contentHash: contentHash(mail),
+      attachmentName: mail.attachment?.fileName ?? null,
       now: deps.clock.now(),
     });
     if (!saved) {

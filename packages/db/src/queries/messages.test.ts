@@ -158,6 +158,19 @@ describe("saveEnvelopes", () => {
     expect(n?.n).toBe(1);
   });
 
+  it("stores two envelopes with one Message-ID in one batch once, where the newest is (F1.3)", async () => {
+    const id = "<inbox.0123456789abcdef0123456789abcdef@jobfilly.invalid>";
+    const copies = [7, 3, 5].map((uid) => at(envelope(uid, { messageId: id }), "likely_job"));
+    await saveEnvelopes(conn.db, ws, copies);
+    const stored = await getStoredMessages(conn.db, ws, [id]);
+    expect(stored.map((m) => m.envelope.uid)).toEqual([7]);
+    const [n] = await queryRows<{ n: number }>(
+      conn.db,
+      sql`select count(*)::int as n from messages`,
+    );
+    expect(n?.n).toBe(1);
+  });
+
   it("keeps workspaces apart even for the same Message-ID", async () => {
     await saveEnvelopes(conn.db, ws, [at(envelope(1), "likely_job")]);
     await saveEnvelopes(conn.db, other, [at(envelope(1), "not_job")]);

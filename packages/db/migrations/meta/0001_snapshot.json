@@ -1221,6 +1221,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "attachment_name": {
+          "name": "attachment_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "mailbox_folder": {
           "name": "mailbox_folder",
           "type": "text",
@@ -4246,7 +4252,7 @@
       "checkConstraints": {
         "stage_failures_stage_check": {
           "name": "stage_failures_stage_check",
-          "value": "stage in ('sender', 'match')"
+          "value": "stage in ('sender', 'match', 'reply')"
         }
       },
       "isRLSEnabled": false

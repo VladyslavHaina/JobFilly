@@ -118,6 +118,7 @@ describe("evaluateMessage", () => {
         messageId: "<a@x.example>",
         sender: null,
         roles: [{ position: 0, state: "missing", staleSince: null }],
+        reply: false,
       },
     ]);
   });
@@ -322,6 +323,48 @@ describe("evaluateMessage", () => {
     stages.failing = {};
     expect(await evaluate("<a@x.example>", "reevaluate")).toMatchObject({ evaluated: [0] });
     expect(await listToEvaluate(deps.db, ws, { now: deps.clock.now() })).toEqual([]);
+  });
+
+  it("retries a reply stage that failed, backed off, with nothing else of the message to do", async () => {
+    await confirm();
+    await seedJobMail(deps, ws, mailbox, { messageId: "<a@x.example>", receivedAt: daysAgo(1) });
+    stages.failing.reply = "*";
+    const interval = deps.config.syncIntervalSeconds * 1000;
+
+    // Sender and role are done; only the reply stage failed. The sweep still has work.
+    expect(await evaluate("<a@x.example>")).toMatchObject({ senderChecked: true, evaluated: [0] });
+    expect(await listToEvaluate(deps.db, ws, { now: NOW })).toEqual([
+      { messageId: "<a@x.example>", sender: null, roles: [], reply: true },
+    ]);
+    expect(await listWorkspacesWithWork(deps.db, NOW)).toEqual([ws]);
+
+    // The next sweep runs the reply stage alone, with the stored evaluation; it fails again and
+    // waits one interval.
+    stages.calls.length = 0;
+    await evaluate("<a@x.example>", "reevaluate");
+    expect(stages.calls).toEqual(["reply <a@x.example>"]);
+    expect(stages.replies.at(-1)?.evaluations.map((e) => e.position)).toEqual([0]);
+    const failures = deps.logs.filter(
+      (l) => l.event === "pipeline.stage_failed" && l.stage === "reply",
+    );
+    expect(failures).toMatchObject([
+      { error: "Error", reason: "reply stage failed", failures: 1, retryAt: NOW.toISOString() },
+      { failures: 2, retryAt: new Date(NOW.getTime() + interval).toISOString() },
+    ]);
+
+    // While it waits: no stage call, and the sweep has nothing to do.
+    stages.calls.length = 0;
+    await evaluate("<a@x.example>", "reevaluate");
+    expect(stages.calls).toEqual([]);
+    expect(await listWorkspacesWithWork(deps.db, NOW)).toEqual([]);
+
+    // Once the wait is over it runs again; when it works, nothing is left to do.
+    deps.clock.advance(interval);
+    stages.failing = {};
+    await evaluate("<a@x.example>", "reevaluate");
+    expect(stages.calls).toEqual(["reply <a@x.example>"]);
+    expect(await listToEvaluate(deps.db, ws)).toEqual([]);
+    expect(await listWorkspacesWithWork(deps.db, deps.clock.now())).toEqual([]);
   });
 
   it("backs off a sender check that keeps failing: no stage, mailbox call or log line while it waits", async () => {

@@ -112,6 +112,38 @@ describe("fetchSince (F1.1, F1.3)", () => {
     ]);
   });
 
+  it("gives a message without a Message-ID the same id after the folder is rebuilt (F1.3)", async () => {
+    const noId = (uid: number) => ({
+      uid,
+      internalDate: new Date("2026-10-12T08:00:05Z"),
+      source: message(1).replace("Message-ID: <role-1@agency.example>\n", ""),
+    });
+    const box = mailbox([2]);
+    box.contents.INBOX?.messages.unshift(noId(1));
+    const before = await mailClientWith(conn, secure, fakeServer(box).factory).fetchSince({
+      folder: "inbox",
+      uidValidity: null,
+      afterUid: 0,
+    });
+    const [id, known] = before.messages.map((m) => m.messageId);
+    expect(id).toMatch(/^<inbox\.[0-9a-f]{32}@jobfilly\.invalid>$/);
+    expect(known).toBe("<role-2@agency.example>");
+
+    // Rebuilt: a new UIDVALIDITY, and the message under another UID.
+    const rebuilt = mailbox([1], 8);
+    rebuilt.contents.INBOX?.messages.push(noId(2));
+    const client = mailClientWith(conn, secure, fakeServer(rebuilt).factory);
+    const after = await client.fetchSince({ folder: "inbox", uidValidity: 7, afterUid: 2 });
+    expect(after.changed).toBe(true);
+    expect(after.messages.map((m) => [m.uid, m.uidValidity, m.messageId])).toEqual([
+      [1, 8, "<role-1@agency.example>"],
+      [2, 8, id],
+    ]);
+    // The original a draft replies to has the same id as the envelope the sync stored.
+    const original = await client.fetchOriginal({ folderPath: "INBOX", uidValidity: 8, uid: 2 });
+    expect(original?.messageId).toBe(id);
+  });
+
   it("tells when each message arrived: its INTERNALDATE, not the Date header", async () => {
     const box = mailbox([1]);
     // A sender whose Date header is days off; the server gives no INTERNALDATE for UID 2.

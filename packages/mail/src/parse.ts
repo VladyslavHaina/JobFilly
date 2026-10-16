@@ -1,5 +1,8 @@
+import { createHash } from "node:crypto";
 import {
   type Address,
+  type DraftAttachment,
+  DraftAttachmentSchema,
   type Envelope,
   isMsgId,
   type MailFolder,
@@ -15,6 +18,40 @@ import { usableDate } from "./dates";
 // a message has no plain-text part, so HTML-only mail reads the same; no HTML is ever kept.
 
 const PARSE_OPTIONS = { skipImageLinks: true, skipTextToHtml: true, skipTextLinks: true } as const;
+
+/** Only the start of each message is read for its envelope: the headers and the snippet. */
+export const ENVELOPE_SOURCE_BYTES = 64 * 1024;
+
+/** SHA-256 of the parts, each ended by NUL, as the 32 hex digits a synthetic Message-ID takes. */
+function digest(parts: readonly (string | Uint8Array)[]): string {
+  const hash = createHash("sha256");
+  for (const part of parts) hash.update(part).update("\0");
+  return hash.digest("hex").slice(0, 32);
+}
+
+/**
+ * The synthetic Message-ID of a message without a usable one (F1.3), from what the message says,
+ * never from where it is: its From, Date, Subject and To, and the start of its text (the
+ * snippet, which the envelope and the original read alike). A folder rebuilt under a new
+ * UIDVALIDITY gives the message the same id, so the sync matches it again instead of storing it
+ * twice. Two copies that agree in all of these are one message, and share the id.
+ */
+function contentMessageId(
+  folder: MailFolder,
+  e: Pick<Envelope, "from" | "date" | "subject" | "to" | "snippet">,
+): string {
+  return syntheticMessageId(
+    folder,
+    digest([
+      "content.v1",
+      e.from.address.toLowerCase(),
+      e.date,
+      e.subject,
+      e.to.map((a) => a.address.toLowerCase()).join(","),
+      e.snippet,
+    ]),
+  );
+}
 
 /** A raw header value, unfolded and trimmed, exactly as the sender wrote it; null when absent. */
 function rawHeader(mail: ParsedMail, name: string): string | null {
@@ -93,12 +130,16 @@ export async function envelopeFromSource(source: Buffer, info: SourceInfo): Prom
 
 /**
  * The envelope of a message nothing could be read from: only where it is and when it arrived,
- * under its synthetic Message-ID. Each of its fields is one the schema accepts, so it stands in
- * for any field of a message that fails its schema (conformed).
+ * under a synthetic Message-ID from the digest of its first bytes, which a rebuilt folder gives
+ * back alike. Each of its fields is one the schema accepts, so it stands in for any field of a
+ * message that fails its schema (conformed).
  */
-export function fallbackEnvelope(info: SourceInfo): Envelope {
+export function fallbackEnvelope(info: SourceInfo, source: Uint8Array): Envelope {
   return {
-    messageId: syntheticMessageId(info.folder, info.uidValidity, info.uid),
+    messageId: syntheticMessageId(
+      info.folder,
+      digest(["source.v1", source.subarray(0, ENVELOPE_SOURCE_BYTES)]),
+    ),
     folder: info.folder,
     folderPath: info.folderPath,
     uidValidity: info.uidValidity,
@@ -150,30 +191,35 @@ export function conformed<T extends object>(
 function envelopeOf(mail: ParsedMail, info: SourceInfo): Envelope {
   const date = usableDate(mail.date) ?? usableDate(info.internalDate) ?? new Date(0);
   const inReplyTo = messageIds(rawHeader(mail, "in-reply-to"))[0] ?? null;
+  const said = {
+    date: date.toISOString(),
+    from: addresses(mail.from)[0] ?? { address: "", name: null },
+    to: addresses(mail.to),
+    subject: mail.subject ?? "",
+    snippet: snippetOf(mail.text ?? ""),
+  };
   // A Message-ID is the sender's text: one of any other shape than <...> is not kept (F3.5).
   const headerId = rawHeader(mail, "message-id");
   return {
     messageId:
-      headerId !== null && isMsgId(headerId)
-        ? headerId
-        : syntheticMessageId(info.folder, info.uidValidity, info.uid),
+      headerId !== null && isMsgId(headerId) ? headerId : contentMessageId(info.folder, said),
     folder: info.folder,
     folderPath: info.folderPath,
     uidValidity: info.uidValidity,
     uid: info.uid,
-    date: date.toISOString(),
-    from: addresses(mail.from)[0] ?? { address: "", name: null },
-    to: addresses(mail.to),
+    date: said.date,
+    from: said.from,
+    to: said.to,
     cc: addresses(mail.cc),
     replyTo: addresses(mail.replyTo),
     inReplyTo,
     references: messageIds(rawHeader(mail, "references")),
-    subject: mail.subject ?? "",
+    subject: said.subject,
     listId: rawHeader(mail, "list-id"),
     listUnsubscribe: rawHeader(mail, "list-unsubscribe"),
     precedence: rawHeader(mail, "precedence"),
     autoSubmitted: rawHeader(mail, "auto-submitted"),
-    snippet: snippetOf(mail.text ?? ""),
+    snippet: said.snippet,
   };
 }
 
@@ -196,6 +242,21 @@ export async function originalFromSource(
     date: envelope.date,
     text: sanitiseText(mail.text ?? ""),
   };
+}
+
+/**
+ * The file attached to a draft the app saved (its CV, F6.3), read back from the copy's source;
+ * null when it has none. What the server sent is checked as it enters.
+ */
+export async function attachmentFromSource(source: Buffer): Promise<DraftAttachment | null> {
+  const mail = await simpleParser(source, PARSE_OPTIONS);
+  const file = mail.attachments.find((a) => !a.related);
+  if (!file) return null;
+  return DraftAttachmentSchema.parse({
+    fileName: file.filename || "attachment",
+    contentType: file.contentType || "application/octet-stream",
+    bytes: new Uint8Array(file.content),
+  });
 }
 
 /** The message as sanitised plain text (F5.2): from its text part, or derived from its HTML. */

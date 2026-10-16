@@ -106,8 +106,8 @@ Rules:
   Evaluations and stored match answers belong to their role (`roles`), drafts, overrides, sender
   checks and decision rows to their message.
 - A draft row holds only the reply text and where its copy is in the mailbox (folder, UID,
-  UIDVALIDITY, the draft's Message-ID, a content hash); the quote of the original is added when
-  the MIME message is built, so no mail body is stored. A partial unique index allows one live
+  UIDVALIDITY, the draft's Message-ID, a content hash, the name of the file attached to it); the
+  quote of the original is added when the MIME message is built, so no mail body is stored. A partial unique index allows one live
   draft (any status but `discarded`) per role.
 - Stored match answers: `match_ai_answers` keeps each match.v1 answer under the hash of exactly
   what the model saw (the role's title and skills, the profile's target roles and skills, the
@@ -288,6 +288,11 @@ Rules:
   without UIDPLUS) is left alone. When a superfluous copy can't be deleted (that case, or a
   failed delete after a losing edit) `draft.copy_left` (warn, the draft id and a reason code, no
   content) says so.
+- An edit keeps the copy's attachment. It is the CV from `cvs` while that CV exists; once it is
+  deleted (F2.5, `cv_id` goes null) the file is read back from the copy itself
+  (`MailClient.draftAttachment`) before the copy is replaced, so no CV file outlives its delete
+  in Postgres. `drafts.attachment_name` keeps that the copy has one, which the API shows as
+  `Draft.cvAttached`.
 - Edits and discards compare and set on the copy's Message-ID (`saveDraftEdit`,
   `markDraftDiscarded`): each copy has its own, so a change made from a copy the row no longer
   names writes nothing. A losing edit deletes the copy it appended and answers 409; a losing

@@ -1,6 +1,6 @@
 import { getDraft, markDraftDiscarded, type StoredDraft, saveDraftEdit } from "@jobfilly/db";
 import type { MailClient } from "@jobfilly/mail";
-import type { DraftRef, DraftUpdate } from "@jobfilly/schema";
+import type { DraftAttachment, DraftRef, DraftUpdate } from "@jobfilly/schema";
 import type { AppDeps } from "../deps";
 import type { Logger } from "../log";
 import { type MailboxSession, mailboxSession } from "../pipeline/evaluate";
@@ -15,7 +15,9 @@ import {
 } from "./mailbox";
 
 // An editor's changes to a draft (F6.4): saving an edit replaces the mailbox copy, so exactly one
-// remains, and discarding deletes it from the mailbox. When the mailbox can't take the change,
+// remains, and discarding deletes it from the mailbox. An edit keeps the attachment the copy has:
+// the CV from the database, or, once that CV is deleted (F2.5), the file the copy itself carries
+// (MailClient.draftAttachment), read before the copy is replaced. When the mailbox can't take the change,
 // nothing changes and the editor is told why; a draft is never edited in the app but not in the
 // mailbox.
 //
@@ -56,7 +58,11 @@ async function inMailbox<T>(
   }
 }
 
-/** Saves an edit: the mailbox copy is replaced with the new text (and the same attachment). */
+/**
+ * Saves an edit: the mailbox copy is replaced with the new text and the same attachment. When the
+ * copy's file can't be read back (the copy is gone from the mailbox) the new copy has none, and
+ * the draft says so (cvAttached false); `draft.attachment_lost` (warn) tells why.
+ */
 export async function editDraft(
   deps: AppDeps,
   ws: string,
@@ -71,13 +77,24 @@ export async function editDraft(
     return { ok: false, error: "conflict", message: "Only a draft in the mailbox can be edited" };
   }
   const reply = { subject: edit.subject, body: edit.body };
-  const attachment = await attachmentFor(deps, ws, draft.cvId);
+  const fromCv = await attachmentFor(deps, ws, draft.cvId);
   const session = mailboxSession(deps, ws);
   try {
-    const replaced = await inMailbox<DraftRef>(session, log, async (client) => {
-      const original = await originalFor(deps, ws, session, draft.messageId);
-      return client.replaceDraft(copy, { original, reply, attachment });
-    });
+    const replaced = await inMailbox<{ ref: DraftRef; attachment: DraftAttachment | null }>(
+      session,
+      log,
+      async (client) => {
+        const original = await originalFor(deps, ws, session, draft.messageId);
+        // The CV is gone (F2.5) but the copy has its file: it stays on the new copy.
+        let attachment = fromCv;
+        if (!attachment && draft.attachmentName !== null) {
+          attachment = await client.draftAttachment(copy);
+          if (!attachment) log.warn("draft.attachment_lost", { draftId: draft.id });
+        }
+        const ref = await client.replaceDraft(copy, { original, reply, attachment });
+        return { ref, attachment };
+      },
+    );
     if (!replaced.ok) {
       return {
         ok: false,
@@ -85,18 +102,20 @@ export async function editDraft(
         message: `${replaced.reason}. Your edit wasn't saved.`,
       };
     }
+    const { ref, attachment } = replaced.value;
     const saved = await saveDraftEdit(deps.db, ws, draft.id, {
       replaces: copy.draftMessageId,
       ...reply,
-      ref: replaced.value,
+      ref,
       contentHash: contentHash({ reply, attachment }),
+      attachmentName: attachment?.fileName ?? null,
       now: deps.clock.now(),
     });
     if (!saved) {
       // Another change won since the draft was read: the copy this edit made goes again, so the
       // one the winner left is the only one. That copy has a Message-ID of its own, so deleting it
       // by Message-ID (no UID known) can't take the winner's.
-      const removed = await inMailbox(session, log, (client) => client.deleteDraft(replaced.value));
+      const removed = await inMailbox(session, log, (client) => client.deleteDraft(ref));
       if (!removed.ok) log.warn("draft.copy_left", { draftId: draft.id, reason: "delete_failed" });
       return CHANGED;
     }

@@ -35,6 +35,7 @@ import {
   ProfileEntrySchema,
   ProfileHistoryListSchema,
   ProfilePatchSchema,
+  ProposalEditSchema,
   ProposalSchema,
   parseGroupKey,
   profileItemSchema,
@@ -156,6 +157,30 @@ describe("rules, changes and the assistant (F3, F8)", () => {
     };
     expect(RuleSchema.safeParse(stored).success).toBe(true);
     expect(RuleSchema.safeParse({ ...stored, then: "delete" }).success).toBe(false);
+  });
+
+  it("refuses a rule without words, and trims the words it has (F3.1, F8.2)", () => {
+    for (const description of ["", "   ", "\n\t"]) {
+      const blank = { ...rule, description };
+      expect(ChangeSchema.safeParse({ op: "add", target: "rule", rule: blank }).success).toBe(
+        false,
+      );
+      expect(
+        ChangeSchema.safeParse({ op: "update", target: "rule", ruleId: id, rule: blank }).success,
+      ).toBe(false);
+      expect(
+        ProposalEditSchema.safeParse({ changes: [{ op: "add", target: "rule", rule: blank }] })
+          .success,
+      ).toBe(false);
+    }
+    const padded = ChangeSchema.parse({
+      op: "add",
+      target: "rule",
+      rule: { ...rule, description: `  ${rule.description} ` },
+    });
+    expect(padded.target === "rule" && padded.op === "add" && padded.rule.description).toBe(
+      rule.description,
+    );
   });
 
   it("closes Change over add, update and remove of rules and entries", () => {
@@ -374,10 +399,16 @@ describe("evaluations, senders, drafts and decisions", () => {
       body: null,
       language: null,
       cvId: null,
+      cvAttached: false,
       auto: true,
       updatedAt: at,
     };
     expect(DraftSchema.safeParse(draft).success).toBe(true);
+    // A draft whose CV was deleted still says its copy has the attachment (F2.5).
+    expect(DraftSchema.parse({ ...draft, status: "in_mailbox", cvAttached: true }).cvAttached).toBe(
+      true,
+    );
+    expect(DraftSchema.safeParse({ ...draft, cvAttached: "yes" }).success).toBe(false);
     expect(DraftSchema.safeParse({ ...draft, failureKind: "ai" }).success).toBe(true);
     expect(DraftSchema.safeParse({ ...draft, failureKind: "smtp" }).success).toBe(false);
   });

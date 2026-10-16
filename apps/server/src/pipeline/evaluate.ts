@@ -65,6 +65,9 @@ import { MessageGoneError, type SenderStageResult, type StageContext, type Stage
 //   still listed when the intake is confirmed.
 // - A role whose cv-choice or match stage fails stays missing or stale for the next sweep; it is
 //   never marked evaluated.
+// - A reply stage that throws is recorded the same way (stage reply): the message is listed for
+//   the sweep until the stage succeeds, and the reply stage then runs on its own, with the stored
+//   evaluations, even when nothing else of the message is to do.
 
 const DEFAULT_STAGES: Stages = {
   sender: senderStage,
@@ -232,16 +235,18 @@ export async function evaluateMessage(
   const backOff = { ...backOffOf(deps), now };
   /** Records a failed stage and logs why, and when it is tried again. */
   const failed = async (
-    stage: "sender" | "cv_choice" | "match",
+    stage: "sender" | "cv_choice" | "match" | "reply",
     error: unknown,
     position?: number,
   ) => {
     const { failures, retryAt } = await recordStageFailure(
       deps.db,
       ws,
-      position === undefined
-        ? { messageId, stage: "sender" }
-        : { messageId, stage: "match", position },
+      stage === "reply"
+        ? { messageId, stage: "reply" }
+        : position === undefined
+          ? { messageId, stage: "sender" }
+          : { messageId, stage: "match", position },
       backOff,
     );
     log.warn("pipeline.stage_failed", {
@@ -268,8 +273,12 @@ export async function evaluateMessage(
     : [];
   const senderDue = senderWork && !holds.sender;
   const rolesDue = rolesToDo.filter((p) => !holds.positions.includes(p));
-  const waiting = (senderWork && holds.sender) || rolesDue.length < rolesToDo.length;
-  if (waiting && !senderDue && rolesDue.length === 0) {
+  // A failed reply stage is to do on its own once its wait is over (it runs anyway when anything
+  // else of the message does).
+  const replyDue = profile !== null && holds.reply === "due";
+  const waiting =
+    (senderWork && holds.sender) || rolesDue.length < rolesToDo.length || holds.reply === "held";
+  if (waiting && !senderDue && rolesDue.length === 0 && !replyDue) {
     // Everything pending waits out its back-off, and nothing changed since the last try.
     return outcome;
   }
@@ -365,9 +374,11 @@ export async function evaluateMessage(
           },
           ctx,
         );
+        if (holds.reply !== "none")
+          await clearStageFailure(deps.db, ws, { messageId, stage: "reply" });
       } catch (error) {
-        // Not backed off: the reply stage runs only when something above changed.
-        log.warn("pipeline.stage_failed", { stage: "reply", ...failureFields(error) });
+        // Tried again by the sweep, backed off like the other stages (stage_failures).
+        await failed("reply", error);
       }
     }
   } finally {
