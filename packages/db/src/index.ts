@@ -5,9 +5,10 @@
 // email or token; the queue worker's lease operations on a job it claimed by id (claimJob,
 // renewLease, saveJobCheckpoint, completeJob, handBackJob), which are guarded by the lease
 // owner; and the signed-in user's own view across workspaces (listWorkspacesForUser by user id,
-// listPendingInvitations by the email the server matched to them). Two cross-workspace reads
-// serve every workspace the way the job claim does: listWorkspacesWithWork (the pipeline sweep)
-// and listMailboxesToSync (the sync scheduler's mailbox listing). registerAccount and
+// listPendingInvitations by the email the server matched to them). Three cross-workspace reads
+// serve every workspace the way the job claim does: listWorkspacesWithWork and
+// listWorkspacesWithFailedLookups (the pipeline sweep) and listMailboxesToSync (the sync
+// scheduler's mailbox listing); each only finds the workspaces to work on. registerAccount and
 // createWorkspace make a workspace, so they have no id to take yet. There is no raw-SQL export.
 
 export { type Database, type DatabaseConnection, openDatabase } from "./client";

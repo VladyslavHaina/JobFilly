@@ -41,6 +41,7 @@ import type {
   ScanKind,
   ScanStatus,
   SenderMark,
+  SenderMarkScope,
   SenderReason,
   SenderVerdict,
   StageOneVerdict,
@@ -730,7 +731,7 @@ export const senderMarks = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     workspaceId: workspaceId(),
-    scope: text("scope").$type<"address" | "domain">().notNull(),
+    scope: text("scope").$type<SenderMarkScope>().notNull(),
     /** Lower case. */
     value: text("value").notNull(),
     mark: text("mark").$type<SenderMark>().notNull(),
