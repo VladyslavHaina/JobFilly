@@ -12,7 +12,8 @@ export type SenderMark = z.infer<typeof SenderMarkSchema>;
 /**
  * One reason of a check. `signal` is a stable snake_case name of what was found (asks_for_fee,
  * asks_for_id, chat_only, free_mail_company, sender_mismatch, young_domain, no_mx,
- * lookup_failed, message_gone, marked_trusted, marked_blocked…); `reason` is its plain words.
+ * lookup_failed, message_gone, check_failed, marked_trusted, marked_blocked…); `reason` is its
+ * plain words.
  */
 export const SenderReasonSchema = z.object({
   signal: z.string().regex(/^[a-z][a-z0-9_]{0,63}$/),
@@ -26,6 +27,14 @@ export type SenderReason = z.infer<typeof SenderReasonSchema>;
  * it is checked again once a scan or sync sees the message again (packages/db saveEnvelopes).
  */
 export const MESSAGE_GONE_SIGNAL = "message_gone";
+
+/**
+ * The signal of a check whose sender stage failed (the mailbox couldn't be reached, a lookup or
+ * the model threw): the check is incomplete, keeps what an earlier check found (a looks-fine
+ * verdict drops to caution, never better; an editor's mark stays) and is tried again by a later
+ * sweep. The reply waits for a real check meanwhile.
+ */
+export const CHECK_FAILED_SIGNAL = "check_failed";
 
 export const SenderCheckSchema = z.object({
   verdict: SenderVerdictSchema,

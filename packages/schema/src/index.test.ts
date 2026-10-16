@@ -8,6 +8,7 @@ import {
   batchResultSchema,
   CATEGORIES,
   CategorySchema,
+  CHECK_FAILED_SIGNAL,
   ClaimedJobSchema,
   ClassifyOutputSchema,
   ConfirmIntakeInputSchema,
@@ -31,6 +32,7 @@ import {
   LiveEventSchema,
   MailboxParamsSchema,
   MailTestResultSchema,
+  MESSAGE_GONE_SIGNAL,
   MemberParamsSchema,
   MessageRefSchema,
   PreferencesSchema,
@@ -43,6 +45,7 @@ import {
   RegisterInputSchema,
   RoleParamsSchema,
   roleAtLeast,
+  SenderReasonSchema,
   StageOneOutcomeSchema,
   StageOneResultSchema,
   StageOneVerdictSchema,
@@ -206,6 +209,18 @@ describe("mail", () => {
     expect(
       MailTestResultSchema.safeParse({ ok: false, reason: "other", message: "x" }).success,
     ).toBe(false);
+  });
+});
+
+describe("sender check", () => {
+  it("accepts the pipeline's own signals as reasons", () => {
+    for (const signal of [CHECK_FAILED_SIGNAL, MESSAGE_GONE_SIGNAL]) {
+      expect(SenderReasonSchema.safeParse({ signal, reason: "x" }).success).toBe(true);
+    }
+    expect(CHECK_FAILED_SIGNAL).toBe("check_failed");
+    expect(SenderReasonSchema.safeParse({ signal: "Check Failed", reason: "x" }).success).toBe(
+      false,
+    );
   });
 });
 
