@@ -56,9 +56,12 @@ export interface ReplyEligibility {
 const DEFAULT_REPLY_TO: readonly Category[] = ["recruiter_outreach"];
 
 function replyTo(profile: ReplyEligibilityInput["profile"]): readonly Category[] {
-  const value = profile?.entries.find((e) => e.key === "reply_to")?.value as Category[] | undefined;
-  // An empty answer is "not stated" (the intake leaves it empty without evidence), not "never".
-  return value && value.length > 0 ? value : DEFAULT_REPLY_TO;
+  const entry = profile?.entries.find((e) => e.key === "reply_to");
+  const value = (entry?.value ?? []) as Category[];
+  // An empty answer the scan left (the intake has no evidence for it) is "not stated"; an empty
+  // list someone set (by hand, a decision, an applied proposal) means "reply to nothing".
+  if (!entry || (value.length === 0 && entry.source === "scan")) return DEFAULT_REPLY_TO;
+  return value;
 }
 
 const RULE_HOLDS: Partial<Record<RuleEffect["action"], HeldKind>> = {

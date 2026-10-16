@@ -58,6 +58,16 @@ const cases: [string, Partial<ReplyEligibilityInput>, HeldKind[]][] = [
     { category: "job_alert", profile: { entries: [entry("reply_to", ["job_alert"])] } },
     [],
   ],
+  [
+    "an empty reply_to the scan left (not stated)",
+    { profile: { entries: [{ ...entry("reply_to", []), source: "scan" }] } },
+    [],
+  ],
+  [
+    "an empty reply_to someone set (reply to nothing)",
+    { profile: { entries: [{ ...entry("reply_to", []), source: "assistant" }] } },
+    ["not_reply_to"],
+  ],
   ["mail older than the window (the backlog)", { receivedAt: daysAgo(20) }, ["outside_window"]],
   ["a score below the threshold", { score: 69 }, ["below_threshold"]],
   ["no score yet", { score: null }, ["below_threshold"]],
