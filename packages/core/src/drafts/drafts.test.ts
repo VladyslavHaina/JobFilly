@@ -27,6 +27,28 @@ describe("the placeholder check (F6.2)", () => {
     expect(findPlaceholders("Hallo Herr Weber,\n\nvielen Dank (Berlin, hybrid).")).toEqual([]);
     expect(findPlaceholders("Pay [1] and {} and [ ] stay")).toEqual([]);
   });
+
+  it("lets brackets copied from the original message through, and still catches slots", () => {
+    const original = {
+      subject: "[External] Backend Engineer",
+      text: "Hi Maria,\n\n[LinkedIn] sent us your profile. Role ref {REF-2231}.\n\nBest, Anna",
+    };
+    // The subject and body of a reply to it keep the original's own brackets, in any case.
+    const reply =
+      "Re: [External] Backend Engineer\nHi Anna, thanks: the [linkedin] note reached me.";
+    expect(findPlaceholders(reply, original)).toEqual([]);
+    expect(findPlaceholders("Re: [ External ] Backend Engineer", original)).toEqual([]);
+    // Slots the original doesn't hold are still placeholders.
+    expect(
+      findPlaceholders(
+        `Re: [External] Backend Engineer\nDear [Name], I'd join [Company].`,
+        original,
+      ),
+    ).toEqual(["[Name]", "[Company]"]);
+    expect(findPlaceholders("Best, [Your name]", original)).toEqual(["[Your name]"]);
+    // Without the original, every bracketed word is suspect.
+    expect(findPlaceholders("Re: [External] Backend Engineer")).toEqual(["[External]"]);
+  });
 });
 
 describe("what a draft may use (F6.2)", () => {

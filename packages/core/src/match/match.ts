@@ -306,6 +306,16 @@ function remoteVerdict(input: MatchRoleInput, remote: Remote[], places: Place[])
       `Remote, ${uncovered.join(", ")} — not compared with your remote ${scopes}`,
     );
   }
+  // A role that states neither a scope nor a place doesn't say where you may work from, and
+  // hours that fit don't say it either: it is never guessed into your remote scope.
+  if (scope === null && rolePlaces.length === 0) {
+    const stated = input.facts.timeZones ? `, ${formatRange(input.facts.timeZones)}` : "";
+    return verdict(
+      "remote",
+      "unknown",
+      `Remote${stated} — where not stated, not compared with your remote ${scopes}`,
+    );
+  }
   if (hours) return hours;
   return verdict(
     "remote",
