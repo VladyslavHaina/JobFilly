@@ -49,12 +49,21 @@ function sinceText(iso: string, now: Date): string {
   return `${new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(at)}, ${time}`;
 }
 
-/** The status line of one mailbox, and a detail when the reason isn't the server being away. */
+/**
+ * The status line of one mailbox, and a detail when the reason isn't the server being away. Only
+ * the mail server's own failures (away, TLS, a refused password or plain text) say it can't be
+ * reached; a sync that failed on this server's side (`error`, `secret_error`) says it is failing,
+ * with the stored words, so it is never taken for a mail server that is down.
+ */
 function statusText(sync: MailboxSyncStatus, now: Date): { line: string; detail: string | null } {
   if (sync.state === "failing" && sync.failingSince) {
+    const since = sinceText(sync.failingSince, now);
+    if (sync.reason === "error" || sync.reason === "secret_error") {
+      return { line: `Sync failing since ${since}`, detail: sync.message };
+    }
     const away = sync.reason === null || sync.reason === "unreachable";
     return {
-      line: `Can't reach the mail server since ${sinceText(sync.failingSince, now)}`,
+      line: `Can't reach the mail server since ${since}`,
       detail: away ? null : sync.message,
     };
   }

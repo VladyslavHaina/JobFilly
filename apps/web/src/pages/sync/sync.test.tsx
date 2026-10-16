@@ -120,6 +120,30 @@ describe("MailboxStatus (F1.4)", () => {
     ).toBeTruthy();
   });
 
+  it.each([
+    ["error", "Something went wrong while syncing the mailbox"],
+    ["secret_error", "The mailbox password can't be read on this server"],
+  ] as const)(
+    "doesn't blame the mail server for a sync that failed with %s",
+    async (reason, message) => {
+      fakeApi({
+        [MAILBOXES]: mailbox({
+          state: "failing",
+          lastSyncedAt: null,
+          failingSince: todayAt1042().toISOString(),
+          reason,
+          message,
+        }),
+      });
+      renderInWorkspace(<MailboxStatus workspaceId={W} />);
+      const status = await screen.findByRole("status");
+      expect(await within(status).findByText("Sync failing since 10:42")).toBeTruthy();
+      expect(within(status).getByText(message)).toBeTruthy();
+      expect(within(status).queryByText(/Can't reach/)).toBeNull();
+      expect(within(status).getByText("It's tried again on its own.")).toBeTruthy();
+    },
+  );
+
   it("updates live when the sync fails and when it recovers", async () => {
     let sync: MailboxSyncStatus = ok(new Date(Date.now() - 10_000));
     fakeApi({ [MAILBOXES]: () => mailbox(sync) });
