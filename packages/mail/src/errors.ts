@@ -132,6 +132,9 @@ export function mailErrorCode(error: unknown): string | undefined {
   return known ? code : undefined;
 }
 
+/** imapflow's codes for a connection that couldn't be made, timed out or was closed. */
+const UNAVAILABLE_CODE = /^(NoConnection|EConnectionClosed|(CONNECT|GREETING)_TIMEOUT|ETIMEOUT)$/;
+
 /** Maps an error from the IMAP library, the socket or TLS to a reason the user can act on. */
 export function failureReason(error: unknown): MailTestFailureReason {
   if (error instanceof MailError) return error.reason;
@@ -141,8 +144,15 @@ export function failureReason(error: unknown): MailTestFailureReason {
     return "wrong_password";
   }
   if (e.tlsFailed === true || TLS_CODE.test(code)) return "tls";
+  // A connection or timeout code means the server isn't there, whatever the message says:
+  // imapflow's GREETING_TIMEOUT message ends "Maybe should use TLS?" even when the server is
+  // just down.
+  if (SOCKET_CODES.has(code) || NODE_SOCKET_CODE.test(code) || UNAVAILABLE_CODE.test(code)) {
+    return "unreachable";
+  }
+  // Only then the words, as a last resort: a required STARTTLS the server doesn't offer, or a
+  // TLS socket that got plain text back.
   const message = typeof e.message === "string" ? e.message : "";
-  // A required STARTTLS the server doesn't offer, or a TLS socket that got plain text back.
   if (/STARTTLS|\bTLS\b|\bSSL\b|wrong version number|certificate/i.test(message)) return "tls";
   return "unreachable";
 }

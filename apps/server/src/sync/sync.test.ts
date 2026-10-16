@@ -706,6 +706,33 @@ describe("a failing sync (F1.4)", () => {
     expect(logged("sync.completed")).toMatchObject([{ new: 1 }]);
   });
 
+  it("keeps a sync queued while a failing one hangs from trying before the back-off ends", async () => {
+    const gate = holdable(mailbox);
+    deps.mail = gate.port;
+    mailbox.pause();
+    gate.hold();
+    await scheduler.tick();
+    const running = deps.queue.runOnce();
+    await expect.poll(() => logged("sync.started").length).toBe(1);
+
+    // The next tick queues a second sync behind the hanging one; then that one fails.
+    deps.clock.advance(INTERVAL);
+    await scheduler.tick();
+    gate.release();
+    await running;
+    expect(logged("sync.failed")).toMatchObject([{ failures: 1, retryInSeconds: 15 }]);
+
+    // The queued one runs at once but makes no attempt, so no new failure.
+    await drain();
+    expect(logged("sync.started")).toHaveLength(1);
+    expect(logged("sync.failed")).toHaveLength(1);
+
+    // Once the back-off has passed, the next interval tries again.
+    deps.clock.advance(INTERVAL);
+    await interval();
+    expect(logged("sync.started")).toHaveLength(2);
+  });
+
   it("fails the same way when the connection never comes up", async () => {
     deliver("<a@agency.example>");
     mailbox.failNext("connect");
