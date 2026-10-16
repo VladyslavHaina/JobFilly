@@ -388,4 +388,16 @@ describe("viewers (F6.7)", () => {
     expect(h.mailbox.drafts()).toHaveLength(1);
     expect((await h.live(BERLIN))?.status).toBe("in_mailbox");
   });
+
+  it("are not shown to a non-member, who gets 404 on a real draft", async () => {
+    const draft = await drafted(BERLIN);
+    const eve = await h.client(await seedUser(h.deps, { name: "Eve Outsider" }));
+    expect((await eve.get(base)).status).toBe(404);
+    expect((await eve.get(`${base}/${draft.id}`)).status).toBe(404);
+    expect((await eve.post(base, { messageId: BERLIN, position: 0 })).status).toBe(404);
+    expect((await eve.patch(`${base}/${draft.id}`, { subject: "s", body: "b" })).status).toBe(404);
+    expect((await eve.post(`${base}/${draft.id}/discard`)).status).toBe(404);
+    expect(h.mailbox.drafts()).toHaveLength(1);
+    expect(await h.live(BERLIN)).toMatchObject({ status: "in_mailbox", body: draft.body });
+  });
 });

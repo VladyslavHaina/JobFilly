@@ -356,4 +356,21 @@ describe("viewers (F7.7)", () => {
     ).toBe(403);
     expect(await inbox()).toHaveLength(2);
   });
+
+  it("are not shown to a non-member, who gets 404 on a real decision", async () => {
+    await seedThree();
+    const id = (await decisionOf(CHF_NEED.groupKey)).id;
+    const eve = await h.client(await seedUser(h.deps, { name: "Eve Outsider" }));
+    expect((await eve.get(base)).status).toBe(404);
+    expect((await eve.get(`${base}/count`)).status).toBe(404);
+    expect(
+      (await eve.post(`${base}/${id}/answer`, { value: CHF_120, useForSimilar: true })).status,
+    ).toBe(404);
+    expect((await eve.post(`${base}/${id}/not-now`)).status).toBe(404);
+    expect(
+      (await eve.post(`${base}/${id}/dismiss`, { messageId: ZURICH, position: 0 })).status,
+    ).toBe(404);
+    expect(await inbox()).toHaveLength(2);
+    expect((await decisionOf(CHF_NEED.groupKey)).waiting).toHaveLength(2);
+  });
 });
