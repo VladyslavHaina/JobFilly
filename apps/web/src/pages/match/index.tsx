@@ -1,13 +1,9 @@
 import {
-  CORE_PROFILE_LABELS,
-  type CoreProfileKey,
+  entryLabel,
   HARD_CONFLICT_CAP,
-  isExtraKey,
-  isPolicyKey,
+  type ListFit,
   type MatchVerdict,
   type MessageListItem,
-  POLICY_LABELS,
-  type ProfileKey,
   type RoleEvaluation,
   type Verdict,
 } from "@jobfilly/schema";
@@ -20,7 +16,7 @@ import { Badge } from "../../components";
 // that couldn't be scored, says so where its fit score would be.
 
 interface FitScoreProps {
-  fit: MessageListItem["fit"];
+  fit: ListFit;
 }
 
 function scoreTone(score: number, capped: boolean) {
@@ -28,9 +24,13 @@ function scoreTone(score: number, capped: boolean) {
   return score >= 70 ? ("success" as const) : ("neutral" as const);
 }
 
-/** The fit score chip of an inbox row; nothing until the message has one. */
+/**
+ * The fit score chip of an inbox row or a role: its score, or, for a job message whose roles have
+ * none, "fit score pending" or "no fit score"; nothing when there is nothing to score.
+ */
 export function FitScore({ fit }: FitScoreProps) {
   if (!fit) return null;
+  if (fit.score === null) return <NoFitChip why={fit.why} />;
   if (fit.stale) {
     return (
       <Badge tone="neutral" label={`Fit score ${fit.score}, out of date: being updated`}>
@@ -58,12 +58,6 @@ const VERDICT_TONES: Record<Verdict, "success" | "danger" | "neutral"> = {
   conflicts: "danger",
   unknown: "neutral",
 };
-
-function entryLabel(key: ProfileKey): string {
-  if (isPolicyKey(key)) return POLICY_LABELS[key];
-  if (isExtraKey(key)) return key.slice("extra.".length).replace(/[-_]+/g, " ");
-  return CORE_PROFILE_LABELS[key as CoreProfileKey];
-}
 
 /** What a verdict is about: a profile entry, one of your rules, or the skills. */
 function verdictSubject(v: MatchVerdict): string {
@@ -103,16 +97,36 @@ interface MatchPanelProps {
   evaluation: RoleEvaluation | null;
 }
 
-/** Where a role's fit score would be, when it has none: pending, or couldn't be scored. */
-function NoFitScore({ why }: { why: "pending" | "unscored" }) {
-  const [chip, words] =
-    why === "pending"
-      ? ["fit score pending", "This role hasn't been scored yet; its fit score shows here soon."]
-      : ["no fit score", "This role couldn't be scored, so it has no fit score."];
+type NoFitWhy = Extract<NonNullable<ListFit>, { score: null }>["why"];
+
+const NO_FIT: Record<NoFitWhy, { chip: string; label: string; words: string }> = {
+  pending: {
+    chip: "fit score pending",
+    label: "Fit score pending",
+    words: "This role hasn't been scored yet; its fit score shows here soon.",
+  },
+  unscored: {
+    chip: "no fit score",
+    label: "No fit score",
+    words: "This role couldn't be scored, so it has no fit score.",
+  },
+};
+
+/** The chip where a fit score would be, when there is none: pending, or couldn't be scored. */
+function NoFitChip({ why }: { why: NoFitWhy }) {
+  return (
+    <Badge tone="neutral" label={NO_FIT[why].label}>
+      {NO_FIT[why].chip}
+    </Badge>
+  );
+}
+
+/** A role's missing fit score in the match panel: the chip and what it means. */
+function NoFitScore({ why }: { why: NoFitWhy }) {
   return (
     <>
-      <Badge tone="neutral">{chip}</Badge>
-      <span className="text-sm text-stone-500">{words}</span>
+      <NoFitChip why={why} />
+      <span className="text-sm text-stone-500">{NO_FIT[why].words}</span>
     </>
   );
 }

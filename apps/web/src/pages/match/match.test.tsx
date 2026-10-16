@@ -80,6 +80,27 @@ const evaluation = (overrides: Partial<RoleEvaluation> = {}): RoleEvaluation => 
 
 const noAts = (container: HTMLElement) => expect(container.textContent ?? "").not.toMatch(/ATS/i);
 
+const item = (id: string, overrides: Partial<MessageListItem> = {}): MessageListItem => ({
+  id,
+  from: { address: "someone@agency.example", name: null },
+  subject: `Role ${id}`,
+  date: "2026-10-14T09:30:00.000Z",
+  category: "recruiter_outreach",
+  categorySource: "scan",
+  analysisStatus: "done",
+  fit: { score: 75, capped: false, stale: false },
+  sender: null,
+  hidden: null,
+  draft: null,
+  ...overrides,
+});
+const page = (items: MessageListItem[]): MessageList => ({
+  items,
+  nonJobCount: 0,
+  page: 1,
+  nextPage: null,
+});
+
 describe("FitScore (F4.5, F4.6)", () => {
   it("is labelled a fit score", () => {
     const { container } = render(<FitScore fit={{ score: 82, capped: false, stale: false }} />);
@@ -102,7 +123,20 @@ describe("FitScore (F4.5, F4.6)", () => {
     noAts(container);
   });
 
-  it("shows nothing before a role is scored", () => {
+  it("says a job message's fit score is pending until a role is scored", () => {
+    const { container } = render(<FitScore fit={{ score: null, why: "pending" }} />);
+    expect(screen.getByRole("img", { name: "Fit score pending" }).textContent).toBe(
+      "fit score pending",
+    );
+    noAts(container);
+  });
+
+  it("says a job message has no fit score when no role could be scored", () => {
+    render(<FitScore fit={{ score: null, why: "unscored" }} />);
+    expect(screen.getByRole("img", { name: "No fit score" }).textContent).toBe("no fit score");
+  });
+
+  it("shows nothing for a message with no roles, or a non-job row", () => {
     const { container } = render(<FitScore fit={null} />);
     expect(container.innerHTML).toBe("");
   });
@@ -196,27 +230,6 @@ describe("HiddenReason (F3.3)", () => {
 });
 
 describe("HiddenFilter (F3.4)", () => {
-  const item = (id: string, overrides: Partial<MessageListItem> = {}): MessageListItem => ({
-    id,
-    from: { address: "someone@agency.example", name: null },
-    subject: `Role ${id}`,
-    date: "2026-10-14T09:30:00.000Z",
-    category: "recruiter_outreach",
-    categorySource: "scan",
-    analysisStatus: "done",
-    fit: { score: 75, capped: false, stale: false },
-    sender: null,
-    hidden: null,
-    draft: null,
-    ...overrides,
-  });
-  const page = (items: MessageListItem[]): MessageList => ({
-    items,
-    nonJobCount: 0,
-    page: 1,
-    nextPage: null,
-  });
-
   it("switches the inbox to the hidden mail, each with its reason, and back", async () => {
     const reason = 'Hidden by your rule "No Asian hours"';
     const requests = fakeApi({
@@ -249,5 +262,37 @@ describe("HiddenFilter (F3.4)", () => {
     render(<HiddenFilter value={false} onChange={onChange} />);
     await userEvent.click(screen.getByRole("button", { name: "Hidden" }));
     expect(onChange).toHaveBeenCalledWith(true);
+  });
+});
+
+describe("the fit score in the inbox list (F4.1, F4.6)", () => {
+  it("shows a pending chip for a job message whose roles aren't scored, nothing without roles", async () => {
+    fakeApi({
+      "GET /api/workspaces/:id/messages": () =>
+        page([
+          item("<scored@x.example>"),
+          item("<pending@x.example>", { fit: { score: null, why: "pending" } }),
+          item("<unscored@x.example>", { fit: { score: null, why: "unscored" } }),
+          item("<interview@x.example>", { category: "interview", fit: null }),
+          item("<other@x.example>", { category: "not_job", fit: null }),
+        ]),
+    });
+    renderInWorkspace(<InboxPage workspaceId={testWorkspace().id} messageId={null} />);
+    const row = async (id: string) =>
+      (await screen.findByText(`Role ${id}`)).closest("li") as HTMLElement;
+
+    expect(
+      within(await row("<scored@x.example>")).getByRole("img", { name: "Fit score 75" }),
+    ).toBeTruthy();
+    expect(
+      within(await row("<pending@x.example>")).getByRole("img", { name: "Fit score pending" }),
+    ).toBeTruthy();
+    expect(
+      within(await row("<unscored@x.example>")).getByRole("img", { name: "No fit score" }),
+    ).toBeTruthy();
+    // A job message with no roles, and non-job mail: nothing where the fit score goes.
+    for (const id of ["<interview@x.example>", "<other@x.example>"]) {
+      expect((await row(id)).textContent).not.toMatch(/fit score/i);
+    }
   });
 });
