@@ -13,14 +13,17 @@ import {
   usageTotal,
 } from "@jobfilly/db";
 import {
+  CurrentScanSchema,
   type Envelope,
   type JobFacts,
   type LiveEvent,
   type Preferences,
   type ScanKind,
+  type ScanProgress,
   ScanRunPayloadSchema,
 } from "@jobfilly/schema";
 import { afterEach, describe, expect, it } from "vitest";
+import { createApp } from "../../app";
 import { DAY, MINUTE } from "../../clock";
 import {
   createTestDeps,
@@ -28,6 +31,7 @@ import {
   seedAiSettings,
   seedMailbox,
   seedUser,
+  signedIn,
   type TestDeps,
 } from "../../testing";
 import { createJobQueue, defineJob, LeaseLostError } from "../queue";
@@ -704,8 +708,108 @@ describe("live progress, cancel and takeover (F4.6–F4.8)", { timeout: SLOW }, 
     await s.runAll();
     await settle();
     expect(logs(s.deps, "scan.batch_completed").map((l) => l.analyzed)).toEqual([0, 20, 25]);
-    // Each batch's own counts, and the stop's: not the ones of the tick under way.
-    expect(stored).toEqual([0, 20, 25, 25]);
+    // At least each batch's own counts, and the stop's: never the older ones of the tick under
+    // way. (The batch's event may go out after the next batch is stored too: it waits its turn
+    // behind the held tick, while the run goes on.)
+    expect(stored).toHaveLength(4);
+    stored.forEach((analyzed, i) => {
+      expect(analyzed).toBeGreaterThanOrEqual([0, 20, 25, 25][i] as number);
+    });
+  });
+
+  it("shows a finished batch's counts and the stop in GET /scans/current within 2 s, while a tick takes longer to go out live (F4.6)", async () => {
+    const box = mailbox(25);
+    const s = await setup(box.envelopes, recruiterAnswers(box.notJob), { progressIntervalMs: 40 });
+    const viewer = await signedIn(createApp(s.deps), s.deps, s.admin);
+    const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    const HOLD_AFTER_BATCH_MS = 2500;
+
+    // When each batch and the stop are logged, on the wall clock.
+    const marks: { event: string; analyzed: number; at: number }[] = [];
+    const push = s.deps.logs.push.bind(s.deps.logs);
+    s.deps.logs.push = (...lines) => {
+      for (const l of lines) {
+        if (l.event === "scan.batch_completed" || l.event === "scan.stopped") {
+          marks.push({ event: l.event, analyzed: Number(l.analyzed), at: performance.now() });
+        }
+      }
+      return push(...lines);
+    };
+
+    // A progress tick sent while the first candidates batch is classified takes until 2.5 s after
+    // that batch has finished to go out (a slow NOTIFY): longer than the screen may wait.
+    const publish = s.deps.live.publish;
+    let hold: Promise<void> | null = null;
+    let held = 0;
+    s.deps.live.publish = async (workspaceId, event) => {
+      if (hold && event.type === "scan.progress") {
+        held += 1;
+        await hold;
+      }
+      return publish(workspaceId, event);
+    };
+    let armed = true;
+    s.ai.beforeAnswer = async (task) => {
+      if (task !== "classify.v1" || !armed) return;
+      armed = false;
+      let release = () => {};
+      hold = new Promise((r) => {
+        release = r;
+      });
+      while (held === 0) await pause(5);
+      void (async () => {
+        while (marks.length < 2) await pause(5);
+        await pause(HOLD_AFTER_BATCH_MS);
+        hold = null;
+        release();
+      })();
+    };
+
+    // The screen asks GET /scans/current over and over, until it has shown the stop.
+    const answers: { progress: ScanProgress | null; at: number }[] = [];
+    const stopShown = () => {
+      const stop = marks.find((m) => m.event === "scan.stopped");
+      return answers.some((a) => stop && a.at >= stop.at && a.progress?.status === "stopped");
+    };
+    let deadline = Number.POSITIVE_INFINITY;
+    const poll = (async () => {
+      while (!stopShown() && performance.now() < deadline) {
+        const res = await viewer.get(`/api/workspaces/${s.workspaceId}/scans/current`);
+        const { progress } = CurrentScanSchema.parse(await res.json());
+        answers.push({ progress, at: performance.now() });
+        await pause(20);
+      }
+    })();
+    await s.start();
+    await s.runAll();
+    deadline = performance.now() + 10_000;
+    await poll;
+    await settle();
+
+    expect(held).toBe(1);
+    expect(marks.map((m) => [m.event, m.analyzed])).toEqual([
+      ["scan.batch_completed", 0],
+      ["scan.batch_completed", 20],
+      ["scan.batch_completed", 25],
+      ["scan.stopped", 25],
+    ]);
+    // How long after each mark GET /scans/current first answered with its counts.
+    const lag = marks.map((m) => {
+      const shown = answers.find(
+        (a) =>
+          a.at >= m.at &&
+          (a.progress?.analyzed ?? -1) >= m.analyzed &&
+          (m.event !== "scan.stopped" || a.progress?.status === "stopped"),
+      );
+      return shown ? Math.round(shown.at - m.at) : Number.POSITIVE_INFINITY;
+    });
+    expect(
+      lag.map((ms) => ms <= 2000),
+      `ms from each mark until shown: ${lag}`,
+    ).toEqual([true, true, true, true]);
+    // The held tick still went out, and nothing went out after the stop's events.
+    expect(s.events.at(-3)?.type).toBe("scan.stopped");
+    expect(s.events.filter((e) => e.type === "scan.stopped")).toHaveLength(1);
   });
 
   it("ends without another call or stop once an admin has cancelled the scan", async () => {
