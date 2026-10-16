@@ -172,6 +172,19 @@ describe("ensureDraftsFolder", () => {
   });
 });
 
+/** The mailbox with its \Drafts folder's UIDVALIDITY set to `uidValidity`. */
+function withDraftsValidity(box: FakeMailbox, uidValidity: number): FakeMailbox {
+  const folder = box.contents["[Gmail]/Entwürfe"];
+  if (folder) folder.uidValidity = uidValidity;
+  return box;
+}
+
+/** The mailbox with no Drafts folder at all, so saving one creates it. */
+function withoutDrafts(box: FakeMailbox): FakeMailbox {
+  box.folders = box.folders.filter((f) => f.path === "INBOX");
+  return box;
+}
+
 describe("saveDraft (F6.3)", () => {
   it("appends the MIME message to Drafts with the \\Draft flag and returns where it is", async () => {
     const box = mailbox();
@@ -248,6 +261,36 @@ describe("saveDraft (F6.3)", () => {
     });
     const ref = await mailClientWith(conn, secure, fakeServer(box).factory).saveDraft(input());
     expect(ref).toMatchObject({ uid: 5, uidValidity: 30 });
+  });
+
+  it("checks the ref made of the server's answers; one that fails its schema isn't an unreachable server", async () => {
+    type Told = { uid: number | null; uidValidity: number | null };
+    const cases: { box: FakeMailbox; told?: Told; created?: string }[] = [
+      // An APPENDUID UIDVALIDITY imapflow couldn't read as a number (Number() of what it got).
+      { box: withDraftsValidity(mailbox(), Number.NaN) },
+      // A UID no folder gives out.
+      { box: mailbox(), told: { uid: -1, uidValidity: 30 } },
+      { box: mailbox(), told: { uid: 1.5, uidValidity: 30 } },
+      // The Drafts folder the server created has no path.
+      { box: withoutDrafts(mailbox()), told: { uid: 1, uidValidity: 30 }, created: "" },
+    ];
+    for (const { box, told, created } of cases) {
+      const server = fakeServer(box);
+      const factory: typeof server.factory = (c) => {
+        const s = server.factory(c);
+        return {
+          ...s,
+          ...(told ? { append: async () => told } : {}),
+          ...(created === undefined ? {} : { create: async () => ({ path: created }) }),
+        };
+      };
+      const error = await mailClientWith(conn, secure, factory)
+        .saveDraft(input())
+        .catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(Error);
+      expect(error).not.toBeInstanceOf(MailUnavailableError);
+      expect((error as Error).name).toBe("ZodError");
+    }
   });
 
   it("fails with MailUnavailableError when the server refuses the append or can't be reached", async () => {

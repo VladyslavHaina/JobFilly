@@ -3,6 +3,7 @@ import {
   type Address,
   type DraftMailInput,
   type DraftRef,
+  DraftRefSchema,
   type Envelope,
   type FetchSinceResult,
   FetchSinceResultSchema,
@@ -298,15 +299,19 @@ export function mailClientWith(
       throw new MailUnavailableError("unreachable", "The mail server refused to save the draft");
     }
     const ref = { path, draftMessageId: messageId };
+    // The path, UID and UIDVALIDITY are all the server's words (LIST or CREATE, APPENDUID or the
+    // search): the ref is checked as it enters, and one that fails is passed on, not stored.
     if (appended.uid !== null && appended.uidValidity !== null) {
-      return { ...ref, uid: appended.uid, uidValidity: appended.uidValidity };
+      return DraftRefSchema.parse({ ...ref, uid: appended.uid, uidValidity: appended.uidValidity });
     }
     // A server without UIDPLUS doesn't tell the UID: the draft is looked up by its Message-ID.
     const { uidValidity } = await s.open(path);
     const [uid] = await findByMessageId(s, path, uidValidity, messageId);
-    return uid === undefined
-      ? { ...ref, uid: 0, uidValidity: UNKNOWN_UIDVALIDITY }
-      : { ...ref, uid, uidValidity };
+    return DraftRefSchema.parse(
+      uid === undefined
+        ? { ...ref, uid: 0, uidValidity: UNKNOWN_UIDVALIDITY }
+        : { ...ref, uid, uidValidity },
+    );
   }
 
   /**

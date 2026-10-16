@@ -188,7 +188,8 @@ Rules:
   minutes, and the mailbox shows as failing since its first failure until a sync works again. The
   status carries a reason code (`MailboxSyncStatus.reason`, stored in
   `mailbox_sync.last_error_reason`) that the UI branches on; the words beside it come from
-  packages/mail (`UNAVAILABLE_MESSAGES`).
+  packages/mail (`UNAVAILABLE_MESSAGES`) for the mail server's reasons, and from
+  `apps/server/src/sync/run.ts` for `secret_error` and `error`.
 - Every caller of `MailPort.connect` passes the mailbox's stored address
   (`MailClientOptions.address`): it is the From of every draft and the domain of its
   Message-ID, as the IMAP user name need not be an address.
