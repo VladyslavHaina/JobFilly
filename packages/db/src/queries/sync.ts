@@ -165,11 +165,19 @@ export async function getMailboxSyncStatus(
       state: "failing",
       lastSyncedAt: iso(lastSyncedAt),
       failingSince: iso(first.failingSince),
+      // No reason is stored yet: every failure reads as `error`.
+      reason: "error",
       message: first.lastError,
     };
   }
   if (lastSyncedAt) {
-    return { state: "ok", lastSyncedAt: iso(lastSyncedAt), failingSince: null, message: null };
+    return {
+      state: "ok",
+      lastSyncedAt: iso(lastSyncedAt),
+      failingSince: null,
+      reason: null,
+      message: null,
+    };
   }
   return NEVER_SYNCED;
 }

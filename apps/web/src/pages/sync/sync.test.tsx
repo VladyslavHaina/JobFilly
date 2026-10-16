@@ -62,6 +62,7 @@ const ok = (lastSyncedAt: Date): MailboxSyncStatus => ({
   state: "ok",
   lastSyncedAt: lastSyncedAt.toISOString(),
   failingSince: null,
+  reason: null,
   message: null,
 });
 
@@ -91,6 +92,7 @@ describe("MailboxStatus (F1.4)", () => {
         state: "failing",
         lastSyncedAt: null,
         failingSince: todayAt1042().toISOString(),
+        reason: "unreachable",
         message: "Couldn't reach the mail server",
       }),
     });
@@ -106,6 +108,7 @@ describe("MailboxStatus (F1.4)", () => {
         state: "failing",
         lastSyncedAt: null,
         failingSince: todayAt1042().toISOString(),
+        reason: "wrong_password",
         message: "The mail server didn't accept the user name or password.",
       }),
     });
@@ -127,6 +130,7 @@ describe("MailboxStatus (F1.4)", () => {
       state: "failing",
       lastSyncedAt: sync.lastSyncedAt,
       failingSince: todayAt1042().toISOString(),
+      reason: "unreachable",
       message: "Couldn't reach the mail server",
     };
     act(() => stream?.emit("mailbox.updated", "{}"));

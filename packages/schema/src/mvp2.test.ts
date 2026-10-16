@@ -18,6 +18,7 @@ import {
   LiveEventSchema,
   MAX_CV_BYTES,
   MailboxPublicSchema,
+  MailTestFailureReasonSchema,
   MessageDetailSchema,
   MessageListItemSchema,
   MessageListQuerySchema,
@@ -31,6 +32,7 @@ import {
   RuleSchema,
   SenderCheckSchema,
   SenderMarkInputSchema,
+  SyncFailureReasonSchema,
 } from "./index";
 
 const id = "11111111-1111-4111-8111-111111111111";
@@ -377,5 +379,11 @@ describe("the inbox, live events, jobs and the mailbox of MVP 2", () => {
       status: "connected",
     };
     expect(MailboxPublicSchema.parse(mailbox).sync).toEqual(NEVER_SYNCED);
+  });
+
+  it("names every reason a mail server fails with as a sync failure reason (F1.4)", () => {
+    expect(SyncFailureReasonSchema.options).toEqual(
+      expect.arrayContaining(MailTestFailureReasonSchema.options),
+    );
   });
 });

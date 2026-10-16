@@ -154,6 +154,7 @@ describe("sync status (MVP 2 F1.4)", () => {
       state: "ok",
       lastSyncedAt: T0.toISOString(),
       failingSince: null,
+      reason: null,
       message: null,
     });
 
