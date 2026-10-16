@@ -16,23 +16,36 @@ import {
 // packages/core/src/profile/changes.ts).
 
 /**
- * One answer to click: its words, and the profile item it adds when chosen. Words where the key's
- * items are objects (a place, a minimum pay) turn the question down instead: "No" to "Hybrid in
- * Dublin?" answers the messages waiting on it and writes nothing (turnsDown).
+ * One answer to click: its words, and the profile item it adds when chosen. Every answer offered
+ * stays clickable, but not every one writes: `declines` marks one that turns the question down
+ * (draft.v1 says so of "No" to "Hybrid in Dublin?"), and words where the key's items are objects
+ * (turnsDown) are an answer no item can be made of ("Yes" to "places:IE:Dublin" names no work
+ * mode). Either answers the messages waiting on the decision only: their replies are told the
+ * words, and nothing is written to the profile (answersWaitingOnly).
  */
-export const DecisionChoiceSchema = z.object({ label: TextSchema, value: ProfileItemSchema });
+export const DecisionChoiceSchema = z.object({
+  label: TextSchema,
+  value: ProfileItemSchema,
+  declines: z.boolean().optional(),
+});
 export type DecisionChoice = z.infer<typeof DecisionChoiceSchema>;
 
 /**
- * Whether an answer of `profileKey` turns its question down rather than adding an item: words
- * where the key's items are objects, which words alone never are. Such an answer is for the
- * messages waiting on the decision only, and nothing is written to the profile, whatever
- * "Use this answer for similar mail" says (packages/core decisions/answers.ts answerOf).
+ * Whether an answer of `profileKey` is words kept for the waiting messages instead of an item:
+ * words where the key's items are objects (a place, a minimum pay), which words alone never are.
+ * Such an answer is for the messages waiting on the decision only, and nothing is written to the
+ * profile, whatever "Use this answer for similar mail" says (packages/core decisions/answers.ts
+ * answerOf).
  */
 export function turnsDown(profileKey: ProfileKey | null, value: ProfileItem): boolean {
   if (profileKey === null || typeof value !== "string") return false;
   const core = CoreProfileKeySchema.safeParse(profileKey);
   return core.success && PROFILE_ITEM_SCHEMAS[core.data] instanceof z.ZodObject;
+}
+
+/** Whether choosing `choice` answers the waiting messages only and writes nothing. */
+export function answersWaitingOnly(profileKey: ProfileKey | null, choice: DecisionChoice): boolean {
+  return choice.declines === true || turnsDown(profileKey, choice.value);
 }
 
 /**
@@ -109,10 +122,12 @@ export type DecisionCount = z.infer<typeof DecisionCountSchema>;
 /**
  * POST /decisions/:id/answer. For a list-valued key `value` is one item of the list (a MinPay
  * for min_pay), never the whole list: it is added with a Change `add` (source: decision), so the
- * items already there stay (TBD-195). A free-text answer is words, refused when they say no or
- * contradict the group key's parts. `useForSimilar` answers every waiting message and later ones
- * with the same group key (F7.2, F7.6); a choice that turns the question down (turnsDown) is for
- * the waiting messages only, whatever it says.
+ * items already there stay (TBD-195). A choice is sent as its value, free text as the words.
+ * `useForSimilar` answers every waiting message and later ones with the same group key (F7.2,
+ * F7.6), but only for an answer that makes an item: a choice that answers the waiting messages
+ * only (answersWaitingOnly), and words that don't state the item in a form every language
+ * shares (digits and the currency's own code or sign, the group key's own parts), are for the
+ * waiting messages only, whatever it says, and write nothing.
  */
 export const DecisionAnswerSchema = z.object({
   value: ProfileItemSchema,

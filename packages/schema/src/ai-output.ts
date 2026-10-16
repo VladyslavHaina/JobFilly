@@ -64,6 +64,15 @@ export const MatchAiOutputSchema = z.object({
 export type MatchAiOutput = z.infer<typeof MatchAiOutputSchema>;
 
 /**
+ * One answer draft.v1 offers to a question: its words, in the language of the mail, and whether
+ * choosing it turns the question down (`declines`): a no, or anything but what the question's
+ * group key describes. The model reads every language, so it says what each answer means; the
+ * app never reads a yes or a no from the words (packages/core decisions/answers.ts choiceOf).
+ */
+const DraftChoiceSchema = z.object({ label: TextSchema, declines: z.boolean() });
+export type DraftChoice = z.infer<typeof DraftChoiceSchema>;
+
+/**
  * draft.v1: the reply, in the language of the incoming message (F6.1); the profile keys it used;
  * whether to attach the chosen CV (the message asks for one, F6.3); and the questions it couldn't
  * answer from the profile and the CV, which go to the decision inbox instead of a guess (F6.2).
@@ -79,7 +88,7 @@ export const DraftOutputSchema = z.object({
       profileKey: z.string().nullable(),
       groupKey: z.string(),
       question: TextSchema,
-      choices: z.array(TextSchema),
+      choices: z.array(DraftChoiceSchema),
     }),
   ),
 });
