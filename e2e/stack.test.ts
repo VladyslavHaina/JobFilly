@@ -335,7 +335,7 @@ describe("e2e/specs/mvp-1", () => {
       "fileState(",
       '"app-a": 8081',
       "Roles you're looking for",
-      'getByRole("button", { name: "Sign in" })',
+      'getByRole("button", { name: "Sign in", exact: true })',
     ];
     for (const name of specs) {
       expect(
@@ -404,6 +404,72 @@ describe("e2e/specs/mvp-1", () => {
     expect(source(PROOF)).toContain("compareWithExpected(persona, stored, { complete: true })");
   });
 });
+
+describe("e2e/specs locators", () => {
+  // Playwright matches a role's name as a case-insensitive substring unless it is exact. MVP 1's
+  // run once stopped at S2 because { name: "AI" } also found the Settings tab "Mailbox"
+  // (m-ai-lbox), and every scenario after it ran without an AI. So every role a spec finds by a
+  // written name it finds exactly (a /regex/ says itself what it matches), and Settings tabs open
+  // through openSettingsTab in specs/shared.ts. Every MVP's specs, not only MVP 1's.
+  const SPECS = join(E2E, "specs");
+  const files = readdirSync(SPECS, { recursive: true, encoding: "utf8" })
+    .filter((f) => f.endsWith(".spec.ts") || f === "shared.ts")
+    .map((f) => [f, readFileSync(join(SPECS, f), "utf8")] as const);
+
+  it("tells an exact role name from one that can match a sibling", () => {
+    expect(inexactRoleNames('nav.getByRole("link", { name: "AI" }).click();')).toEqual([1]);
+    expect(inexactRoleNames('getByRole("link", { name: "AI", exact: false })')).toEqual([1]);
+    // A spec's template name, as the spec's source text has it.
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: source text, not a template
+    const chip = "`Remove ${chip}`";
+    expect(inexactRoleNames(`getByRole("button", {\n  name: ${chip},\n})`)).toEqual([1]);
+    expect(inexactRoleNames('getByRole("heading", { name: subject, level: 2 })')).toEqual([1]);
+    expect(inexactRoleNames('getByRole("link", { name: "AI", exact: true })')).toEqual([]);
+    expect(inexactRoleNames(`getByRole("button", { name: ${chip}, exact: true })`)).toEqual([]);
+    expect(inexactRoleNames('getByRole("button", { name: /^Remove / })')).toEqual([]);
+    expect(inexactRoleNames('getByRole("link")')).toEqual([]);
+  });
+
+  it("finds every role named by a string, template or variable by its exact name", () => {
+    expect(files.map(([f]) => f)).toContain("shared.ts");
+    expect(files.length).toBeGreaterThan(10);
+    const inexact = files.flatMap(([f, text]) => inexactRoleNames(text).map((n) => `${f}:${n}`));
+    expect(inexact).toEqual([]);
+  });
+
+  it("opens Settings tabs only through openSettingsTab", () => {
+    const settingsNav = /getByRole\(\s*"navigation"\s*,\s*\{\s*name:\s*"Settings"/;
+    const elsewhere = files.filter(([f, text]) => f !== "shared.ts" && settingsNav.test(text));
+    expect(elsewhere.map(([f]) => f)).toEqual([]);
+    expect(readFileSync(join(SPECS, "shared.ts"), "utf8")).toMatch(settingsNav);
+  });
+});
+
+/**
+ * The lines of the `getByRole` calls in `text` that name the role by a string, template or
+ * variable without `exact: true`: Playwright would match that name as a substring.
+ */
+function inexactRoleNames(text: string): number[] {
+  const lines: number[] = [];
+  for (const m of text.matchAll(/getByRole\(\s*"[a-z]+"\s*,\s*\{/g)) {
+    const open = m.index + m[0].length - 1;
+    // The options object up to its own closing brace; a template's ${…} is balanced on its own.
+    let depth = 0;
+    let end = open;
+    for (; end < text.length; end++) {
+      const c = text[end];
+      if (c === '"') end = text.indexOf('"', end + 1);
+      else if (c === "{") depth++;
+      else if (c === "}" && --depth === 0) break;
+    }
+    const options = text.slice(open + 1, end);
+    const name = /\bname:\s*(\S)/.exec(options)?.[1];
+    if (name && name !== "/" && !/\bexact:\s*true\b/.test(options)) {
+      lines.push(text.slice(0, m.index).split("\n").length);
+    }
+  }
+  return lines;
+}
 
 describe("docker/e2e.Dockerfile", () => {
   const dockerfile = readRepo("docker/e2e.Dockerfile");

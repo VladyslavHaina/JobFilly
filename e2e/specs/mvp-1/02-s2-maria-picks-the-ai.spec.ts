@@ -6,6 +6,7 @@ import {
   eventsSince,
   FAKE_AI_URL,
   logMark,
+  openSettingsTab,
   signIn,
   workspaceIdOf,
 } from "../shared.ts";
@@ -18,17 +19,13 @@ import {
 
 test("S2: Maria picks the AI", async ({ page, playwright, baseURL }) => {
   const mark = logMark();
-  const main = page.getByRole("navigation", { name: "Main" });
+  const main = page.getByRole("navigation", { name: "Main", exact: true });
 
   await signIn(page, "maria");
-  await expect(page.getByRole("heading", { name: "Job inbox" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Job inbox", exact: true })).toBeVisible();
   const workspaceId = workspaceIdOf(page);
-  await main.getByRole("link", { name: "Settings" }).click();
-  await page
-    .getByRole("navigation", { name: "Settings" })
-    .getByRole("link", { name: "AI" })
-    .click();
-  await expect(page.getByRole("form", { name: "Pick your AI" })).toBeVisible();
+  await openSettingsTab(page, "AI");
+  await expect(page.getByRole("form", { name: "Pick your AI", exact: true })).toBeVisible();
 
   await test.step("an OpenAI-compatible endpoint, tested", async () => {
     await page.getByLabel("AI provider").selectOption({ label: "OpenAI-compatible endpoint" });
@@ -47,9 +44,9 @@ test("S2: Maria picks the AI", async ({ page, playwright, baseURL }) => {
   await test.step("she saves and continues to the scan", async () => {
     await page.getByRole("button", { name: "Save", exact: true }).click();
     await expect(page.getByText("Saved.", { exact: true })).toBeVisible();
-    await main.getByRole("link", { name: "Scan" }).click();
-    await expect(page.getByRole("heading", { name: "Scan", level: 1 })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Start scan" })).toBeVisible();
+    await main.getByRole("link", { name: "Scan", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Scan", level: 1, exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Start scan", exact: true })).toBeVisible();
   });
 
   await test.step("probes: no key in the settings, and foreign writes refused", async () => {

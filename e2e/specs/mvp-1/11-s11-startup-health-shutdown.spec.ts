@@ -5,6 +5,7 @@ import {
   compose,
   composeArgs,
   DIRECT_PORTS,
+  openSettingsTab,
   PROXY_PORT,
   REPLICAS,
   ROOT,
@@ -103,14 +104,7 @@ test("S11: startup, health and shutdown", async ({ page }) => {
         await page.route("**/api/workspaces/*/events", toAppB);
         await page.route("**/api/workspaces/*/ai/test", toAppB);
         await signIn(page, "maria");
-        await page
-          .getByRole("navigation", { name: "Main" })
-          .getByRole("link", { name: "Settings" })
-          .click();
-        await page
-          .getByRole("navigation", { name: "Settings" })
-          .getByRole("link", { name: "AI" })
-          .click();
+        await openSettingsTab(page, "AI");
 
         const sent = page.waitForRequest((r) => r.url().endsWith("/ai/test"));
         await page.getByRole("button", { name: "Test", exact: true }).click();

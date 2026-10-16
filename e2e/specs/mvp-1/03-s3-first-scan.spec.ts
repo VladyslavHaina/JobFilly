@@ -16,19 +16,22 @@ async function stat(page: Page, label: string): Promise<number> {
 
 const analyzed = (page: Page) =>
   page
-    .getByRole("progressbar", { name: "Likely job emails analyzed" })
+    .getByRole("progressbar", { name: "Likely job emails analyzed", exact: true })
     .getAttribute("aria-valuenow");
 
 test("S3: the first scan stops when confident", async ({ page, context }) => {
   test.setTimeout(15 * 60_000);
 
   await signIn(page, "maria");
-  await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Scan" }).click();
+  await page
+    .getByRole("navigation", { name: "Main", exact: true })
+    .getByRole("link", { name: "Scan", exact: true })
+    .click();
   await expect(page).toHaveURL(/\/w\/[^/]+\/scan$/);
   const workspaceId = workspaceIdOf(page);
 
   await test.step("she presses Start scan and the counts change", async () => {
-    await page.getByRole("button", { name: "Start scan" }).click();
+    await page.getByRole("button", { name: "Start scan", exact: true }).click();
     await expect(page.getByText("Handled without AI", { exact: true })).toBeVisible();
     await expect
       .poll(() => stat(page, "Handled without AI"), { timeout: 120_000 })
@@ -47,7 +50,7 @@ test("S3: the first scan stops when confident", async ({ page, context }) => {
     const second = await context.newPage();
     await second.goto(`http://127.0.0.1:${DIRECT_PORTS[other]}/w/${workspaceId}/scan`);
     await expect(
-      second.getByRole("progressbar", { name: "Likely job emails analyzed" }),
+      second.getByRole("progressbar", { name: "Likely job emails analyzed", exact: true }),
     ).toBeVisible();
     // Both views move on without a reload, until the scan stops.
     for (const view of [page, second]) {
@@ -78,7 +81,9 @@ test("S3: the first scan stops when confident", async ({ page, context }) => {
     expect(await stat(page, "Answers firming up")).toBeGreaterThan(0);
     // F3.6: the scan screen shows the workspace's token total.
     expect(await stat(page, "Tokens used in total")).toBeGreaterThan(0);
-    await expect(page.getByRole("link", { name: "Review your answers" })).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "Review your answers", exact: true }),
+    ).toBeVisible();
   });
 
   await test.step("logs: one scan.started across both replicas, a line per batch", async () => {
