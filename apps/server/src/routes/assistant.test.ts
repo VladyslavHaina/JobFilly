@@ -516,6 +516,31 @@ describe("Apply (F8.3, F8.5, F8.8)", () => {
     expect(await draftOf(ROLES.sg1.id)).toBe("in_mailbox");
   });
 
+  it("gives a viewer 403 on editing or applying even their own proposal (F8.8)", async () => {
+    await seedInbox();
+    ai.answers.assistant[ASIA_REQUEST] = proposalAnswer([
+      { op: "add", target: "rule", rule: asiaRule() },
+    ]);
+    // A viewer can open the assistant and chat: the proposal is theirs and shows in their thread.
+    const card = (await send(tom, ASIA_REQUEST)).proposal;
+    if (!card) throw new Error("expected a proposal");
+    const theirs = AssistantStateSchema.parse(await (await tom.get(`${base()}/assistant`)).json());
+    expect(theirs.thread?.proposals.map((p) => [p.id, p.status])).toEqual([[card.id, "open"]]);
+
+    const edit = { changes: [{ op: "add", target: "rule", rule: asiaRule("UTC+11:00") }] };
+    expect((await tom.patch(proposalUrl(card.id), edit)).status).toBe(403);
+    expect((await tom.post(proposalUrl(card.id, "apply"))).status).toBe(403);
+
+    // Nothing changed: the card is as proposed and still open, no rule, no history, no event.
+    const after = AssistantStateSchema.parse(await (await tom.get(`${base()}/assistant`)).json());
+    expect(after.thread?.proposals).toEqual([card]);
+    expect(await listRules(deps.db, ws.workspaceId, profile.id)).toEqual([]);
+    expect(await getHistory(deps.db, ws.workspaceId, profile.id)).toEqual([]);
+    expect(deps.logs.some((l) => l.event === "assistant.proposal_applied")).toBe(false);
+    await drain();
+    expect(await hiddenIds(tom)).toEqual([]);
+  });
+
   it("answers 404 for another member's proposal", async () => {
     ai.answers.assistant[ASIA_REQUEST] = proposalAnswer([
       { op: "add", target: "rule", rule: asiaRule() },
@@ -743,7 +768,13 @@ describe("the conversation is stored but never logged (F8.10)", () => {
     expect((await maria.post(proposalUrl(card.id, "apply"))).status).toBe(200);
     await drain();
     const history = await getHistory(deps.db, ws.workspaceId, profile.id);
-    // Stored for the history…
+    // Stored for the history: the message and reply in assistant_messages, the request with the
+    // change it led to…
+    const stored = await listThreadMessages(deps.db, ws.workspaceId, turn.threadId);
+    expect(stored.map((m) => [m.role, m.text])).toEqual([
+      ["user", text],
+      ["assistant", "Here is a proposal E2E-CHAT-2"],
+    ]);
     expect(history[0]?.request).toBe(text);
     const state = AssistantStateSchema.parse(await (await maria.get(`${base()}/assistant`)).json());
     expect(JSON.stringify(state)).toContain("E2E-CHAT-1");
