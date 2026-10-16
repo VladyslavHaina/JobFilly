@@ -64,5 +64,27 @@ export const ExtraAnswerSchema = z
   })
   .transform((entries) => Object.fromEntries(entries.map((e) => [e.key, e.value])));
 
-/** One role's facts as the model writes them: `extra` as a list; parsed, they are JobFacts. */
-export const JobFactsAnswerSchema = JobFactsSchema.extend({ extra: ExtraAnswerSchema });
+/**
+ * A text fact as a model writes it: "" when the mail doesn't state it, read back as null. Every
+ * nullable field is a union in the JSON Schema a provider is given, and Anthropic refuses a schema
+ * with more than 16 of them; written as plain strings, extract.v1 has 9 instead of 19.
+ */
+const TextFactAnswerSchema = z.string().transform((s) => (s.trim() === "" ? null : s));
+
+/**
+ * One role's facts as the model writes them: the text facts as strings ("" for not stated) and
+ * `extra` as a list. Parsed, they are JobFacts. The codes, numbers and the pay period stay null
+ * when not stated.
+ */
+export const JobFactsAnswerSchema = JobFactsSchema.extend({
+  title: TextFactAnswerSchema,
+  company: TextFactAnswerSchema,
+  agency: z.object({ name: TextFactAnswerSchema, client: TextFactAnswerSchema }).nullable(),
+  places: z.array(PlaceSchema.extend({ city: TextFactAnswerSchema })),
+  remoteScope: TextFactAnswerSchema,
+  contract: TextFactAnswerSchema,
+  seniority: TextFactAnswerSchema,
+  workPermit: TextFactAnswerSchema,
+  applyUrl: TextFactAnswerSchema,
+  extra: ExtraAnswerSchema,
+});

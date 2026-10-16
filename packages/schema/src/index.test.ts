@@ -250,10 +250,23 @@ describe("job facts", () => {
 });
 
 describe("extra facts as a model writes them", () => {
+  // A model writes the text facts the mail doesn't state as "" (JobFactsAnswerSchema).
+  const written = { ...facts, remoteScope: "", seniority: "", workPermit: "", applyUrl: "" };
   const answer = {
     messageId: "<a@x.example>",
-    roles: [{ ...facts, extra: [{ key: "start", value: "November" }] }],
+    roles: [{ ...written, extra: [{ key: "start", value: "November" }] }],
   };
+
+  it("read text facts written as empty strings back as null", () => {
+    expect(ExtractOutputSchema.parse(answer).roles[0]).toEqual({
+      ...facts,
+      extra: { start: "November" },
+    });
+    // null has a union's place in the JSON Schema a provider is given, so it is no answer here.
+    expect(
+      ExtractOutputSchema.safeParse({ ...answer, roles: [{ ...facts, extra: [] }] }).success,
+    ).toBe(false);
+  });
 
   it("are a list of {key, value} read back into the record", () => {
     expect(ExtractOutputSchema.parse(answer).roles[0]?.extra).toEqual({ start: "November" });
@@ -269,7 +282,7 @@ describe("extra facts as a model writes them", () => {
   });
 
   it("are invalid as a record, or with a key given twice", () => {
-    const asRecord = { ...answer, roles: [{ ...facts, extra: { start: "November" } }] };
+    const asRecord = { ...answer, roles: [{ ...written, extra: { start: "November" } }] };
     expect(ExtractOutputSchema.safeParse(asRecord).success).toBe(false);
     const twice = [
       { key: "start", value: "November" },
@@ -294,6 +307,26 @@ describe("extra facts as a model writes them", () => {
       walk(z.toJSONSchema(TASK_OUTPUT_SCHEMAS[taskId], { target: "draft-7", io: "input" }), taskId);
     }
     expect(records).toEqual([]);
+  });
+});
+
+describe("every task's output schema", () => {
+  it("has at most 16 parameters with union types, so no provider refuses it", () => {
+    // Anthropic refuses a schema with more than 16 parameters whose type is a union: an anyOf, or
+    // a type list such as ["string", "null"], which every nullable field is. extract.v1 had 19.
+    const unions = (node: unknown): number => {
+      if (typeof node !== "object" || node === null) return 0;
+      const schema = node as Record<string, unknown>;
+      const own = Array.isArray(schema.anyOf) || Array.isArray(schema.type) ? 1 : 0;
+      return own + Object.values(schema).reduce<number>((n, value) => n + unions(value), 0);
+    };
+    const over = TASK_IDS.map((taskId) => ({
+      taskId,
+      unions: unions(
+        z.toJSONSchema(TASK_OUTPUT_SCHEMAS[taskId], { target: "draft-7", io: "input" }),
+      ),
+    })).filter((task) => task.unions > 16);
+    expect(over).toEqual([]);
   });
 });
 

@@ -335,7 +335,8 @@ Rules:
   checks the proposal's member (`ownProposal`) before acting. Another member's thread or proposal
   answers 404.
 - A message gets one assistant.v1 call (`apps/server/src/assistant/service.ts`). packages/ai asks
-  the provider for `AssistantOutputSchema` but checks the answer against `AssistantAnswerSchema`,
+  the provider for `AssistantRequestSchema` (its entry changes as one shape, for fewer unions)
+  but checks the answer against `AssistantAnswerSchema`,
   which also lets through changes outside rules and entries, so the server can refuse such a
   proposal in words with the reply kept (F8.7). A proposal is kept only when it is a list of rule
   and entry Changes that apply to the profile, and with a clarifying question no proposal is
@@ -360,7 +361,9 @@ Rules:
 - Prompts carry a stable task id (for example `classify.v1`) and refer to messages by their
   `Message-ID`. Structured output is validated against its schema; an invalid answer is retried
   once and then reported, never patched up. Output schemas use only shapes every provider can
-  express: no open records (extra facts are a list of `{key, value}`, read back into a record).
+  express: no open records (extra facts are a list of `{key, value}`, read back into a record),
+  and at most 16 parameters with union types, nullable ones included (Anthropic's limit): the
+  text facts of extract.v1 are written as "" when not stated and read back as null.
 - Mail content and CV text are passed as untrusted data, so instructions inside them can't steer
   the app: every content line starts with "| ", and structure and key lines are at column 0.
 - MVP 2's tasks each have their module in `packages/ai/src/tasks`, keyed by a pinned key line the

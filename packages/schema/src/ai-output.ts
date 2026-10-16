@@ -3,7 +3,13 @@ import { ChangeSchema } from "./assistant";
 import { CategorySchema } from "./category";
 import { TextSchema } from "./common";
 import { JobFactsAnswerSchema } from "./facts";
-import { ExtraQuestionSchema, MAX_EXTRA_QUESTIONS, PreferencesAnswerSchema } from "./profile";
+import {
+  ExtraQuestionSchema,
+  MAX_EXTRA_QUESTIONS,
+  PreferencesAnswerSchema,
+  ProfileKeySchema,
+  ProfileValueSchema,
+} from "./profile";
 
 // The structured outputs the model must return, one per task id. packages/ai validates every
 // answer against these (per item for batched tasks) and never patches an invalid one up. The
@@ -106,6 +112,31 @@ export const AssistantOutputSchema = z.object({
 export type AssistantOutput = z.infer<typeof AssistantOutputSchema>;
 
 /**
+ * A Change as assistant.v1 asks the model for it: ChangeSchema with its three entry shapes as
+ * one, whose `op` is add, update or remove and whose value may be null. Every Change is one of
+ * these, and the JSON Schema the provider is given has 13 unions instead of 23 (Anthropic refuses
+ * more than 16). The answer is still checked against ChangeSchema (AssistantAnswerSchema), so an
+ * add or update with a null value fails there.
+ */
+const [addRule, updateRule, removeRule] = ChangeSchema.options;
+const ChangeRequestSchema = z.union([
+  addRule,
+  updateRule,
+  removeRule,
+  z.object({
+    op: z.enum(["add", "update", "remove"]),
+    target: z.literal("entry"),
+    key: ProfileKeySchema,
+    value: ProfileValueSchema.nullable(),
+  }),
+]);
+
+/** What the provider is asked for in assistant.v1: AssistantOutputSchema, the changes as above. */
+export const AssistantRequestSchema = AssistantOutputSchema.extend({
+  proposal: z.object({ summary: TextSchema, changes: z.array(ChangeRequestSchema) }).nullable(),
+});
+
+/**
  * A change in an assistant.v1 answer that targets neither a rule nor a profile entry (a mailbox,
  * a member, the AI settings…), which the model can't propose (F8.7). It passes the answer check
  * only so that the server can refuse the proposal in words and keep the reply; a rule or entry
@@ -117,8 +148,8 @@ const OutsideChangeSchema = z
 
 /**
  * What packages/ai checks an assistant.v1 answer against. The provider is asked for
- * AssistantOutputSchema; this is the same, except that a proposal may hold changes outside rules
- * and entries. The server refuses such a proposal with the reply kept (F8.7) and never stores it.
+ * AssistantRequestSchema; this is AssistantOutputSchema, except that a proposal may hold changes
+ * outside rules and entries. The server refuses such a proposal with the reply kept (F8.7) and never stores it.
  */
 export const AssistantAnswerSchema = AssistantOutputSchema.extend({
   proposal: z
@@ -130,7 +161,7 @@ export const AssistantAnswerSchema = AssistantOutputSchema.extend({
 });
 export type AssistantAnswer = z.infer<typeof AssistantAnswerSchema>;
 
-/** The output schema of each task id. */
+/** The output schema each task id asks the provider for. */
 export const TASK_OUTPUT_SCHEMAS = {
   "classify.v1": ClassifyOutputSchema,
   "extract.v1": ExtractOutputSchema,
@@ -140,5 +171,5 @@ export const TASK_OUTPUT_SCHEMAS = {
   "cv.v1": CvReadOutputSchema,
   "match.v1": MatchAiOutputSchema,
   "draft.v1": DraftOutputSchema,
-  "assistant.v1": AssistantOutputSchema,
+  "assistant.v1": AssistantRequestSchema,
 } as const;
