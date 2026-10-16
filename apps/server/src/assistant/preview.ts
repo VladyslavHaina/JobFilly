@@ -13,24 +13,22 @@ import {
   matchInputHash,
   roleKey,
 } from "@jobfilly/db";
-import type { Change, MatchAiOutput, Profile, Rule } from "@jobfilly/schema";
+import type { Change, Profile, Rule } from "@jobfilly/schema";
 import type { AppDeps } from "../deps";
 
 // The impact preview of a proposal (F8.2, F8.5) on this workspace's current roles: every role's
 // facts, sender verdict, live draft and draft history (listRoleStates), the chosen CV's skills,
 // and its stored match.v1 answer, handed to packages/core's previewImpact. It reads the database
 // only: no model call and no mailbox, so a preview over every role takes one request.
+//
+// A role's answer is the one stored under the hash of exactly what match.v1 would see now, as the
+// match stage picks it. A role without one (its target roles or skills changed and the
+// re-evaluation hasn't asked the model yet) is previewed with no answer, its title "not compared
+// yet": never with an older answer the pipeline would no longer use.
 
-/** Each role's stored answer: the one for exactly what the model would see now, else its latest. */
-function storedAnswer(
-  answers: Map<string, { cvId: string | null; inputHash: string; answer: MatchAiOutput }[]>,
-  key: string,
-  cvId: string | null,
-  inputHash: string,
-): MatchAiOutput | null {
-  const mine = (answers.get(key) ?? []).filter((a) => a.cvId === cvId);
-  return (mine.find((a) => a.inputHash === inputHash) ?? mine[0])?.answer ?? null;
-}
+/** Where a stored answer is looked up: its role, the CV the model saw and its input hash. */
+const answerKey = (role: string, cvId: string | null, inputHash: string) =>
+  JSON.stringify([role, cvId, inputHash]);
 
 /** The workspace's roles as the preview reads them, scored against `profile`. */
 async function previewRoles(deps: AppDeps, ws: string, profile: Profile): Promise<PreviewRole[]> {
@@ -40,11 +38,9 @@ async function previewRoles(deps: AppDeps, ws: string, profile: Profile): Promis
   const stored = await listStoredMatchAnswers(deps.db, ws, [
     ...new Set(states.map((s) => s.messageId)),
   ]);
-  const answers = new Map<string, typeof stored>();
-  for (const a of stored) {
-    const key = roleKey(a);
-    answers.set(key, [...(answers.get(key) ?? []), a]);
-  }
+  const answers = new Map(
+    stored.map((a) => [answerKey(roleKey(a), a.cvId, a.inputHash), a.answer]),
+  );
   return states.map((state) => {
     const cvId = state.evaluation?.cvChoice.cvId ?? null;
     const skills = cvId ? (skillsOf.get(cvId) ?? []) : [];
@@ -64,7 +60,7 @@ async function previewRoles(deps: AppDeps, ws: string, profile: Profile): Promis
       facts: state.facts,
       cv: { cvId, skills },
       ai: needsMatchAi(input)
-        ? storedAnswer(answers, roleKey(state), cvId, matchInputHash(input))
+        ? (answers.get(answerKey(roleKey(state), cvId, matchInputHash(input))) ?? null)
         : null,
       senderVerdict: state.sender?.verdict ?? null,
       draft: state.draft,

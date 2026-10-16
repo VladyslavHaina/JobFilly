@@ -30,6 +30,7 @@ import { defineJob } from "../jobs/queue";
 import { jobRegistry } from "../jobs/registry";
 import { matchStage } from "../pipeline/match";
 import { reevaluateWorkspace, requestRun } from "../pipeline/reevaluate";
+import { applyAndReevaluate } from "../profile/changes";
 import {
   createFakeAi,
   createFakeMailbox,
@@ -386,6 +387,55 @@ describe("a preference request (F8.2)", () => {
     // Nothing changed yet.
     expect(await listRules(deps.db, ws.workspaceId, profile.id)).toEqual([]);
     expect(await hiddenIds(maria)).toEqual([]);
+  });
+
+  it("previews a role whose stored answer no longer fits the profile as not compared yet", async () => {
+    // One CET role, scored 82 with its stored "fits" answer and eligible for a reply; no reply
+    // stage, so it has no draft yet.
+    stages.reply = async () => {};
+    await seedJobMail(deps, ws.workspaceId, mailbox, {
+      messageId: ROLES.eu.id,
+      receivedAt: new Date(NOW.getTime() - MINUTE),
+      roles: [
+        roleFacts({ workMode: "remote", remoteScope: "Worldwide", timeZones: tz("UTC+01:00") }),
+      ],
+    });
+    ai.answers.match[`${ROLES.eu.id}#0`] = {
+      titleFit: { verdict: "fits", reason: "a backend role" },
+      skillCloseness: [],
+    };
+    await requestRun(deps, ws.workspaceId, "seeded");
+    await drain();
+    const [scored] = await states();
+    expect(scored?.evaluation?.match?.score).toBe(82);
+
+    // The target roles change and the re-evaluation hasn't run yet: the stored answer is for
+    // targets the profile no longer has, so the pipeline would ask match.v1 again, never reuse it.
+    const changed = await applyAndReevaluate(
+      deps,
+      ws.workspaceId,
+      profile.id,
+      [{ op: "update", target: "entry", key: "target_roles", value: ["Data Engineer"] }],
+      { source: "you", userId: ws.owner.id, request: null },
+    );
+    expect(changed?.ok).toBe(true);
+
+    ai.answers.assistant[ASIA_REQUEST] = proposalAnswer([
+      { op: "add", target: "rule", rule: asiaRule("UTC+00:00") },
+    ]);
+    const matchCalls = ai.calls.match;
+    const card = (await send(maria, ASIA_REQUEST)).proposal;
+    if (!card) throw new Error("expected a proposal");
+    // Previewed without the stale answer, the title isn't compared yet (65, under the reply
+    // threshold), so hiding it costs no draft; the old "fits" would have counted one (82).
+    expect(card.impact).toEqual({
+      hides: 1,
+      shows: 0,
+      scoreMoves: 0,
+      draftsNotCreated: 0,
+      draftsInMailbox: 0,
+    });
+    expect(ai.calls.match).toBe(matchCalls);
   });
 
   it("is edited before Apply: the time-zone range, with the words and impact following", async () => {
