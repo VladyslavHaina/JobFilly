@@ -1,4 +1,5 @@
 import {
+  type AppliedSenderMark,
   LOOKUP_FAILED_SIGNAL,
   type MxLookupResult,
   MxLookupResultSchema,
@@ -75,6 +76,24 @@ export async function findSenderMark(
       ),
     );
   return rows.find((r) => r.scope === "address") ?? rows[0] ?? null;
+}
+
+/**
+ * The mark that applies to a message's sender now (findSenderMark), the address read from the
+ * workspace's own message row; null when the workspace has no such message. Keyed by the message
+ * so the sender's address never travels in a URL.
+ */
+export async function findMessageSenderMark(
+  db: Database,
+  workspaceId: string,
+  messageId: string,
+): Promise<AppliedSenderMark | null> {
+  const [row] = await db
+    .select({ fromAddress: messages.fromAddress })
+    .from(messages)
+    .where(and(eq(messages.workspaceId, workspaceId), eq(messages.messageId, messageId)));
+  if (!row) return null;
+  return { applied: await findSenderMark(db, workspaceId, row.fromAddress) };
 }
 
 export type DomainLookupKind = "rdap" | "mx";

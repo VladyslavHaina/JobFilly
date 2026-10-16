@@ -8,6 +8,7 @@ import { getSenderChecks, markStale, saveSenderCheck } from "./evaluations";
 import { saveAnalysis, saveEnvelopes } from "./messages";
 import {
   clearSenderMark,
+  findMessageSenderMark,
   findSenderMark,
   getDomainLookup,
   lastLookupFailure,
@@ -224,6 +225,25 @@ async function seedChecked(
   });
   await saveSenderCheck(conn.db, ws, messageId, check, at);
 }
+
+describe("the mark on a message's sender", () => {
+  it("tells the mark that applies to a message's sender, from its own workspace only", async () => {
+    await seedChecked("<m1@x>", "Grace.Lin@Tidewater.example");
+    expect(await findMessageSenderMark(conn.db, ws, "<m1@x>")).toEqual({ applied: null });
+    await setSenderMark(conn.db, ws, {
+      scope: "domain",
+      value: "tidewater.example",
+      mark: "blocked",
+      userId,
+      at,
+    });
+    expect(await findMessageSenderMark(conn.db, ws, "<m1@x>")).toEqual({
+      applied: { mark: "blocked", scope: "domain", value: "tidewater.example" },
+    });
+    expect(await findMessageSenderMark(conn.db, ws, "<m2@x>")).toBeNull();
+    expect(await findMessageSenderMark(conn.db, other, "<m1@x>")).toBeNull();
+  });
+});
 
 describe("the stale flag a mark sets", () => {
   it("makes stale the checks of the marked address, or of every address of the domain", async () => {
