@@ -502,6 +502,27 @@ describe("a preference request (F8.2)", () => {
     });
     expect(bad.status).toBe(400);
   });
+
+  it("refuses an edit that clears the rule's words, and keeps the card as it was (F3.1)", async () => {
+    await seedInbox();
+    ai.answers.assistant[ASIA_REQUEST] = proposalAnswer([
+      { op: "add", target: "rule", rule: asiaRule() },
+    ]);
+    const card = (await send(maria, ASIA_REQUEST)).proposal;
+    if (!card) throw new Error("expected a proposal");
+    for (const description of ["", "   "]) {
+      const res = await maria.patch(proposalUrl(card.id), {
+        changes: [{ op: "add", target: "rule", rule: { ...asiaRule(), description } }],
+      });
+      expect(res.status).toBe(400);
+    }
+    const applied = ProposalSchema.parse(
+      await (await maria.post(proposalUrl(card.id, "apply"))).json(),
+    );
+    expect(applied.status).toBe("applied");
+    const [rule] = await listRules(deps.db, ws.workspaceId, profile.id);
+    expect(rule?.description).toBe(asiaRule().description);
+  });
 });
 
 describe("Apply (F8.3, F8.5, F8.8)", () => {
