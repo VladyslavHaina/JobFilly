@@ -17,6 +17,7 @@ import {
   Dialog,
   Loading,
   PageHeader,
+  Switch,
   TagInput,
 } from "../../components";
 import { useWorkspace } from "../../hooks";
@@ -27,9 +28,10 @@ import { cvsKey, errorText, useCvs } from "./queries";
 // The CVs page (F2.1, F2.5): editors upload PDF or DOCX files (several at once), each is read by
 // the AI, which suggests its language, role families and seniority as tags, and lists the skills
 // (as the CV writes them; any the text doesn't contain were dropped) and its format hints. All
-// three are editable tags: users remove any and add their own ("preferred"); a skill is added
-// only if the CV's text contains it (F2.2), which the server checks. Download for everyone;
-// delete for editors.
+// three are editable tags: users remove any and add their own; a skill is added only if the CV's
+// text contains it (F2.2), which the server checks. An editor marks the CV to use when nothing
+// in a role points to another as preferred, a switch rather than a tag's words (F2.3). Download
+// for everyone; delete for editors.
 
 const ACCEPT =
   ".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -77,6 +79,7 @@ function CvCard({ cv }: { cv: Cv }) {
   const tags = useCvEdit(cv);
   const skills = useCvEdit(cv);
   const hints = useCvEdit(cv);
+  const prefer = useCvEdit(cv);
   const remove = useMutation({
     mutationFn: () => apiVoid(apiPaths.cv(workspaceId, cv.id), { method: "DELETE" }),
     onSuccess: async () => {
@@ -102,8 +105,10 @@ function CvCard({ cv }: { cv: Cv }) {
     (tags.isPending && tags.variables.tags?.map((t) => t.label)) || cv.tags.map((t) => t.label);
   const skillLabels = (skills.isPending && skills.variables.skills) || cv.skills;
   const hintLabels = (hints.isPending && hints.variables.formatHints) || cv.formatHints;
+  const preferred = (prefer.isPending ? prefer.variables.preferred : undefined) ?? cv.preferred;
   const read = cv.readStatus === "done";
-  const error = tags.error ?? skills.error ?? hints.error ?? remove.error ?? download.error;
+  const error =
+    tags.error ?? skills.error ?? hints.error ?? prefer.error ?? remove.error ?? download.error;
   return (
     <Card className="flex flex-col gap-3">
       <header className="flex flex-wrap items-start justify-between gap-3">
@@ -135,9 +140,18 @@ function CvCard({ cv }: { cv: Cv }) {
         label={`Tags for ${cv.name}`}
         tags={labels}
         disabled={!can.edit || tags.isPending}
-        placeholder={can.edit ? "Add a tag, e.g. preferred" : undefined}
+        placeholder={can.edit ? "Add a tag, e.g. remote" : undefined}
         onChange={(next) => tags.mutate({ tags: nextTags(cv.tags, next) })}
       />
+      <div className="flex flex-col gap-1">
+        <Switch
+          label="Preferred CV"
+          checked={preferred}
+          disabled={!can.edit || prefer.isPending}
+          onChange={(next) => prefer.mutate({ preferred: next })}
+        />
+        <p className="text-xs text-stone-500">Used when nothing in a role points to another CV.</p>
+      </div>
       {read && (
         <>
           <div className="flex flex-col gap-1">

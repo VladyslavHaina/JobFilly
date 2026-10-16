@@ -40,6 +40,7 @@ function cv(overrides: Partial<Cv> = {}): Cv {
       { label: "en", source: "ai" },
       { label: "Backend engineering", source: "ai" },
     ],
+    preferred: false,
     readStatus: "done",
     uploadedAt: "2026-10-14T10:00:00.000Z",
     ...overrides,
@@ -185,7 +186,7 @@ describe("the CVs page (F2.1)", () => {
 
     await userEvent.type(
       screen.getByRole("textbox", { name: "Tags for Backend (EN)" }),
-      "preferred{Enter}",
+      "remote{Enter}",
     );
     await waitFor(() => expect(seen.some((r) => r.method === "PATCH")).toBe(true));
     const patch = seen.find((r) => r.method === "PATCH");
@@ -194,9 +195,23 @@ describe("the CVs page (F2.1)", () => {
       tags: [
         { label: "en", source: "ai" },
         { label: "Backend engineering", source: "ai" },
-        { label: "preferred", source: "you" },
+        { label: "remote", source: "you" },
       ],
     });
+  });
+
+  it("marks a CV preferred with a switch, not a tag (F2.3)", async () => {
+    const { seen } = api({
+      [`GET ${url}`]: { items: [backendEn] },
+      [`PATCH ${url}/:id`]: (req: FakeRequest) => ({ ...backendEn, ...(req.body as object) }),
+    });
+    renderInWorkspace(<CvsPage workspaceId={ws.id} />, { role: "editor" });
+    const preferred = await screen.findByRole("switch", { name: "Preferred CV" });
+    expect(preferred.getAttribute("aria-checked")).toBe("false");
+    await userEvent.click(preferred);
+    await waitFor(() => expect(seen.some((r) => r.method === "PATCH")).toBe(true));
+    expect(seen.find((r) => r.method === "PATCH")?.body).toEqual({ preferred: true });
+    await waitFor(() => expect(preferred.getAttribute("aria-checked")).toBe("true"));
   });
 
   it("edits the skills as tags: removes one, adds one, and says why one can't be added", async () => {

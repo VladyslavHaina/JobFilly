@@ -20,6 +20,7 @@ const cv = {
   countryHints: [],
   formatHints: [],
   tags: [],
+  preferred: false,
   readStatus: "pending",
   uploadedAt: "2026-10-01T10:00:00.000Z",
 };
