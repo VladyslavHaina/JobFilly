@@ -3,7 +3,9 @@ import {
   createConfirmedProfile,
   getEvaluations,
   getSenderChecks,
+  getStageHolds,
   listToEvaluate,
+  listWorkspacesWithWork,
   loadMessageInputs,
   markStale,
 } from "@jobfilly/db";
@@ -320,6 +322,128 @@ describe("evaluateMessage", () => {
     stages.failing = {};
     expect(await evaluate("<a@x.example>", "reevaluate")).toMatchObject({ evaluated: [0] });
     expect(await listToEvaluate(deps.db, ws, { now: deps.clock.now() })).toEqual([]);
+  });
+
+  it("backs off a sender check that keeps failing: no stage, mailbox call or log line while it waits", async () => {
+    await confirm();
+    await seedJobMail(deps, ws, mailbox, { messageId: "<a@x.example>", receivedAt: daysAgo(1) });
+    mailbox.pause();
+    const interval = deps.config.syncIntervalSeconds * 1000;
+    const senderFailures = () =>
+      deps.logs.filter((l) => l.event === "pipeline.stage_failed" && l.stage === "sender");
+    /** Whether anything of the message still has a stage_failures row, whenever it is due. */
+    const failureRow = async () =>
+      (await getStageHolds(deps.db, ws, "<a@x.example>", new Date(0))).sender;
+
+    // The first failure is tried again at once (the next sweep), the second waits one interval.
+    // The role is matched meanwhile (it doesn't need the mailbox).
+    expect(await evaluate("<a@x.example>", "backlog")).toMatchObject({
+      senderChecked: false,
+      evaluated: [0],
+    });
+    await evaluate("<a@x.example>", "reevaluate");
+    expect(mailbox.calls.fetchBody).toBe(2);
+    expect(senderFailures()).toMatchObject([
+      {
+        error: "MailUnavailableError",
+        kind: "mailbox_unavailable",
+        reason: "Couldn't reach the mail server",
+        failures: 1,
+        retryAt: NOW.toISOString(),
+      },
+      { failures: 2, retryAt: new Date(NOW.getTime() + interval).toISOString() },
+    ]);
+
+    // While it waits, the message is left alone: no stage call (not even the reply stage), no
+    // login or fetch, no log line, and the sweep finds nothing to do.
+    stages.calls.length = 0;
+    const before = { ...mailbox.calls };
+    const lines = deps.logs.length;
+    expect(await evaluate("<a@x.example>", "reevaluate")).toMatchObject({
+      senderChecked: false,
+      evaluated: [],
+      failed: [],
+    });
+    expect(stages.calls).toEqual([]);
+    expect(mailbox.calls).toEqual(before);
+    expect(deps.logs.length).toBe(lines);
+    expect(await listWorkspacesWithWork(deps.db, NOW)).toEqual([]);
+
+    // Once the wait is over the sender stage runs again (one more fetch), and waits two intervals.
+    deps.clock.advance(interval);
+    const later = deps.clock.now();
+    expect(await listWorkspacesWithWork(deps.db, later)).toEqual([ws]);
+    await evaluate("<a@x.example>", "reevaluate");
+    expect(stages.calls).toEqual(["sender <a@x.example>", "reply <a@x.example>"]);
+    expect(mailbox.calls.fetchBody).toBe(before.fetchBody + 1);
+    expect(senderFailures()).toHaveLength(3);
+    expect(senderFailures()[2]).toMatchObject({
+      error: "MailUnavailableError",
+      failures: 3,
+      retryAt: new Date(later.getTime() + 2 * interval).toISOString(),
+    });
+    expect(await failureRow()).toBe(true);
+
+    // When the mailbox is back and the wait is over, the real check is stored and the failure
+    // forgotten.
+    mailbox.resume();
+    deps.clock.advance(2 * interval);
+    expect(await evaluate("<a@x.example>", "reevaluate")).toMatchObject({ senderChecked: true });
+    expect((await getSenderChecks(deps.db, ws, ["<a@x.example>"]))[0]).toMatchObject({
+      verdict: "looks_fine",
+      complete: true,
+      stale: false,
+    });
+    expect(await failureRow()).toBe(false);
+    expect(await listWorkspacesWithWork(deps.db, deps.clock.now())).toEqual([]);
+  });
+
+  it("names why each stage failed, never what the error carries besides (S12)", async () => {
+    await confirm();
+    await seedJobMail(deps, ws, mailbox, { messageId: "<a@x.example>", receivedAt: daysAgo(1) });
+    stages.sender = async () => {
+      throw Object.assign(new Error("lookup of agency.example timed out"), {
+        name: "TimeoutError",
+        body: "BODYSENTINEL-sender",
+      });
+    };
+    stages.match = async () => {
+      throw Object.assign(new Error("match.v1 gave no answer: unreachable"), {
+        name: "MatchAiError",
+        kind: "unreachable",
+        responseBody: "BODYSENTINEL-answer",
+        requestBodyValues: { apiKey: "E2E-SECRET-ai-key" },
+      });
+    };
+    expect(await evaluate("<a@x.example>", "backlog")).toMatchObject({
+      senderChecked: false,
+      evaluated: [],
+      failed: [0],
+    });
+    const failures = deps.logs.filter((l) => l.event === "pipeline.stage_failed");
+    expect(failures).toEqual([
+      expect.objectContaining({
+        stage: "sender",
+        error: "TimeoutError",
+        reason: "lookup of agency.example timed out",
+        failures: 1,
+      }),
+      expect.objectContaining({
+        stage: "match",
+        position: 0,
+        error: "MatchAiError",
+        kind: "unreachable",
+        reason: "match.v1 gave no answer: unreachable",
+        failures: 1,
+      }),
+    ]);
+    // A bare "Error" with nothing else would say nothing: each line names the cause.
+    for (const line of failures) expect(line.reason).not.toBe("");
+    const text = JSON.stringify(deps.logs);
+    for (const leak of ["BODYSENTINEL", "E2E-SECRET", "stack"]) expect(text).not.toContain(leak);
+    expect(deps.logs.filter((l) => l.event === "pipeline.message_processed")).toMatchObject([
+      { origin: "backlog", senderChecked: false, rolesEvaluated: 0, rolesFailed: 1 },
+    ]);
   });
 
   it("tries a waiting role again at once after a change, even one never evaluated", async () => {
