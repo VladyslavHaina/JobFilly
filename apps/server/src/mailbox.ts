@@ -10,9 +10,9 @@ import { open } from "./secrets";
 //
 //   connectMailbox        reads the stored connection; null when there is none. The body route
 //                         (routes/messages.ts) and the pipeline (pipeline/evaluate.ts) use it;
-//                         the sync and the drafts, when their slices write them, are to use it.
-//   connectStoredMailbox  opens a row the caller already read: the scan (jobs/scan), which needs
-//                         the mailbox's address too.
+//                         the drafts, when their slice writes them, are to use it.
+//   connectStoredMailbox  opens a row the caller already read: the scan (jobs/scan) and the sync
+//                         (sync/run.ts).
 
 /**
  * The stored password won't open: it was sealed under another JOBFILLY_SECRET_KEY, a problem of
@@ -56,6 +56,6 @@ export function connectStoredMailbox(deps: AppDeps, mailbox: StoredMailbox): Mai
       username: mailbox.username,
       password,
     },
-    { allowInsecure: deps.config.allowInsecureMail },
+    { allowInsecure: deps.config.allowInsecureMail, address: mailbox.address },
   );
 }

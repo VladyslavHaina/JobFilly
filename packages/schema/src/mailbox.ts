@@ -159,7 +159,25 @@ export function syntheticMessageId(folder: MailFolder, uidValidity: number, uid:
   return `<${folder}.${uidValidity}.${uid}@jobfilly.invalid>`;
 }
 
+const SYNTHETIC_MESSAGE_ID = /^<(inbox|sent)\.\d+\.\d+@jobfilly\.invalid>$/;
+
+/**
+ * Whether a Message-ID is one syntheticMessageId made up: no message in any mailbox has it, so
+ * a reply has nothing to thread to.
+ */
+export function isSyntheticMessageId(messageId: string): boolean {
+  return SYNTHETIC_MESSAGE_ID.test(messageId);
+}
+
 // --- MVP 2: continuous sync and drafts in the mailbox (packages/mail's MailClient) -------------
+
+/**
+ * One message as fetchSince reads it: its envelope and when it arrived in the folder, the
+ * server's INTERNALDATE (the envelope's date when the server tells none). The sync judges how
+ * old mail is by its arrival, never by the Date header the sender wrote.
+ */
+export const SyncedEnvelopeSchema = EnvelopeSchema.extend({ receivedAt: IsoDateTimeSchema });
+export type SyncedEnvelope = z.infer<typeof SyncedEnvelopeSchema>;
 
 /**
  * fetchSince's answer: the folder's UIDVALIDITY now and the envelopes of every message after
@@ -170,7 +188,7 @@ export function syntheticMessageId(folder: MailFolder, uidValidity: number, uid:
 export const FetchSinceResultSchema = z.object({
   uidValidity: z.number().int().nonnegative(),
   changed: z.boolean(),
-  messages: z.array(EnvelopeSchema),
+  messages: z.array(SyncedEnvelopeSchema),
 });
 export type FetchSinceResult = z.infer<typeof FetchSinceResultSchema>;
 
@@ -212,5 +230,11 @@ export const DraftMailInputSchema = z.object({
   original: OriginalMessageSchema,
   reply: z.object({ subject: z.string(), body: z.string() }),
   attachment: DraftAttachmentSchema.nullable(),
+  /**
+   * The draft's own Message-ID header ("<...>") when the caller chose it; the client makes one
+   * when absent. draft.create chooses and keeps it before the append, so a retry after an append
+   * whose outcome it never recorded can find and delete that copy first (one copy, F6.3, F6.4).
+   */
+  draftMessageId: z.string().min(1).optional(),
 });
 export type DraftMailInput = z.infer<typeof DraftMailInputSchema>;

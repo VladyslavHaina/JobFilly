@@ -88,12 +88,13 @@ Rules:
   (with `stale`), `sender_marks`, `domain_lookups` (the RDAP and MX cache, workspace-scoped),
   `drafts`, `decisions` and `decision_messages`, `assistant_threads`, `assistant_messages`,
   `assistant_proposals`, `profile_history`, `mailbox_sync` (per mailbox and folder: UIDVALIDITY,
-  last UID, last success, failing since, the back-off's next attempt), `stage_failures` (per
-  message and pipeline stage: the failure count, the last failure, the back-off's `retry_at` and
-  the evaluation's `stale_since` when it failed; a sender check is stored under position -1),
-  `jobs.dedupe_key` and `messages.language` (the body's language as the sender stage detected
-  it). The migration also gives saved AI settings a model for each new task, from their extract
-  model.
+  last UID, last success, failing since and why, the back-off's next attempt), `stage_failures`
+  (per message and pipeline stage: the failure count, the last failure, the back-off's `retry_at`
+  and the evaluation's `stale_since` when it failed; a sender check is stored under position -1),
+  `jobs.dedupe_key`, `messages.language` (the body's language as the sender stage detected it)
+  and `messages.sync_analysis_failures` (how many syncs failed to have the model sort the
+  message). The migration also gives saved AI settings a model for each new task, from their
+  extract model.
 - A reference from one workspace-owned row to another includes `workspace_id`: `cvs`,
   `profiles` and `assistant_threads` have a unique `(workspace_id, id)`, and every foreign key to
   them is composite, as those to `messages` and `roles` are. The database itself refuses a link,
@@ -170,7 +171,22 @@ Rules:
 
 - Continuous sync (`mail.sync`, every `JOBFILLY_SYNC_INTERVAL_SECONDS`, after the first scan has
   stopped) reads INBOX by UID per folder (`MailClient.fetchSince`), re-indexes a folder whose
-  UIDVALIDITY changed by Message-ID, and records its state and back-off in `mailbox_sync`.
+  UIDVALIDITY changed by Message-ID, and records its state and back-off in `mailbox_sync`
+  (`apps/server/src/sync`). Its first cursor is where the first scan's stored INBOX mail ends.
+  Every message after a known cursor is new; only when it reads the whole folder (no cursor yet,
+  or a new UIDVALIDITY) does it leave out mail that arrived (`SyncedEnvelope.receivedAt`, the
+  INTERNALDATE) before that scan's window. New likely job mail is sorted and extracted by
+  `pipeline/analyze.ts`, the scan's own classify-then-extract step, within the workspace's budget
+  per run; the cursor stays before mail the model couldn't sort yet, until syncs have failed on a
+  message `MAX_SYNC_ANALYSIS_FAILURES` times (`messages.sync_analysis_failures`), which then
+  waits for "Analyze them". A failed sync backs off from one interval, doubling to at most 15
+  minutes, and the mailbox shows as failing since its first failure until a sync works again. The
+  status carries a reason code (`MailboxSyncStatus.reason`, stored in
+  `mailbox_sync.last_error_reason`) that the UI branches on; the words beside it come from
+  packages/mail (`UNAVAILABLE_MESSAGES`).
+- Every caller of `MailPort.connect` passes the mailbox's stored address
+  (`MailClientOptions.address`): it is the From of every draft and the domain of its
+  Message-ID, as the IMAP user name need not be an address.
 - Each new job message, and every message whose evaluation or sender check is missing or stale,
   goes through `evaluateMessage` (`apps/server/src/pipeline/evaluate.ts`): the sender stage, then
   per role the cv-choice and match stages, then the reply stage. The stage contract is pinned in

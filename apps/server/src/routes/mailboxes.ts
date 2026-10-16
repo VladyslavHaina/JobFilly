@@ -2,6 +2,7 @@ import {
   createMailbox,
   deleteMailbox,
   getMailboxConnection,
+  getMailboxSyncStatus,
   type StoredMailbox,
 } from "@jobfilly/db";
 import { FAILURE_MESSAGES, MAIL_PRESETS } from "@jobfilly/mail";
@@ -20,9 +21,10 @@ import type { AppDeps } from "../deps";
 import type { Logger } from "../log";
 import { seal } from "../secrets";
 
-// The workspace's mailbox (F2): presets, test, connect, disconnect. One mailbox per workspace in
-// MVP 1 (F2.5). The password is sealed before it is stored, never returned and never logged
-// (F2.3); plain-text IMAP is refused unless JOBFILLY_ALLOW_INSECURE_MAIL=true (F2.4).
+// The workspace's mailbox (F2): presets, test, connect, disconnect, and the continuous sync's
+// status for everyone in the workspace (MVP 2 F1.4). One mailbox per workspace in MVP 1 (F2.5).
+// The password is sealed before it is stored, never returned and never logged (F2.3); plain-text
+// IMAP is refused unless JOBFILLY_ALLOW_INSECURE_MAIL=true (F2.4).
 
 const INSECURE: MailTestResult = {
   ok: false,
@@ -57,8 +59,8 @@ export function mailboxRoutes(deps: AppDeps) {
     if (input.tlsMode === "none" && !allowInsecure) {
       result = INSECURE;
     } else {
-      const { address: _address, ...conn } = input;
-      const client = deps.mail.connect(conn, { allowInsecure });
+      const { address, ...conn } = input;
+      const client = deps.mail.connect(conn, { allowInsecure, address });
       try {
         result = await client.test();
       } finally {
@@ -71,8 +73,18 @@ export function mailboxRoutes(deps: AppDeps) {
 
   return new Hono<WorkspaceEnv>()
     .get("/", requireRole("viewer"), async (c) => {
-      const stored = await getMailboxConnection(deps.db, c.get("workspaceId"));
-      const list: MailboxList = { items: stored ? [toPublic(stored)] : [] };
+      const workspaceId = c.get("workspaceId");
+      const stored = await getMailboxConnection(deps.db, workspaceId);
+      const list: MailboxList = {
+        items: stored
+          ? [
+              {
+                ...toPublic(stored),
+                sync: await getMailboxSyncStatus(deps.db, workspaceId, stored.mailboxId),
+              },
+            ]
+          : [],
+      };
       return c.json(list);
     })
     .get("/presets", requireRole("viewer"), (c) => {

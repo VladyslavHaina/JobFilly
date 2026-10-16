@@ -8,7 +8,7 @@ import {
   saveEnvelopes,
   saveEvaluation,
 } from "@jobfilly/db";
-import type { MailClient } from "@jobfilly/mail";
+import type { MailClient, MailClientOptions } from "@jobfilly/mail";
 import {
   type Envelope,
   type JobFacts,
@@ -54,7 +54,7 @@ const BASE = Date.UTC(2026, 8, 1);
 interface FakeMailbox {
   bodies: Map<string, string>;
   uidValidity: Map<string, number>;
-  connections: { conn: MailConnection; allowInsecure: boolean }[];
+  connections: { conn: MailConnection; allowInsecure: boolean; address: string }[];
   fetched: MessageRef[];
   closed: number;
   fail: boolean;
@@ -88,8 +88,8 @@ function fakeMail(): FakeMailbox & { port: TestDeps["mail"] } {
   });
   return Object.assign(box, {
     port: {
-      connect(conn: MailConnection, options: { allowInsecure: boolean }) {
-        box.connections.push({ conn, allowInsecure: options.allowInsecure });
+      connect(conn: MailConnection, options: MailClientOptions) {
+        box.connections.push({ conn, ...options });
         return client;
       },
     },
@@ -360,7 +360,9 @@ describe("GET /messages/:messageId/body (F5.2, F4.9)", () => {
     const res = await viewer.get(path(ws.workspaceId, id(2), "/body"));
     expect(res.status).toBe(200);
     expect(MessageBodySchema.parse(await res.json())).toEqual({ text: BODY });
-    expect(mail.connections).toEqual([{ conn: CONN, allowInsecure: false }]);
+    expect(mail.connections).toEqual([
+      { conn: CONN, allowInsecure: false, address: "maria.santos@inbox.example" },
+    ]);
     expect(mail.fetched).toEqual([{ folderPath: "INBOX", uidValidity: UIDVALIDITY, uid: 2 }]);
     expect(mail.closed).toBe(1);
   });

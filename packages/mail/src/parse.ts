@@ -3,10 +3,12 @@ import {
   type Envelope,
   isMsgId,
   type MailFolder,
+  type OriginalMessage,
   SNIPPET_MAX_LENGTH,
   syntheticMessageId,
 } from "@jobfilly/schema";
 import { type AddressObject, type EmailAddress, type ParsedMail, simpleParser } from "mailparser";
+import { usableDate } from "./dates";
 
 // Turning a message's source into what the app keeps: the Envelope (headers and a short snippet)
 // and, on demand, the sanitised plain text. mailparser derives the text from the HTML part when
@@ -86,9 +88,67 @@ export interface SourceInfo {
 }
 
 export async function envelopeFromSource(source: Buffer, info: SourceInfo): Promise<Envelope> {
-  const mail = await simpleParser(source, PARSE_OPTIONS);
-  const headerDate = mail.date && !Number.isNaN(mail.date.getTime()) ? mail.date : null;
-  const date = headerDate ?? info.internalDate ?? new Date(0);
+  return envelopeOf(await simpleParser(source, PARSE_OPTIONS), info);
+}
+
+/**
+ * The envelope of a message nothing could be read from: only where it is and when it arrived,
+ * under its synthetic Message-ID. Each of its fields is one the schema accepts, so it stands in
+ * for any field of a message that fails its schema (conformed).
+ */
+export function fallbackEnvelope(info: SourceInfo): Envelope {
+  return {
+    messageId: syntheticMessageId(info.folder, info.uidValidity, info.uid),
+    folder: info.folder,
+    folderPath: info.folderPath,
+    uidValidity: info.uidValidity,
+    uid: info.uid,
+    date: (usableDate(info.internalDate) ?? new Date(0)).toISOString(),
+    from: { address: "", name: null },
+    to: [],
+    cc: [],
+    replyTo: [],
+    inReplyTo: null,
+    references: [],
+    subject: "",
+    listId: null,
+    listUnsubscribe: null,
+    precedence: null,
+    autoSubmitted: null,
+    snippet: "",
+  };
+}
+
+interface ObjectSchema<T> {
+  shape: Record<string, { safeParse(value: unknown): { success: boolean } }>;
+  safeParse(value: unknown): { success: true; data: T } | { success: false };
+}
+
+/**
+ * What one message gave, checked against its schema on its own, so one message can never fail a
+ * whole folder: each field that fails its schema is replaced by the fallback's. Null when even
+ * that fails (only the fields the fallback copies from the server can, such as a UID that isn't
+ * a number): the message is left out.
+ */
+export function conformed<T extends object>(
+  schema: ObjectSchema<T>,
+  value: T,
+  fallback: T,
+): T | null {
+  const given = value as Record<string, unknown>;
+  const instead = fallback as Record<string, unknown>;
+  const fields = Object.fromEntries(
+    Object.entries(schema.shape).map(([key, field]) => [
+      key,
+      field.safeParse(given[key]).success ? given[key] : instead[key],
+    ]),
+  );
+  const checked = schema.safeParse(fields);
+  return checked.success ? checked.data : null;
+}
+
+function envelopeOf(mail: ParsedMail, info: SourceInfo): Envelope {
+  const date = usableDate(mail.date) ?? usableDate(info.internalDate) ?? new Date(0);
   const inReplyTo = messageIds(rawHeader(mail, "in-reply-to"))[0] ?? null;
   // A Message-ID is the sender's text: one of any other shape than <...> is not kept (F3.5).
   const headerId = rawHeader(mail, "message-id");
@@ -114,6 +174,27 @@ export async function envelopeFromSource(source: Buffer, info: SourceInfo): Prom
     precedence: rawHeader(mail, "precedence"),
     autoSubmitted: rawHeader(mail, "auto-submitted"),
     snippet: snippetOf(mail.text ?? ""),
+  };
+}
+
+/**
+ * What a draft replies to (F6.3): the threading headers and the sanitised text to quote, read in
+ * one parse of the whole message. Never stored.
+ */
+export async function originalFromSource(
+  source: Buffer,
+  info: SourceInfo,
+): Promise<OriginalMessage> {
+  const mail = await simpleParser(source, PARSE_OPTIONS);
+  const envelope = envelopeOf(mail, info);
+  return {
+    messageId: envelope.messageId,
+    references: envelope.references,
+    inReplyTo: envelope.inReplyTo,
+    subject: envelope.subject,
+    from: envelope.from,
+    date: envelope.date,
+    text: sanitiseText(mail.text ?? ""),
   };
 }
 

@@ -1,5 +1,6 @@
 import type { MailConnection } from "@jobfilly/schema";
 import { ImapFlow } from "imapflow";
+import { usableDate } from "./dates";
 
 // The few IMAP operations the mail client needs, behind a small interface: the client's tests
 // use a hand-written double of it, and imapflowSession is the real one.
@@ -13,6 +14,7 @@ export interface ImapFolder {
 
 interface ImapMessage {
   uid: number;
+  /** The server's INTERNALDATE; null when it sent none or one that isn't a usable date. */
   internalDate: Date | null;
   source: Buffer;
 }
@@ -26,6 +28,29 @@ export interface ImapSession {
   searchSince(since: Date): Promise<number[]>;
   /** The messages' sources, at most `maxBytes` each when given. */
   fetch(uids: number[], options: { maxBytes?: number }): AsyncIterable<ImapMessage>;
+  /** The UIDs of the open folder from `fromUid` on (UID fromUid:*). */
+  searchFromUid(fromUid: number): Promise<number[]>;
+  /** The UIDs of the open folder whose header `name` contains `value`. */
+  searchHeader(name: string, value: string): Promise<number[]>;
+  /**
+   * Opens a folder for changes (the Drafts folder only): appending is done without it, deleting
+   * a draft needs it.
+   */
+  openWritable(path: string): Promise<{ uidValidity: number }>;
+  /**
+   * Appends a message with the flags. The UID and UIDVALIDITY when the server tells them
+   * (UIDPLUS), else null; false when the server refused it.
+   */
+  append(
+    path: string,
+    content: Buffer,
+    flags: string[],
+    date: Date,
+  ): Promise<{ uid: number | null; uidValidity: number | null } | false>;
+  /** Deletes messages of the folder opened for changes, by UID (\Deleted, then expunged). */
+  deleteUids(uids: number[]): Promise<void>;
+  /** Creates a folder; returns its full path (the server may add its namespace prefix). */
+  create(path: string): Promise<{ path: string }>;
   logout(): Promise<void>;
 }
 
@@ -75,9 +100,40 @@ export const imapflowSession: SessionFactory = (conn) => {
       };
       for await (const message of client.fetch(uids, query, { uid: true })) {
         if (!message.source) continue;
-        const date = message.internalDate ? new Date(message.internalDate) : null;
-        yield { uid: message.uid, internalDate: date, source: message.source };
+        // imapflow hands over the raw text of an INTERNALDATE it couldn't read: no date then.
+        const internalDate = usableDate(
+          message.internalDate ? new Date(message.internalDate) : null,
+        );
+        yield { uid: message.uid, internalDate, source: message.source };
       }
+    },
+    async searchFromUid(fromUid) {
+      const uids = await client.search({ uid: `${fromUid}:*` }, { uid: true });
+      return Array.isArray(uids) ? uids : [];
+    },
+    async searchHeader(name, value) {
+      const uids = await client.search({ header: { [name]: value } }, { uid: true });
+      return Array.isArray(uids) ? uids : [];
+    },
+    async openWritable(path) {
+      const mailbox = await client.mailboxOpen(path, { readOnly: false });
+      return { uidValidity: Number(mailbox.uidValidity) };
+    },
+    async append(path, content, flags, date) {
+      const result = await client.append(path, content, flags, date);
+      if (!result) return false;
+      return {
+        uid: result.uid ?? null,
+        uidValidity: result.uidValidity === undefined ? null : Number(result.uidValidity),
+      };
+    },
+    async deleteUids(uids) {
+      if (uids.length === 0) return;
+      await client.messageDelete(uids, { uid: true });
+    },
+    async create(path) {
+      const created = await client.mailboxCreate(path);
+      return { path: created.path };
     },
     async logout() {
       try {

@@ -1,0 +1,362 @@
+import { type Envelope, NEVER_SYNCED } from "@jobfilly/schema";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import type { DatabaseConnection } from "../client";
+import { openTestDatabase } from "../testing";
+import { registerAccount } from "./accounts";
+import { createMailbox, deleteMailbox, getMailboxConnection } from "./mailboxes";
+import { saveAnalysis, saveEnvelopes } from "./messages";
+import { createScan, stopScan } from "./scans";
+import {
+  countSyncAnalysisFailures,
+  getMailboxSyncStatus,
+  getSyncState,
+  listHeldBySync,
+  listMailboxesToSync,
+  recordSyncFailure,
+  recordSyncSuccess,
+} from "./sync";
+
+// The continuous sync's cursor, status and back-off per mailbox and folder (F1.1, F1.4).
+
+let conn: DatabaseConnection;
+const ws: Record<"a" | "b", { id: string; user: string; mailbox: string }> = {
+  a: { id: "", user: "", mailbox: "" },
+  b: { id: "", user: "", mailbox: "" },
+};
+
+const T0 = new Date("2026-10-15T10:42:00Z");
+const later = (seconds: number) => new Date(T0.getTime() + seconds * 1000);
+
+beforeEach(async () => {
+  conn = await openTestDatabase();
+  for (const key of ["a", "b"] as const) {
+    const r = await registerAccount(conn.db, {
+      name: key,
+      email: `${key}@x.example`,
+      passwordHash: "h",
+      workspaceName: key,
+    });
+    if (!r.ok) throw new Error("expected ok");
+    const m = await createMailbox(conn.db, r.workspaceId, {
+      address: `${key}@x.example`,
+      host: "imap.x.example",
+      port: 993,
+      tlsMode: "tls",
+      username: key,
+      secretCiphertext: "sealed",
+      sentFolderPath: "Sent",
+    });
+    if (!m.ok) throw new Error("expected ok");
+    ws[key] = { id: r.workspaceId, user: r.user.id, mailbox: m.mailboxId };
+  }
+});
+afterEach(() => conn.close());
+
+const status = async (key: "a" | "b") => (await getMailboxConnection(conn.db, ws[key].id))?.status;
+
+describe("the sync cursor", () => {
+  it("is empty before the first sync, then moves with each sync that worked", async () => {
+    const { id, mailbox } = ws.a;
+    expect(await getSyncState(conn.db, id, mailbox, "INBOX")).toBeNull();
+    expect(await getMailboxSyncStatus(conn.db, id, mailbox)).toEqual(NEVER_SYNCED);
+
+    expect(
+      await recordSyncSuccess(conn.db, id, mailbox, {
+        folderPath: "INBOX",
+        uidValidity: 7,
+        lastUid: 12,
+        at: T0,
+      }),
+    ).toBe(true);
+    await recordSyncSuccess(conn.db, id, mailbox, {
+      folderPath: "INBOX",
+      uidValidity: 8,
+      lastUid: 3,
+      at: later(15),
+    });
+    expect(await getSyncState(conn.db, id, mailbox, "INBOX")).toEqual({
+      uidValidity: 8,
+      lastUid: 3,
+      lastSyncedAt: later(15),
+      failingSince: null,
+      lastError: null,
+      lastErrorReason: null,
+      failures: 0,
+      nextAttemptAt: null,
+    });
+    expect(await getMailboxSyncStatus(conn.db, id, mailbox)).toEqual({
+      state: "ok",
+      lastSyncedAt: later(15).toISOString(),
+      failingSince: null,
+      reason: null,
+      message: null,
+    });
+  });
+
+  it("is kept per workspace: another workspace neither reads nor writes it", async () => {
+    await recordSyncSuccess(conn.db, ws.a.id, ws.a.mailbox, {
+      folderPath: "INBOX",
+      uidValidity: 7,
+      lastUid: 12,
+      at: T0,
+    });
+    expect(await getSyncState(conn.db, ws.b.id, ws.a.mailbox, "INBOX")).toBeNull();
+    expect(await getMailboxSyncStatus(conn.db, ws.b.id, ws.a.mailbox)).toEqual(NEVER_SYNCED);
+    expect(
+      await recordSyncSuccess(conn.db, ws.b.id, ws.a.mailbox, {
+        folderPath: "INBOX",
+        uidValidity: 1,
+        lastUid: 1,
+        at: T0,
+      }),
+    ).toBe(false);
+    expect(
+      await recordSyncFailure(conn.db, ws.b.id, ws.a.mailbox, {
+        folderPath: "INBOX",
+        failures: 1,
+        nextAttemptAt: later(15),
+        reason: "error",
+        message: "x",
+        at: T0,
+      }),
+    ).toBe(false);
+    expect(await getSyncState(conn.db, ws.a.id, ws.a.mailbox, "INBOX")).toMatchObject({
+      uidValidity: 7,
+      lastUid: 12,
+      failures: 0,
+    });
+  });
+
+  it("is gone with its mailbox, and a disconnected mailbox records nothing", async () => {
+    const { id, mailbox } = ws.a;
+    await recordSyncSuccess(conn.db, id, mailbox, {
+      folderPath: "INBOX",
+      uidValidity: 7,
+      lastUid: 12,
+      at: T0,
+    });
+    await deleteMailbox(conn.db, id, mailbox);
+    expect(await getSyncState(conn.db, id, mailbox, "INBOX")).toBeNull();
+    expect(
+      await recordSyncSuccess(conn.db, id, mailbox, {
+        folderPath: "INBOX",
+        uidValidity: 7,
+        lastUid: 13,
+        at: T0,
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("a failing sync (F1.4)", () => {
+  it("keeps the cursor, counts failures, keeps 'failing since' and backs off", async () => {
+    const { id, mailbox } = ws.a;
+    await recordSyncSuccess(conn.db, id, mailbox, {
+      folderPath: "INBOX",
+      uidValidity: 7,
+      lastUid: 12,
+      at: T0,
+    });
+    await recordSyncFailure(conn.db, id, mailbox, {
+      folderPath: "INBOX",
+      failures: 1,
+      nextAttemptAt: later(30),
+      reason: "unreachable",
+      message: "Couldn't reach the mail server",
+      at: later(15),
+    });
+    await recordSyncFailure(conn.db, id, mailbox, {
+      folderPath: "INBOX",
+      failures: 2,
+      nextAttemptAt: later(90),
+      reason: "wrong_password",
+      message: "The mail server didn't accept the user name or password.",
+      at: later(30),
+    });
+    expect(await getSyncState(conn.db, id, mailbox, "INBOX")).toEqual({
+      uidValidity: 7,
+      lastUid: 12,
+      lastSyncedAt: T0,
+      failingSince: later(15),
+      lastError: "The mail server didn't accept the user name or password.",
+      lastErrorReason: "wrong_password",
+      failures: 2,
+      nextAttemptAt: later(90),
+    });
+    expect(await getMailboxSyncStatus(conn.db, id, mailbox)).toEqual({
+      state: "failing",
+      lastSyncedAt: T0.toISOString(),
+      failingSince: later(15).toISOString(),
+      reason: "wrong_password",
+      message: "The mail server didn't accept the user name or password.",
+    });
+    expect(await status("a")).toBe("failing");
+    expect(await status("b")).toBe("connected");
+
+    // The next sync that works clears it all.
+    await recordSyncSuccess(conn.db, id, mailbox, {
+      folderPath: "INBOX",
+      uidValidity: 7,
+      lastUid: 14,
+      at: later(90),
+    });
+    expect(await getSyncState(conn.db, id, mailbox, "INBOX")).toMatchObject({
+      lastUid: 14,
+      failingSince: null,
+      lastError: null,
+      lastErrorReason: null,
+      failures: 0,
+      nextAttemptAt: null,
+    });
+    expect(await status("a")).toBe("connected");
+  });
+
+  it("fails since the first attempt when no sync ever worked", async () => {
+    const { id, mailbox } = ws.a;
+    await recordSyncFailure(conn.db, id, mailbox, {
+      folderPath: "INBOX",
+      failures: 1,
+      nextAttemptAt: later(15),
+      reason: "unreachable",
+      message: "Couldn't reach the mail server",
+      at: T0,
+    });
+    expect(await getSyncState(conn.db, id, mailbox, "INBOX")).toMatchObject({
+      uidValidity: null,
+      lastUid: null,
+      failingSince: T0,
+    });
+    expect(await getMailboxSyncStatus(conn.db, id, mailbox)).toEqual({
+      state: "failing",
+      lastSyncedAt: null,
+      failingSince: T0.toISOString(),
+      reason: "unreachable",
+      message: "Couldn't reach the mail server",
+    });
+  });
+});
+
+describe("listMailboxesToSync", () => {
+  async function stoppedFirstScan(key: "a" | "b") {
+    const created = await createScan(conn.db, ws[key].id, {
+      kind: "first",
+      startedBy: ws[key].user,
+      at: T0,
+    });
+    if (!created.ok) throw new Error("expected ok");
+    return created.scan.id;
+  }
+
+  it("lists only the mailboxes whose first scan stopped, with their back-off", async () => {
+    expect(await listMailboxesToSync(conn.db, "INBOX")).toEqual([]);
+    const scanA = await stoppedFirstScan("a");
+    await stoppedFirstScan("b");
+    // b's first scan still runs.
+    expect(await listMailboxesToSync(conn.db, "INBOX")).toEqual([]);
+    await stopScan(conn.db, ws.a.id, scanA, "done", T0);
+    expect(await listMailboxesToSync(conn.db, "INBOX")).toEqual([
+      { workspaceId: ws.a.id, mailboxId: ws.a.mailbox, nextAttemptAt: null },
+    ]);
+    await recordSyncFailure(conn.db, ws.a.id, ws.a.mailbox, {
+      folderPath: "INBOX",
+      failures: 1,
+      nextAttemptAt: later(30),
+      reason: "error",
+      message: "x",
+      at: T0,
+    });
+    expect(await listMailboxesToSync(conn.db, "INBOX")).toEqual([
+      { workspaceId: ws.a.id, mailboxId: ws.a.mailbox, nextAttemptAt: later(30) },
+    ]);
+  });
+});
+
+const envelope = (messageId: string, uid: number, uidValidity = 7): Envelope => ({
+  messageId,
+  folder: "inbox",
+  folderPath: "INBOX",
+  uidValidity,
+  uid,
+  date: T0.toISOString(),
+  from: { address: "lena@agency.example", name: null },
+  to: [],
+  cc: [],
+  replyTo: [],
+  inReplyTo: null,
+  references: [],
+  subject: "A role",
+  listId: null,
+  listUnsubscribe: null,
+  precedence: null,
+  autoSubmitted: null,
+  snippet: "",
+});
+
+describe("countSyncAnalysisFailures", () => {
+  const save = (key: "a" | "b", messageId: string, uid: number) =>
+    saveEnvelopes(conn.db, ws[key].id, [
+      { envelope: envelope(messageId, uid), verdict: "likely_job", reason: "test" },
+    ]);
+
+  it("counts each message's failed tries, in its own workspace only", async () => {
+    await save("a", "<one@agency.example>", 1);
+    await save("a", "<two@agency.example>", 2);
+    await save("b", "<one@agency.example>", 1);
+    expect(await countSyncAnalysisFailures(conn.db, ws.a.id, [])).toEqual(new Map());
+    expect(
+      await countSyncAnalysisFailures(conn.db, ws.a.id, [
+        "<one@agency.example>",
+        "<two@agency.example>",
+      ]),
+    ).toEqual(
+      new Map([
+        ["<one@agency.example>", 1],
+        ["<two@agency.example>", 1],
+      ]),
+    );
+    expect(await countSyncAnalysisFailures(conn.db, ws.a.id, ["<one@agency.example>"])).toEqual(
+      new Map([["<one@agency.example>", 2]]),
+    );
+    // Storing the message again (a re-read) keeps its count.
+    await save("a", "<one@agency.example>", 1);
+    expect(await countSyncAnalysisFailures(conn.db, ws.a.id, ["<one@agency.example>"])).toEqual(
+      new Map([["<one@agency.example>", 3]]),
+    );
+    expect(await countSyncAnalysisFailures(conn.db, ws.b.id, ["<one@agency.example>"])).toEqual(
+      new Map([["<one@agency.example>", 1]]),
+    );
+  });
+});
+
+describe("listHeldBySync", () => {
+  const save = (key: "a" | "b", e: Envelope, verdict: "likely_job" | "job_alert" | "not_job") =>
+    saveEnvelopes(conn.db, ws[key].id, [{ envelope: e, verdict, reason: "test" }]);
+  const held = async (key: "a" | "b", afterUid: number, uidValidity = 7) =>
+    (
+      await listHeldBySync(conn.db, ws[key].id, { folderPath: "INBOX", uidValidity, afterUid })
+    ).sort();
+
+  it("lists the likely job mail after the cursor still waiting for the model, per workspace", async () => {
+    // The first scan's own mail, at or below the cursor.
+    await save("a", envelope("<backlog@agency.example>", 2), "likely_job");
+    // After the cursor: waiting, a job alert waiting, sorted already, and not job mail.
+    await save("a", envelope("<waiting@agency.example>", 3), "likely_job");
+    await save("a", envelope("<alert@jobs.example>", 4), "job_alert");
+    await save("a", envelope("<sorted@agency.example>", 5), "likely_job");
+    await saveAnalysis(conn.db, ws.a.id, {
+      messageId: "<sorted@agency.example>",
+      scanId: null,
+      category: "recruiter_outreach",
+      roles: [],
+    });
+    await save("a", envelope("<news@list.example>", 6), "not_job");
+    // Under another UIDVALIDITY, and in another workspace.
+    await save("a", envelope("<older@agency.example>", 9, 6), "likely_job");
+    await save("b", envelope("<other@agency.example>", 3), "likely_job");
+
+    expect(await held("a", 2)).toEqual(["<alert@jobs.example>", "<waiting@agency.example>"]);
+    expect(await held("a", 4)).toEqual([]);
+    expect(await held("a", 0, 6)).toEqual(["<older@agency.example>"]);
+    expect(await held("b", 2)).toEqual(["<other@agency.example>"]);
+  });
+});

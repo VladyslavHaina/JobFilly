@@ -1,9 +1,16 @@
-import type { Envelope, JobFacts, StageOneVerdict } from "@jobfilly/schema";
+import {
+  type Envelope,
+  type JobFacts,
+  MESSAGE_GONE_SIGNAL,
+  type StageOneVerdict,
+} from "@jobfilly/schema";
 import { sql } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { type DatabaseConnection, queryRows } from "../client";
 import { openTestDatabase } from "../testing";
 import { registerAccount } from "./accounts";
+import { claimDraft, getDraftClaim } from "./draft-claims";
+import { getEvaluations, getSenderChecks, saveEvaluation, saveSenderCheck } from "./evaluations";
 import {
   countNotAnalyzed,
   countScanAnalysis,
@@ -13,6 +20,8 @@ import {
   listPendingOwnReplies,
   loadIntakeInput,
   markAnalysisFailed,
+  newestStoredUid,
+  reindexMessages,
   saveAnalysis,
   saveEnvelopes,
   savePreferences,
@@ -403,5 +412,177 @@ describe("loadIntakeInput", () => {
       roles: [],
     });
     expect(await loadIntakeInput(conn.db, other)).toEqual({ replies: [], jobs: [] });
+  });
+});
+
+describe("reindexMessages (F1.3)", () => {
+  const rebuilt = (e: Envelope, uid: number): Envelope => ({ ...e, uidValidity: 1800000000, uid });
+  const now = new Date("2026-10-15T10:00:00Z");
+
+  it("moves stored messages to their new UIDs by Message-ID and keeps everything on them", async () => {
+    const [a, b] = [envelope(1), envelope(2)];
+    await saveEnvelopes(conn.db, ws, [at(a, "likely_job"), at(b, "likely_job")]);
+    await saveAnalysis(conn.db, ws, {
+      messageId: a.messageId,
+      scanId: null,
+      category: "recruiter_outreach",
+      roles: [role("Backend")],
+    });
+    await setCorrection(b.messageId, "offer");
+    await saveEvaluation(
+      conn.db,
+      ws,
+      a.messageId,
+      {
+        position: 0,
+        match: {
+          score: 80,
+          verdicts: [],
+          skills: { matched: [], missing: [] },
+          cvId: null,
+          capped: false,
+        },
+        hidden: null,
+        ruleEffects: [],
+        cvChoice: { cvId: null, reason: "No CV yet", source: "auto" },
+      },
+      now,
+    );
+    const draft = await claimDraft(
+      conn.db,
+      ws,
+      { messageId: a.messageId, position: 0 },
+      { origin: "auto", now },
+    );
+    // A decision the role waits on: decision_messages cascades on a delete of the messages row,
+    // so a re-index that dropped and re-inserted the message would lose it.
+    const [decision] = await queryRows<{ id: string }>(
+      conn.db,
+      sql`insert into decisions (workspace_id, group_key, question, choices, status, created_at)
+          values (${ws}, 'contract', 'Which contract?', '[]'::jsonb, 'open', ${now})
+          returning id`,
+    );
+    await conn.db.execute(
+      sql`insert into decision_messages
+            (decision_id, workspace_id, message_id, position, state, source, created_at, updated_at)
+          values (${decision?.id}, ${ws}, ${a.messageId}, 0, 'waiting', 'match', ${now}, ${now})`,
+    );
+    const decisionRows = () =>
+      queryRows<{
+        id: string;
+        status: string;
+        message_id: string;
+        position: number;
+        state: string;
+      }>(
+        conn.db,
+        sql`select d.id, d.status, m.message_id, m.position, m.state
+            from decisions d join decision_messages m on m.decision_id = d.id
+            where d.workspace_id = ${ws}`,
+      );
+    const ids = () =>
+      queryRows<{ id: string }>(
+        conn.db,
+        sql`select id from messages where workspace_id = ${ws} order by id`,
+      );
+    const before = await ids();
+
+    // The folder was rebuilt: new UIDVALIDITY, other UIDs; a third message is new.
+    const found = await reindexMessages(conn.db, ws, [
+      rebuilt(a, 5),
+      rebuilt(b, 6),
+      rebuilt(envelope(3), 7),
+    ]);
+    expect([...found].sort()).toEqual([a.messageId, b.messageId].sort());
+
+    const stored = await getStoredMessages(conn.db, ws, [a.messageId, b.messageId]);
+    const byId = new Map(stored.map((m) => [m.envelope.messageId, m]));
+    expect(byId.get(a.messageId)).toMatchObject({
+      envelope: { uidValidity: 1800000000, uid: 5, subject: "Subject 1" },
+      category: "recruiter_outreach",
+      analysisStatus: "done",
+    });
+    expect(byId.get(b.messageId)).toMatchObject({
+      envelope: { uidValidity: 1800000000, uid: 6 },
+      category: "offer",
+      categorySource: "you",
+    });
+    expect(await getRoles(conn.db, ws, a.messageId)).toEqual([role("Backend")]);
+    expect(await getEvaluations(conn.db, ws, [a.messageId])).toMatchObject([
+      { position: 0, stale: false, match: { score: 80 } },
+    ]);
+    expect(await getDraftClaim(conn.db, ws, draft?.id ?? "")).toMatchObject({ status: "saving" });
+    expect(await decisionRows()).toEqual([
+      {
+        id: decision?.id,
+        status: "open",
+        message_id: a.messageId,
+        position: 0,
+        state: "waiting",
+      },
+    ]);
+    // The rows themselves are kept, with their ids; nothing is inserted for the new message.
+    expect(await ids()).toEqual(before);
+  });
+
+  it("makes a message_gone sender check stale, as the message is there again", async () => {
+    const [a, b] = [envelope(1), envelope(2)];
+    await saveEnvelopes(conn.db, ws, [at(a, "likely_job"), at(b, "likely_job")]);
+    await saveSenderCheck(
+      conn.db,
+      ws,
+      a.messageId,
+      {
+        verdict: "caution",
+        complete: false,
+        reasons: [{ signal: MESSAGE_GONE_SIGNAL, reason: "gone" }],
+        mark: null,
+      },
+      now,
+    );
+    await saveSenderCheck(
+      conn.db,
+      ws,
+      b.messageId,
+      { verdict: "looks_fine", complete: true, reasons: [], mark: null },
+      now,
+    );
+    await reindexMessages(conn.db, ws, [rebuilt(a, 1), rebuilt(b, 2)]);
+    const checks = await getSenderChecks(conn.db, ws, [a.messageId, b.messageId]);
+    expect(Object.fromEntries(checks.map((c) => [c.messageId, c.stale]))).toEqual({
+      [a.messageId]: true,
+      [b.messageId]: false,
+    });
+  });
+
+  it("keeps the newest copy of a duplicate, and never touches another workspace", async () => {
+    const a = envelope(1);
+    await saveEnvelopes(conn.db, ws, [at(a, "likely_job")]);
+    await saveEnvelopes(conn.db, other, [at(a, "likely_job")]);
+    await reindexMessages(conn.db, ws, [rebuilt(a, 3), rebuilt(a, 9)]);
+    expect((await getStoredMessages(conn.db, ws, [a.messageId]))[0]?.envelope.uid).toBe(9);
+    expect((await getStoredMessages(conn.db, other, [a.messageId]))[0]?.envelope).toMatchObject({
+      uidValidity: 1700000000,
+      uid: 1,
+    });
+    expect(await reindexMessages(conn.db, ws, [])).toEqual(new Set());
+  });
+});
+
+describe("newestStoredUid", () => {
+  it("gives the folder's current UIDVALIDITY and the highest UID stored under it", async () => {
+    expect(await newestStoredUid(conn.db, ws, "INBOX")).toBeNull();
+    await saveEnvelopes(conn.db, ws, [
+      at(envelope(4), "likely_job"),
+      at(envelope(9), "not_job"),
+      // An older message under an earlier UIDVALIDITY, with a higher UID.
+      at(envelope(2, { messageId: "<old@x>", uidValidity: 1600000000, uid: 50 }), "not_job"),
+      at(envelope(30, { folder: "sent", folderPath: "Sent" }), "own_reply"),
+    ]);
+    expect(await newestStoredUid(conn.db, ws, "INBOX")).toEqual({
+      uidValidity: 1700000000,
+      uid: 9,
+    });
+    expect(await newestStoredUid(conn.db, other, "INBOX")).toBeNull();
   });
 });

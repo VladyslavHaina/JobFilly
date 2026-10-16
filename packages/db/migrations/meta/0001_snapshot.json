@@ -1951,6 +1951,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "last_error_reason": {
+          "name": "last_error_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "failures": {
           "name": "failures",
           "type": "integer",
@@ -2012,7 +2018,12 @@
       },
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "mailbox_sync_last_error_reason_check": {
+          "name": "mailbox_sync_last_error_reason_check",
+          "value": "last_error_reason is null or last_error_reason in ('wrong_password', 'unreachable', 'tls', 'insecure_refused', 'secret_error', 'error')"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.mailboxes": {
@@ -2545,6 +2556,13 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
+        },
+        "sync_analysis_failures": {
+          "name": "sync_analysis_failures",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
         },
         "search_text": {
           "name": "search_text",

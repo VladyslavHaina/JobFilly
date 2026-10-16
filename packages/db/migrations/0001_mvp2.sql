@@ -139,10 +139,12 @@ CREATE TABLE "mailbox_sync" (
 	"last_synced_at" timestamp with time zone,
 	"failing_since" timestamp with time zone,
 	"last_error" text,
+	"last_error_reason" text,
 	"failures" integer DEFAULT 0 NOT NULL,
 	"next_attempt_at" timestamp with time zone,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "mailbox_sync_mailbox_id_folder_path_pk" PRIMARY KEY("mailbox_id","folder_path")
+	CONSTRAINT "mailbox_sync_mailbox_id_folder_path_pk" PRIMARY KEY("mailbox_id","folder_path"),
+	CONSTRAINT "mailbox_sync_last_error_reason_check" CHECK (last_error_reason is null or last_error_reason in ('wrong_password', 'unreachable', 'tls', 'insecure_refused', 'secret_error', 'error'))
 );
 --> statement-breakpoint
 CREATE TABLE "match_ai_answers" (
@@ -271,6 +273,7 @@ CREATE TABLE "stage_failures" (
 --> statement-breakpoint
 ALTER TABLE "jobs" ADD COLUMN "dedupe_key" text;--> statement-breakpoint
 ALTER TABLE "messages" ADD COLUMN "language" text;--> statement-breakpoint
+ALTER TABLE "messages" ADD COLUMN "sync_analysis_failures" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
 -- Hand-placed: the composite foreign keys below reference profiles (workspace_id, id).
 ALTER TABLE "profiles" ADD CONSTRAINT "profiles_workspace_id_key" UNIQUE("workspace_id","id");--> statement-breakpoint
 ALTER TABLE "assistant_messages" ADD CONSTRAINT "assistant_messages_workspace_id_workspaces_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspaces"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint

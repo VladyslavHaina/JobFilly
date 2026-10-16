@@ -1,5 +1,5 @@
 import { AI_PROVIDERS, aiProvider, aiReadBy } from "@jobfilly/ai";
-import { getAiSettings, type StoredAiSettings, saveAiSettings } from "@jobfilly/db";
+import { getAiSettings, type StoredAiSettings, saveAiSettings, usagePerDay } from "@jobfilly/db";
 import {
   type AiClientSettings,
   type AiProviderList,
@@ -8,6 +8,7 @@ import {
   type AiSettingsPublic,
   type AiSettingsResponse,
   type AiTestResult,
+  type AiUsageList,
 } from "@jobfilly/schema";
 import { type Context, Hono } from "hono";
 import { requireRole, validJson, type WorkspaceEnv } from "../access";
@@ -15,7 +16,8 @@ import { aiClientFor } from "../ai-usage";
 import type { AppDeps } from "../deps";
 import { openAiKey, seal } from "../secrets";
 
-// The workspace's AI provider settings (F3): the provider catalogue, read, save, test. The key is
+// The workspace's AI provider settings (F3): the provider catalogue, read, save, test, and the
+// model calls and tokens per day for everyone in the workspace (MVP 2 F1.5). The key is
 // sealed before it is stored and never returned or logged (F3.3); the answer carries only whether
 // one is stored and the one privacy line's provider and host (F3.2).
 //
@@ -72,6 +74,11 @@ export function aiRoutes(deps: AppDeps) {
       const body: AiSettingsResponse = {
         settings: stored ? toPublic(stored, openKey(stored)) : null,
       };
+      return c.json(body);
+    })
+    .get("/usage", requireRole("viewer"), async (c) => {
+      // Every model call is recorded where it is made (ai-usage.ts), retries included.
+      const body: AiUsageList = { items: await usagePerDay(deps.db, c.get("workspaceId")) };
       return c.json(body);
     })
     .get("/providers", requireRole("viewer"), (c) => {

@@ -26,19 +26,87 @@ const TLS_CODE =
 interface ImapLikeError {
   code?: unknown;
   authenticationFailed?: unknown;
+  tlsFailed?: unknown;
   serverResponseCode?: unknown;
+  responseStatus?: unknown;
   message?: unknown;
+}
+
+const asImapLike = (error: unknown) =>
+  (typeof error === "object" && error !== null ? error : {}) as ImapLikeError;
+
+/**
+ * The codes imapflow sets on its own connection, timeout, server-response and parser failures
+ * (its ImapFlowErrorCode, for these kinds); its parser errors are ParserError plus a number.
+ */
+const IMAPFLOW_CODE =
+  /^(NoConnection|EConnectionClosed|StateLogout|ClosedAfterConnect(Text|TLS)|(CONNECT|GREETING|UPGRADE)_TIMEOUT|ETIMEOUT|LockTimeout|ETHROTTLE|UnexpectedTag|InvalidResponse|ResponseProcessingFailed|STARTTLS_INJECTION|COMPRESS_TRAILING_DATA|PollFailed|NotFound|MissingServerExtension|ParserError\w*|MAX_IMAP_NESTING_REACHED|LineTooLarge|LiteralTooLarge|ResponseTooLarge|ProxyError|EPROXY)$/;
+
+/**
+ * The socket and DNS codes Node sets when the network or the server fails, named one by one:
+ * Node's own programming-error codes (ERR_INVALID_ARG_TYPE, ERR_OUT_OF_RANGE, ...) and the
+ * file system's (ENOENT, EACCES, ...) also start with E, and are the app's, not the server's.
+ */
+const SOCKET_CODES: ReadonlySet<string> = new Set([
+  // The connection.
+  "ECONNREFUSED",
+  "ECONNRESET",
+  "ECONNABORTED",
+  "ETIMEDOUT",
+  "EPIPE",
+  "EHOSTUNREACH",
+  "EHOSTDOWN",
+  "ENETUNREACH",
+  "ENETDOWN",
+  "ENETRESET",
+  "EADDRNOTAVAIL",
+  "ENOTCONN",
+  // Name resolution (getaddrinfo and the DNS resolver).
+  "ENOTFOUND",
+  "EAI_AGAIN",
+  "EAI_FAIL",
+  "EAI_NONAME",
+  "EAI_NODATA",
+  "ENODATA",
+  "ESERVFAIL",
+  "EREFUSED",
+  "EBADRESP",
+]);
+
+/** Node's codes for a socket that closed or timed out: ERR_SOCKET_CLOSED, ... */
+const NODE_SOCKET_CODE = /^ERR_SOCKET_(CLOSED|CLOSED_BEFORE_CONNECTION|CONNECTION_TIMEOUT)$/;
+
+/**
+ * Whether an error is the mail server's: the connection (socket, DNS, timeouts), the IMAP
+ * session (a refused login, a NO or BAD answer, a response imapflow couldn't read) or TLS. Only
+ * these mean the mailbox can't be used right now; anything else (a bug, a value no schema
+ * allows) is the app's, and is passed on as it is, so it isn't shown as an unreachable server.
+ */
+export function isMailFailure(error: unknown): boolean {
+  if (error instanceof MailError) return true;
+  const e = asImapLike(error);
+  if (e.authenticationFailed === true || e.tlsFailed === true) return true;
+  if (typeof e.responseStatus === "string" || typeof e.serverResponseCode === "string") {
+    return true;
+  }
+  const code = typeof e.code === "string" ? e.code : "";
+  return (
+    IMAPFLOW_CODE.test(code) ||
+    SOCKET_CODES.has(code) ||
+    NODE_SOCKET_CODE.test(code) ||
+    TLS_CODE.test(code)
+  );
 }
 
 /** Maps an error from the IMAP library, the socket or TLS to a reason the user can act on. */
 export function failureReason(error: unknown): MailTestFailureReason {
   if (error instanceof MailError) return error.reason;
-  const e = (typeof error === "object" && error !== null ? error : {}) as ImapLikeError;
+  const e = asImapLike(error);
   const code = typeof e.code === "string" ? e.code : "";
   if (e.authenticationFailed === true || e.serverResponseCode === "AUTHENTICATIONFAILED") {
     return "wrong_password";
   }
-  if (TLS_CODE.test(code)) return "tls";
+  if (e.tlsFailed === true || TLS_CODE.test(code)) return "tls";
   const message = typeof e.message === "string" ? e.message : "";
   // A required STARTTLS the server doesn't offer, or a TLS socket that got plain text back.
   if (/STARTTLS|\bTLS\b|\bSSL\b|wrong version number|certificate/i.test(message)) return "tls";

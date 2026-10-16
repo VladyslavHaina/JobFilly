@@ -1,4 +1,9 @@
-import { getMailboxConnection } from "@jobfilly/db";
+import {
+  addMember,
+  getMailboxConnection,
+  recordSyncFailure,
+  recordSyncSuccess,
+} from "@jobfilly/db";
 import type { MailClient } from "@jobfilly/mail";
 import {
   MailboxListSchema,
@@ -16,6 +21,7 @@ import {
   createTestDeps,
   fakeMailClient,
   type SeededUser,
+  seedMailbox,
   seedUser,
   seedWorkspace,
   signedIn,
@@ -41,7 +47,7 @@ const connected: MailTestResult = { ok: true, folders: ["INBOX", "Sent"], sentPa
 
 interface FakeMail {
   port: MailPort;
-  connects: { conn: MailConnection; allowInsecure: boolean }[];
+  connects: { conn: MailConnection; allowInsecure: boolean; address: string }[];
   closed: number;
   result: MailTestResult;
 }
@@ -53,7 +59,7 @@ function fakeMail(): FakeMail {
     result: connected,
     port: {
       connect(conn, options) {
-        fake.connects.push({ conn, allowInsecure: options.allowInsecure });
+        fake.connects.push({ conn, ...options });
         const client: MailClient = fakeMailClient({
           test: async () => fake.result,
           fetchEnvelopes: async () => [],
@@ -114,6 +120,90 @@ describe("roles (F1.8)", () => {
   });
 });
 
+describe("sync status (MVP 2 F1.4)", () => {
+  const T0 = new Date("2026-10-15T10:42:00Z");
+
+  async function connected() {
+    return seedMailbox(deps, workspaceId, {
+      address: "maria.santos@inbox.example",
+      conn: { host: "imap", port: 993, tlsMode: "tls", username: "maria", password: PASSWORD },
+      sentFolderPath: "Sent",
+    });
+  }
+
+  const listed = async (client: TestClient, base = url) => {
+    const res = await client.get(base);
+    expect(res.status).toBe(200);
+    return MailboxListSchema.parse(await res.json()).items;
+  };
+
+  it("is never before the first sync, then synced, then failing since the first failure", async () => {
+    const mailboxId = await connected();
+    expect((await listed(admin))[0]).toMatchObject({
+      status: "connected",
+      sync: {
+        state: "never",
+        lastSyncedAt: null,
+        failingSince: null,
+        reason: null,
+        message: null,
+      },
+    });
+
+    await recordSyncSuccess(deps.db, workspaceId, mailboxId, {
+      folderPath: "INBOX",
+      uidValidity: 7,
+      lastUid: 3,
+      at: T0,
+    });
+    expect((await listed(admin))[0]?.sync).toEqual({
+      state: "ok",
+      lastSyncedAt: T0.toISOString(),
+      failingSince: null,
+      reason: null,
+      message: null,
+    });
+
+    const failedAt = new Date(T0.getTime() + 15_000);
+    await recordSyncFailure(deps.db, workspaceId, mailboxId, {
+      folderPath: "INBOX",
+      failures: 1,
+      nextAttemptAt: new Date(failedAt.getTime() + 15_000),
+      reason: "unreachable",
+      message: "Couldn't reach the mail server",
+      at: failedAt,
+    });
+    expect((await listed(admin))[0]).toMatchObject({
+      status: "failing",
+      sync: {
+        state: "failing",
+        lastSyncedAt: T0.toISOString(),
+        failingSince: failedAt.toISOString(),
+        reason: "unreachable",
+        message: "Couldn't reach the mail server",
+      },
+    });
+  });
+
+  it("is readable by a viewer and not found for someone outside the workspace", async () => {
+    const mailboxId = await connected();
+    await recordSyncSuccess(deps.db, workspaceId, mailboxId, {
+      folderPath: "INBOX",
+      uidValidity: 7,
+      lastUid: 3,
+      at: T0,
+    });
+    const app = createApp(deps);
+    const viewer = await seedUser(deps);
+    await addMember(deps.db, workspaceId, viewer.id, "viewer");
+    expect((await listed(await signedIn(app, deps, viewer)))[0]?.sync.state).toBe("ok");
+    const outsider = await signedIn(app, deps, await seedUser(deps));
+    const res = await outsider.get(url);
+    expect(res.status).toBe(404);
+    expect(await res.text()).not.toContain("lastSyncedAt");
+  });
+});
+
 describe("presets (F2.1, F2.2)", () => {
   it("lists the presets with their app-password hints", async () => {
     const { items } = MailPresetListSchema.parse(await (await admin.get(`${url}/presets`)).json());
@@ -141,6 +231,7 @@ describe("test connection (F2.1)", () => {
           password: PASSWORD,
         },
         allowInsecure: false,
+        address: "maria.santos@inbox.example",
       },
     ]);
     expect(mail.closed).toBe(1);
