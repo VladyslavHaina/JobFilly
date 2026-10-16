@@ -1543,20 +1543,8 @@ describe("the assistant requests (MVP 2)", () => {
   const requests = read<AssistantRequest[]>(ASSISTANT_REQUESTS_PATH);
   const answers = read<AssistantAnswerFile>(ASSISTANT_ANSWERS_PATH);
   const anyTurn = (text: string) => answers[assistantMessageKey(text)]?.[ASSISTANT_ANY_TURN];
-  const RULE_FACTS = [
-    "places.country",
-    "workMode",
-    "timeZones",
-    "pay",
-    "contract",
-    "company",
-    "agency",
-    "sender.domain",
-    "category",
-    "skills",
-    "languages",
-  ];
-  const RULE_OPS = ["in", "not_in", "within", "outside", "below", "contains", "equals", "missing"];
+  // That every expected Change and every assistant answer parses with packages/schema is checked
+  // from there (src/fixtures.test.ts): e2e reads no package code.
 
   it("are ten, in English, German and Portuguese, each with the change it should produce", () => {
     expect(requests).toHaveLength(10);
@@ -1565,29 +1553,6 @@ describe("the assistant requests (MVP 2)", () => {
       expect(Array.isArray(r.expected) && r.expected.length > 0, r.text).toBe(true);
       expect(r.text).not.toMatch(/E2E-CHAT/);
     }
-  });
-
-  it("propose only Changes packages/schema accepts in shape", () => {
-    const changes = requests.flatMap((r) => (r.expected ?? []) as Record<string, unknown>[]);
-    for (const c of changes) {
-      expect(["add", "update", "remove"]).toContain(c.op);
-      expect(["rule", "entry"]).toContain(c.target);
-      if (c.target === "rule" && c.op !== "remove") {
-        const rule = c.rule as {
-          description: string;
-          when: { fact: string; op: string }[];
-          then: string;
-        };
-        expect(rule.description.length).toBeGreaterThan(0);
-        expect(["hide", "no_draft", "ask_first", "cap_score"]).toContain(rule.then);
-        for (const w of rule.when) {
-          expect(RULE_FACTS, w.fact).toContain(w.fact);
-          expect(RULE_OPS, w.op).toContain(w.op);
-        }
-      }
-      if (c.target === "entry") expect(Array.isArray(c.value)).toBe(true);
-    }
-    expect(JSON.stringify(changes)).not.toMatch(/"UTC[+-](?!(0\d|1[0-4]):[0-5]\d")/);
   });
 
   it("hide by contract no role on a permanent contract, but some of Maria's fixed-term roles", () => {

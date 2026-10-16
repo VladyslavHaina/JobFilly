@@ -4,7 +4,9 @@ import { fileURLToPath } from "node:url";
 // The single description of every fixture file of the test stack. The generator
 // (e2e/fixtures/build) writes them, the seed and the fake AI read them, and the consistency tests
 // check them. e2e imports no package code, so the shapes are written out here, and
-// consistency.test.ts checks every file against them.
+// consistency.test.ts checks every file against them. The direction back is from the packages:
+// packages/schema/src/fixtures.test.ts parses the fake AI's answers and the assistant requests'
+// Changes with the real schemas.
 //
 // e2e/fixtures/
 //   <persona>/mail/<inbox|sent>/<nnnn>.eml   one RFC 5322 message: multipart/alternative with a
