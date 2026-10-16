@@ -1198,10 +1198,16 @@ describe("the delivered mail (MVP 2)", () => {
     }
   });
 
-  it("is delivered in S2, but the second Zurich role, which waits for S5", () => {
+  it("is delivered in S2, but the second Zurich role (S5) and S11's two capped roles", () => {
     expect(
       Object.fromEntries(d.deliveries.map((e) => [e.id, e.step]).filter(([, s]) => s !== "S2")),
-    ).toEqual({ "zurich-2": "S5" });
+    ).toEqual({ "zurich-2": "S5", "s11-failover": "S11", "s11-recovery": "S11" });
+    // S11 delivers them one at a time, so each needs neither a draft nor a decision to show up.
+    for (const id of ["s11-failover", "s11-recovery"]) {
+      expect(get(id).truth.roles).toEqual([
+        expect.objectContaining({ fit: "capped", draft: false, needs: [] }),
+      ]);
+    }
   });
 
   it("holds the roles the spec lists", () => {

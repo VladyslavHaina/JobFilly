@@ -16885,6 +16885,115 @@
           "needs": []
         }
       ]
+    },
+    "<maria-deliver-s11-failover@isarwerk.example>": {
+      "folder": "inbox",
+      "stageOne": "likely_job",
+      "category": "recruiter_outreach",
+      "facts": [
+        {
+          "title": "Backend Engineer",
+          "company": "Isarwerk Mobility",
+          "agency": null,
+          "places": [
+            {
+              "country": "DE",
+              "city": "Munich"
+            }
+          ],
+          "workMode": "onsite",
+          "remoteScope": null,
+          "timeZones": null,
+          "pay": {
+            "min": 75000,
+            "max": 85000,
+            "currency": "EUR",
+            "period": "year",
+            "asWritten": "€75,000–85,000 a year"
+          },
+          "contract": "permanent",
+          "seniority": null,
+          "workPermit": null,
+          "skills": [
+            "Go",
+            "PostgreSQL"
+          ],
+          "languages": [],
+          "applyUrl": null,
+          "extra": {}
+        }
+      ],
+      "ownReply": false,
+      "invalid": false,
+      "sender": {
+        "verdict": "looks_fine"
+      },
+      "outsideReplyWindow": false,
+      "roles": [
+        {
+          "cv": "Backend (EN)",
+          "hardConflicts": [
+            "places"
+          ],
+          "draft": false,
+          "fit": "capped",
+          "needs": []
+        }
+      ]
+    },
+    "<maria-deliver-s11-recovery@donaukanal.example>": {
+      "folder": "inbox",
+      "stageOne": "likely_job",
+      "category": "recruiter_outreach",
+      "facts": [
+        {
+          "title": "Backend Engineer",
+          "company": "Donaukanal Software",
+          "agency": null,
+          "places": [
+            {
+              "country": "AT",
+              "city": "Vienna"
+            }
+          ],
+          "workMode": "onsite",
+          "remoteScope": null,
+          "timeZones": null,
+          "pay": {
+            "min": 70000,
+            "max": 80000,
+            "currency": "EUR",
+            "period": "year",
+            "asWritten": "€70,000–80,000 a year"
+          },
+          "contract": "permanent",
+          "seniority": null,
+          "workPermit": null,
+          "skills": [
+            "Go"
+          ],
+          "languages": [],
+          "applyUrl": null,
+          "extra": {}
+        }
+      ],
+      "ownReply": false,
+      "invalid": false,
+      "sender": {
+        "verdict": "looks_fine"
+      },
+      "outsideReplyWindow": false,
+      "roles": [
+        {
+          "cv": "Backend (EN)",
+          "hardConflicts": [
+            "places"
+          ],
+          "draft": false,
+          "fit": "capped",
+          "needs": []
+        }
+      ]
     }
   }
 }

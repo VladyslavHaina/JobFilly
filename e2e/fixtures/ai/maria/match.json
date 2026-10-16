@@ -4262,5 +4262,36 @@
         "reason": "PostgreSQL is in the CV \"Backend (EN)\""
       }
     ]
+  },
+  "<maria-deliver-s11-failover@isarwerk.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Engineer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Go",
+        "verdict": "fits",
+        "reason": "Go is in the CV \"Backend (EN)\""
+      },
+      {
+        "skill": "PostgreSQL",
+        "verdict": "fits",
+        "reason": "PostgreSQL is in the CV \"Backend (EN)\""
+      }
+    ]
+  },
+  "<maria-deliver-s11-recovery@donaukanal.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Backend Engineer\" is a backend role, one of your target roles"
+    },
+    "skillCloseness": [
+      {
+        "skill": "Go",
+        "verdict": "fits",
+        "reason": "Go is in the CV \"Backend (EN)\""
+      }
+    ]
   }
 }

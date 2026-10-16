@@ -96,5 +96,19 @@
     "messageId": "<maria-deliver-freemail@gmail.com>",
     "minutesAgo": 900,
     "step": "S2"
+  },
+  {
+    "id": "s11-failover",
+    "file": "s11-failover.eml",
+    "messageId": "<maria-deliver-s11-failover@isarwerk.example>",
+    "minutesAgo": 10,
+    "step": "S11"
+  },
+  {
+    "id": "s11-recovery",
+    "file": "s11-recovery.eml",
+    "messageId": "<maria-deliver-s11-recovery@donaukanal.example>",
+    "minutesAgo": 5,
+    "step": "S11"
   }
 ]

@@ -37,6 +37,8 @@ devweekly IN MX 10 mx.devweekly.example.
 mx.devweekly IN A 192.0.2.25
 dijkstra-logistics IN MX 10 mx.dijkstra-logistics.example.
 mx.dijkstra-logistics IN A 192.0.2.25
+donaukanal IN MX 10 mx.donaukanal.example.
+mx.donaukanal IN A 192.0.2.25
 dourofintech IN MX 10 mx.dourofintech.example.
 mx.dourofintech IN A 192.0.2.25
 elbwerk IN MX 10 mx.elbwerk.example.
@@ -69,6 +71,8 @@ inbox IN MX 10 mx.inbox.example.
 mx.inbox IN A 192.0.2.25
 isar-personal IN MX 10 mx.isar-personal.example.
 mx.isar-personal IN A 192.0.2.25
+isarwerk IN MX 10 mx.isarwerk.example.
+mx.isarwerk IN A 192.0.2.25
 kanaalstraat IN MX 10 mx.kanaalstraat.example.
 mx.kanaalstraat IN A 192.0.2.25
 kiezwerk IN MX 10 mx.kiezwerk.example.

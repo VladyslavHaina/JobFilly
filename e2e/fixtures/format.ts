@@ -425,7 +425,7 @@ export interface DeliveryEntry {
   minutesAgo: number;
   /**
    * The scenario step that delivers it: `seed deliver S2` delivers the batch, the second Zurich
-   * role waits for S5 (after the CHF question is answered).
+   * role waits for S5 (after the CHF question is answered), S11 delivers its two one at a time.
    */
   step: string;
 }
