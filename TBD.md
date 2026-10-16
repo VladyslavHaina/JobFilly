@@ -240,7 +240,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Validate each item and retry only the invalid or missing ones once. When the budget has no call left for the retry, those items stay pending (not_retried) instead of being marked Couldn't analyze, so a later Analyze them run can pick them up. F3.4 speaks of 'the item', and users see far fewer false 'Couldn't analyze' labels. The retry is a model call and counts toward the budget, as F4's definition of a model call requires, and S8's 'exactly 5 calls' stays exact.
 - **If you decide otherwise:** packages/ai's batch validation and the scan worker's handling of failed items would change, and the fake-AI fixture for the invalid message would need a whole batch to fail.
 - **Refs:** F3.4, F4.4, F4.5; packages/ai, apps/server/src/jobs/scan, e2e/fixtures/ai
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-18 · The name of the personal workspace
 - **Kind:** decision
@@ -252,7 +252,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Use the first word of the name, so 'Maria Santos' gets "Maria's workspace". It matches the spec's example and S1's expected text. The workspace can be renamed later, so this is easy to change.
 - **If you decide otherwise:** Change the workspace naming in the foundation's register handler and its test.
 - **Refs:** F1.1, S1; apps/server/src/routes/auth.ts
-- **Status:** open
+- **Status:** changed: use the full name, "Maria Santos's workspace".
 
 ## TBD-19 · When the intake extra questions are asked for, and how it stays one call
 - **Kind:** decision
@@ -264,7 +264,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** The intake route calls it once, claimed through the intake_extras row; anyone who can open the form (viewers too) may trigger it; usage is recorded with scan_id null; a claim stuck for more than 2 minutes can be taken over by one caller. The intake slice owns the call from end to end, so the scan and intake slices never write each other's tables. The claim row makes it exactly one call across replicas and tabs, and the call never holds a transaction open while the model answers.
 - **If you decide otherwise:** The scan worker would make the call when the first scan stops and store the questions, the intake route would only read them, the call would count toward the run budget, and intake_extras would lose its claim columns.
 - **Refs:** F6.1, F3.6, F4.4; apps/server/src/routes/intake.ts, packages/db intake_extras, apps/server/src/jobs/scan
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-20 · The intake.v1 input: its shape, its summary line format, and snippets as item text
 - **Kind:** decision
@@ -276,7 +276,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** The pinned schema and line format, committed in the foundation's intake.v1 wire sample; the items carry the stored snippet, so the intake route never fetches bodies. Both slices and the fake AI can be built and checked against the same golden sample before they meet. The summary lines are prefixed like mail content, so values worded in the mail can't break out of the data block. Using snippets keeps the route fast and adds no mailbox round trips; the model only proposes question wording, which the snippet and the current answers are enough for.
 - **If you decide otherwise:** If the owner wants richer extra questions, the intake route would fetch bodies through fetchBody, the items' text would change, and the intake.v1 wire sample, the fake AI's tests and the intake route tests would be updated together.
 - **Refs:** F6.1, F3.5; packages/schema ai, e2e/fixtures/wire/intake.v1.*, packages/ai, apps/server/src/routes/intake.ts
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-21 · e2e becomes a pnpm workspace package
 - **Kind:** decision
@@ -288,7 +288,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Add e2e as a workspace package (@playwright/test and imapflow). ARCHITECTURE is updated, and e2e still imports no app or package code. It keeps the rule of putting dependencies in the package that uses them, and keeps the test-stack images small and on their own.
 - **If you decide otherwise:** Move the e2e dependencies to the root and drop e2e from pnpm-workspace.yaml and the vitest projects.
 - **Refs:** F7.8; pnpm-workspace.yaml, e2e/package.json, docs/ARCHITECTURE.md
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-22 · How the work is cut: a test-stack slice of its own, mailbox and AI provider merged, scan kept whole
 - **Kind:** decision
@@ -300,7 +300,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** A test-stack slice, a merged connect slice, and e2e-fixtures limited to the test data and the fake AI. The two e2e slices share only the file conventions the foundation pins (mail layout, the envelopes.json fields the seed reads, the fake AI's entry point and variables). Scan stays one slice; moving the scan queries to the foundation takes part of its load away, and splitting stage one from the worker would bring back the cross-slice stub problem. It keeps the foundation from growing, splits the heaviest slice in two independent halves that run in parallel, and the merged connect slice is still a moderate size because the foundation now owns the mailbox and AI-settings queries.
 - **If you decide otherwise:** The foundation would build the Docker test stack, adding to the one serial step, and mailbox and AI provider could stay separate slices.
 - **Refs:** F7.8, F5.3, F2, F3; e2e/, docker/compose.e2e.yaml, docker/proxy, docker/e2e.Dockerfile
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-23 · The foundation implements the mailbox, AI-settings and scan queries
 - **Kind:** decision
@@ -312,7 +312,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** The foundation implements them. They take and return ciphertext only; sealing, input checks, the 'one mailbox' message and the public response shapes stay with the connect slice. Every level-1 slice's tests can pass on its own branch, seeding stays workspace-scoped, and intake-profile's route tests no longer depend on the scan slice merging.
 - **If you decide otherwise:** The queries would move back to the connect and scan slices and the scan worker, job-inbox body and intake route tests would be written against fakes of them or only pass after integration.
 - **Refs:** F2.3, F3.3, F4.1, F5.2, F6.1; packages/db/src/queries/mailboxes.ts, ai-settings.ts, scans.ts, apps/server/src/testing
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-24 · The test stack is exercised only in Validate
 - **Kind:** decision
@@ -324,7 +324,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Pure tests in the test-stack slice; the real stack starts first in Validate, whose fix rounds own anything only Docker can show. It catches most mistakes on the slice's branch without breaking the hermetic-test rule.
 - **If you decide otherwise:** A Docker smoke step would have to be added to the slice build, which the workflow forbids.
 - **Refs:** F7.8, F7.7; docker/compose.e2e.yaml, docker/proxy, e2e/stack.ts, e2e/seed
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-25 · Prompt layout and escaping of untrusted mail (F3.5)
 - **Kind:** decision
@@ -336,7 +336,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Column-0 structure lines, verbatim Message-ID lines, every untrusted line (and every intake summary line) prefixed with '| '; json_schema structured output read from the message content, never tool calls, for the openai-compatible provider. The prefix can't be defeated by any content and changes nothing else in the mail, Message-IDs stay exact for the fake AI and the stored ids, and JSON content is what every OpenAI-compatible server (Ollama, LM Studio) supports.
 - **If you decide otherwise:** The golden samples in e2e/fixtures/wire, the packages/ai prompt builder and the fake AI's parser change together.
 - **Refs:** F3.5, F3.4, S2, S3; packages/ai, e2e/fake-ai, e2e/fixtures/wire
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-26 · Messages are named by their RFC Message-ID everywhere
 - **Kind:** decision
@@ -348,7 +348,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** The RFC Message-ID, with a unique key on (workspace_id, message_id). One id from the mailbox to the model to the UI means no mapping step, fixtures and ground truth line up directly, and the unique key makes re-running a batch harmless.
 - **If you decide otherwise:** Add a mapping from Message-ID to uuid in the inbox and intake routes and translate evidence ids.
 - **Refs:** F4.8, F5.3, F6.2; packages/schema, packages/db messages, apps/server/src/routes/messages.ts
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-27 · A message-detail deep link in the web app
 - **Kind:** decision
@@ -360,7 +360,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** The deep link, registered by the foundation; Enter on the list navigates to it and Esc navigates back to the list. Evidence links become ordinary links that work in a new tab and after a reload, Back behaves as people expect, and both slices build against the same route without touching routes.tsx.
 - **If you decide otherwise:** InboxPage would hold the open message in state and the intake page would need another way (a drawer or a dialog of its own) to show evidence messages.
 - **Refs:** F6.2, F5.2, S4, S5; apps/web/src/routes.tsx, apps/web/src/paths.ts, apps/web/src/pages/inbox, apps/web/src/pages/intake
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-28 · Sender and subject search uses the pg_trgm extension
 - **Kind:** decision
@@ -372,7 +372,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** pg_trgm with a GIN index on search_text. It keeps search fast as mailboxes grow past MVP 1 sizes, and pg_trgm is a trusted extension available on standard Postgres images and managed services.
 - **If you decide otherwise:** Drop the extension and the GIN index from the migration and search with ILIKE; any Postgres that can't create the extension would need this.
 - **Refs:** F5.5; packages/db/migrations, packages/db/src/testing.ts, packages/db/src/queries/inbox.ts
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-29 · How intake answers are aggregated, and what 'equal to expected.json' means
 - **Kind:** decision
@@ -384,7 +384,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Fixed shared rules; exact values and evidence over the full fixtures and at the confident stop (which the fixture property below makes possible). Neither slice reverse-fits the other's numbers, and S4 sees the right answers (Amsterdam, both minimum pays, their evidence) whatever point the scan stops at.
 - **If you decide otherwise:** The generator, aggregateIntake and the fixture tests change together.
 - **Refs:** F6.2, F6.3, F6.6, S4; packages/core/src/intake, e2e/fixtures/build
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-30 · Maria's replies state every answer she has, in at least two replies each
 - **Kind:** decision
@@ -396,7 +396,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Every answered key of Maria's comes from at least 2 of her replies (reply_to and deal_breakers are stated in at least 2 or left empty). Each message's intended stage-one verdict is still recorded in the source of truth, and the e2e-fixtures consistency tests check the property, the placement rules and that her prefs answers alone already give the full ground truth. The proposal is final before the first classify batch, so the confident stop after 40 messages is deterministic and exact, and the property can be checked from the fixtures alone. It matches the persona: her 15 replies state her preferences. Rule 3 stays fully tested in intake-profile's unit tests.
 - **If you decide otherwise:** The generator would make some of Maria's answers job-derived and place 5 (or 10) matching job messages inside the first classify batch, and the consistency tests would check that instead.
 - **Refs:** F4.4, F4.5, F6.6, S3, S4; e2e/fixtures/build, e2e/fixtures/consistency.test.ts, packages/core/src/intake/confidence-stop.test.ts
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-31 · Who owns the proof of Maria's confident stop
 - **Kind:** decision
@@ -408,7 +408,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** intake-profile owns it, with dependsOn e2e-fixtures and scan, and may fix core/src/scan with a pinning unit test, keeping the scan tests green and reporting the change. If scan failed verification and isn't merged, intake-profile builds everything else against foundation code (scan rows come from the foundation's queries), doesn't reimplement scan, and reports this test as not done for the scan fix task to add. Only a level-2 slice has the real stageOne, tracker, aggregation and fixtures together; letting it fix the cause avoids a dead end where a failing proof has no owner.
 - **If you decide otherwise:** A dedicated fix task after integration would own the test and any change to core/src/scan.
 - **Refs:** F4.5, F6.6, S3; packages/core/src/intake/confidence-stop.test.ts, packages/core/src/scan
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-32 · Confident-stop details: replies first, at least one answer, done wins
 - **Kind:** decision
@@ -420,7 +420,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Replies first, at least one answered core question, and done wins. It matches S7 ('stops with done') and keeps a confident stop meaningful; the user's own words are the strongest evidence.
 - **If you decide otherwise:** The tracker and the worker's ordering in the scan slice change, and Tom's fixture would need a different outcome.
 - **Refs:** F4.4, F4.5, S3, S7; packages/core/src/scan, apps/server/src/jobs/scan
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-33 · A slow request for the shutdown scenario
 - **Kind:** decision
@@ -432,7 +432,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** The FAKE_AI_SLOW_TEST_MS variable on the fake AI. No production code changes, the delay stays under the 20 s in-flight limit, and normal runs are unaffected.
 - **If you decide otherwise:** Another long-running request would be needed in S11.
 - **Refs:** F7.4, S11; e2e/fake-ai, docker/compose.e2e.yaml
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-34 · No extra mail dependencies; haproxy for the test-stack proxy
 - **Kind:** decision
@@ -444,7 +444,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** mailparser's text, a scripted responder in the tests, and the official haproxy image. Fewer dependencies under the 7-day release-age rule, and open-source nginx has no active health checks.
 - **If you decide otherwise:** The foundation would install the extra packages and the proxy config would change.
 - **Refs:** F2.1, F5.2, F7.8; packages/mail, docker/proxy
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-35 · Build plan accepted with known problems
 - **Kind:** open item
@@ -465,7 +465,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** —
 - **If you decide otherwise:** —
 - **Refs:** —
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-36 · MailTestResult reports the Sent folder
 - **Kind:** decision
@@ -477,7 +477,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** MailTestResult ok = {ok: true, folders: string[], sentPath: string | null}. The connect slice can store the folder the server marks \Sent without changing a foundation schema; it is a superset of the pinned shape.
 - **If you decide otherwise:** Remove sentPath from packages/schema/src/mailbox.ts; packages/mail would find Sent another way when fetching envelopes.
 - **Refs:** F2.1, F4.1; packages/schema/src/mailbox.ts; TBD-35 item 8
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-37 · State of a message row from stage one to analysis
 - **Kind:** decision
@@ -489,7 +489,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** On insert: not_job -> category not_job/scan/done; job_alert -> category job_alert/scan/pending; likely_job and own_reply -> null/pending. Re-saving the same Message-ID refreshes headers and verdict and never touches category, analysis or roles. The table sits in packages/db/src/queries/messages.ts with listing, non-job and 'not analyzed' rules. The inbox can count non-job mail and show alerts from the headers alone; a resumed scan stays idempotent.
 - **If you decide otherwise:** Change initialAnalysis() in messages.ts and its test; job-inbox's list query follows.
 - **Refs:** F4.2, F5.1, F4.10; packages/db/src/queries/messages.ts
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-38 · Who may accept an invite
 - **Kind:** decision
@@ -501,7 +501,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Accept, decline or view an invite when the signed-in email matches it, or the request carries the link's token (stored as SHA-256). Otherwise the answer is 404. It makes the copied link useful when the invitee uses another address. The admin hands the link out on purpose, and the token is 256 bits.
 - **If you decide otherwise:** Drop tokenMatches from routes/invites.ts; the link would only bring the invitee to the page.
 - **Refs:** F1.6; apps/server/src/routes/invites.ts, routes/workspaces.ts
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-39 · A session endpoint that never answers 401
 - **Kind:** decision
@@ -513,7 +513,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** GET /api/auth/session (SessionStateSchema); the UI uses it, and /api/auth/me stays 401 for probes. The console stays clean, and the S10 probe (old cookie gets 401) still holds on /me and on workspace routes.
 - **If you decide otherwise:** The UI would call /me again and the walkthrough would allow that error.
 - **Refs:** F1.4, S10; apps/server/src/routes/auth.ts, apps/web/src/hooks/useSession.ts
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-40 · PGlite test projects run without per-file isolation
 - **Kind:** decision
@@ -525,7 +525,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** isolate:false for @jobfilly/db and @jobfilly/server (30 s hook timeout), maxWorkers 4; openTestDatabase pools instances per process and truncates on close. The whole suite runs in about 15 s instead of timing out. Slices are told (vitest.config.ts and ARCHITECTURE) to inject fakes rather than use vi.mock in those projects.
 - **If you decide otherwise:** Set isolate back to true in vitest.config.ts and accept much slower db and server tests.
 - **Refs:** F7.7; vitest.config.ts, packages/db/src/testing.ts
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-41 · Typed Hono client replaced by fetch with schema validation
 - **Kind:** decision
@@ -537,7 +537,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** apps/web/src/api.ts with api() and apiVoid() plus ApiError. The web dropped its hono and @jobfilly/server dependencies. It is decoupled from route module internals and validates answers where they enter, per the schemas-first rule.
 - **If you decide otherwise:** Re-add hono and the server dev dependency and chain every route in app.ts.
 - **Refs:** apps/web/src/api.ts, apps/web/package.json
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-42 · Values of extra intake answers and the task in usage rows
 - **Kind:** decision
@@ -549,7 +549,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Extra answers are string[] (the chosen option or the words), so every empty answer is []. Usage.task is a TaskId including ai.test.v1. The rule 'empty value is []' from IntakeExtraInput holds for every key, and the Test call's usage can be recorded too.
 - **If you decide otherwise:** Change ExtraValueSchema and UsageSchema in packages/schema plus the wire samples.
 - **Refs:** F6, F3.6; packages/schema/src/profile.ts, ai.ts
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-43 · Password hash cost and where migrations ship
 - **Kind:** decision
@@ -562,7 +562,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** scrypt N=2^15, r=8, p=3, with the parameters stored per hash. Test seeding uses cheap parameters that verify through the same code. The build copies the migrations to dist/migrations, which pnpm deploy ships in the image. Memory per sign-in stays bounded in small containers. One folder layout works in Docker and locally.
 - **If you decide otherwise:** Change PASSWORD_PARAMS in auth/password.ts (old hashes still verify), or the tsup onSuccess copy and MIGRATIONS_FOLDER lookup.
 - **Refs:** F1.5, F7.5; apps/server/src/auth/password.ts, apps/server/tsup.config.ts, packages/db/src/migrate.ts
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-44 · The owner can't be demoted, and the e2e scripts' subcommands
 - **Kind:** decision
@@ -574,7 +574,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Changing or removing the owner's role answers 409 'The owner is always an admin'. The root scripts are e2e = 'node e2e/stack.ts run', e2e:stack = 'node e2e/stack.ts stack' (+ up|down), e2e:specs = 'node e2e/stack.ts specs' (+ --mvp n), pinned in ARCHITECTURE for the test-stack slice. ARCHITECTURE says the owner is an admin who can't be removed. Fixed subcommands let the test-stack slice write stack.ts without editing package.json.
 - **If you decide otherwise:** Allow setMemberRole on the owner in packages/db workspaces.ts; rename the script arguments in package.json and stack.ts together.
 - **Refs:** F1.8, F7.8; packages/db/src/queries/workspaces.ts, package.json, docs/ARCHITECTURE.md
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-45 · Wire request samples use the SDK default strict: true; prefs.v1's optional keys conflict with OpenAI strict mode
 - **Kind:** decision
@@ -587,7 +587,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** I kept the SDK default, strict: true, in every sample, and pinned it with packages/ai/src/wire.test.ts. The samples should be what the SDK really sends, with no extra options for the connect slice to copy. Changing PreferencesSchema is a cross-slice schema change that this fix task should not make.
 - **If you decide otherwise:** If prefs.v1 is meant to work against OpenAI proper, the connect slice either makes the PreferencesSchema keys required and nullable, or passes strictJsonSchema: false. In both cases it regenerates prefs.v1.request.json (or all samples) with the wire test's capture.
 - **Refs:** e2e/fixtures/wire/*.request.json; packages/ai/src/wire.test.ts; packages/schema/src/wire.test.ts; packages/schema/src/profile.ts (PreferencesSchema); docs/ARCHITECTURE.md (wire contract)
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-46 · Boundary change: two deliberate unscoped @jobfilly/db operations
 - **Kind:** decision
@@ -599,7 +599,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** I kept getInviteForResponse, acceptInvite and declineInvite (called after the server checks the invite's email or token) and claimJob, renewLease, saveJobCheckpoint, completeJob and handBackJob (guarded by the lease owner) without a workspace id. I named them as exceptions in ARCHITECTURE › Workspaces, access and sessions, in packages/db/src/index.ts and in the module comments. getJob is now workspace-scoped, and there is no raw-SQL export. There is no workspace id the caller could rightly supply before the invitee joins or before a worker claims a job. Passing the row's own workspace id back in would add nothing.
 - **If you decide otherwise:** Invite answering would need a separate token-to-workspace lookup step, and the worker functions would take the claimed job's workspaceId, which changes their signatures and callers in the scan slice.
 - **Refs:** packages/db/src/index.ts; packages/db/src/queries/invites.ts; packages/db/src/queries/jobs.ts; docs/ARCHITECTURE.md
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-47 · A malformed path id gets 404 not_found, not 400
 - **Kind:** decision
@@ -611,7 +611,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** validParam answers 404 { error: "not_found" }. IdSchema is z.guid() (any 8-4-4-4-12 hex), which matches the regex the server used before for workspace and invite ids. An id that cannot parse names nothing. Answering the same way as for a missing row reveals nothing extra, and it matches workspaceMember's behaviour.
 - **If you decide otherwise:** Change validParam's failure answer to the validator's 400 and update the two new route tests.
 - **Refs:** apps/server/src/access/validate.ts; packages/schema/src/common.ts; apps/server/src/routes/workspaces.test.ts; apps/server/src/routes/invites.test.ts
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-48 · TBD.md duplicates marked 'superseded by', including TBD-9 by TBD-22
 - **Kind:** decision
@@ -623,7 +623,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** I marked 16 earlier entries 'superseded by' their latest version, TBD-9 by TBD-22 among them. I also added the status to the entry format and the intro. This keeps the never-delete rule while giving the owner one open answer per decision.
 - **If you decide otherwise:** The owner can set TBD-9 back to open if it is meant as a separate decision from TBD-22.
 - **Refs:** TBD.md
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-49 · A third unscoped db exception: the signed-in user's own view across workspaces
 - **Kind:** decision
@@ -635,7 +635,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Documented it in docs/ARCHITECTURE.md (Workspaces, access and sessions) and in the packages/db/src/index.ts comment, and added comments to both query functions. Listing your own workspaces and your own pending invitations is cross-workspace by nature: before choosing a workspace, or before being a member, there is no workspace id to scope by. Restructuring would only move the same cross-workspace read somewhere else. The server already limits these reads to the session user's id, or to an email it has matched to them through the session or a checked invite token.
 - **If you decide otherwise:** These reads would need a new design, for example a per-user index table or a server-side loop over memberships, and the routes in apps/server/src/routes/workspaces.ts and invites.ts would change.
 - **Refs:** docs/ARCHITECTURE.md (Workspaces section); packages/db/src/index.ts; packages/db/src/queries/workspaces.ts; packages/db/src/queries/invites.ts; apps/server/src/routes/invites.ts:43,60; apps/server/src/routes/workspaces.ts:49; commits b1755f7, 75cade7
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-50 · Stage one's outcome keeps its three lists, but every entry is a full StageOneResult
 - **Kind:** decision
@@ -647,7 +647,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Kept the three lists, built on StageOneResultSchema: handled allows not_job or job_alert, candidates allows likely_job, ownReplies allows own_reply. [...handled, ...candidates, ...ownReplies] is exactly saveEnvelopes' input. This keeps the names the plan and TBD-35 use for the scan slice, and makes the outcome exactly what db stores, including the envelope of handled messages, which the old shape dropped.
 - **If you decide otherwise:** Switching to a flat list would change StageOneOutcomeSchema and the scan slice's callers. db would not change.
 - **Refs:** packages/schema/src/scan.ts; packages/core/src/scan/index.ts; packages/db/src/queries/messages.ts; commits b63c130, 64b1d91, 09c8d3f
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-51 · The suggested compose password is hex, not base64
 - **Kind:** decision
@@ -659,7 +659,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** openssl rand -hex 24 in the compose error message, the header comment and the README. A hex password always fits the connection URL unescaped, so the suggested command can't produce a broken install.
 - **If you decide otherwise:** The suggested command would need URL-encoding, or DATABASE_URL would have to be built differently.
 - **Refs:** docker/compose.yaml; README.md; commit 8fc830e
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-52 · The body is fetched from the folder stored with the message, not from the mailbox's Sent path
 - **Kind:** decision
@@ -671,7 +671,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** The message's stored folderPath, UIDVALIDITY and UID. The host, port, TLS mode, user name and sealed password come from getMailboxConnection. UIDs only count inside the folder they came from. Using another folder path would fetch the wrong message, or nothing. If the folder changes, UIDVALIDITY won't match and the user gets the plain 'no longer in the mailbox' answer.
 - **If you decide otherwise:** In the /:messageId/body handler, swap ref.folderPath for mailbox.sentFolderPath when the message is in Sent.
 - **Refs:** F5.2, F4.9; apps/server/src/routes/messages.ts
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-53 · Plain answers when the body can't be fetched
 - **Kind:** decision
@@ -683,7 +683,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** No mailbox connected: 409 no_mailbox. Mailbox unreachable: 502 mail_unreachable, 'Couldn't reach your mailbox. Try again in a moment.', with nothing logged, because the error could name the server or the account. A changed UIDVALIDITY or a missing UID: 200 {gone:true}. Saying the message is gone when the mailbox is only unreachable would be wrong. The reason may contain account details, which must never be logged or returned.
 - **If you decide otherwise:** Change the three branches in the body handler and the matching tests.
 - **Refs:** F5.2; apps/server/src/routes/messages.ts
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-54 · Which rows the list shows, and corrections of own replies
 - **Kind:** decision
@@ -695,7 +695,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Listed: a job category, or failed with no category. Corrected to not_job: moves behind the Show toggle and is counted. A category filter returns exactly that category. nonJobCount follows the search. Correcting an own reply answers 409, since replies are never listed. A person's 'not job' correction should take the message out of the job list. Own replies have no category; the intake form reads them for preferences.
 - **If you decide otherwise:** Adjust the conditions at the top of packages/db/src/queries/inbox.ts and their tests.
 - **Refs:** F5.1, F5.4; packages/db/src/queries/inbox.ts
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-55 · The index tests seed 5,000 rows and vacuum, and pay and dates are formatted in the UI's language
 - **Kind:** decision
@@ -707,7 +707,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** 5,000 rows with VACUUM ANALYZE for the two EXPLAIN tests. The 600-message timing test stays as the plan says. Numbers, dates and country names use the UI's language, 'en', with a range like '€450–550'. ISO codes are interpreted by Intl; no market data is built in. This shows the query the planner can and does take on a realistic table. A fixed locale keeps the output identical in every environment and matches the app's English copy.
 - **If you decide otherwise:** Change UI_LOCALE in apps/web/src/pages/inbox/format.ts (for example to navigator.language) and its tests.
 - **Refs:** F5.2, F5.5; packages/db/src/queries/inbox.test.ts, apps/web/src/pages/inbox/format.ts
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-56 · Test-stack credentials are fixed, committed test values
 - **Kind:** decision
@@ -719,7 +719,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Fixed values. The Postgres password is E2E-SECRET-postgres, and the secret key is the readable 32-byte base64 string E2ESECRETjobfillyTestStackOnlyKeyNotForUse0=. Both are commented as test-only for a loopback, disposable stack. Every infrastructure step in the validation protocol keeps working with plain compose commands. The E2E-SECRET naming means the leak checks also catch the database password if it ever reaches a log. These protect nothing real, like the committed E2E-SECRET mailbox passwords the spec already uses.
 - **If you decide otherwise:** stack.ts would generate the values and write them to an env file in e2e/.stack. Every documented compose command would then need `--env-file e2e/.stack/env`, and compose.e2e.yaml would use `${VAR:?}`.
 - **Refs:** F7.8; docker/compose.e2e.yaml; e2e/stack.test.ts; docs/mvp/README.md (Fixtures, sentinels)
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-57 · `stack up` loads both personas' mail before it reports the stack ready
 - **Kind:** decision
@@ -731,7 +731,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** After the proxy and both replicas answer ready, `up` runs `docker compose ... run --rm seed load maria` and `... load tom`. A seed failure fails `up` and takes the stack down. A stack from `up` is then ready for any run in the same state every time, and nobody can forget the seed step or run it twice.
 - **If you decide otherwise:** Remove the PERSONAS loop from up() in e2e/stack.ts and its tests. The first spec or walkthrough step would have to run seed load.
 - **Refs:** F7.8, S1; e2e/stack.ts; .claude/workflows/build-mvp.js (validation run)
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-58 · The seed runs on demand in a compose profile; down removes one-off containers by label
 - **Kind:** decision
@@ -743,7 +743,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** The seed is in profile `tools`, so `up` doesn't start it, and its entrypoint is `node e2e/seed/main.ts`. `down` runs compose down, removes any container still labelled with the project, runs compose down again, and checks by label that no container, network or volume is left before forgetting the stack. Seed commands then read as `run --rm seed load maria`, matching the spec's `seed <command>` wording. Down also guarantees F7.8's 'no container, network or volume remains' even after an interrupted seed run, and proves it.
 - **If you decide otherwise:** Give the seed a long-running command and switch stack.ts to `compose exec seed node e2e/seed/main.ts ...`. The leftover-container step could then go.
 - **Refs:** F7.8; docker/compose.e2e.yaml (seed); e2e/stack.ts down(); e2e/stack.test.ts
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-59 · How seed load writes the envelopes.json folder values and flags
 - **Kind:** decision
@@ -755,7 +755,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Any case of inbox/sent is accepted (matching mail/<inbox|sent>). Mail goes to INBOX and a created "Sent" folder (GreenMail and imapflow then report it as \Sent). Inbox mail is appended unread, Sent mail with \Seen. The file's Message-ID must equal envelopes.json's messageId, or the load stops before touching the mailbox. The slices can't disagree on the folder spelling, and a mismatched fixture fails loudly instead of loading wrong data.
 - **If you decide otherwise:** Change FLAGS or the folder check in e2e/seed/load.ts and its tests.
 - **Refs:** ARCHITECTURE › Testing (test-stack conventions); e2e/seed/load.ts; e2e/seed/load.test.ts
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-60 · Pinned images for the proxy and the mail server
 - **Kind:** decision
@@ -767,7 +767,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** haproxy:3.2 (LTS; `haproxy -c` passes on 3.2.26) and greenmail/standalone:2.1.14 (released 2026-09-19). The stack's own images are named jobfilly-e2e-app and jobfilly-e2e-node. These single-component names fall under Docker Hub's official `library` namespace, which no outside account can publish to, so a squatted image can never be pulled. Runs are repeatable, in the spirit of the 7-day release-age rule. Fixed local image names are reused across runs instead of piling up one image set per project name.
 - **If you decide otherwise:** Change the tags in docker/compose.e2e.yaml; the compose test accepts any haproxy tag and any x.y.z GreenMail version.
 - **Refs:** F7.8; docker/compose.e2e.yaml; TBD-16, TBD-34
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-61 · Provider catalog with default models lives in packages/schema
 - **Kind:** decision
@@ -779,7 +779,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** AI_PROVIDERS and aiReadBy() in packages/schema/src/ai.ts. Defaults: Anthropic claude-haiku-5-5 for classify and claude-sonnet-5-5 for the rest; OpenAI gpt-5.4-mini for classify and gpt-5.5 for the rest; Google gemini-3.5-flash-lite for classify and gemini-3.5-flash for the rest; OpenAI-compatible llama3.1 for all four tasks. One source of truth that the UI and the server share without a round trip. Every default can be changed in Settings › AI, and a cheaper model sorts mail while a stronger one extracts facts.
 - **If you decide otherwise:** Change the defaultModels values in AI_PROVIDERS. Nothing else depends on the exact ids. Moving the catalog behind an API would add a route and a response schema.
 - **Refs:** F3.2; packages/schema/src/ai.ts; commit b334d60
-- **Status:** open
+- **Status:** superseded by TBD-93
 
 ## TBD-62 · GET /ai answers {settings: null | AiSettingsPublic}
 - **Kind:** decision
@@ -791,7 +791,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** AiSettingsResponseSchema {settings: AiSettingsPublic | null}, also returned by PUT. Keeps the console clean in onboarding and matches the mailboxes list pattern ({items: []}).
 - **If you decide otherwise:** Change aiRoutes GET/PUT and AiForm's parsing, and drop AiSettingsResponseSchema.
 - **Refs:** F3.1, F3.2; apps/server/src/routes/ai.ts; apps/web/src/pages/ai/AiForm.tsx
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-63 · A stored AI key only goes to the provider and base URL it was saved for
 - **Kind:** decision
@@ -803,7 +803,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Saving or testing with the same provider and base URL and no key reuses the stored key. A changed endpoint without a key answers 400 'Enter the API key for <provider>' for the vendors. For an OpenAI-compatible endpoint the key is cleared, stored as a sealed empty string, because saveAiSettings' null means keep. The key is never returned by the API (F3.3), so it must not be sendable to a host the user didn't enter it for.
 - **If you decide otherwise:** Drop sameEndpoint() in routes/ai.ts. A dedicated clear-key db function would replace the sealed-empty-string convention.
 - **Refs:** F3.3; apps/server/src/routes/ai.ts; apps/server/src/routes/ai.test.ts 'is dropped, not carried over…'
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-64 · Saving a mailbox tests it again; test results list only Inbox and Sent
 - **Kind:** decision
@@ -815,7 +815,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** POST /mailboxes checks for an existing mailbox (409), runs test() again, stores only a working mailbox with the sentPath found (400 with the plain reason otherwise). folders holds the Inbox and Sent paths the app will read. No broken mailbox is stored and the Sent path can't be tampered with. 'Connected: Inbox, Sent' is exactly what F2.1 and S1 show.
 - **If you decide otherwise:** Return list() in full from packages/mail test() and render it in TestOutcome. Saving without a re-test would need sentPath in MailboxInputSchema.
 - **Refs:** F2.1, TBD-36; apps/server/src/routes/mailboxes.ts; packages/mail/src/client.ts
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-65 · OpenAI gets non-strict JSON Schema for extract.v1 and prefs.v1 (follow-up to TBD-45)
 - **Kind:** decision
@@ -827,7 +827,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** The registry adds strictJsonSchema:false for extract and prefs when the provider is openai. classify and intake stay strict, the openai-compatible golden requests are unchanged (strict:true), and every answer is still validated against its zod schema. Keeps OpenAI usable without touching the wire contract or the shared schemas.
 - **If you decide otherwise:** If the schemas become strict-compatible (all keys required and nullable, no records), drop NOT_STRICT in packages/ai/src/registry.ts and regenerate the wire samples.
 - **Refs:** TBD-45; packages/ai/src/registry.ts; packages/ai/src/registry.test.ts 'asks OpenAI for strict output except…'
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-66 · What counts as a call and what is retried
 - **Kind:** decision
@@ -839,7 +839,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** maxRetries 0. Auth, unreachable and HTTP errors are returned at once as plain AiError kinds (auth, unreachable, provider_error), never retried. Each request, failed ones included, adds one Usage entry (0 tokens when the provider reported none). The Test button always makes exactly one call. The scan's budget and S8's 'exactly 5 calls' stay exact, and a hidden SDK retry can't spend calls.
 - **If you decide otherwise:** Raise maxRetries in client.ts request(); budget counting in the scan worker would then be approximate.
 - **Refs:** F3.4, F4.4, F4.5, TBD-17; packages/ai/src/client.ts
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-67 · The route-module test checks 'not 403' instead of the stubs' 501
 - **Kind:** decision
@@ -851,7 +851,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** One-line change to .not.toBe(403). It keeps the test's intent (the needed role reaches the handler) and works for every slice, stubbed or built. An identical change from other slices merges cleanly.
 - **If you decide otherwise:** The integrator would pick a different assertion for the shared test.
 - **Refs:** apps/server/src/app.test.ts:130
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-68 · Job alerts count as likely candidates for the S5 placement rule
 - **Kind:** decision
@@ -864,7 +864,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** The placement test ranks likely_job and job_alert together, newest first, and requires all five S5 messages in the top 40. The other four are then also in the newest 40 of likely_job alone. The '≥250 likely' check counts likely_job only, and Tom's '≤20' counts both. It is the only reading that keeps both rules: alerts only from the listed addresses, and an alert in the newest 40. It holds whichever way the scan slice counts.
 - **If you decide otherwise:** If alerts must not count, the criterion can't be met with alert-only senders. The spec would need an alert from a non-listed sender, or the S5 rule would drop the alert.
 - **Refs:** e2e/fixtures/consistency.test.ts ('places the five S5 messages…'), e2e/fixtures/format.ts MARIA_KEY_MESSAGES, TBD-35 item 1
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-69 · Ground truth for the user's own replies
 - **Kind:** decision
@@ -876,7 +876,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Maria's 15 job replies are other_job with facts []. Her 5 personal replies and Tom's 6 are not_job with facts null. Every Sent message is an own reply to an Inbox message and has a prefs answer (empty when it states nothing). Job replies also get an extract answer with no roles. It keeps the category field one of the nine categories, follows the coverage rule (extract for every job category), and adds no job facts that could affect the profile.
 - **If you decide otherwise:** Switching to null categories would change the Sent entries in build.ts and the coverage checks in consistency.test.ts. The fake AI would then answer classify only for Inbox messages.
 - **Refs:** e2e/fixtures/build/maria.ts, e2e/fixtures/build/tom.ts, format.ts ExpectedMessage
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-70 · Order and wording of expected values; EU citizenship without a country
 - **Kind:** decision
@@ -889,7 +889,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Values are listed in order of first appearance, going through the stating replies newest first; evidence is newest first. Older replies word some values differently ('70k EUR per year', 'backend engineer'), so the dedup-by-normalised-form rule is exercised. work_permits is {country: null, text: 'EU citizen'}; remote is {scope: 'EU', timeZones: null}, as in the wire sample. A fixed order lets intake-profile compare its proposals exactly. Writing PT would be a guess, and the rules forbid guessing.
 - **If you decide otherwise:** intake-profile's comparison would have to ignore order, or the order rule in the expected.json comments in format.ts would change.
 - **Refs:** e2e/fixtures/format.ts ExpectedAnswer, consistency.test.ts aggregate()
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-71 · Job alerts carry List-Unsubscribe; the scam is recruiter outreach
 - **Kind:** decision
@@ -902,7 +902,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Alerts carry List-Unsubscribe, and the recorded verdict is still job_alert: the alert-sender rule comes before the bulk rule. The scam's ground truth is recruiter_outreach, so exactly one message is an offer. Realistic alerts test the rule order the scan needs on real mailboxes. Unsolicited mail asking for a fee and a passport is outreach, not an offer that follows an application.
 - **If you decide otherwise:** If the scan checks bulk headers first, Maria's 40 alerts would become not_job. Either the scan fixes its rule order, or the generator drops the header (one line in alerts.ts).
 - **Refs:** e2e/fixtures/build/alerts.ts, consistency.test.ts stageOneFromHeaders, MARIA_KEY_MESSAGES.scam
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-72 · Message-IDs, fixed .eml dates, and extra fake-AI endpoints
 - **Kind:** decision
@@ -914,7 +914,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Message-IDs are <persona-nnnn@sender-domain>, and MARIA_KEY_MESSAGES in format.ts names the eight messages the scenarios open. The .eml Date header is FIXTURE_REFERENCE_TIME minus minutesAgo, and the seed rewrites it. The fake AI also answers GET /health (for a compose healthcheck) and HTTP 400 for a request without a task line. The ids stay the same across regenerations and reveal nothing about a message's role. Fixed dates keep the files byte-for-byte reproducible.
 - **If you decide otherwise:** Changing the id scheme would change MARIA_KEY_MESSAGES and every fixture file, and the seed would need to know.
 - **Refs:** e2e/fixtures/build/spec.ts MessageBook, e2e/fixtures/format.ts, e2e/fake-ai/server.ts
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-73 · How a Message-ID of the wrong shape is handled
 - **Kind:** decision
@@ -927,7 +927,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** The whole unfolded header must be a single <...> token with no whitespace, '<', '>', control, format (zero-width, bidi) or separator character; UTF-8 is allowed (RFC 6532). Otherwise the stable synthetic <folder.uidvalidity.uid@jobfilly.invalid> id is used. In the prompt, an id that still fails the check goes under a 'Message-ID (untrusted):' line with '| ' lines. Refusing it would fail the whole batch. This rule is the simplest one that cannot carry text onto a structure line. The synthetic id is already the documented fallback, and it stays unique per message. Taking the first token would let two crafted messages share an id, and a hash would add a third id scheme.
 - **If you decide otherwise:** A reply whose References names a malformed original won't thread to it, because the original now has the synthetic id. To keep the first token instead, change parse.ts to take messageIds(header)[0] whenever isMsgId accepts that token.
 - **Refs:** packages/schema/src/mailbox.ts (isMsgId); packages/mail/src/parse.ts; packages/mail/src/parse.test.ts; packages/ai/src/prompt.ts; packages/ai/src/prompt.test.ts; docs/ARCHITECTURE.md; commits c49ec7b, e9bc76f, 74ebb1d
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-74 · Wire shape of `extra` for extract.v1 and prefs.v1 (schema change, for TBD.md)
 - **Kind:** decision
@@ -940,7 +940,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** ExtraAnswerSchema is an array of closed {key, value} objects, refined so that each key appears once and transformed into Record<string,string>. JobFactsAnswerSchema and PreferencesAnswerSchema use it in ExtractOutputSchema and PrefsOutputSchema. The AI SDK builds the JSON Schema from the input side (io: 'input'), so the model sees the list, and parsing returns the spec's record. A key given twice makes the answer invalid rather than letting one value silently win. Every provider can express a list of closed objects. The stored and API shapes, and the spec's { key: value }, stay unchanged. Nothing in packages/ai has to special-case a vendor.
 - **If you decide otherwise:** Reverting means going back to z.record in the output schemas, re-capturing e2e/fixtures/wire/{extract,prefs}.v1.request.json and changing extract.v1.response.json back to extra:{}. Anthropic users would then silently get no extra facts again.
 - **Refs:** packages/schema/src/facts.ts; packages/schema/src/profile.ts; packages/schema/src/ai-output.ts; packages/schema/src/index.test.ts; packages/schema/src/wire.test.ts; packages/ai/src/registry.test.ts; e2e/fixtures/wire/*; commits 83f34de, 9e2305b
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-75 · extract.v1 stays non-strict on OpenAI
 - **Kind:** decision
@@ -952,7 +952,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** I kept extract.v1 non-strict and rewrote the comment and the test title to say why: it stays that way until a run against OpenAI shows strict mode accepts its regex patterns. It was not part of the findings, and enabling it would change OpenAI behaviour in a way that can't be checked without a real-provider run.
 - **If you decide otherwise:** Remove 'extract' from NOT_STRICT in packages/ai/src/registry.ts and change the expected ['extract_v1', false] to true in registry.test.ts.
 - **Refs:** packages/ai/src/registry.ts; packages/ai/src/registry.test.ts
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-76 · How the F5.3 comparison set is expressed
 - **Kind:** decision
@@ -964,7 +964,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Export the predicate and document it; the fixture JSON stays unchanged. The data, the generator output and the byte-for-byte build test stay as they are, and the comparison set lives in one exported place that the validator, the e2e specs and the real-AI quality scorer can all use. The real-AI ground truth for own replies is also kept, in case a later MVP classifies replies.
 - **If you decide otherwise:** Change category to Category | null in format.ts and in apps/server/src/e2e-fixtures.test.ts, set null for own replies in e2e/fixtures/build, and regenerate with node e2e/fixtures/build/main.ts. comparedForF53 could then become !invalid && category !== null.
 - **Refs:** F5.3; e2e/fixtures/format.ts (ExpectedMessage, comparedForF53); TBD-37; packages/db/src/queries/messages.ts
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-77 · Keep the fake AI's classify answers for Sent messages
 - **Kind:** decision
@@ -976,7 +976,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Keep them, documented in format.ts as answers the scan never asks for. The task was to fix exactly the finding and keep everything else. Removing them would mean regenerating fixtures and rewriting a fake-AI test. The F5.3 ambiguity is resolved by the predicate.
 - **If you decide otherwise:** In e2e/fixtures/build/build.ts, write classify answers only for non-ownReply messages, regenerate, change the consistency test's classify-keys check to Inbox ids, and change the fake-ai test's 'sent' classify case to expect a 500 for a missing fixture.
 - **Refs:** e2e/fixtures/build/build.ts:114; e2e/fake-ai/fake-ai.test.ts:154; F4.5/S8
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-78 · A Message-ID answered twice is invalid even when both answers are the same
 - **Kind:** decision
@@ -988,7 +988,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Refuse any repeated id. This matches the fix as specified and the rule ExtraAnswerSchema already follows (a key given twice is refused). It is simpler, and it never picks between model outputs. The only cost is one retry in a rare case.
 - **If you decide otherwise:** An answer that repeats an item word for word would be accepted without a retry.
 - **Refs:** packages/ai/src/client.ts checkItems; packages/ai/src/client.test.ts
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-79 · Base URL check is a strict authority test, not a WHATWG URL parse
 - **Kind:** decision
@@ -1001,7 +1001,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Match the scheme://authority and refuse an '@' in it, and also refuse any URL whose authority can't be found. This keeps the schema package free of runtime lib types and keeps the check where the data enters, as the schemas-first rule asks. A backslash ends the authority, the way URL parsers read http(s). Rejecting a URL whose authority can't be found errs toward refusing rather than storing a hidden secret. One shared helper now serves this check and aiReadBy.
 - **If you decide otherwise:** Odd inputs such as https:\\user:pw@host could slip past a looser check and be stored in clear.
 - **Refs:** packages/schema/src/ai.ts authorityOf, AiBaseUrlSchema, aiReadBy
-- **Status:** open
+- **Status:** changed: the server also checks the base URL with the WHATWG URL parser, and refuses it when the two parsers disagree.
 
 ## TBD-80 · What F5.3's comparison counts as a difference
 - **Kind:** decision
@@ -1013,7 +1013,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Report failed analyses of messages the fake AI answers validly, and listed ids missing from expected.json. A `complete` option also reports compared messages that are pending or not listed. Categories with source 'you' are not compared, but their roles are. Roles are compared as an order-free set of whole JobFacts. Without these, the check would pass even if the pipeline were missing or broken, which is the gap the verifier pointed out. A correction is the user's choice, not the analysis's output.
 - **If you decide otherwise:** If role order should count as a fact, change the sort in compareRoles to keep order. If corrected categories should be compared, drop the categorySource check.
 - **Refs:** F5.3, F5.4; e2e/fixtures/compare.ts
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-81 · Where the F5.3 probe against the integrated app lives
 - **Kind:** decision
@@ -1025,7 +1025,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Ship compareWithExpected and collectStored here, so the probe is a single call, and report the wiring as not done. A spec on this branch would not typecheck without test-stack's harness, and it would conflict with the slice that owns the specs.
 - **If you decide otherwise:** If this slice were meant to own the probe, it would need test-stack merged first and a spec under e2e/specs/mvp-1.
 - **Refs:** F5.3; e2e/fixtures/compare.ts, e2e/specs/mvp-1 (test-stack)
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-82 · How sure an answer is, and where its reason is stored
 - **Kind:** decision
@@ -1038,7 +1038,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Reply-stated: 1 low, 2 medium, 3+ high. Job-derived: under 10 low, 10+ medium, capped at medium. Every evidence item's reason is the answer's sentence ('from one of your replies', 'from N of your replies', 'in N job emails'), and the UI shows it. Blank values ("" or whitespace) never count as a statement. Job mail shows what is being offered, not what the user wants, so it shouldn't look as certain as the user's own words. Both constraints hold, and Maria's fixture answers (3-4 replies each) come out high. No shared schema change was needed.
 - **If you decide otherwise:** Change replyConfidence/jobConfidence in packages/core/src/intake/aggregate.ts and their unit tests. An answer-level reason field would need a schema commit and changes in the core, the routes and IntakePage.
 - **Refs:** F6.2, F6.3, F4.4; packages/core/src/intake/aggregate.ts
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-83 · One profile per workspace: Confirm happens once, later changes go through the profile page
 - **Kind:** decision
@@ -1051,7 +1051,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** 409 'confirmed' for both. The intake page then says 'Saved as …' with a link to the profile and makes the form read-only. The profile page lets editors rename the profile and change answers with the same click editors (source you). This keeps 'Analyze them never changes the confirmed profile' simple, and a second click can't wipe hand edits. Several profiles are MVP 3 scope.
 - **If you decide otherwise:** MVP 3's several profiles would let Confirm (or re-run setup) create a new profile; createConfirmedProfile's existence check would change.
 - **Refs:** F6.5, F4.10; packages/db/src/queries/profiles.ts, apps/server/src/routes/intake.ts
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-84 · A failed intake.v1 call is final
 - **Kind:** decision
@@ -1063,7 +1063,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Status failed with no questions; the form goes on without extra questions and never asks again. Only a claim left pending by a replica that died is retried, after 2 minutes. It keeps the 'once per workspace' guarantee and the cost bounded. The core questions don't depend on it.
 - **If you decide otherwise:** Let takeOverIntakeExtras also take a failed row once it is older than a cut-off; tests in profiles.test.ts and intake.test.ts would change.
 - **Refs:** F6.1, TBD-19; apps/server/src/routes/intake.ts
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-85 · Typed places and minimum pay use ISO codes
 - **Kind:** decision
@@ -1075,7 +1075,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Code fields (e.g. GB, GBP) with a plain error message. Chips show countries by name and pay formatted with Intl. No market-specific lists are built in, and nothing new needs to be maintained. A user who corrects by clicking never sees these fields.
 - **If you decide otherwise:** Add a picker (for example from Intl.DisplayNames over a list of ISO codes) in apps/web/src/pages/intake/answers.tsx.
 - **Refs:** F6.4, F6.6; apps/web/src/pages/intake/answers.tsx
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-86 · Edited answers in a confirmed profile keep their evidence but lose their confidence
 - **Kind:** decision
@@ -1087,7 +1087,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Confidence null and evidence kept, for intake edits and profile edits alike. Extra questions are saved as entries too: empty with source scan when unanswered. The user set the value, so the app no longer estimates it, but the messages behind it still help explain it.
 - **If you decide otherwise:** Change confirmedEntries/patchEntries in packages/core/src/intake/profile.ts.
 - **Refs:** F6.5; packages/core/src/intake/profile.ts
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-87 · Fixture-based proofs wait for the sibling branches instead of merging them into this slice
 - **Kind:** decision
@@ -1100,7 +1100,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Leave them to after integration and report them as not done. I checked independently that the fake AI's extra-question evidence for Maria survives the new filter. Merging unverified sibling slices would carry their work into mvp-1 even if they fail verification. It would also break the plan's disjoint owned paths. Copying the fixtures would duplicate them. The scan doesn't exist yet, so the confidence-stop test can't be written at all.
 - **If you decide otherwise:** If the owner prefers the slice to carry the proof itself, merge mvp-1-e2e-fixtures into mvp-1-intake-profile and add packages/core/src/intake/fixtures.test.ts as the finding describes. confidence-stop.test.ts still has to wait for the scan.
 - **Refs:** packages/core/src/intake/extras.ts; mvp-1-e2e-fixtures:e2e/fixtures/ai/maria/intake.json; docs/mvp/MVP-1.md F6.6; TBD-29
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-88 · Confirm waits for the extra questions, in the UI and on the server
 - **Kind:** decision
@@ -1113,7 +1113,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Disable in the UI, with a short note, and also refuse on the server with 409 extras_pending. The UI rule alone could be bypassed by a second tab or a probe. Letting the profile take new keys later would change the profile contract. Users can see the wait: about the fake AI's 300 ms delay in the test stack, and up to one model call with a real provider. A stuck claim is taken over through the form's 5-second poll after 2 minutes.
 - **If you decide otherwise:** To let users confirm early, drop the server check and the disabled state, and add a way to append extra questions to a confirmed profile (a PATCH that accepts new extra.* keys).
 - **Refs:** apps/server/src/routes/intake.ts (POST /confirm, EXTRAS_PENDING); apps/web/src/pages/intake/IntakePage.tsx (extrasPending)
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-89 · Shutdown during the background intake.v1 call abandons it instead of tracking it in the shutdown sequence
 - **Kind:** decision
@@ -1126,7 +1126,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Check health.shuttingDown after the model answers and write nothing more. Any failure is logged at warn with the error name only. This stays inside the slice's paths. Shutdown waits at least the 5-second drain between beginShutdown and closeDatabase, so writes that start before the flag finish long before the database closes. Tracking promises or adding a queue job would change the shared deps, shutdown and registry files.
 - **If you decide otherwise:** If the abandoned call's tokens must always be counted, add a small background-task tracker to AppDeps that shutdown() awaits, or move intake.v1 into a queue job type.
 - **Refs:** apps/server/src/routes/intake.ts askForExtras; apps/server/src/shutdown.ts
-- **Status:** open
+- **Status:** superseded by TBD-98
 
 ## TBD-90 · New log event intake.extras_failed (warn)
 - **Kind:** decision
@@ -1139,7 +1139,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Add intake.extras_failed at warn with { workspaceId, error: name }. It names what failed, and the form goes on without extras, which is degraded rather than broken. That makes it a warning, and validation does not flag warnings as unexpected errors. It is not a queue job, so job.failed would mislead.
 - **If you decide otherwise:** Rename the event or change its level in apps/server/src/log.ts and apps/server/src/routes/intake.ts. The owner may want to add it to MVP-1.md's log events list.
 - **Refs:** apps/server/src/log.ts LogEvent; apps/server/src/routes/intake.ts errorName
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-91 · Where an unstorable string is refused: a refinement on the shared schemas, plus a final 'failed' as a fallback
 - **Kind:** decision
@@ -1152,7 +1152,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Refuse NUL in packages/schema with a refinement (TextSchema), applied to the extra questions, the profile value strings, the prefs extra record and the profile names. If storing still fails, close the claim as 'failed' with no questions. Model output and user values are checked where they enter, as the schemas-first rule asks. The refinement keeps the JSON Schema sent to providers and the committed wire samples unchanged. The 'failed' fallback covers any other schema-valid but unstorable answer, so a deterministic failure can never cause repeated model calls or block Confirm.
 - **If you decide otherwise:** With a regex instead, the wire samples in e2e/fixtures/wire and the golden tests would be regenerated. Stripping instead of refusing would change foundExtraQuestions and drop the TextSchema refinement.
 - **Refs:** packages/schema/src/common.ts TextSchema; packages/schema/src/profile.ts; apps/server/src/routes/intake.ts askForExtras; apps/server/src/routes/intake.test.ts 'fails for good, without logging the questions, when storing them fails'
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-92 · The unmerged slices land through fix tasks that continue their branches
 - **Kind:** decision
@@ -1164,7 +1164,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Continue each slice branch in its own fix task (continueBranch). The connect task first merges mvp-1 and resolves the apps/server/src/app.test.ts conflict that a dry run found. The integrator should still expect conflicts between connect and intake-profile in apps/server/src/app.test.ts and packages/schema/src/index.test.ts. It keeps the rule that only verified work is merged, and it is the only way the fix workflow can bring the slices in. The dry runs show e2e-fixtures, intake-profile and scan merge cleanly with mvp-1.
 - **If you decide otherwise:** Merging them as they are would let the stack start sooner, but would put known-defective code (the comparator bug, locale parsing, the shutdown leak) on mvp-1 without review.
 - **Refs:** docs/mvp/README.md 'Fix rounds'; branches mvp-1-e2e-fixtures, mvp-1-connect, mvp-1-intake-profile, mvp-1-scan
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-93 · The AI provider catalogue moves to packages/ai and is served over HTTP
 - **Kind:** decision
@@ -1176,7 +1176,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Option 1: Move the catalogue into packages/ai, define its wire shape in packages/schema, serve GET /ai/providers, and have AiForm read it through api(). It matches the ARCHITECTURE table and the mail-presets pattern, keeps vendor defaults out of the shared contract (all AI knowledge goes through packages/ai), and needs no ARCHITECTURE edit, so no two tasks share a path. The cost is a loading state in AiForm and a few moved tests.
 - **If you decide otherwise:** With option 2, the connect task would own docs/ARCHITECTURE.md, and the intake-profile ARCHITECTURE changes (intake.v1 shutdown, rewrap) would have to wait a round.
 - **Refs:** F3.1-F3.3; packages/schema/src/ai.ts:90-142; docs/ARCHITECTURE.md:16,20; packages/mail/src/presets.ts
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-94 · F6.6 at the confident stop is deferred to the round after scan merges
 - **Kind:** decision
@@ -1189,7 +1189,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Prove it over the full fixtures now (Maria's answers and extra questions equal expected.json, and Tom's answers are empty), and defer the confident-stop variant to the next round, after scan is merged. The intake and scan tasks may merge mvp-1-e2e-fixtures for read-only fixture data. It commits the proof the reviewer found missing, with no stubs, and keeps unverified intake code from riding into mvp-1 through the scan branch.
 - **If you decide otherwise:** The scan task would carry the unverified intake-profile slice, and if the intake fix failed, its defects would reach mvp-1 anyway.
 - **Refs:** F6.6, TBD-30, TBD-31, TBD-35 item 10; packages/core/src/intake
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-95 · F5.3 is proven by a stack spec now, and by a hermetic pipeline test after integration
 - **Kind:** decision
@@ -1202,7 +1202,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** The e2e-fixtures task writes the stack spec now. The hermetic integration test is added in a later round, once scan and connect are merged. F5.3 is not claimed as passed until one of them runs green. The spec is the proof the criterion describes (fake AI, both personas), and it does not depend on code built in parallel.
 - **If you decide otherwise:** Waiting for the hermetic test would leave F5.3 with no executable proof for another round.
 - **Refs:** F5.3, F5.4, S5; e2e/fixtures/compare.ts
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-96 · Scan is rebuilt as one task against the mvp-1 AI and mail interfaces
 - **Kind:** decision
@@ -1215,7 +1215,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** One task from mvp-1-scan, built against the AiClient and MailClient interfaces on mvp-1, which mvp-1-connect keeps unchanged. It commits small green steps so partial work survives, and it may merge e2e-fixtures for fixture tests. The interfaces match, so the worker compiles against the real clients after integration, and nothing unverified rides in with scan.
 - **If you decide otherwise:** A split would need stubs between the parts, and merging connect into scan would carry connect in unverified.
 - **Refs:** F4.1-F4.10, TBD-22, TBD-23; packages/core/src/scan, apps/server/src/jobs/scan
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-97 · Minimum pay is parsed with the locale's separators, and ambiguous input is refused
 - **Kind:** decision
@@ -1228,7 +1228,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Both: parse with the separators of the locale the inbox formats in, and refuse whatever that locale can't read unambiguously, with a message asking the user to retype. A silently wrong minimum pay distorts matching. Asking costs one retype, and guessing is against 'Unknown means ask'.
 - **If you decide otherwise:** Parsing alone would still guess on forms like '1.500' typed in an English locale.
 - **Refs:** F6.4; CLAUDE.md 'Nothing market- or user-specific in code'; apps/web/src/pages/intake/answers.tsx:320
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-98 · An intake.v1 call cut off by shutdown releases its claim at once
 - **Kind:** decision
@@ -1240,7 +1240,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Track, write, abort and release. ARCHITECTURE is updated to match. It matches how queue jobs hand back their leases (F7.4) and avoids a 409 on Confirm and a second paid call.
 - **If you decide otherwise:** Confirm can be blocked for up to 2 minutes after every deploy that interrupts the call.
 - **Refs:** F6.1, F7.4; apps/server/src/routes/intake.ts:135,198; docs/ARCHITECTURE.md:92-99,143-144
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-99 · Problems that need a running stack get no code task
 - **Kind:** decision
@@ -1252,7 +1252,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** No code task. They follow from the integration blocker, which the tasks above fix, and the next full validation run re-checks them. The orchestrator writes report.md itself. A fix task cannot start Docker, so it could neither prove nor fix these. The suite tests that already prove the stored formats (auth.test.ts F1.5, and connect's AES-256-GCM tests) arrive with the merges.
 - **If you decide otherwise:** Tasks for them would fail verification and block the slice merges.
 - **Refs:** F1.5, F2.3, F3.3, F4.9, F7.6, F7.8; e2e/reports/mvp-1/20261015T084131Z-r0-walkthrough
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-100 · When the F5.3 proof runs and how it signs in
 - **Kind:** decision
@@ -1266,7 +1266,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** One spec, 99-f5.3-stored-equals-expected.spec.ts, that only reads. It signs in through the API with its own session, like the scenario probes, so the browser sessions stay as they are. It runs a complete comparison for Maria and Tom. stack.test.ts fails if any other entry in specs/mvp-1 sorts after it. After S7 and S9 every message has been analysed, so a complete comparison covers everything the first scans and the Analyze runs produced, and it does not depend on what the scenario specs are named. A self-contained spec would add users, scans and AI load, which would change the state later specs and MVP 2 start from. A project dependency would run after the MVP 2 specs, which deliver new mail that expected.json does not describe.
 - **If you decide otherwise:** If the codified scenario specs use names that sort after '99-' (for example 's1-…'), the guard test fails and the spec must be renamed so it sorts last. If the owner also wants a partial comparison right after S3, add a second spec named to sort just after the S3 spec, using `complete: false`.
 - **Refs:** e2e/specs/mvp-1/99-f5.3-stored-equals-expected.spec.ts, e2e/stack.test.ts ('e2e/specs/mvp-1'), e2e/playwright.config.ts
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-101 · How the comparator handles corrected categories
 - **Kind:** decision
@@ -1278,7 +1278,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Read the detail of every corrected row and keep comparing its roles. correctCategory changes only the category, so the roles the analysis extracted are still stored and can still be checked against expected.json. Skipping them would hide a role lost or altered on a corrected message.
 - **If you decide otherwise:** If a later change drops roles when a message is corrected to not_job, this check reports a roles difference for that message. compareRoles would then need to skip roles on corrected not_job rows.
 - **Refs:** e2e/fixtures/compare.ts collectStored; packages/db/src/queries/inbox.ts correctCategory
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-102 · Where the base-URL host parsing lives
 - **Kind:** decision
@@ -1291,7 +1291,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Export baseUrlHost() from packages/schema/src/ai.ts, next to the credential refusal that uses the same parser. The privacy line reads the same while typing and after saving, because both sides use one parser that never shows a user part and handles the backslash case. Keeping the parser beside the schema refusal means they can't drift apart. The web app takes no packages/ai dependency, and no vendor data goes into schema.
 - **If you decide otherwise:** If ARCHITECTURE must keep packages/schema strictly to Zod schemas with no helper functions, baseUrlHost could move to apps/web and packages/ai as two copies, which risks the copies diverging.
 - **Refs:** packages/schema/src/ai.ts (baseUrlHost), packages/ai/src/providers.ts (aiReadBy), apps/web/src/pages/ai/AiForm.tsx (readByOf)
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-103 · New endpoint GET /ai/providers is not named in the MVP-1 spec text
 - **Kind:** decision
@@ -1303,7 +1303,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Added GET /ai/providers (viewer role) and left the spec text unchanged. The fix task names this endpoint, and it mirrors GET /mailboxes/presets. It is additive and read-only, and the route table test in app.test.ts covers its roles.
 - **If you decide otherwise:** If the owner wants the spec or ARCHITECTURE to list it, the task that owns docs/ARCHITECTURE.md can add one line.
 - **Refs:** apps/server/src/routes/ai.ts, apps/server/src/routes/ai.test.ts, apps/server/src/app.test.ts
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-104 · Abort the intake.v1 wait without an AI-client signal
 - **Kind:** decision
@@ -1316,7 +1316,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Race the call against the signal in apps/server/src/routes/intake.ts (untilAborted). The late result is ignored and the HTTP request ends when the process exits. It stays within my paths and gives the behaviour the criterion asks for: the claim is released before the database closes, and only the new replica's call is recorded.
 - **If you decide otherwise:** When packages/ai gains CallOptions.signal, pass it to client.intake so the HTTP request itself is cancelled.
 - **Refs:** apps/server/src/routes/intake.ts untilAborted; packages/ai/src/index.ts CallOptions
-- **Status:** open
+- **Status:** superseded by TBD-128
 
 ## TBD-105 · Strict locale reading of typed amounts
 - **Kind:** decision
@@ -1328,7 +1328,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Strict: 'en' accepts '70,000' and '450.50' and refuses '70.000', '450,50', '1.234,56', '70 000', '70k' and signs. A locale that groups with a space accepts any typed space. Unknown means ask: a guessed amount would be saved silently.
 - **If you decide otherwise:** If the UI locale ever follows the user, parseAmount already takes a locale argument.
 - **Refs:** apps/web/src/pages/inbox/format.ts parseAmount; apps/web/src/pages/intake/answers.tsx
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-106 · New operational log event intake.extras_handed_back
 - **Kind:** decision
@@ -1340,7 +1340,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** info 'intake.extras_handed_back' with workspaceId. It follows job.handed_back and logs no AI output or Message-IDs.
 - **If you decide otherwise:** Remove it from LogEvent and the route.
 - **Refs:** apps/server/src/log.ts
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-107 · Every message the user wrote is read as an own reply
 - **Kind:** decision
@@ -1353,7 +1353,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Every Sent message, and Inbox mail from one of the mailbox's own addresses, is own_reply and read with prefs.v1. A Message-ID that appears in both Inbox and Sent is kept once, as the Sent copy. Whatever the user writes is the strongest evidence of what they want, and asking the classifier about one's own mail makes no sense. Keeping each Message-ID once also stops saveEnvelopes from hitting the same row twice in one upsert. The fixtures have no Sent non-replies, so every expected.json verdict still matches.
 - **If you decide otherwise:** Change isOwn in packages/core/src/scan/stage-one.ts and its unit test.
 - **Refs:** F4.2, F4.3; packages/core/src/scan/stage-one.ts; apps/server/src/jobs/scan/fixtures.test.ts
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-108 · Job alerts skip classify and get one extract call each
 - **Kind:** decision
@@ -1366,7 +1366,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Alerts take a slot in the newest-first batches, skip classify and get one extract call each. They count in 'handled without AI' (sorted from headers) and in the likely total; a category a person corrected decides instead. This is what TBD-35 suggested. It lets the S5 multi-role alert be analysed among the newest 40 and keeps S8's budget sums exact.
 - **If you decide otherwise:** Change analyze() in apps/server/src/jobs/scan/run.ts and the call-order assertions in scan.test.ts.
 - **Refs:** TBD-35 item 1, TBD-68; F4.2, F4.3, S5, S8
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-109 · A message classified but not yet extracted when the budget runs out stays pending
 - **Kind:** decision
@@ -1379,7 +1379,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Leave it pending: the next Analyze them run classifies it again. Nothing is stored that the model didn't fully produce, the state table in messages.ts stays as it is, and S8 still shows the not-analyzed count shrink. The cost is one classify call more later.
 - **If you decide otherwise:** Add a 'classified' state to packages/db's messages and save the category before extracting.
 - **Refs:** F4.4, F4.5, S8, TBD-17, TBD-37
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-110 · What X and Y mean in 'after X of Y likely job emails'
 - **Kind:** decision
@@ -1391,7 +1391,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Y is what was waiting when the run began (all likely mail for a fresh first scan, what is left for Analyze them). X is what this run analysed or marked Couldn't analyze, counted from the rows. It stays true after a takeover and for every kind of run, and it matches the S3 wording on a fresh first scan.
 - **If you decide otherwise:** Change how sortWindow sets likely and how countScanAnalysis counts.
 - **Refs:** F4.4, S3, S8; packages/db/src/queries/messages.ts countScanAnalysis
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-111 · How the confidence tracker compares answers, and which stop reason wins
 - **Kind:** decision
@@ -1403,7 +1403,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Each key's value and confidence are compared, ignoring evidence and item order. The baseline is the proposal right after the replies are read. When several reasons hold, done wins, then confident, then budget. More mail repeating the same answer is not a change, and confidence firming up is. This order keeps TBD-32 ('done wins') and the deterministic 40-message stop of TBD-30.
 - **If you decide otherwise:** Change snapshot() and the order in afterBatch in packages/core/src/scan/tracker.ts and their tests.
 - **Refs:** F4.4, TBD-30, TBD-32
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-112 · A run that can't go on stops as 'failed' with a plain message
 - **Kind:** decision
@@ -1415,7 +1415,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** A missing mailbox or AI settings, a provider auth/unreachable/provider error, a mail error, or any unexpected error stops the scan as failed. The log line is scan.stopped at warn with a cause code (never the provider's message). The user sees 'Stopped: couldn't go on after X of Y likely job emails. Check the mailbox and AI settings, then try again.' Otherwise the one-active-scan rule would block the workspace forever, and nothing that could carry a host or account detail is logged.
 - **If you decide otherwise:** Change fail() in jobs/scan/index.ts, stop() in run.ts, and stopMessage.
 - **Refs:** F4.4, F3.4; ARCHITECTURE › Logs
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-113 · When the first scan can be started again
 - **Kind:** decision
@@ -1428,7 +1428,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** The UI offers 'Start scan again' only after a failed or cancelled first scan. After any other stop it offers Analyze them. The server refuses a start only while a run is queued or running. Re-running is harmless (stage one upserts, and only pending mail is analysed again), and it gets users out of a failed or cancelled first scan.
 - **If you decide otherwise:** Add a 409 for an existing first scan in routes/scans.ts.
 - **Refs:** F4.1, F4.10; apps/web/src/pages/scan/index.tsx
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-114 · Merged mvp-1 into the fix branch and updated the shared route-table test
 - **Kind:** decision
@@ -1441,7 +1441,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Merged mvp-1 (clean) and set reached = 200/409/404/409 for the scan rows. The 403 and 404 checks are unchanged. It is the smallest change that keeps the test's intent and makes integration conflict-free.
 - **If you decide otherwise:** The integrator resolves the app.test.ts rows during the merge instead.
 - **Refs:** apps/server/src/app.test.ts; TBD-67
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-115 · Access changes share the live NOTIFY channel instead of a separate one
 - **Kind:** decision
@@ -1453,7 +1453,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Same channel, with a union payload; LiveEnvelopeSchema is left unchanged. One channel keeps the access change in order with the events, so an event published after the removal can never reach the removed stream first. A separate channel would not guarantee that order.
 - **If you decide otherwise:** With a separate channel, a race could deliver an event to a removed member before the close arrives.
 - **Refs:** packages/schema/src/events.ts, apps/server/src/live/hub.ts
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-116 · LiveHub.subscribe still accepts a bare workspace id for server-side listeners
 - **Kind:** decision
@@ -1465,7 +1465,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Accept StreamOwner | string. The SSE route always passes the full owner. This keeps the change inside the allowed paths. Every browser stream is still keyed by user and session, and the string form is documented as server-only.
 - **If you decide otherwise:** Once messages.test.ts can be edited, the string form can be removed so that StreamOwner is required.
 - **Refs:** apps/server/src/live/hub.ts subscribe()
-- **Status:** open
+- **Status:** accepted (already undone by 7dd5d7a).
 
 ## TBD-117 · Fail closed when a heartbeat re-check errors, and never fail the request when the revoke notification fails
 - **Kind:** decision
@@ -1477,7 +1477,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Close on a check error (the browser reconnects and is checked again). A failed notify is logged and does not fail sign-out or member removal. Access must never be kept by mistake. The removal or sign-out is already saved, so a 500 would only confuse the user, and the heartbeat re-check on the other replicas still closes their streams.
 - **If you decide otherwise:** Keeping streams open on errors would leave the original leak open whenever the database misbehaves.
 - **Refs:** apps/server/src/live/routes.ts, apps/server/src/live/hub.ts revoke()
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-118 · Fixture-based proofs wait one round; intake and scan drop their merges of mvp-1-e2e-fixtures
 - **Kind:** decision
@@ -1490,7 +1490,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Option 3. intake-live continues from mvp-1-intake-profile (no merge). The scan task rebases its own commits without bbb36f4 and leaves apps/server/src/jobs/scan/fixtures.test.ts out (it stays in mvp-1-fix-r1-scan's history). packages/core/src/intake/fixtures.test.ts, the scan fixtures test and confidence-stop.test.ts are listed as notDone for round 3. This reverses TBD-94's choice. It keeps each slice's work verifiable on its own and stops unverified work from reaching mvp-1 through another branch, as the verifiers and TBD-87 require. It also gives fixture data one owner and no copies. The next validation run with the fake AI still checks F6.6, F4.2 and F4.5 end to end, as soon as the stack starts.
 - **If you decide otherwise:** If the owner prefers the proofs now, merge mvp-1-fix-r2-e2e-fixtures into the intake and scan branches after it passes verification, and add the tests there. The integrator then has to merge e2e-fixtures first.
 - **Refs:** F6.6, F4.2, F4.5, TBD-31, TBD-87, TBD-94; branches mvp-1-fix-r1-intake-profile (8bd9b4e), mvp-1-fix-r1-scan (bbb36f4), mvp-1-e2e-fixtures (1843f88)
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-119 · Intake-profile and live-access fixes share one task, because both must edit docs/ARCHITECTURE.md
 - **Kind:** decision
@@ -1503,7 +1503,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Option 2. Task intake-live continues mvp-1-intake-profile, cherry-picks the two live-access commits (327b8bd, bb7a842), fixes both sets of findings and owns docs/ARCHITECTURE.md. The e2e-fixtures task removes apps/server/src/e2e-fixtures.test.ts instead of documenting it (see the next decision). Both server fixes can then land this round with their docs, and the no-shared-path rule holds. Live-access is two small commits that touch only live/, auth/session.ts, routes/workspaces.ts and the events schema, so folding them in barely grows the task.
 - **If you decide otherwise:** Split mvp-1-fix-r2-intake-live back into two branches (the live-access commits are separable) and give ARCHITECTURE to one of them per round.
 - **Refs:** docs/ARCHITECTURE.md; mvp-1-fix-r1-live-access (327b8bd, bb7a842); mvp-1-intake-profile (de9cac6); CLAUDE.md 'Update ARCHITECTURE when you change a boundary'
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-120 · The server-side schema check of the persona fixtures is removed now and comes back next round in packages/schema
 - **Kind:** decision
@@ -1515,7 +1515,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Remove it now and re-add it as a packages/schema test next to wire.test.ts in round 3. The same ARCHITECTURE sentence will then cover every package test that reads persona fixtures (schema, F6.6 intake, F4.2/F4.5 scan). Unblocking the test stack matters most, since every validation criterion waits on it. The test was passing, not failing, and removing it removes the undocumented coupling. Until it returns, the fixtures are still checked inside e2e (consistency, build and compare tests), and in the live stack packages/ai validates the fake AI's answers.
 - **If you decide otherwise:** Give docs/ARCHITECTURE.md to the e2e-fixtures task, move the test to packages/schema/src now, and defer the intake shutdown and live-access ARCHITECTURE updates one round.
 - **Refs:** apps/server/src/e2e-fixtures.test.ts; packages/schema/src/wire.test.ts; docs/ARCHITECTURE.md e2e/ bullet
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-121 · One helper opens the AI key; connect and scan switch to it after integration
 - **Kind:** decision
@@ -1527,7 +1527,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** intake-live adds openAiKey(secretKey, sealed) to apps/server/src/secrets.ts ("" becomes null) and uses it. After integration, connect's routes/ai.ts and scan's jobs/scan/index.ts should switch to it in a later round. It fixes the behaviour that is wrong (intake) now and keeps fix tasks disjoint. The other two already behave correctly.
 - **If you decide otherwise:** Add the switch-over to the next fix round's server task, or let the integrator do it during the merge.
 - **Refs:** apps/server/src/routes/intake.ts:127; mvp-1-fix-r1-connect:apps/server/src/routes/ai.ts:57; mvp-1-fix-r1-scan:apps/server/src/jobs/scan/index.ts:41-45
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-122 · No code task for the report.md the harness refused to write, or for the validation-only checks
 - **Kind:** decision
@@ -1540,7 +1540,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** No code task. The report-file refusal is a harness limitation, not a repo defect: for now the run's report is the close step's structured result. The validation-only items are listed in the e2e-fixtures task for context only, and the next full validation run re-checks them. A fix agent can't change harness behaviour, and editing the workflow scripts is not a build fix task. Putting validation-only checks in a hermetic fix task would fail verification, because they can only be shown on a running stack.
 - **If you decide otherwise:** The owner can let the close step write report.md, or have build-mvp.js write it from the CLOSE result, so the run folder holds a report again.
 - **Refs:** e2e/reports/mvp-1/20261015T100402Z-r1-walkthrough/; .claude/workflows/build-mvp.js close step; docs/mvp/README.md 'Fix rounds'
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-123 · Where mvp-1 is merged into the rebuilt scan branch
 - **Kind:** decision
@@ -1552,7 +1552,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Replay onto mvp-1-scan, merge mvp-1 after 4092f70's replay, then cherry-pick eb42dd7, 0080bf7 and 167e55f. It keeps the original history, so each later commit applies to the same tree it was written against. Every step applied without conflicts, and app.test.ts got only the change eb42dd7 already had.
 - **If you decide otherwise:** A linear rebase onto mvp-1 would give the same final tree with a different history. Anyone who prefers that can rebase the branch without changing the content.
 - **Refs:** 825716a (merge), 46aa985 (original merge), bbb36f4 (dropped sibling merge)
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-124 · How the scan-window test proves the page follows the constant
 - **Kind:** decision
@@ -1565,7 +1565,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** vi.doMock in one test: SCAN_WINDOW_DAYS becomes 37, the page and components/testing are imported fresh, and the mock is undone in finally. It fails against the old hard-coded text (I checked) and leaves the other tests on the real schema.
 - **If you decide otherwise:** A file-wide mock would change the constant for every test in scan.test.tsx; asserting against the real constant would not catch the hard-coding.
 - **Refs:** apps/web/src/pages/scan/scan.test.tsx, apps/web/src/pages/scan/index.tsx, packages/schema/src/scan.ts:89
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-125 · Which file is the single source of persona names and addresses
 - **Kind:** decision
@@ -1577,7 +1577,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** fixtures/format.ts is the source. ACCOUNTS is built from PERSONAS and PERSONA_ADDRESSES, with passwords E2E-SECRET-<persona>-imap, and is typed Record<Persona, Account>. format.ts already describes every fixture file, and the generator writes the persona addresses into the .eml headers. With imports running one way only (seed and stack import fixtures), there is no import cycle. Adding a persona now fails typecheck until every Record<Persona, …> is filled in, and stack.test.ts fails until compose's GreenMail users include it.
 - **If you decide otherwise:** Make accounts.ts the source and have format.ts import ACCOUNTS. format.ts and the generator would then depend on seed/.
 - **Refs:** e2e/fixtures/format.ts, e2e/seed/accounts.ts, e2e/stack.ts, e2e/seed/main.ts
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-126 · How to show the seed entry point works without Docker or a real mailbox
 - **Kind:** decision
@@ -1590,7 +1590,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** A loopback stand-in that greets the client, answers CAPABILITY and refuses LOGIN. The test expects the seed to exit 1 with 'refused the login' and to have logged in with the persona's account. loadPersona reads and checks every fixture before it connects, and load.test.ts tests that. So reaching LOGIN proves the real entry point, run with compose's arguments, environment and working directory, resolved every fixture. A full IMAP fake would be large and fragile, and the in-process load test already checks how messages are appended.
 - **If you decide otherwise:** A fuller IMAP fake would also exercise APPEND through imapflow, at the cost of a lot of protocol code in e2e.
 - **Refs:** e2e/seed/main.test.ts, e2e/seed/load.test.ts
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-127 · How the abandoned intake.v1 claim is released
 - **Kind:** decision
@@ -1603,7 +1603,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** releaseClaim in routes/intake.ts calls takeOverIntakeExtras with at = new Date(0) and staleBefore = claim.at + 1 ms. A claim dated at the epoch is stale for every caller, so the next GET /intake on any replica takes it over at once, as a null claimed_at would. The cut-off releases only this claim: a later takeover, or an outcome already stored, is left alone. The intake.test.ts test shows another replica taking over with no time passing and Confirm then returning 201.
 - **If you decide otherwise:** Add releaseIntakeExtras(db, workspaceId, claim) to packages/db. It would set claimed_at to null where status is pending and the claim matches, and releaseClaim would call it. That is a one-line swap, and the route's existing claimedAt === null branch already takes such a claim over.
 - **Refs:** apps/server/src/routes/intake.ts (releaseClaim, askForExtras); packages/db/src/queries/profiles.ts (takeOverIntakeExtras)
-- **Status:** open
+- **Status:** changed: add `releaseIntakeExtras(db, workspaceId, claimedAt)` to packages/db, instead of backdating to the epoch.
 
 ## TBD-128 · The abort stops waiting for the model but does not cancel the request
 - **Kind:** decision
@@ -1615,7 +1615,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** askForExtras checks signal.throwIfAborted() before the call, and races client.intake against the signal (untilAborted). Once aborted, the answer is never used and the claim is released. Shutdown can't be held up by a slow provider, and the claim is free for another replica right away. The leftover HTTP request ends when the process exits a moment later.
 - **If you decide otherwise:** Once packages/ai accepts CallOptions.signal, pass the same signal to client.intake so the provider request is cancelled too.
 - **Refs:** apps/server/src/routes/intake.ts (untilAborted); packages/ai/src/index.ts (CallOptions)
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-129 · Connect and scan switch to openAiKey after integration
 - **Kind:** decision
@@ -1627,7 +1627,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Only routes/intake.ts uses openAiKey on this branch. The task says so, and no two tasks this round may share a path.
 - **If you decide otherwise:** After integration, replace the `|| null` in routes/ai.ts:57 and openSecret in jobs/scan/index.ts with openAiKey(deps.config.secretKey, sealed).
 - **Refs:** apps/server/src/secrets.ts (openAiKey)
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-130 · Minimum pay amounts are read in the UI's English locale
 - **Kind:** decision
@@ -1639,7 +1639,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** parseAmount defaults to UI_LOCALE. Spaces are read as digit grouping in any locale, and only 3-digit groups are accepted. Amounts are then read in the same notation they are shown in, and nothing locale-specific is hard-coded. The separators come from Intl, and anything ambiguous is refused, never guessed.
 - **If you decide otherwise:** If the UI gains a user locale, pass it to both formatPay and parseAmount. The tests already cover a comma-decimal locale (de).
 - **Refs:** apps/web/src/pages/inbox/format.ts (parseAmount); apps/web/src/pages/intake/answers.tsx (MinPayEditor)
-- **Status:** open
+- **Status:** changed: read amounts, and format pay and dates, in the browser locale (`navigator.language`) instead of a fixed "en"; keep the strict refusal; tests pin the locale.
 
 ## TBD-131 · Walk S2 through Settings > AI instead of the onboarding step
 - **Kind:** decision
@@ -1652,7 +1652,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Walk S2 in Settings > AI and continue through the Scan nav link. Settings > AI is the same 'Pick your AI' form (same accessible form name and fields), and visible links reach it. Typing a URL would break the protocol. The missing route back is recorded as a finding.
 - **If you decide otherwise:** If the owner wants the onboarding path itself walked, S1 must end on the onboarding step and S2 must start from there. Or the app needs a visible way back into onboarding, for example a setup prompt on the empty inbox.
 - **Refs:** docs/mvp/MVP-1.md S2; docs/mvp/README.md Validation protocol 1; e2e/reports/mvp-1/20261015T113934Z-r2-walkthrough/s1-07-saved-next-step.png
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-132 · Pressed 'Start scan again' after the first scan failed
 - **Kind:** decision
@@ -1664,7 +1664,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Opened the app-b direct view, then pressed 'Start scan again' through the proxy. It is an ordinary user action, and it was the only way to collect any evidence about live updates across replicas and the one-replica rule in this run.
 - **If you decide otherwise:** Maria's workspace now holds two failed first scans (c0ad366e… on app-a, 2d694adf… on app-b) instead of one. Later scenarios on this stack start from that state. A fresh stack is needed for a clean S3 after the intake merge anyway.
 - **Refs:** app.log 11:55:08.694Z and 11:56:06.895Z scan.started lines; e2e/reports/mvp-1/20261015T113934Z-r2-walkthrough/s3-04-proxy-view-after-second-start.png
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-133 · Did not press 'Analyze them' to work around the failed first scan
 - **Kind:** decision
@@ -1676,7 +1676,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Walk S5 against the state S3 left; every step that does not need analysis was walked, and the rest are reported as failed with the root cause. The protocol has later scenarios start from the state earlier ones leave. An extra scan run here would spoil S8 (budget stop and 'not analyzed' count shrinking) and S9. It would most likely also fail on the same stub.
 - **If you decide otherwise:** A walker would press Analyze them first. That changes the not-analyzed count S8 relies on, and F5.3 compares whatever got analysed.
 - **Refs:** docs/mvp/MVP-1.md S5, S8; packages/core/src/intake/index.ts; apps/server/src/deps.ts
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-134 · Correction target for the 'correct one category' step
 - **Kind:** decision
@@ -1689,7 +1689,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** <maria-0002@linkedin.com> was changed from Job alert to Other job mail and left that way. It shows persistence on a visible job-inbox row. The F5.3 compare leaves out categories a person corrected in S5 and S6, so it does not disturb later checks.
 - **If you decide otherwise:** A different message would carry the correction. There is no functional effect on later scenarios.
 - **Refs:** e2e/specs/mvp-1/99-f5.3-stored-equals-expected.spec.ts header comment
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-135 · Set up Tom's AI through Settings > AI rather than the onboarding step
 - **Kind:** decision
@@ -1701,7 +1701,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Settings > AI, reached by clicking the visible 'AI' settings link. It uses the same 'Pick your AI' form (test, 'Your mail is read by…' line, Saved.). It is the visible path a person would take from where Tom was, and the criterion only requires the AI to be set up in his own workspace.
 - **If you decide otherwise:** The onboarding route would exercise the same form component and endpoints. No change to the result is expected.
 - **Refs:** docs/mvp/MVP-1.md S7; e2e/reports/mvp-1/20261015T113934Z-r2-walkthrough/s7-04-tom-ai-saved.png
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-136 · Extra screenshots for a scenario with no camera marks
 - **Kind:** decision
@@ -1713,7 +1713,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Saved s8-01-budget-5-saved.png, s8-02-inbox-before-analyze-345.png, s8-03-analyze-run-failed-not-budget.png and s8-04-budget-back-300.png in /Users/admin/Desktop/Repos/newrepo/JobFilly/e2e/reports/mvp-1/20261015T113934Z-r2-walkthrough. The validation protocol says to report with evidence. The run folder is git-ignored, so the extra screenshots add nothing to the tree.
 - **If you decide otherwise:** Remove the four s8-*.png files; the log lines alone still prove the failure.
 - **Refs:** docs/mvp/README.md 'Validation protocol' 1 and 6
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-137 · Budget restored to 300 even though the budget stop never happened
 - **Kind:** decision
@@ -1725,7 +1725,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Restored it to 300 with Save; 'Saved.' showed, and ai.settings_saved was logged at 12:15:54.696Z on app-b (s8-04-budget-back-300.png). Keeps the stack in the state the scenario leaves it in, so later scenarios are not affected.
 - **If you decide otherwise:** S9 would stop for budget after 5 calls instead of running to 'done'.
 - **Refs:** docs/mvp/MVP-1.md S8, S9
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-138 · Still perform the kill/restart infrastructure step although the run had already failed
 - **Kind:** decision
@@ -1738,7 +1738,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Killed app-a (the instance of the latest scan.started) once, then restarted it and did 20 page loads as Maria. This keeps to the scenario's listed infrastructure steps and still gives real evidence for F1.3. Pressing again would only reproduce the same immediate failure, and those extra presses are not in the scenario.
 - **If you decide otherwise:** F1.3 would have no S9 evidence from this run. F4.8 stays unproven either way until aggregateIntake is implemented.
 - **Refs:** app.log 12:17:36.865Z scan.started app-a; kill at 12:17:55Z; server.ready app-a 12:18:12.948Z
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-139 · Which email to use for Maria's sign-in
 - **Kind:** decision
@@ -1750,7 +1750,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** maria.santos@inbox.example with E2E-SECRET-maria-login. It is the persona's canonical address in the fixtures and in the specs. app.log does not log emails, as intended. The sign-in succeeded and landed in 'Maria's workspace' (fe531aa2-…), the same workspace S1 created.
 - **If you decide otherwise:** If S1 had registered a different address, the re-sign-in would show 'Email or password is incorrect' and the step would need the S1 email.
 - **Refs:** e2e/specs/mvp-1/99-f5.3-stored-equals-expected.spec.ts:20, e2e/fixtures/format.ts (PERSONA_ADDRESSES)
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-140 · How to place both the slow request and the live stream on app-b
 - **Kind:** decision
@@ -1763,7 +1763,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** A second tab of Settings › AI, with Test clicked in both tabs and SIGTERM sent right away. The logs confirmed tab 1's stream and tab 0's Test POST were both on app-b. It stays within human actions through the proxy, it is deterministic enough, and it avoids repeated 15-second retries.
 - **If you decide otherwise:** The codified spec could pin placement differently, for example by retrying until the logs show app-b, but this changes no app behaviour.
 - **Refs:** S11, F7.4, TBD-15/TBD-33; e2e/reports/mvp-1/20261015T113934Z-r2-walkthrough/s11-01..03*.png
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-141 · How to get the intake-profile slice onto mvp-1
 - **Kind:** decision
@@ -1776,7 +1776,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Continue mvp-1-fix-r2-intake-live, and add a server-level test that drives a scan through the real aggregateIntake. It is the newest branch and already holds the round 1 and round 2 intake fixes and the live-stream revocation. Merging it keeps reviewed work, and the conflicts are small. The scan tests passed only because they used the stand-in in jobs/scan/fakes.ts. A test through createDeps with the real aggregateIntake stops the slice from going missing again unnoticed.
 - **If you decide otherwise:** Merging only the older branch would drop the round 1 and round 2 fixes (live revocation, shutdown of the intake.v1 call, locale pay parsing). A rebuild would throw away verified work and cost a round.
 - **Refs:** packages/core/src/intake/index.ts; apps/server/src/deps.ts:116; apps/server/src/jobs/scan/run.ts:195,337; apps/server/src/jobs/scan/fakes.ts:185; branches mvp-1-fix-r2-intake-live ba9f264
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-142 · F5.3 proof spec when the scenario specs aren't codified yet
 - **Kind:** decision
@@ -1789,7 +1789,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Guard on the presence of the named scenario spec files, with an explicit skip reason; never skip once they exist. The failure is an ordering artefact, not an app defect, and it hides real regressions in specs.log. The guard depends only on whether the files exist, not on the outcome, so the proof can't be silenced once the scenarios are codified, and the confirm run still requires it to pass. During walkthrough rounds, S5 covers F5.3. The workflow files are not the build's to edit, so a separate command would not be run.
 - **If you decide otherwise:** Each walkthrough round reports two false spec failures, and triage keeps re-raising them. Moving the proof would mean changing .claude/workflows.
 - **Refs:** e2e/specs/mvp-1/99-f5.3-stored-equals-expected.spec.ts; e2e/stack.test.ts:206; .claude/workflows/build-mvp.js:345-352
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-143 · Wording and storage of a failed scan's cause
 - **Kind:** decision
@@ -1802,7 +1802,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Store the cause class and word the message for each cause. An internal fault says the problem is on JobFilly's side and that the settings are fine. Users would notice the difference. It points them to the right fix when mailbox or AI is at fault, and avoids a pointless settings hunt when the fault is internal. F4.4 asks that the stop be said in plain words. 'failed' is not one of F4.4's four reasons, so this only words the failure honestly and doesn't change the criterion.
 - **If you decide otherwise:** A neutral message loses useful guidance for real mailbox or AI faults. Keeping the current text keeps a finding that four scenarios reported.
 - **Refs:** packages/core/src/scan/tracker.ts:110; apps/server/src/jobs/scan/run.ts:224-237,372; packages/db/src/queries/scans.ts
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-144 · Search over likely job mail that isn't analysed yet
 - **Kind:** decision
@@ -1815,7 +1815,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Keep the search scope and explain it in the inbox, with the count and the way to Analyze them. Unanalysed mail has no category or facts, so mixing it into the job inbox would blur F5.1's 'job messages' and the category filter. Saying what is left out removes the dead end without a server or schema change.
 - **If you decide otherwise:** Searching unanalysed mail would change the messages API and the list's meaning for every user, and would need a server change in a file the intake task merges.
 - **Refs:** apps/web/src/pages/inbox/InboxPage.tsx; apps/web/src/pages/scan/NotAnalyzedBanner.tsx; docs/mvp/MVP-1.md F5.1, F5.5
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-145 · Strip SQL and parameters from logged database errors at the logger
 - **Kind:** decision
@@ -1828,7 +1828,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Sanitize in the logger's error serializer, so every call site, present and future, is covered. One choke point is harder to bypass than seven call sites, and it also cuts the 1 KB-per-second noise during outages.
 - **If you decide otherwise:** Fixing each call site leaves the next new call site exposed. Leaving it keeps a latent leak of user content.
 - **Refs:** apps/server/src/log.ts:110; apps/server/src/jobs/queue.ts:194,204,225,228; apps/server/src/index.ts:24,38,84
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-146 · Keep the pg cause's message even though some pg messages quote a value
 - **Kind:** decision
@@ -1840,7 +1840,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Log the cause's message, masked for emails and Message-IDs; never log detail, where, query or params. This follows the fix task. The message is what tells an operator why the query failed (such as a connection reset or a constraint name). The bulk leak, the parameter list and the SQL, is closed.
 - **If you decide otherwise:** If even the occasional quoted scalar in a pg message is unacceptable, change redactError in apps/server/src/log.ts to drop `message` for failed queries and keep only name and code.
 - **Refs:** apps/server/src/log.ts (redactError), apps/server/src/log.test.ts
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-147 · Reuse the current-scan query, not the NotAnalyzedBanner component, inside InboxPage
 - **Kind:** decision
@@ -1852,7 +1852,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** A LeftOutNote in InboxPage, built on the same current-scan query and scan action from pages/scan/queries. Rendering the banner again would put two identical banners on the page, each with its own Analyze them button. It also couldn't say the mail is left out of the results or tell non-admins who can run it, which the fix requires. Sharing the query keeps the count consistent with the banner and shares its cache and live updates.
 - **If you decide otherwise:** Importing NotAnalyzedBanner into InboxPage would mean removing it from routes.tsx (outside this task's paths) to avoid the duplicate, and changing its wording inside pages/scan.
 - **Refs:** apps/web/src/pages/inbox/InboxPage.tsx (LeftOutNote), apps/web/src/routes.tsx (Inbox), apps/web/src/pages/scan/NotAnalyzedBanner.tsx
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-148 · Exact file names the codified MVP 1 scenario specs must use
 - **Kind:** decision
@@ -1865,7 +1865,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Fixed NN-sN-<slug>.spec.ts names listed in F53_PROOF_NEEDS. stack.test.ts requires every scenario spec in specs/mvp-1 to follow NN-sN-<slug>, and requires the specs for S1/S3/S5–S9 to use exactly the listed names. The task asks for the exact files. Without enforcement, a codifier picking other names would leave the proof skipped silently and for good. With it, pnpm check fails at once and points at the list.
 - **If you decide otherwise:** The codify agent either names its specs as listed or updates F53_PROOF_NEEDS and the pinned list in stack.test.ts together. If the guard matched by prefix instead, the naming test could be relaxed.
 - **Refs:** e2e/playwright.config.ts (F53_PROOF_NEEDS), e2e/stack.test.ts (describe 'e2e/specs/mvp-1')
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-149 · Where the guard lives
 - **Kind:** decision
@@ -1878,7 +1878,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Export F53_PROOF_NEEDS and f53ProofSkipReason from playwright.config.ts. This gives one source of truth that both Playwright and Vitest can import. Project dependencies would break the single name-ordered run across specs/mvp-1 and specs/mvp-2 (the proof must run before MVP 2 specs change the state), and they can't skip with a reason when files are missing.
 - **If you decide otherwise:** If a shared e2e fixture module is preferred, the helper can move to e2e/fixtures in a later change.
 - **Refs:** e2e/playwright.config.ts, e2e/specs/mvp-1/99-f5.3-stored-equals-expected.spec.ts
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-150 · How the merged mvp-1 scan tests subscribe to live events
 - **Kind:** decision
@@ -1891,7 +1891,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Let subscribe take StreamOwner | string. A string registers a listener with userId and sessionId set to null, which member.removed and session.ended never match; closeAll() still closes it. It stays inside the allowed paths (apps/server/src/live/), keeps both sides' tests unchanged, and does not weaken revocation: the SSE route (live/routes.ts) still always passes the member's owner, and the new hub test shows a member's stream is revoked while the ownerless listener is not.
 - **If you decide otherwise:** If the owner prefers that every subscriber have an owner, change scan.test.ts:169 and scans.test.ts:49 to pass {workspaceId, userId, sessionId} as messages.test.ts and intake.test.ts already do, then drop the string overload in hub.ts.
 - **Refs:** apps/server/src/live/hub.ts (subscribe, Stream.owner); apps/server/src/live/hub.test.ts 'never closes a listener that belongs to no member'; commit bf19143
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-151 · Role-dependent wording of the Intake and Profile empty states (S4)
 - **Kind:** decision
@@ -1903,7 +1903,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** No scan yet: an admin gets 'No scan has run yet. Start it once your mailbox and AI are set up.' with a link 'Start the first scan'; editors and viewers get 'An admin of this workspace starts it.' with a link 'See the scan'. First scan running: 'The first scan is still reading your mail.' with 'Go to the scan'. Profile page with the form open and no profile: an editor or admin gets 'Check the answers on the intake form and confirm them to save it.' with 'Open the intake form'; a viewer gets 'It is saved when an editor or admin confirms the intake form.' with 'See the intake form'. Users see this wording. It matches what each role can actually do, it reuses the scan page's existing phrasing ('Start it once your mailbox and AI are set up.' / 'An admin of this workspace…'), and it never offers an action the role can't take.
 - **If you decide otherwise:** Change the strings in apps/web/src/pages/intake/ScanFirst.tsx and NoProfileYet in apps/web/src/pages/profile/ProfilePage.tsx, and their tests.
 - **Refs:** apps/web/src/pages/intake/ScanFirst.tsx; apps/web/src/pages/intake/queries.ts useFormOpen (firstScan); apps/web/src/pages/profile/ProfilePage.tsx NoProfileYet; commit cbe2933
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-152 · Which failures count as mailbox, AI or internal
 - **Kind:** decision
@@ -1917,7 +1917,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** AI: provider auth, unreachable or provider_error, no AI settings, failure to create the AI client, and a batch with no progress (log code no_progress). Mailbox: body or envelope read errors, no mailbox, failure to create the mail client. Internal: a throw from the AI client (log code ai_client_error), a secret that won't decrypt (secret_error), and any unexpected error (error). packages/ai turns provider and transport failures into values, so a throw from the client is a fault in JobFilly. Sending the user to Settings › AI for it would be misleading. A secret that won't decrypt comes from the server's key configuration, not from anything the user typed.
 - **If you decide otherwise:** Change the first argument of the RunFailed and fail() calls in apps/server/src/jobs/scan/run.ts and index.ts. The wording lives in FAILED in packages/core/src/scan/tracker.ts.
 - **Refs:** TBD-112; F4.4; apps/server/src/jobs/scan/run.ts; apps/server/src/jobs/scan/index.ts
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-153 · New wording for a failed stop (replaces the message in TBD-112)
 - **Kind:** decision
@@ -1929,7 +1929,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Mailbox: 'Stopped: couldn't read your mailbox after X of N likely job emails. Check Settings › Mailbox, then try again.' AI: 'Stopped: the AI provider couldn't be used after X of N likely job emails. Check Settings › AI, then try again.' Internal: 'Stopped: something went wrong on JobFilly's side after X of N likely job emails. Your settings don't need changing; trying again later may help.' Failed with no cause stored: 'Stopped: couldn't go on after X of N likely job emails. Try again.'. It follows the task's instruction and uses the 'Settings › …' names the app already uses. The fallback makes no claim about where the fault was when the cause is unknown.
 - **If you decide otherwise:** Edit FAILED and the fallback in stopMessage in packages/core/src/scan/tracker.ts, and the expected strings in the tracker, worker, route and web tests.
 - **Refs:** TBD-112; packages/core/src/scan/tracker.ts
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-154 · Fold the stop_cause column into the one MVP 1 migration
 - **Kind:** decision
@@ -1941,7 +1941,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Added to 0000_mvp1.sql and meta/0000_snapshot.json. drizzle-kit generate reports no schema changes. No release has applied 0000 yet, the existing migration test requires a single migration, and it follows the 'one migration per release step' rule.
 - **If you decide otherwise:** If an MVP 1 database already exists somewhere, add ALTER TABLE scans ADD COLUMN stop_cause text plus the check constraint as 0001, and update the migration count in packages/db/src/index.test.ts.
 - **Refs:** docs/ARCHITECTURE.md (migrations); packages/db/migrations/0000_mvp1.sql
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-155 · Show the stop time so a repeated failure reads as the new run
 - **Kind:** decision
@@ -1953,7 +1953,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** CurrentScan gains stoppedAt (HTTP only; ScanProgress and the live events are unchanged). The Scan page and the banner show 'Ended <time>': time with seconds, plus the date when it wasn't today. The message stays the same server string everywhere, no time zone is hard-coded, and the live event schema owned by the other task is untouched. A scan.stopped event already triggers a refetch of /scans/current, so the time arrives with it.
 - **If you decide otherwise:** Remove stoppedAt from CurrentScanSchema and the route, and drop StopTime.tsx and its uses.
 - **Refs:** S8; packages/schema/src/scan.ts; apps/web/src/pages/scan/StopTime.tsx
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-156 · Untracked .claude/worktrees/ handled with a local git exclude instead of a stash
 - **Kind:** decision
@@ -1966,7 +1966,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Added '.claude/worktrees/' to .git/info/exclude. This is local only and nothing was committed. The tree is now clean and no files were moved or deleted. It keeps the harness's worktrees safe and gets a clean tree without committing a change to the repo for a tooling artifact.
 - **If you decide otherwise:** A stash -u would have wiped or broken 95 registered worktrees. Changing .gitignore would add a repo commit that has nothing to do with MVP 2. The owner can add it to .gitignore later, or prune the stale worktrees with 'git worktree prune' after removing them.
 - **Refs:** .git/info/exclude; git worktree list
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-157 · mvp-2 branched from mvp-1, not from main
 - **Kind:** decision
@@ -1978,7 +1978,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Created mvp-2 from mvp-1 at b662b79. The preflight rule says to branch from mvp-1 when MVP 1 is not merged into main. MVP 2 builds on MVP 1's code.
 - **If you decide otherwise:** Branching from main would leave out all of MVP 1's code.
 - **Refs:** docs/mvp/MVP-1.md sign-off table; git merge-base --is-ancestor mvp-1 main -> not merged
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-158 · Merge MVP 1's unmerged intake/profile/live branch into mvp-2 first
 - **Kind:** decision
@@ -2336,7 +2336,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Merge all three, in the order intake-live-merge, inbox-search-unanalysed, e2e-f53-proof-order, each with --no-ff as its own commit. Then run pnpm check and pnpm unused, and fix only what the merges break, in separate commits. A branch that unexpectedly conflicts is left out and recorded in TBD.md. TBD.md records that fix round 4 and these branches' verification have no entry. The foundation verifiers review each merge diff separately from the contract diff. MVP 2 can't serve its criteria without the confirmed profile. Leaving out the two small branches would lose their fixes, or make them conflict later with the foundation's InboxPage slot edits and the e2e-fixtures slice's stack.test.ts, and S12 could fail. Separate reviews keep 6.5k unreviewed lines from hiding in the foundation diff.
 - **If you decide otherwise:** The search/Analyze-them fix and the F5.3 proof-order fix would have to be redone on top of MVP 2's InboxPage and stack.test.ts, and MVP 1's F6 would stay missing on mvp-2.
 - **Refs:** branches mvp-1-fix-r4-intake-live-merge, mvp-1-fix-r4-inbox-search-unanalysed (fc0bcc7), mvp-1-fix-r4-e2e-f53-proof-order (ff12d97); TBD-141; TBD-142; TBD-144; TBD-147; docs/mvp/MVP-1.md Sign-off
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-187 · Six slices: a mailbox slice for the F1 runtime; CVs and the sender check together; drafts and decisions stay one slice, made smaller
 - **Kind:** decision
@@ -2349,7 +2349,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** mailbox; cvs-senders; rules-match; replies, made smaller; assistant (depends on rules-match); e2e-fixtures. Replies loses the reply policy table and the role-level draft lifecycle (now replyEligibility and draft-claims in the foundation), MIME and Drafts-folder I/O (now mailbox), and fact-based need derivation (now verdict.need from rules-match). cvs-senders gets the CV base queries from the foundation and stays one slice, because the cap rules out a seventh. All IMAP work has one owner. The draft-or-ask point keeps one owner, so there is no fragile contract between drafts and decisions. Replies drops from 14 criteria across 7 code areas to 12, with no mail-package work.
 - **If you decide otherwise:** Splitting replies needs a pinned reply → decide stage contract and a seventh slot, which means merging two other areas.
 - **Refs:** docs/mvp/README.md Plan phase (3–6 slices); docs/mvp/MVP-2.md F1, F2, F5, F6, F7
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-188 · F1.1 and F1.6 are proven with fake stages at slice level and re-checked by an integration test
 - **Kind:** decision
@@ -2361,7 +2361,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** The slice-level proof uses fake stages. After all merges, the integrator writes apps/server/src/pipeline/pipeline.integration.test.ts with real stages and fakes only at the ports. A dependent slice would serialize the build behind four slices for two criteria. The integration test proves the real chain once all stages exist, and S2 and S7 walk it.
 - **If you decide otherwise:** Add a seventh, final slice for these two criteria, or accept that they are proven only by the walkthrough.
 - **Refs:** F1.1; F1.6; apps/server/src/pipeline/evaluate.ts
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-189 · The foundation pins the four AI task contracts; the slices own the prompt bodies
 - **Kind:** decision
@@ -2374,7 +2374,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** The first option. The key lines (CV-SHA256, Message-ID+Role, Message-ID+Attempt, Turn), the output schemas and the framing are fixed in the foundation. cv → cvs-senders, match → rules-match, draft → replies, assistant → assistant. A slice that changes its body regenerates its own four wire files, and the TASK_IDS-driven wire tests cover them. The fake AI and the e2e fixtures rely only on what stays pinned, so e2e-fixtures can build answers in parallel. Prompt wording sits with the code that interprets the answer, and the foundation gets smaller.
 - **If you decide otherwise:** The foundation writes the full prompts, and wording is tuned in fix rounds.
 - **Refs:** docs/ARCHITECTURE.md › AI; packages/ai/src/prompt.ts; packages/ai/src/wire.test.ts; e2e/fixtures/wire/wire.test.ts
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-190 · The pipeline backbone in the foundation: orchestrator, re-evaluation, the sweep and the profile change service
 - **Kind:** decision
@@ -2386,7 +2386,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** The orchestrator, the pipeline.reevaluate job, the sweep, and requestReevaluation with scopes all, roles, messages, sender address and sender domain. Each trigger is pinned to its owner: intake confirm, startup and interval sweep (foundation), cv.read and CV delete (cvs-senders), sender marks (cvs-senders), rules (rules-match), answers (replies), apply and undo (assistant). One mechanism serves new mail, the backlog and every change, and the slices stay disjoint.
 - **If you decide otherwise:** The slices would all edit the sync job.
 - **Refs:** apps/server/src/pipeline; apps/server/src/profile/changes.ts; F1.6; F2.3; F3.5; F4.6; F5.4; F7.4; F8.3
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-191 · A startup and per-interval sweep evaluates any backlog and retries failed evaluations and mailbox-failed drafts
 - **Kind:** decision
@@ -2399,7 +2399,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** The sweep, on startup and every JOBFILLY_SYNC_INTERVAL_SECONDS, whatever the sync outcome. pipeline.reevaluate processes each item at most once per run, so failures wait for the next sweep instead of looping. listWorkspacesWithWork is a cross-workspace read like the job claim and the scheduler's mailbox listing, and ARCHITECTURE records it. An upgraded deployment and every failed item are picked up within one interval with no user action. Dedupe keeps it at one run per workspace, and it doesn't depend on the mail server being reachable.
 - **If you decide otherwise:** Failed roles wait for an unrelated change, and an upgraded deployment needs a manual re-confirm.
 - **Refs:** apps/server/src/pipeline/sweep.ts; packages/db/src/queries/evaluations.ts listWorkspacesWithWork; F1.6; S11
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-192 · The sender stage runs only when the check is missing or stale
 - **Kind:** decision
@@ -2412,7 +2412,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Skip unless missing or stale. A failed sender stage leaves the check missing for the next sweep. The roles are still matched, and the reply is held as sender_check_pending until the check exists. Re-scoring stays pure and IMAP-free, and the sender check still reflects marks and new mail. No draft is ever made without a sender check.
 - **If you decide otherwise:** Every global change costs one IMAP fetch per backlog message.
 - **Refs:** apps/server/src/pipeline/evaluate.ts; F3.5; F4.6; F5.4; F7.4; F8.3; S11
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-193 · An automatic draft is created only for a role that never had a draft and was not dismissed
 - **Kind:** decision
@@ -2425,7 +2425,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** The draftHistory input. A claim released because draft.v1 raised questions is deleted, not kept, so the role still counts as never drafted and gets its draft after the decision. A content failure (placeholder twice) counts as a draft and is not retried automatically. Discard is final unless the user asks again. Decisions still release held roles, and the impact preview counts drafts the same way.
 - **If you decide otherwise:** Discarded drafts reappear in the mailbox after any rule, profile or decision change.
 - **Refs:** packages/core/src/policy/reply.ts; packages/db/src/queries/draft-claims.ts; F6.1; F6.4; F6.5; F7.5; S4; S5; S8
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-194 · A draft whose mailbox write fails is marked failed (kind mailbox) and retried by the sweep
 - **Kind:** decision
@@ -2438,7 +2438,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Mark it failed with kind mailbox and retry it from the sweep. The Drafts page shows the failed reason meanwhile (F6.7). Draft a reply can reuse a failed row. No role is blocked for good. The user sees what happened, and drafts held during an outage appear after recovery, still with at most one live draft per role.
 - **If you decide otherwise:** Failed rows need a manual Draft a reply to recover.
 - **Refs:** packages/db drafts.failure_kind, attempts, claimed_at; apps/server/src/pipeline/reevaluate.ts; F6.4; F6.7; S11
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-195 · Decision answers append to list-valued profile keys, and 'already answered' is decided by group key
 - **Kind:** decision
@@ -2451,7 +2451,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Append semantics, plus answeredFor by group key. min_pay:CHF:year is answered only by a CHF per-year item. S5 gets its decision, Maria's EUR minimum survives, and F7.6 holds for the second Zurich role. No market-specific keys are added.
 - **If you decide otherwise:** The schema would need per-currency profile keys, or every answer would ask how to merge.
 - **Refs:** packages/core/src/profile/changes.ts; packages/schema/src/profile.ts LIST_PROFILE_KEYS; packages/schema/src/decisions.ts; F7.3; F7.6; S5
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-196 · The foundation pins CvChoiceResult and the base CV read queries
 - **Kind:** decision
@@ -2463,7 +2463,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Pin them in the foundation. cvs-senders extends cvs.ts afterwards and keeps those signatures. The three slices stay parallel, and the stage boundary carries exactly what the match needs.
 - **If you decide otherwise:** Replies and rules-match wait for cvs-senders, which serializes most of the build.
 - **Refs:** apps/server/src/pipeline/stages.ts; packages/db/src/queries/cvs.ts; F2.3; F4.4; F6.2; F6.3
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-197 · CV foreign keys: SET NULL on drafts and evaluations, CASCADE on links, overrides and stored match answers
 - **Kind:** decision
@@ -2476,7 +2476,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** The first option, pinned in the migration and tested there. Deleting removes the file and every link at once, keeps the drafts (S4), and the follow-up re-evaluation re-chooses a CV.
 - **If you decide otherwise:** CV delete needs per-table cleanup code spread across slices.
 - **Refs:** packages/db/migrations/0001_mvp2; F2.5; S4
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-198 · With no confirmed profile, only the sender check runs; the backlog is matched when the intake is confirmed
 - **Kind:** decision
@@ -2489,7 +2489,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Without a profile, only the sender stage runs and the roles stay in listToEvaluate. Intake confirm calls requestReevaluation({all}), and the sweep covers an already-confirmed profile. F1.6 then actually happens in the end-to-end flow. Sender verdicts appear early because they don't depend on the profile.
 - **If you decide otherwise:** Matching would need a default profile, which would mean guessing.
 - **Refs:** apps/server/src/routes/intake.ts confirm; F1.6; CLAUDE.md 'Unknown means ask'
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-199 · Fuzzy match answers are stored, so re-scoring is pure
 - **Kind:** decision
@@ -2501,7 +2501,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Store them. The input hash covers exactly what match.v1 sees, including CvChoiceResult.skills. Rule, pay and policy changes re-score without AI calls, and the preview never calls the AI. It meets the one-minute criteria, keeps AI cost flat, and makes the preview deterministic.
 - **If you decide otherwise:** Re-scoring time and cost grow with the backlog, and the preview needs its own AI budget.
 - **Refs:** packages/db match_ai_answers; F3.5; F4.6; F8.2
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-200 · The sender check reads message signals from per-language phrase lists in data files and the transient body
 - **Kind:** decision
@@ -2514,7 +2514,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Data files with en, de and pt phrase lists, plus the transient body. A message in a language without lists gets complete=false, so it is never 'looks fine'. It is deterministic and hermetic, costs no AI calls, works for the backlog, and stays within the no-market-specific-code rule.
 - **If you decide otherwise:** Add a signals field to extract.v1 and re-run extraction for the backlog.
 - **Refs:** packages/core/src/sender/data; apps/server/src/pipeline/stages.ts StageContext.body; F5.1; F5.3; F5.5
-- **Status:** open
+- **Status:** accepted: the phrase lists stay data files.
 
 ## TBD-201 · Decision needs are carried on match verdicts and rule effects; reply eligibility is a shared pure function
 - **Kind:** decision
@@ -2526,7 +2526,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Needs on verdicts and effects; replyEligibility in the foundation. The only module that knows why something is unknown says so, and neither replies nor the assistant recomputes facts or depends on another parallel slice.
 - **If you decide otherwise:** Replies duplicates the match's fact logic, and the assistant waits for replies.
 - **Refs:** packages/schema/src/match.ts, decisions.ts; packages/core/src/policy/reply.ts; F7.1; F7.3; F8.2; F8.5
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-202 · Job dedupe: one waiting and one running per key
 - **Kind:** decision
@@ -2539,7 +2539,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Queued-only uniqueness plus a single-flight claim, and pipeline.reevaluate enqueues the next run while anything is stale. Each mailbox still has at most one sync running, every change gets a later re-evaluation, and replicas stay interchangeable.
 - **If you decide otherwise:** Changes made during a re-evaluation wait for the next trigger.
 - **Refs:** packages/db/src/queries/jobs.ts; apps/server/src/jobs/queue.ts; F1.2; F4.6
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-203 · One live draft per role, enforced by the database
 - **Kind:** decision
@@ -2551,7 +2551,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** The partial unique index plus a saving claim state. Only the process that holds the claim writes to the mailbox. It holds across replicas and still allows a new draft (through Draft a reply) after a discard.
 - **If you decide otherwise:** Use an advisory lock per role.
 - **Refs:** packages/db drafts; packages/schema/src/drafts.ts status saving; F6.4
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-204 · Sync starts after the first scan and reads the Inbox only
 - **Kind:** decision
@@ -2563,7 +2563,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** After the first scan stops, INBOX UIDs above the highest stored UID. This avoids racing the first scan and analysing messages twice.
 - **If you decide otherwise:** The sync and the scan would need coordination over the same UIDs.
 - **Refs:** F1.1; apps/server/src/sync
-- **Status:** open
+- **Status:** accepted: Gmail INBOX over IMAP includes the category tabs; archived mail and new own replies are not synced. Revisit after MVP 2.
 
 ## TBD-205 · The domain lookup cache is workspace-scoped in Postgres
 - **Kind:** decision
@@ -2576,7 +2576,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Workspace-scoped table. It keeps the workspace-scoping rule, and replicas share the cache.
 - **If you decide otherwise:** Add an exception to ARCHITECTURE.
 - **Refs:** docs/ARCHITECTURE.md › Workspaces; F5
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-206 · Dependencies and knip: unpdf and mammoth up front, the e2e entry points registered by the foundation, and the integrator removes ignore entries
 - **Kind:** decision
@@ -2588,7 +2588,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** The first option. With knip 6.40.0, an entry pattern with no file yet is only a configuration hint and exits 0 (checked). The fixture generator hand-writes the PDFs and a store-only DOCX zip, so e2e gets no new dependencies. pnpm-lock.yaml and knip.jsonc stay out of the parallel slices, and pnpm unused passes at integration.
 - **If you decide otherwise:** Swap the libraries in apps/server/src/cvs, or let e2e-fixtures edit the e2e entry list.
 - **Refs:** apps/server/package.json; knip.jsonc; pnpm-workspace.yaml minimumReleaseAge
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-207 · Policy keys and the new profile sources
 - **Kind:** decision
@@ -2600,7 +2600,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Valid keys outside the intake form, with POLICY_DEFAULTS, and ProfileSource gains decision and assistant. The validated intake form stays unchanged.
 - **If you decide otherwise:** The intake form and its fixtures would change.
 - **Refs:** packages/schema/src/profile.ts
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-208 · Proposals in their own assistant_proposals table
 - **Kind:** decision
@@ -2612,7 +2612,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** A separate table. A proposal needs its own id and status.
 - **If you decide otherwise:** Look proposals up by message id.
 - **Refs:** F8.2; F8.3
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-209 · Existing AI settings get the new per-task models from their extract model
 - **Kind:** decision
@@ -2624,7 +2624,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** The migration backfill; the schema requires every task. Every task always has a model.
 - **If you decide otherwise:** Optional keys, with a fallback in packages/ai.
 - **Refs:** packages/schema/src/ai.ts; ai_settings.models
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-210 · Build plan accepted with known problems
 - **Kind:** open item
@@ -2640,7 +2640,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** —
 - **If you decide otherwise:** —
 - **Refs:** —
-- **Status:** open
+- **Status:** accepted
 
 ## TBD-211 · Fix round 4 and its three branches have no record in TBD.md; they were merged into mvp-2 first
 - **Kind:** decision
