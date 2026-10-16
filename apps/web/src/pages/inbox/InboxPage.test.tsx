@@ -665,6 +665,26 @@ describe("category correction (F5.4)", () => {
     const row = within(await messageList()).getAllByRole("link")[0] as HTMLElement;
     await waitFor(() => expect(within(row).getByText("Offer")).toBeTruthy());
   });
+
+  it("turns a message the model failed on into a corrected one, in the detail and the list", async () => {
+    const { ws } = inboxApi({ role: "editor" });
+    renderApp(paths.message(ws.id, FAILED.id));
+    const heading = await screen.findByRole("heading", { name: "Quick question" });
+    const card = heading.closest("section") as HTMLElement;
+    const user = userEvent.setup();
+    await user.click(within(card).getByRole("button", { name: "Set the category" }));
+    await user.selectOptions(within(card).getByLabelText("Category"), "interview");
+    await waitFor(() =>
+      expect(within(card).getByText("Corrected by hand: later analysis keeps it.")).toBeTruthy(),
+    );
+    // The analysis still failed, but the person's category answers it: no banner, chip or button.
+    expect(within(card).queryByText("Couldn't analyze")).toBeNull();
+    expect(within(card).queryByRole("button", { name: "Set the category" })).toBeNull();
+    const row = within(await messageList()).getAllByRole("link")[2] as HTMLElement;
+    await waitFor(() => expect(within(row).getByText("Interview")).toBeTruthy());
+    expect(within(row).queryByText("Couldn't analyze")).toBeNull();
+    expect(row.textContent).not.toContain("Open it to set the category.");
+  });
 });
 
 describe("keyboard use", () => {

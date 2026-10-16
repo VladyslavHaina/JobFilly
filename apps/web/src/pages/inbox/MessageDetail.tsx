@@ -17,7 +17,7 @@ import { CvChoice } from "../cvs";
 import { DraftPanel } from "../drafts";
 import { MatchPanel } from "../match";
 import { SenderPanel } from "../senders";
-import { CategoryChip, CouldNotAnalyze } from "./badges";
+import { CategoryChip, CouldNotAnalyze, couldNotAnalyze } from "./badges";
 import {
   CATEGORY_LABELS,
   formatAgency,
@@ -203,7 +203,7 @@ function Status(props: { message: MessageDetail; onSetCategory: () => void }) {
       </Alert>
     );
   }
-  if (message.analysisStatus === "failed") {
+  if (couldNotAnalyze(message)) {
     return (
       <Alert tone="warning" title="Couldn't analyze">
         <p>
@@ -327,7 +327,7 @@ export function MessageDetailView(props: { workspaceId: string; messageId: strin
           </p>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {message.category && <CategoryChip category={message.category} />}
-            {message.analysisStatus === "failed" && <CouldNotAnalyze />}
+            {couldNotAnalyze(message) && <CouldNotAnalyze />}
           </div>
         </div>
         {close}

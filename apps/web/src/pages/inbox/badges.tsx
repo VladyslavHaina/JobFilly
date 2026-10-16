@@ -1,4 +1,4 @@
-import type { Category } from "@jobfilly/schema";
+import type { AnalysisStatus, Category, CategorySource } from "@jobfilly/schema";
 import { CATEGORY_LABELS } from "./format";
 
 // The small labels of the job inbox: the category chip and the "Couldn't analyze" mark.
@@ -21,6 +21,15 @@ const chip =
 export function CategoryChip({ category }: { category: Category }) {
   return <span className={`${chip} ${CATEGORY_TONES[category]}`}>{CATEGORY_LABELS[category]}</span>;
 }
+
+/**
+ * Whether a message still shows as Couldn't analyze. A category a person set (F5.4) is the
+ * answer the failed analysis didn't give, so from then on it reads as a corrected message.
+ */
+export const couldNotAnalyze = (m: {
+  analysisStatus: AnalysisStatus;
+  categorySource: CategorySource | null;
+}) => m.analysisStatus === "failed" && m.categorySource !== "you";
 
 export function CouldNotAnalyze() {
   return <span className={`${chip} bg-red-50 text-red-800 ring-red-200`}>Couldn't analyze</span>;
