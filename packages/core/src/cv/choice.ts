@@ -39,7 +39,8 @@ export interface CvChoiceOutcome {
 // engineering role beats a German backend CV); both outweigh the preferred flag and the skills.
 // The preferred flag (a flag, never a tag's words) outweighs one matching skill more. A title
 // that shares only one word with a family ("Python Backend Developer", "Data Entry Assistant")
-// counts as much as one skill, so the preferred flag outweighs it.
+// counts as much as one skill, so the preferred flag outweighs it; unless another CV's family
+// names the title in full and has that word too: then both CVs are of the role's family.
 const WEIGHT = {
   family: 5,
   language: 4,
@@ -54,7 +55,10 @@ interface Scored {
   cv: CvCandidate;
   score: number;
   languageMatch: boolean;
-  /** The title names one of the CV's role families: every word of it (familyMatches). */
+  /**
+   * The title names one of the CV's role families, every word of it (familyMatches), or the CV's
+   * family has one of the role's family words as written (roleFamilyWords).
+   */
   familyMatch: boolean;
   /** The role's title words that the CV's role families or tags name, in title order. */
   familyWords: string[];
@@ -100,14 +104,37 @@ function familyMatches(label: string, titleWords: readonly string[]): boolean {
   return wanted.length > 0 && wanted.every((w) => titleWords.some((t) => sameWord(w, t)));
 }
 
-function score(cv: CvCandidate, input: CvChoiceInput): Scored {
+const titleWordsOf = (input: CvChoiceInput) => [...new Set(words(input.role.title ?? ""))];
+
+/**
+ * The role's family words: the title words that some CV's role family names in full ("backend",
+ * "developer" of "Backend Developer" for a CV tagged "Backend Development"). The AI words one
+ * family differently on two CVs ("Backend Engineering", "Backend Development"), so a CV whose
+ * family has one of these words as written is of the role's family too, and the language and
+ * the Preferred CV switch tell the two apart, not the tag's wording.
+ */
+function roleFamilyWords(input: CvChoiceInput): Set<string> {
+  const titleWords = titleWordsOf(input);
+  const named = new Set<string>();
+  for (const cv of input.cvs) {
+    for (const label of familyLabels(cv)) {
+      if (!familyMatches(label, titleWords)) continue;
+      const wanted = words(label);
+      for (const t of titleWords) if (wanted.some((w) => sameWord(w, t))) named.add(t);
+    }
+  }
+  return named;
+}
+
+function score(cv: CvCandidate, input: CvChoiceInput, roleFamily: Set<string>): Scored {
   const languageMatch =
     input.language !== null && cv.language !== null && fold(cv.language) === fold(input.language);
   const labels = familyLabels(cv);
-  const titleWords = [...new Set(words(input.role.title ?? ""))];
-  const familyMatch = labels.some((l) => familyMatches(l, titleWords));
+  const titleWords = titleWordsOf(input);
   const vocabulary = labels.flatMap(words);
   const exact = titleWords.filter((t) => vocabulary.includes(t));
+  const familyMatch =
+    labels.some((l) => familyMatches(l, titleWords)) || exact.some((t) => roleFamily.has(t));
   // The words that describe the role in the reason: those the CV's labels use as they are, or
   // the forms that matched ("engineer") when only those did.
   const familyWords =
@@ -169,7 +196,8 @@ export function overrideReason(name: string): string {
 
 /**
  * The CV for a role: an editor's choice when it is still one of the CVs, otherwise the CV that
- * best fits the role's family (a CV tag or role family the title names), language, skills and
+ * best fits the role's family (a CV tag or role family the title names, or one that shares a
+ * word of that family as written: roleFamilyWords), language, skills and
  * seniority, with the preferred CV winning a tie or a difference of one skill; a tie
  * left goes to the older CV. Null when there is no CV.
  */
@@ -179,9 +207,10 @@ export function chooseCv(input: CvChoiceInput): CvChoiceOutcome {
     if (chosen) return { cv: chosen, reason: overrideReason(chosen.name), source: "you" };
   }
   if (input.cvs.length === 0) return { cv: null, reason: "No CV uploaded yet", source: "auto" };
+  const roleFamily = roleFamilyWords(input);
   let best: Scored | null = null;
   for (const cv of input.cvs) {
-    const s = score(cv, input);
+    const s = score(cv, input, roleFamily);
     if (!best || s.score > best.score) best = s;
   }
   if (!best) return { cv: null, reason: "No CV uploaded yet", source: "auto" };
