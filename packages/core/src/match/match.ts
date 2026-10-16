@@ -158,7 +158,9 @@ function titleVerdict(input: MatchRoleInput): MatchVerdict {
   }
   if (!input.ai) return verdict("target_roles", "unknown", `"${title}" wasn't compared yet`);
   const { verdict: v, reason } = input.ai.titleFit;
-  return verdict("target_roles", v, `"${title}" — ${reason}`);
+  // The model's reason often names the title itself; it is said once.
+  const said = norm(reason).includes(norm(title));
+  return verdict("target_roles", v, said ? reason : `"${title}" — ${reason}`);
 }
 
 // Skills: matched only when the CV or the profile lists them.

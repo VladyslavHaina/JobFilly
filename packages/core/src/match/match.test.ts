@@ -415,6 +415,14 @@ describe("matchRole (F4.1)", () => {
     );
   });
 
+  it("names the title once when the model's reason already does", () => {
+    const reason = '"Senior Backend Engineer" is a backend role, one of your target roles';
+    const { match } = matchRole(
+      input({ ai: { ...titleFits, titleFit: { verdict: "fits", reason } } }),
+    );
+    expect(byKey(match.verdicts, "target_roles")?.reason).toBe(reason);
+  });
+
   it("is a pure function of facts, profile, rules, the CV choice and the match.v1 answer", () => {
     const one = input();
     expect(matchRole(one)).toEqual(matchRole(JSON.parse(JSON.stringify(one))));
