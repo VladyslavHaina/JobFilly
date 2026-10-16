@@ -1,7 +1,14 @@
-import { getDraftClaim, listDecisions, listDraftsToRetry, roleDecisions } from "@jobfilly/db";
+import {
+  getDraftClaim,
+  listDecisions,
+  listDraftsToRetry,
+  markStale,
+  roleDecisions,
+} from "@jobfilly/db";
 import { MailUnavailableError } from "@jobfilly/mail";
 import type { DraftMailInput, RuleEffect } from "@jobfilly/schema";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { requestDraft } from "../drafts/request";
 import { createDraft } from "../drafts/write";
 import { requestReevaluation } from "../profile/changes";
 import {
@@ -387,6 +394,81 @@ describe("a mailbox that can't take the draft", () => {
       status: "in_mailbox",
       attempts: 2,
     });
+  });
+
+  it("doesn't retry a failed draft whose message left the reply window (F1.6)", async () => {
+    await h.deliver(BERLIN, { receivedAt: daysAgo(13) });
+    h.ai.answers.draft[key(BERLIN)] = draftAnswer();
+    h.mailbox.failNext("saveDraft");
+    await h.evaluate(BERLIN);
+    await h.drain();
+    const failed = await h.live(BERLIN);
+    expect(failed).toMatchObject({ status: "failed", failureKind: "mailbox" });
+
+    // Two days later the message is 15 days old: the sweep holds the retry instead of saving it.
+    h.deps.clock.advance(2 * 24 * 60 * 60 * 1000);
+    expect((await reevaluateWorkspace(h.deps, h.ws, { stages: h.stages })).retried).toBe(0);
+    await h.drain();
+    expect(h.mailbox.drafts()).toEqual([]);
+    expect(await h.live(BERLIN)).toMatchObject({
+      id: failed?.id,
+      status: "failed",
+      failureKind: "content",
+      failureReason: "Not tried again: Older than 14 days",
+    });
+    expect(h.ai.calls.draft).toBe(1);
+    // It is held for good: the next sweep doesn't take it back either.
+    expect(await listDraftsToRetry(h.deps.db, h.ws, h.deps.clock.now())).toEqual([]);
+  });
+
+  it("doesn't retry a failed draft once its sender is high risk or a rule holds it (F5.2, F6.1)", async () => {
+    const SCAM = "<scam-later@agency.example>";
+    for (const id of [BERLIN, SCAM]) {
+      await h.deliver(id);
+      h.ai.answers.draft[key(id)] = draftAnswer();
+    }
+    for (const id of [BERLIN, SCAM]) await h.evaluate(id);
+    h.mailbox.pause();
+    await h.drain();
+    expect((await h.live(BERLIN))?.status).toBe("failed");
+    expect((await h.live(SCAM))?.status).toBe("failed");
+    h.mailbox.resume();
+
+    // The sender is now high risk for SCAM; a no_draft rule now holds BERLIN.
+    h.setSender(SCAM, "high_risk");
+    await markStale(
+      h.deps.db,
+      h.ws,
+      { senderAddress: "recruiter@agency.example" },
+      h.deps.clock.now(),
+    );
+    h.roles.set(`${BERLIN}#0`, { ruleEffects: [NO_DRAFT] });
+    expect((await reevaluateWorkspace(h.deps, h.ws, { stages: h.stages })).retried).toBe(0);
+    await h.drain();
+    expect(h.mailbox.drafts()).toEqual([]);
+    expect(await h.live(SCAM)).toMatchObject({
+      status: "failed",
+      failureReason: "Not tried again: The sender looks high risk",
+    });
+    expect(await h.live(BERLIN)).toMatchObject({
+      status: "failed",
+      failureReason: "Not tried again: Held by your rule (no_draft)",
+    });
+  });
+
+  it("retries a failed Draft a reply whatever the policy says (F6.5)", async () => {
+    await h.deliver(BERLIN, { roles: [{ score: 40 }], receivedAt: daysAgo(13) });
+    await h.evaluate(BERLIN);
+    h.ai.answers.draft[key(BERLIN)] = draftAnswer();
+    h.mailbox.failNext("saveDraft");
+    await requestDraft(h.deps, h.ws, { messageId: BERLIN, position: 0 }, { origin: "on_demand" });
+    await h.drain();
+    expect(await h.live(BERLIN)).toMatchObject({ status: "failed", origin: "on_demand" });
+    h.deps.clock.advance(2 * 24 * 60 * 60 * 1000);
+    expect((await reevaluateWorkspace(h.deps, h.ws, { stages: h.stages })).retried).toBe(1);
+    await h.drain();
+    expect(await h.live(BERLIN)).toMatchObject({ status: "in_mailbox", origin: "on_demand" });
+    expect(h.mailbox.drafts()).toHaveLength(1);
   });
 
   it("is never left in saving while paused, and recovers after resume()", async () => {

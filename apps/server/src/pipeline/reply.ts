@@ -1,6 +1,25 @@
-import { groupNeeds, isOpen, planReply, type RoleNeed, roleNeeds } from "@jobfilly/core";
-import { keepWaiting, type RoleDecision, recordNeeds, roleDecisions } from "@jobfilly/db";
-import type { DecisionNeed } from "@jobfilly/schema";
+import {
+  groupNeeds,
+  isOpen,
+  planReply,
+  type RoleNeed,
+  replyEligibility,
+  roleNeeds,
+} from "@jobfilly/core";
+import {
+  draftHistory,
+  getEvaluations,
+  getSenderChecks,
+  keepWaiting,
+  listProfiles,
+  loadMessageInputs,
+  type RoleDecision,
+  recordNeeds,
+  roleDecisions,
+  roleKey,
+} from "@jobfilly/db";
+import type { DecisionNeed, DraftOrigin, Profile, RoleEvaluation } from "@jobfilly/schema";
+import type { AppDeps } from "../deps";
 import { requestDraft } from "../drafts/request";
 import type { ReplyStage } from "./stages";
 
@@ -25,6 +44,11 @@ import type { ReplyStage } from "./stages";
 //   origin is `decision`.
 //
 // It touches neither the mailbox nor the model: draft.create does, off the evaluation.
+//
+// A retry (the sweep trying a failed draft, or a claim whose job died, again) is checked against
+// the same policy before it is claimed (retryPlan, used by pipeline.reevaluate): origin retry
+// keeps every hold but the role's own draft, so a draft whose message left the reply window,
+// whose sender is now high risk or that a rule now holds is never saved after all (F1.6, F6.1).
 
 const resolved = (r: RoleDecision) => r.state === "resolved" && r.decisionStatus === "answered";
 const fromDraft = (r: RoleDecision) => r.source === "draft" || r.source === "draft_on_demand";
@@ -45,6 +69,71 @@ function answeredForDraftAReply(
   return !history.hadDraft && asked.some(resolved) && !asked.some((r) => r.state === "dismissed");
 }
 
+/** A role's open needs (roleNeeds), from its evaluation and its decisions. */
+function needsOf(
+  mine: readonly RoleDecision[],
+  evaluation: Pick<RoleEvaluation, "match" | "ruleEffects">,
+  profile: Profile,
+) {
+  const answeredHere = new Set(mine.filter(resolved).map((r) => r.groupKey));
+  const recorded: RoleNeed[] = mine
+    .filter((r) => r.state === "waiting" && fromDraft(r) && r.decisionStatus === "open")
+    .map((r) => ({
+      groupKey: r.groupKey,
+      profileKey: r.profileKey,
+      question: r.question,
+      choices: r.choices,
+      source: r.source,
+    }));
+  const needs = roleNeeds({ evaluation, recorded, profile, answeredHere });
+  return { answeredHere, recorded, needs };
+}
+
+/**
+ * What the sweep does with a draft to retry: try it again; wait for a later sweep while the role
+ * has no current evaluation or sender check (the mailbox may be down, the very reason it failed);
+ * or hold it for good, with the policy's reasons. A Draft a reply that failed is retried as
+ * on_demand, which nothing holds (F6.5).
+ */
+type RetryPlan = { kind: "retry" } | { kind: "wait" } | { kind: "hold"; reason: string };
+
+export async function retryPlan(
+  deps: AppDeps,
+  ws: string,
+  draft: { messageId: string; position: number; origin: DraftOrigin },
+  now: Date,
+): Promise<RetryPlan> {
+  if (draft.origin === "on_demand") return { kind: "retry" };
+  const role = { messageId: draft.messageId, position: draft.position };
+  const [message] = await loadMessageInputs(deps.db, ws, [draft.messageId]);
+  // A role gone from the message fails in draft.create, with its own reason.
+  if (!message?.facts[draft.position]) return { kind: "retry" };
+  const profile = (await listProfiles(deps.db, ws)).find((p) => p.confirmedAt !== null);
+  const [check] = await getSenderChecks(deps.db, ws, [draft.messageId]);
+  const evaluation = (await getEvaluations(deps.db, ws, [draft.messageId])).find(
+    (e) => e.position === draft.position && !e.stale,
+  );
+  if (!profile || !evaluation || !check || check.stale) return { kind: "wait" };
+  const { needs } = needsOf(await roleDecisions(deps.db, ws, [role]), evaluation, profile);
+  const history = (await draftHistory(deps.db, ws, [role])).get(roleKey(role));
+  const eligibility = replyEligibility({
+    origin: "retry",
+    category: message.category,
+    receivedAt: message.receivedAt,
+    now,
+    profile,
+    score: evaluation.match?.score ?? null,
+    capped: evaluation.match?.capped ?? false,
+    senderVerdict: check.verdict,
+    // An ask_first rule's question is among the needs while it is open, as in planReply.
+    ruleEffects: evaluation.ruleEffects.filter((e) => !(e.action === "ask_first" && e.need)),
+    openNeeds: needs,
+    draftHistory: history ?? { hadDraft: true, dismissed: false },
+  });
+  if (eligibility.eligible) return { kind: "retry" };
+  return { kind: "hold", reason: eligibility.heldBy.map((h) => h.reason).join("; ") };
+}
+
 export const replyStage: ReplyStage = async (input, ctx) => {
   const { deps, ws, profile } = ctx;
   if (!profile) return;
@@ -61,17 +150,7 @@ export const replyStage: ReplyStage = async (input, ctx) => {
   for (const evaluation of input.evaluations) {
     const role = { messageId: message.messageId, position: evaluation.position };
     const mine = decided.filter((r) => r.position === evaluation.position);
-    const answeredHere = new Set(mine.filter(resolved).map((r) => r.groupKey));
-    const recorded: RoleNeed[] = mine
-      .filter((r) => r.state === "waiting" && fromDraft(r) && r.decisionStatus === "open")
-      .map((r) => ({
-        groupKey: r.groupKey,
-        profileKey: r.profileKey,
-        question: r.question,
-        choices: r.choices,
-        source: r.source,
-      }));
-    const needs = roleNeeds({ evaluation, recorded, profile, answeredHere });
+    const { answeredHere, recorded, needs } = needsOf(mine, evaluation, profile);
     const history = input.draftHistory.get(evaluation.position) ?? {
       hadDraft: false,
       dismissed: false,
