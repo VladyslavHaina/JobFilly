@@ -184,6 +184,17 @@ describe("batched tasks (F3.4, TBD-17)", () => {
     ]);
   });
 
+  it("matches Message-IDs written without their angle brackets", async () => {
+    const { client, prompts } = clientWith([
+      JSON.stringify({ items: [{ messageId: "item-1@mail.example", category: "offer" }] }),
+    ]);
+    const result = await client.classify([item(1)]);
+    expect(result.items).toEqual([
+      { messageId: "<item-1@mail.example>", ok: true, data: { category: "offer" } },
+    ]);
+    expect(prompts).toHaveLength(1);
+  });
+
   it("never picks between two answers for the same Message-ID: the item is retried", async () => {
     const { client, prompts, events } = clientWith([
       classified([
@@ -315,10 +326,21 @@ describe("single tasks", () => {
 
   it("doesn't take facts about another message", async () => {
     const answer = JSON.stringify({ messageId: "<other@mail.example>", roles: [answered] });
-    const { client } = clientWith([answer, answer]);
+    const { client, events } = clientWith([answer, answer]);
     const result = await client.extract(item(1));
     expect(result).toMatchObject({ ok: false, error: { kind: "invalid_output" } });
     expect(result.usage).toHaveLength(2);
+    expect(events.map((e) => e.reason)).toEqual(["message_id", "message_id"]);
+  });
+
+  it("takes an answer that writes the Message-ID without its angle brackets", async () => {
+    const { client, prompts, events } = clientWith([
+      JSON.stringify({ messageId: " item-1@mail.example ", roles: [answered] }),
+    ]);
+    const result = await client.extract(item(1));
+    expect(result).toMatchObject({ ok: true, data: { messageId: "<item-1@mail.example>" } });
+    expect(prompts).toHaveLength(1);
+    expect(events).toEqual([]);
   });
 
   it("gives up without a retry when maxCalls is 1", async () => {

@@ -194,6 +194,17 @@ function parseJson(text: string): { ok: true; value: unknown } | { ok: false } {
 
 type BatchItemSchema<T> = ZodType<{ messageId: string } & T>;
 
+/**
+ * A Message-ID as compared with the model's answer: models often write it without its angle
+ * brackets, which is still the same id. The answer is kept under the id that was sent.
+ */
+function idKey(messageId: string): string {
+  return messageId
+    .trim()
+    .replace(/^<(.*)>$/, "$1")
+    .trim();
+}
+
 export function clientFromModels(modelFor: ModelFor, options: AiClientOptions = {}): AiClient {
   const report = (event: Omit<AiEvent, "event">) =>
     options.onEvent?.({ event: "ai.output_invalid", ...event });
@@ -268,7 +279,8 @@ export function clientFromModels(modelFor: ModelFor, options: AiClientOptions = 
       const json = parseJson(answer.text ?? "");
       const parsed = json.ok ? schema.safeParse(json.value) : null;
       if (parsed?.success && accept(parsed.data)) return { ok: true, data: parsed.data, usage };
-      report({ taskId, reason: json.ok ? "schema" : "parse", items: 1, attempt });
+      const reason = !json.ok ? "parse" : parsed?.success ? "message_id" : "schema";
+      report({ taskId, reason, items: 1, attempt });
       if (attempt === 2 || maxCalls === 1) {
         const kind = attempt === 2 || taskId === "ai.test.v1" ? "invalid_output" : "not_retried";
         return { ok: false, error: { kind, message: MESSAGES[kind] }, usage };
@@ -295,16 +307,20 @@ export function clientFromModels(modelFor: ModelFor, options: AiClientOptions = 
         PrefsOutputSchema.shape.items.element,
         opts?.maxCalls ?? 2,
       ),
-    extract: (item, opts) =>
-      single(
+    extract: async (item, opts) => {
+      const result = await single(
         "extract",
         "extract.v1",
         buildPrompt("extract.v1", [item]),
         ExtractOutputSchema,
         opts?.maxCalls ?? 2,
         // An answer about another message is not an answer about this one.
-        (data) => data.messageId === item.messageId,
-      ),
+        (data) => idKey(data.messageId) === idKey(item.messageId),
+      );
+      return result.ok
+        ? { ...result, data: { ...result.data, messageId: item.messageId } }
+        : result;
+    },
     intake: (input, opts) =>
       single(
         "intake",
@@ -367,25 +383,30 @@ function checkItems<T>(
   if (!json.ok) return { valid, reason: "parse" };
   const answers = (json.value as { items?: unknown } | null)?.items;
   if (!Array.isArray(answers)) return { valid, reason: "schema" };
-  const wanted = new Set(pending.map((item) => item.messageId));
+  // Each answer's id, normalised, back to the id that was sent.
+  const wanted = new Map(pending.map((item) => [idKey(item.messageId), item.messageId]));
   const repeated = new Set<string>();
   let schemaError = false;
+  let unknownId = false;
   for (const answer of answers) {
     const parsed = itemSchema.safeParse(answer);
     if (!parsed.success) {
       schemaError = true;
       continue;
     }
-    const id = parsed.data.messageId;
-    if (!wanted.has(id)) continue;
+    const id = wanted.get(idKey(parsed.data.messageId));
+    if (id === undefined) {
+      unknownId = true;
+      continue;
+    }
     if (valid.has(id) || repeated.has(id)) repeated.add(id);
-    else valid.set(id, parsed.data);
+    else valid.set(id, { ...parsed.data, messageId: id });
   }
   // An item answered twice has no single answer: picking one would be a guess, so the item stays
   // pending as invalid output and is retried like any other.
   for (const id of repeated) valid.delete(id);
   if (repeated.size > 0) schemaError = true;
-  return { valid, reason: schemaError ? "schema" : "missing" };
+  return { valid, reason: schemaError ? "schema" : unknownId ? "message_id" : "missing" };
 }
 
 export function createAiClient(
