@@ -1,6 +1,6 @@
 import type { AiClient } from "@jobfilly/ai";
 import { type Database, markAnalysisFailed, saveAnalysis } from "@jobfilly/db";
-import type { MailClient } from "@jobfilly/mail";
+import { type MailClient, MailError } from "@jobfilly/mail";
 import type {
   AiError,
   AiMailItem,
@@ -27,7 +27,8 @@ export const FATAL: readonly AiError["kind"][] = ["auth", "unreachable", "provid
 /**
  * The run can't go on. `stopCause` is what the user is told it ran into (the mailbox, the AI
  * provider, or JobFilly itself); `code` is the log's finer cause, and `detail` adds codes for the
- * log line (a provider's HTTP status and error type), never a message.
+ * log line (a provider's HTTP status and error type, a mail server's error code), never a
+ * message.
  */
 export class RunFailed extends Error {
   constructor(
@@ -93,8 +94,13 @@ export async function mailItems(
         uidValidity: e.uidValidity,
         uid: e.uid,
       });
-    } catch {
-      throw new RunFailed("mailbox", "mail_error");
+    } catch (error) {
+      // The log gets the reason and the mail server's error code, never its words.
+      const detail =
+        error instanceof MailError
+          ? { mailReason: error.reason, ...(error.code ? { mailCode: error.code } : {}) }
+          : {};
+      throw new RunFailed("mailbox", "mail_error", detail);
     }
     // A message gone from its folder (UIDVALIDITY changed) is read from its stored snippet.
     const text = (body?.text ?? e.snippet).slice(0, MAX_TEXT_LENGTH);

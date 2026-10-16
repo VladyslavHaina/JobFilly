@@ -586,7 +586,13 @@ describe("what a failed run ran into (TBD-112)", { timeout: SLOW }, () => {
       stopCause: "mailbox",
     });
     expect(logs(s.deps, "scan.stopped")).toEqual([
-      expect.objectContaining({ level: "warn", cause: "mail_error", stopCause: "mailbox" }),
+      expect.objectContaining({
+        level: "warn",
+        cause: "mail_error",
+        mailReason: "unreachable",
+        mailCode: "NoConnection",
+        stopCause: "mailbox",
+      }),
     ]);
     expect(stopText(s.events)).toBe(
       "Stopped: couldn't read your mailbox after 0 of 5 likely job emails. Check Settings › Mailbox, then try again.",

@@ -1,5 +1,5 @@
 import type { AiClient } from "@jobfilly/ai";
-import type { MailClient } from "@jobfilly/mail";
+import { type MailClient, MailError } from "@jobfilly/mail";
 import {
   type AiError,
   type AiMailItem,
@@ -61,7 +61,8 @@ export function fakeMail(envelopes: readonly Envelope[]): FakeMail {
               .sort((a, b) => Date.parse(b.date) - Date.parse(a.date));
           },
           async fetchBody(ref) {
-            if (fake.failing.bodies) throw new Error("fake mailbox failure");
+            // As packages/mail fails when the server dropped the connection.
+            if (fake.failing.bodies) throw new MailError("unreachable", "NoConnection");
             const e = envelopes.find(
               (x) => x.folderPath === ref.folderPath && x.uid === ref.uid,
             ) as Envelope;
