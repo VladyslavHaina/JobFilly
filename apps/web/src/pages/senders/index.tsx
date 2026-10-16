@@ -1,7 +1,7 @@
 import {
   type Address,
   type AnalysisStatus,
-  type AppliedSenderMark,
+  type AppliedMark,
   AppliedSenderMarkSchema,
   type Category,
   JOB_CATEGORIES,
@@ -88,8 +88,6 @@ function NoCheck(mail: Mail) {
   }
   return <p className="text-sm text-stone-500">{text}</p>;
 }
-
-type AppliedMark = NonNullable<AppliedSenderMark["applied"]>;
 
 const markedText = (m: AppliedMark | null, address: string) => {
   if (!m) return `Mark ${address} trusted or blocked for all its email.`;
