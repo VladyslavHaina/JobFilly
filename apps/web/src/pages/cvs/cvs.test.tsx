@@ -309,6 +309,43 @@ describe("the CVs page (F2.1)", () => {
     }
   });
 
+  it("frees the file's URL only a while after the click, so Safari keeps the download", async () => {
+    api({
+      [`GET ${url}`]: { items: [backendEn] },
+      [`GET ${url}/:id/file`]: () =>
+        new Response(new Uint8Array([37, 80, 68, 70]), {
+          headers: { "Content-Type": "application/pdf" },
+        }),
+    });
+    const revoked: string[] = [];
+    let clicks = 0;
+    const { createObjectURL, revokeObjectURL } = URL;
+    URL.createObjectURL = () => "blob:cv";
+    URL.revokeObjectURL = (u: string) => {
+      revoked.push(u);
+    };
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {
+      clicks += 1;
+    });
+    // Real time still passes for the page; the test moves the clock past the delay itself.
+    vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      renderInWorkspace(<CvsPage workspaceId={ws.id} />, { role: "viewer" });
+      await userEvent.click(await screen.findByRole("button", { name: "Download" }));
+      await waitFor(() => expect(clicks).toBe(1));
+      expect(revoked).toEqual([]);
+      vi.advanceTimersByTime(1000);
+      expect(revoked).toEqual([]);
+      vi.advanceTimersByTime(60_000);
+      expect(revoked).toEqual(["blob:cv"]);
+    } finally {
+      vi.useRealTimers();
+      click.mockRestore();
+      URL.createObjectURL = createObjectURL;
+      URL.revokeObjectURL = revokeObjectURL;
+    }
+  });
+
   it("deletes a CV after confirming, saying drafts in the mailbox stay", async () => {
     let items = [backendEn];
     const { seen } = api({
