@@ -5,6 +5,7 @@ import {
   type MatchVerdict,
   type MessageListItem,
   type NoFitWhy,
+  PROFILE_SKILLS_KEY,
   type RoleEvaluation,
   type Verdict,
 } from "@jobfilly/schema";
@@ -60,11 +61,12 @@ const VERDICT_TONES: Record<Verdict, "success" | "danger" | "neutral"> = {
   unknown: "neutral",
 };
 
-/** What a verdict is about: a profile entry, one of your rules, or the skills. */
+/** What a verdict is about: one of your rules, the skills, or another profile entry. */
 function verdictSubject(v: MatchVerdict): string {
   if (v.ruleId) return "Your rule";
-  if (v.entryKey) return entryLabel(v.entryKey);
-  return "Skills";
+  // An evaluation stored before the skills verdict named its entry has none.
+  if (!v.entryKey || v.entryKey === PROFILE_SKILLS_KEY) return "Skills";
+  return entryLabel(v.entryKey);
 }
 
 function VerdictRow({ verdict }: { verdict: MatchVerdict }) {
