@@ -35,11 +35,11 @@ let profileId: string;
 const at = new Date("2026-10-15T12:00:00Z");
 const later = (ms: number) => new Date(at.getTime() + ms);
 
-beforeEach(async () => {
-  conn = await openTestDatabase();
+/** Maria's workspace with Tom as a viewer, Tom's own workspace, and a confirmed profile. */
+async function arrange(c: DatabaseConnection) {
   const made = [];
   for (const key of ["maria", "tom"]) {
-    const r = await registerAccount(conn.db, {
+    const r = await registerAccount(c.db, {
       name: key,
       email: `${key}@inbox.example`,
       passwordHash: "h",
@@ -48,21 +48,50 @@ beforeEach(async () => {
     if (!r.ok) throw new Error("expected ok");
     made.push(r);
   }
-  ws = made[0]?.workspaceId ?? "";
-  other = made[1]?.workspaceId ?? "";
-  maria = made[0]?.user.id ?? "";
-  tom = made[1]?.user.id ?? "";
-  await addMember(conn.db, ws, tom, "viewer");
-  const created = await createConfirmedProfile(conn.db, ws, {
+  const [m, t] = made;
+  if (!m || !t) throw new Error("expected two accounts");
+  await addMember(c.db, m.workspaceId, t.user.id, "viewer");
+  const created = await createConfirmedProfile(c.db, m.workspaceId, {
     name: "My job search",
     entries: [],
-    createdBy: maria,
+    createdBy: m.user.id,
     at,
   });
   if (!created.ok) throw new Error("expected a profile");
-  profileId = created.profile.id;
+  return {
+    ws: m.workspaceId,
+    other: t.workspaceId,
+    maria: m.user.id,
+    tom: t.user.id,
+    profileId: created.profile.id,
+  };
+}
+
+// A setup that outlives its hook timeout (as under heavy load) keeps running while the next test
+// starts. So each setup works on its own connection and publishes it only while it is still the
+// current one; a superseded setup closes what it opened and never reaches the next test's database.
+let setups = 0;
+let opened: DatabaseConnection | undefined;
+
+beforeEach(async () => {
+  const mine = ++setups;
+  const c = await openTestDatabase();
+  try {
+    const arranged = await arrange(c);
+    if (mine !== setups) throw new Error("this setup was superseded");
+    conn = opened = c;
+    ({ ws, other, maria, tom, profileId } = arranged);
+  } catch (error) {
+    await c.close();
+    if (mine === setups) throw error;
+  }
 });
-afterEach(() => conn.close());
+afterEach(async () => {
+  setups += 1;
+  const c = opened;
+  opened = undefined;
+  await c?.close();
+});
 
 const change: Change = {
   op: "add",

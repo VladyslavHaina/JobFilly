@@ -108,12 +108,13 @@ const ROLES = {
   eu: { id: "<eu@remote.example>", hours: tz("UTC+01:00"), fits: true },
 };
 
-beforeEach(async () => {
-  stages = recordingStages();
-  stages.match = matchStage;
+/** The pipeline stages the re-evaluation runs: the real match, and drafts as the replies slice. */
+function arrangeStages(): RecordingStages {
+  const s = recordingStages();
+  s.match = matchStage;
   // The replies slice's reply stage, as far as the assistant relies on it: a draft only for a
   // role replyEligibility lets through, given its draft history.
-  stages.reply = async (input, ctx) => {
+  s.reply = async (input, ctx) => {
     for (const e of input.evaluations) {
       const { eligible } = replyEligibility({
         origin: "auto",
@@ -133,39 +134,39 @@ beforeEach(async () => {
       await claimDraft(ctx.deps.db, ctx.ws, role, { origin: "auto", now: ctx.now });
     }
   };
-  deps = await createTestDeps({
-    now: NOW,
-    registry: {
-      ...jobRegistry,
-      [PIPELINE_REEVALUATE_JOB]: defineJob(PipelineReevaluatePayloadSchema, (ctx) =>
-        reevaluateWorkspace(ctx.deps, ctx.payload.workspaceId, { stages }).then(() => {}),
-      ),
-    },
-  });
-  mailbox = createFakeMailbox();
-  deps.mail = mailbox.port;
-  ai = createFakeAi();
-  deps.ai = ai.port;
-  const owner = await seedUser(deps, { name: "Maria Santos" });
-  const viewer = await seedUser(deps, { name: "Tom Okafor" });
-  const stranger = await seedUser(deps, { name: "Stranger" });
-  ws = await seedWorkspace(deps, { owner, members: [{ user: viewer, role: "viewer" }] });
-  const app = createApp(deps);
-  maria = await signedIn(app, deps, owner);
-  tom = await signedIn(app, deps, viewer);
-  outsider = await signedIn(app, deps, stranger);
-  await seedMailbox(deps, ws.workspaceId, {
+  return s;
+}
+
+/**
+ * Maria's workspace with Tom as a viewer and a stranger outside it, a connected mailbox and model
+ * (both fakes), and a confirmed profile open to remote roles worldwide.
+ */
+async function arrange(d: TestDeps) {
+  const fakes = { mailbox: createFakeMailbox(), ai: createFakeAi() };
+  d.mail = fakes.mailbox.port;
+  d.ai = fakes.ai.port;
+  const owner = await seedUser(d, { name: "Maria Santos" });
+  const viewer = await seedUser(d, { name: "Tom Okafor" });
+  const stranger = await seedUser(d, { name: "Stranger" });
+  const w = await seedWorkspace(d, { owner, members: [{ user: viewer, role: "viewer" }] });
+  const app = createApp(d);
+  const clients = {
+    maria: await signedIn(app, d, owner),
+    tom: await signedIn(app, d, viewer),
+    outsider: await signedIn(app, d, stranger),
+  };
+  await seedMailbox(d, w.workspaceId, {
     address: "maria.santos@inbox.example",
     conn: { host: "imap", port: 3143, tlsMode: "tls", username: "maria", password: "E2E-SECRET-p" },
     sentFolderPath: "Sent",
   });
-  await seedAiSettings(deps, ws.workspaceId, {
+  await seedAiSettings(d, w.workspaceId, {
     provider: "openai-compatible",
     baseUrl: "http://fake-ai.test/v1",
     models: TEST_AI_MODELS,
     apiKey: "E2E-SECRET-ai",
   });
-  const created = await createConfirmedProfile(deps.db, ws.workspaceId, {
+  const created = await createConfirmedProfile(d.db, w.workspaceId, {
     name: "My job search",
     entries: [
       entry("target_roles", ["Backend Engineer"]),
@@ -175,9 +176,44 @@ beforeEach(async () => {
     at: NOW,
   });
   if (!created.ok) throw new Error("expected a profile");
-  profile = created.profile;
+  return { ws: w, profile: created.profile, ...fakes, ...clients };
+}
+
+// A setup that outlives its hook timeout (as under heavy load) keeps running while the next test
+// starts. So each setup works on its own deps and publishes them only while it is still the
+// current one; a superseded setup closes what it opened and never reaches the next test's database.
+let setups = 0;
+let opened: TestDeps | undefined;
+
+beforeEach(async () => {
+  const mine = ++setups;
+  const s = arrangeStages();
+  const d = await createTestDeps({
+    now: NOW,
+    registry: {
+      ...jobRegistry,
+      [PIPELINE_REEVALUATE_JOB]: defineJob(PipelineReevaluatePayloadSchema, (ctx) =>
+        reevaluateWorkspace(ctx.deps, ctx.payload.workspaceId, { stages: s }).then(() => {}),
+      ),
+    },
+  });
+  try {
+    const arranged = await arrange(d);
+    if (mine !== setups) throw new Error("this setup was superseded");
+    deps = opened = d;
+    stages = s;
+    ({ ws, profile, mailbox, ai, maria, tom, outsider } = arranged);
+  } catch (error) {
+    await d.close();
+    if (mine === setups) throw error;
+  }
 });
-afterEach(() => deps.close());
+afterEach(async () => {
+  setups += 1;
+  const d = opened;
+  opened = undefined;
+  await d?.close();
+});
 
 const base = () => `/api/workspaces/${ws.workspaceId}`;
 const proposalUrl = (id: string, action = "") =>

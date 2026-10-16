@@ -45,17 +45,19 @@ const entry = (key: ProfileEntry["key"], value: ProfileEntry["value"]): ProfileE
   updatedBy: null,
 });
 
-beforeEach(async () => {
-  deps = await createTestDeps({ now: NOW });
-  const owner = await seedUser(deps, { name: "Maria Santos" });
-  const viewer = await seedUser(deps, { name: "Tom Okafor" });
-  const stranger = await seedUser(deps, { name: "Stranger" });
-  ws = await seedWorkspace(deps, { owner, members: [{ user: viewer, role: "viewer" }] });
-  const app = createApp(deps);
-  maria = await signedIn(app, deps, owner);
-  tom = await signedIn(app, deps, viewer);
-  outsider = await signedIn(app, deps, stranger);
-  const created = await createConfirmedProfile(deps.db, ws.workspaceId, {
+/** Maria's workspace with Tom as a viewer, a stranger outside it, and a confirmed profile. */
+async function arrange(d: TestDeps) {
+  const owner = await seedUser(d, { name: "Maria Santos" });
+  const viewer = await seedUser(d, { name: "Tom Okafor" });
+  const stranger = await seedUser(d, { name: "Stranger" });
+  const w = await seedWorkspace(d, { owner, members: [{ user: viewer, role: "viewer" }] });
+  const app = createApp(d);
+  const clients = {
+    maria: await signedIn(app, d, owner),
+    tom: await signedIn(app, d, viewer),
+    outsider: await signedIn(app, d, stranger),
+  };
+  const created = await createConfirmedProfile(d.db, w.workspaceId, {
     name: "My job search",
     entries: [
       entry("languages", ["English", "Portuguese"]),
@@ -65,9 +67,34 @@ beforeEach(async () => {
     at: NOW,
   });
   if (!created.ok) throw new Error("expected a profile");
-  profile = created.profile;
+  return { ws: w, profile: created.profile, ...clients };
+}
+
+// A setup that outlives its hook timeout (as under heavy load) keeps running while the next test
+// starts. So each setup works on its own deps and publishes them only while it is still the
+// current one; a superseded setup closes what it opened and never reaches the next test's database.
+let setups = 0;
+let opened: TestDeps | undefined;
+
+beforeEach(async () => {
+  const mine = ++setups;
+  const d = await createTestDeps({ now: NOW });
+  try {
+    const arranged = await arrange(d);
+    if (mine !== setups) throw new Error("this setup was superseded");
+    deps = opened = d;
+    ({ ws, profile, maria, tom, outsider } = arranged);
+  } catch (error) {
+    await d.close();
+    if (mine === setups) throw error;
+  }
 });
-afterEach(() => deps.close());
+afterEach(async () => {
+  setups += 1;
+  const d = opened;
+  opened = undefined;
+  await d?.close();
+});
 
 const historyUrl = (profileId = profile.id) =>
   `/api/workspaces/${ws.workspaceId}/profiles/${profileId}/history`;
