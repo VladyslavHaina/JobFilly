@@ -18,7 +18,15 @@ import {
   type Verdict,
 } from "@jobfilly/schema";
 import { comparePay, evaluateRules, type RuleSubject } from "../rules/engine";
-import { formatAmount, formatRange, norm, rangeDisjoint, rangeWithin } from "../rules/words";
+import {
+  formatAmount,
+  formatRange,
+  mentions,
+  norm,
+  rangeDisjoint,
+  rangeWithin,
+  saysPlainly,
+} from "../rules/words";
 
 // The explainable match (F4): one role's facts against the profile's entries and rules, giving
 // fits, conflicts or unknown with a reason for each entry and rule that applies, and a fit score
@@ -38,6 +46,10 @@ import { formatAmount, formatRange, norm, rangeDisjoint, rangeWithin } from "../
 //   The model's closeness never makes a missing skill a fit (F4.4); it only explains.
 // - The model (match.v1) judges only the fuzzy parts: whether the title fits a target role, and
 //   how close the role's skills are. Everything else is compared here.
+// - Words are compared by the one whole-word matcher in rules/words: a deal-breaker conflicts
+//   wherever the role mentions it ("crypto" in "Crypto-Exchange GmbH", never in "Cryptography");
+//   a contract, seniority, work permit or remote scope fits only when the role says it plainly,
+//   not inside a joined word ("Non-EU") nor after a negation ("Not permanent"); else unknown.
 //
 // The score adds up five parts, each worth fits 1, unknown about half, conflicts 0:
 //   title against the target roles 35, skills (the share matched) 25, place or remote 20,
@@ -148,10 +160,6 @@ function titleVerdict(input: MatchRoleInput): MatchVerdict {
 
 // Skills: matched only when the CV or the profile lists them.
 
-const tokens = (s: string) =>
-  norm(s)
-    .split(/[^\p{L}\p{N}+#.]+/u)
-    .filter(Boolean);
 /** A skill's letters, digits, + and #, lower-cased: "Node.js" and "NodeJS" are both "nodejs". */
 const bare = (s: string) => norm(s).replace(/[^\p{L}\p{N}+#]/gu, "");
 /** A skill without its parenthesised aliases: "Go (Golang)" is "Go". */
@@ -242,13 +250,12 @@ const samePlace = (role: JobFacts["places"][number], mine: Place) =>
 const modeAccepted = (roleMode: "onsite" | "hybrid", mine: Place["mode"]) =>
   roleMode === "hybrid" ? true : mine === "onsite";
 
-/** Whether one of your remote scopes plainly covers the role's: all its words are in the role's. */
+/**
+ * Whether one of your remote scopes plainly covers the role's: the role's scope says it in whole
+ * words ("within the EU" says 'EU'; "Non-EU" and "not the EU" don't).
+ */
 const scopeCovered = (roleScope: string, remote: readonly Remote[]) =>
-  remote.some((r) => {
-    const mine = tokens(r.scope);
-    const theirs = tokens(roleScope);
-    return mine.length > 0 && mine.every((t) => theirs.includes(t));
-  });
+  remote.some((r) => saysPlainly(roleScope, r.scope));
 
 /**
  * Whether you plainly take a remote role stated for `place`: it is one of your places, or one of
@@ -260,14 +267,11 @@ function remotePlaceCovered(
   places: readonly Place[],
 ): boolean {
   if (places.some((p) => samePlace(place, p))) return true;
-  return remote.some((r) => {
-    const words = tokens(r.scope);
-    const city = place.city ? tokens(place.city) : [];
-    return (
-      (place.country !== null && words.includes(norm(place.country))) ||
-      (city.length > 0 && city.every((t) => words.includes(t)))
-    );
-  });
+  return remote.some(
+    (r) =>
+      (place.country !== null && saysPlainly(r.scope, place.country)) ||
+      (place.city !== null && saysPlainly(r.scope, place.city)),
+  );
 }
 
 /**
@@ -479,51 +483,12 @@ function payVerdict(input: MatchRoleInput): { credit: number; verdict: MatchVerd
 
 // The other entries: contracts, languages, seniority, work permits, deal-breakers.
 
-/** A hyphen, dot or apostrophe between two letters joins them into one word: "on-call", "Node.js". */
-const JOINER = /^[-‐‑.'’]$/u;
-
-/**
- * A text's words (letters, digits, + and #, lower-cased), each with whether a joiner ties it to
- * the word before it: "Non-permanent, 6 months" is non, permanent (tied to non), 6, months.
- */
-function wordsOf(s: string): { words: string[]; tied: boolean[] } {
-  const words: string[] = [];
-  const tied: boolean[] = [];
-  const text = norm(s);
-  let last = 0;
-  for (const m of text.matchAll(/[\p{L}\p{N}+#]+/gu)) {
-    tied.push(words.length > 0 && JOINER.test(text.slice(last, m.index)));
-    words.push(m[0]);
-    last = m.index + m[0].length;
-  }
-  return { words, tied };
-}
-
-/**
- * Whether `haystack` says `needle` in whole words: the needle's words appear one after another,
- * and not as part of a longer joined word. "on-call" is in "Weekly On-Call rotation" (and "on
- * call" is too), "permanent" is in "Permanent, full-time"; but "crypto" isn't in "Cryptography",
- * "Java" isn't in "JavaScript", and "permanent" isn't in "Non-permanent". Wording that doesn't
- * clearly say it never fits (F4.1, F4.2).
- */
-function mentions(haystack: string, needle: string): boolean {
-  const hay = wordsOf(haystack);
-  const want = wordsOf(needle).words;
-  if (want.length === 0) return false;
-  for (let i = 0; i + want.length <= hay.words.length; i++) {
-    const end = i + want.length;
-    if (hay.tied[i] || hay.tied[end]) continue;
-    if (want.every((w, k) => hay.words[i + k] === w)) return true;
-  }
-  return false;
-}
-
 function contractVerdict(input: MatchRoleInput): MatchVerdict | null {
   const contracts = entryValue<string>(input.profile, "contracts");
   if (contracts.length === 0) return null;
   const contract = input.facts.contract;
   if (!contract) return verdict("contracts", "unknown", "contract not stated");
-  const same = contracts.find((c) => mentions(contract, c));
+  const same = contracts.find((c) => saysPlainly(contract, c));
   if (same) return verdict("contracts", "fits", `"${contract}" — fits your '${same}'`);
   return verdict(
     "contracts",
@@ -551,7 +516,7 @@ function seniorityVerdict(input: MatchRoleInput): MatchVerdict | null {
   const mine = entryValue<string>(input.profile, "seniority");
   const stated = input.facts.seniority;
   if (mine.length === 0 || !stated) return null;
-  const same = mine.find((s) => mentions(stated, s));
+  const same = mine.find((s) => saysPlainly(stated, s));
   if (same) return verdict("seniority", "fits", `"${stated}" — fits your '${same}'`);
   return verdict("seniority", "unknown", `"${stated}" — not worded like your ${quoted(mine)}`);
 }
@@ -560,7 +525,9 @@ function permitVerdict(input: MatchRoleInput): MatchVerdict | null {
   const mine = entryValue<Permit>(input.profile, "work_permits");
   const asked = input.facts.workPermit;
   if (mine.length === 0 || !asked) return null;
-  const same = mine.find((p) => mentions(asked, p.text) || mentions(p.text, asked));
+  // Only what the role asks for is read for your permit's words, never the other way round: your
+  // 'No UK work permit' doesn't fit a role asking for "UK work permit".
+  const same = mine.find((p) => saysPlainly(asked, p.text));
   if (same) return verdict("work_permits", "fits", `"${asked}" — fits your '${same.text}'`);
   return verdict(
     "work_permits",

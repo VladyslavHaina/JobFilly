@@ -190,6 +190,14 @@ describe("matchRole (F4.1)", () => {
     });
     expect(us.match.capped).toBe(false);
     expect(us.match.score).toBeLessThan(good);
+    // "Non-EU" or "not the EU" is no EU scope, whatever words it shares with yours.
+    for (const remoteScope of ["Non-EU", "Non EU", "not the EU"]) {
+      expect(remote({ remoteScope }).verdict).toMatchObject({
+        verdict: "unknown",
+        hard: false,
+        reason: `Remote, ${remoteScope} — not compared with your remote 'EU'`,
+      });
+    }
     expect(remote({ remoteScope: "from anywhere" }).verdict).toMatchObject({
       verdict: "unknown",
       reason: "Remote, from anywhere — not compared with your remote 'EU'",
@@ -277,6 +285,52 @@ describe("matchRole (F4.1)", () => {
     });
     expect(permit("Non-EU citizen")?.verdict).toBe("unknown");
     expect(permit("EU citizenship")?.verdict).toBe("unknown");
+  });
+
+  it("never fits a contract, seniority or work permit the wording negates", () => {
+    const contract = (stated: string) =>
+      byKey(matchRole(input({ facts: facts({ contract: stated }) })).match.verdicts, "contracts");
+    expect(contract("Not permanent, 6 months")).toMatchObject({
+      verdict: "unknown",
+      reason: "\"Not permanent, 6 months\" — not worded like your contracts ('permanent', 'B2B')",
+    });
+    expect(contract("Non permanent")?.verdict).toBe("unknown");
+    expect(contract("Without a permanent contract")?.verdict).toBe("unknown");
+    expect(contract("No B2B")?.verdict).toBe("unknown");
+    // A negation in another clause says nothing about this one.
+    expect(contract("No relocation; permanent")?.verdict).toBe("fits");
+
+    const seniority = (stated: string) =>
+      byKey(matchRole(input({ facts: facts({ seniority: stated }) })).match.verdicts, "seniority");
+    expect(seniority("Not senior")).toMatchObject({
+      verdict: "unknown",
+      reason: "\"Not senior\" — not worded like your 'Senior'",
+    });
+
+    const withPermits = (permits: { country: string | null; text: string }[]) => ({
+      entries: [...maria.entries, entry("work_permits", permits)],
+    });
+    const permit = (mine: { country: string | null; text: string }[], asked: string) =>
+      byKey(
+        matchRole(input({ profile: withPermits(mine), facts: facts({ workPermit: asked }) })).match
+          .verdicts,
+        "work_permits",
+      );
+    // Your permit's words are never read for the role's: 'No UK work permit' doesn't hold one.
+    expect(permit([{ country: "GB", text: "No UK work permit" }], "UK work permit")).toMatchObject({
+      verdict: "unknown",
+      reason:
+        "Asks for \"UK work permit\" — check it against your work permits ('No UK work permit')",
+    });
+    expect(permit([{ country: "US", text: "Needs sponsorship for US" }], "US")?.verdict).toBe(
+      "unknown",
+    );
+    expect(permit([{ country: "GB", text: "UK work permit" }], "No UK work permit")?.verdict).toBe(
+      "unknown",
+    );
+    expect(permit([{ country: "GB", text: "UK work permit" }], "UK work permit")?.verdict).toBe(
+      "fits",
+    );
   });
 
   it("is a pure function of facts, profile, rules, the CV choice and the match.v1 answer", () => {
@@ -492,8 +546,8 @@ describe("hard conflicts (F4.2)", () => {
     };
     noConflict(["crypto"], { skills: ["Go", "Cryptography"] });
     noConflict(["Java"], { skills: ["JavaScript", "TypeScript"] });
-    noConflict(["call"], { extra: { duties: "Weekly On-Call rotation" } });
     noConflict(["on-call"], { extra: { duties: "Oncall-free team, calls on Mondays" } });
+    noConflict(["Node"], { skills: ["Nodemailer"] });
 
     const conflict = (mine: string[], overrides: Partial<JobFacts>, hit: string) => {
       const { match } = matchRole(input({ profile: breakers(mine), facts: facts(overrides) }));
@@ -508,6 +562,13 @@ describe("hard conflicts (F4.2)", () => {
     conflict(["on call"], { extra: { duties: "Weekly On-Call rotation." } }, "on call");
     conflict(["Java"], { skills: ["Java/Kotlin"] }, "Java");
     conflict(["crypto"], { company: "Crypto Exchange GmbH" }, "crypto");
+    // A hyphen, dot or apostrophe is a word break: the deal-breaker is still there.
+    conflict(["crypto"], { company: "Crypto-Exchange GmbH" }, "crypto");
+    conflict(["Java"], { extra: { stack: "Java-based microservices" } }, "Java");
+    conflict(["defense"], { company: "Defense-Tech AG" }, "defense");
+    conflict(["gambling"], { extra: { sector: "the gambling's industry" } }, "gambling");
+    conflict(["Node"], { skills: ["Node.js", "TypeScript"] }, "Node");
+    conflict(["call"], { extra: { duties: "Weekly On-Call rotation" } }, "call");
   });
 
   it("a soft conflict doesn't cap: a language you don't list, a title that doesn't fit", () => {
