@@ -86,6 +86,16 @@ describe("the key lines of the MVP 2 tasks", () => {
     expect(system).toContain("to false only when it accepts exactly that");
   });
 
+  it("asks draft.v1 only for facts the profile can't answer, never for a time (F7.1)", () => {
+    const { system } = promptFor("draft.v1", input("draft.v1"));
+    expect(system).toContain(
+      "Ask only for facts the reply needs that the profile can't answer, such as pay, place or a work permit.",
+    );
+    expect(system).toContain(
+      "Availability for a call or an interview, and other scheduling, is never a question: answer it in the reply by offering to arrange a time.",
+    );
+  });
+
   it("keys assistant.v1 by turn, with the user's words as the last block", () => {
     const { user } = promptFor("assistant.v1", input("assistant.v1"));
     const lines = user.split("\n");
