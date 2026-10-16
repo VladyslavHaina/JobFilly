@@ -1,4 +1,4 @@
-import type { Cv, CvChoice as CvChoiceValue } from "@jobfilly/schema";
+import { type Cv, type CvChoice as CvChoiceValue, MAX_CV_BYTES } from "@jobfilly/schema";
 import { cleanup, configure, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -114,6 +114,55 @@ describe("the CVs page (F2.1)", () => {
     expect(seen.filter((r) => r.method === "POST").map((r) => r.path)).toEqual([url]);
     expect(forms).toHaveLength(1);
     expect((forms[0]?.get("file") as File | undefined)?.name).toBe("Backend (DE).docx");
+  });
+
+  it("uploads several files at once, one by one, and lists those it couldn't upload", async () => {
+    let items: Cv[] = [];
+    let posts = 0;
+    const { seen, forms } = api({
+      [`GET ${url}`]: () => ({ items }),
+      [`POST ${url}`]: () => {
+        posts += 1;
+        if (posts === 1) {
+          items = [backendEn];
+          return Response.json(backendEn, { status: 201 });
+        }
+        return Response.json(
+          { error: "unsupported_type", message: "Only PDF and DOCX files can be uploaded" },
+          { status: 415 },
+        );
+      },
+    });
+    renderInWorkspace(<CvsPage workspaceId={ws.id} />, { role: "editor" });
+    await screen.findByText(/No CVs uploaded yet/);
+
+    const pdfFile = new File(["%PDF-1.4"], "backend-en.pdf", { type: "application/pdf" });
+    const docxFile = new File(["not a docx"], "notes.docx", {
+      type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    });
+    const tooBigFile = new File([new Uint8Array(MAX_CV_BYTES + 1)], "scanned.pdf", {
+      type: "application/pdf",
+    });
+    await userEvent.upload(screen.getByLabelText("Upload CVs"), [pdfFile, docxFile, tooBigFile]);
+
+    const title = await screen.findByText("Some files weren't uploaded");
+    const alert = title.closest<HTMLElement>("[role=alert]");
+    if (!alert) throw new Error("the upload errors aren't in an alert");
+    expect(
+      within(alert)
+        .getAllByRole("listitem")
+        .map((li) => li.textContent),
+    ).toEqual([
+      "notes.docx: Only PDF and DOCX files can be uploaded",
+      "scanned.pdf: a CV can be at most 5 MB",
+    ]);
+    // The oversized file is refused before it is sent: only the other two are POSTed, in order.
+    expect(seen.filter((r) => r.method === "POST")).toHaveLength(2);
+    expect(forms.map((f) => (f.get("file") as File | null)?.name)).toEqual([
+      "backend-en.pdf",
+      "notes.docx",
+    ]);
+    expect(await screen.findByRole("heading", { name: "Backend (EN)" })).toBeTruthy();
   });
 
   it("shows the suggested tags as an editable tag field, and adds a user tag", async () => {
