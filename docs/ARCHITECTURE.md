@@ -239,7 +239,10 @@ Rules:
   (`reply_threshold`, default 70), a sender check present and not high risk, no hide, no_draft or
   ask_first rule, no open need, and a role that never had a draft and wasn't dismissed. Draft a
   reply (on_demand) is always eligible. The replies slice and the assistant's impact preview both
-  use it.
+  use it. The reply stage then keeps at most one automatic draft per message (`capAutoDrafts` in
+  `packages/core/src/decisions`, TBD-221): the best-scoring role the policy lets through, ties to
+  the lowest position, and none once a role of the message had a draft; Draft a reply stays per
+  role. The impact preview counts per role, without the cap.
 - Decision needs are carried on match verdicts (`MatchVerdict.need`) and rule effects; the reply
   stage reads them and never works facts out again. Similar needs share a group key
   (`groupKeyFor`, e.g. `min_pay:CHF:year`).

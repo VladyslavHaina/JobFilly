@@ -156,6 +156,33 @@ describe("the reply stage", () => {
     expect(await h.live("<old@x.example>")).toBeNull();
   });
 
+  it("drafts one role per message automatically, the best-scoring one (TBD-221)", async () => {
+    const id = "<two-roles@x.example>";
+    await h.deliver(id, { roles: [{ score: 75 }, { score: 85 }] });
+    h.ai.answers.draft[key(id, 1, 0)] = draftAnswer();
+    h.ai.answers.draft[key(id, 1, 1)] = draftAnswer();
+    await h.evaluate(id);
+    expect(await h.drain()).toBe(1);
+    expect(await h.live(id, 0)).toBeNull();
+    expect(await h.live(id, 1)).toMatchObject({ status: "in_mailbox", origin: "auto" });
+    expect(h.mailbox.drafts()).toHaveLength(1);
+    // The other role now scores higher: still no automatic draft for it, as the message has its
+    // reply; Draft a reply still drafts it (F6.5).
+    h.roles.set(`${id}#0`, { score: 95 });
+    await markStale(
+      h.deps.db,
+      h.ws,
+      { roles: [{ messageId: id, position: 0 }] },
+      h.deps.clock.now(),
+    );
+    await reevaluateWorkspace(h.deps, h.ws, { stages: h.stages });
+    await h.drain();
+    expect(await h.live(id, 0)).toBeNull();
+    await requestDraft(h.deps, h.ws, { messageId: id, position: 0 }, { origin: "on_demand" });
+    await h.drain();
+    expect(await h.live(id, 0)).toMatchObject({ status: "in_mailbox", origin: "on_demand" });
+  });
+
   it("holds back a category outside reply_to, a risky or unchecked sender, and rules (F6.1)", async () => {
     const rule = (action: RuleEffect["action"]): RuleEffect => ({
       ruleId: "00000000-0000-4000-8000-0000000000e1",

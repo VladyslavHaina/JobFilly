@@ -1,4 +1,5 @@
 import {
+  capAutoDrafts,
   groupNeeds,
   isOpen,
   planReply,
@@ -43,6 +44,10 @@ import type { ReplyStage } from "./stages";
 //   the role's score; once they are answered the held role gets its draft with origin
 //   `on_demand`, as Draft a reply asked (F6.5). An answer to an automatic draft's question on a
 //   held role makes no draft (F6.1).
+// - At most one automatic draft per message (capAutoDrafts, TBD-221): only the best-scoring role
+//   the policy lets through is drafted or asked about; the others are held like any held role, so
+//   Draft a reply still works on each of them (F6.5). The sweep's retry isn't capped: it tries
+//   again a draft that was the message's one.
 // - Needs of every role are grouped by group key and recorded together (F7.3); a new decision
 //   logs decision.created once.
 // - A role to draft is claimed (claimDraft) and draft.create writes it; the claim makes sure two
@@ -156,28 +161,44 @@ export const replyStage: ReplyStage = async (input, ctx) => {
   const toDraft: { position: number; origin: "auto" | "decision" | "on_demand" }[] = [];
   let changed = 0;
 
-  for (const evaluation of input.evaluations) {
-    const role = { messageId: message.messageId, position: evaluation.position };
+  const roles = input.evaluations.map((evaluation) => {
     const mine = decided.filter((r) => r.position === evaluation.position);
     const { answeredHere, recorded, needs } = needsOf(mine, evaluation, profile);
     const history = input.draftHistory.get(evaluation.position) ?? {
       hadDraft: false,
       dismissed: false,
     };
+    const score = evaluation.match?.score ?? null;
     const plan = planReply({
       origin: mine.some(resolved) ? "decision" : "auto",
       category: message.category,
       receivedAt: message.receivedAt,
       now: ctx.now,
       profile,
-      score: evaluation.match?.score ?? null,
+      score,
       capped: evaluation.match?.capped ?? false,
       senderVerdict: input.sender?.verdict ?? null,
       ruleEffects: evaluation.ruleEffects,
       needs,
       draftHistory: history,
     });
+    return {
+      position: evaluation.position,
+      score,
+      draftHistory: history,
+      plan,
+      evaluation,
+      mine,
+      answeredHere,
+      recorded,
+      needs,
+    };
+  });
 
+  // At most one automatic draft per message (TBD-221).
+  for (const r of capAutoDrafts(roles)) {
+    const { evaluation, mine, answeredHere, recorded, needs, draftHistory: history, plan } = r;
+    const role = { messageId: message.messageId, position: evaluation.position };
     if (plan.kind === "hold") {
       // Read from what was recorded, not `needs`: a match need with the same group key would
       // stand in for Draft a reply's question there.
