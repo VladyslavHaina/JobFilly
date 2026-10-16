@@ -345,9 +345,9 @@ export interface StoredMatchAnswer {
 }
 
 /**
- * Every stored match.v1 answer of these messages' roles, newest first, for the impact preview,
- * which scores the current roles without the model: it picks each role's answer by its input
- * hash (matchInputHash) in memory, so a preview over every role is one query.
+ * Every stored match.v1 answer of these messages' roles, for the impact preview, which scores the
+ * current roles without the model: it picks each role's answer by its CV and input hash
+ * (matchInputHash) in memory, as the match stage does, so a preview over every role is one query.
  */
 export async function listStoredMatchAnswers(
   db: Database,
@@ -355,7 +355,7 @@ export async function listStoredMatchAnswers(
   messageIds: readonly string[],
 ): Promise<StoredMatchAnswer[]> {
   if (messageIds.length === 0) return [];
-  const rows = await db
+  return db
     .select({
       messageId: matchAiAnswers.messageId,
       position: matchAiAnswers.position,
@@ -369,7 +369,5 @@ export async function listStoredMatchAnswers(
         eq(matchAiAnswers.workspaceId, workspaceId),
         inArray(matchAiAnswers.messageId, [...messageIds]),
       ),
-    )
-    .orderBy(desc(matchAiAnswers.createdAt), desc(matchAiAnswers.id));
-  return rows;
+    );
 }
