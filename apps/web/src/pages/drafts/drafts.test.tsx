@@ -102,6 +102,14 @@ describe("the Drafts page (F6.7)", () => {
     expect(screen.getAllByText("Viewers can read drafts but not change them.")).not.toHaveLength(0);
   });
 
+  it("still says the CV is attached after that CV was deleted (F2.5)", async () => {
+    const attached = draft({ cvId: null, cvAttached: true });
+    const plain = draft({ id: "00000000-0000-4000-8000-000000000d05", messageId: "<x@x.example>" });
+    fakeApi({ [`GET ${BASE}`]: { items: [attached, plain] } });
+    renderInWorkspace(<DraftsPage workspaceId={W} />);
+    expect(await screen.findAllByText(/· CV attached/)).toHaveLength(1);
+  });
+
   it("says so when there are none", async () => {
     fakeApi({ [`GET ${BASE}`]: { items: [] } });
     renderInWorkspace(<DraftsPage workspaceId={W} />);

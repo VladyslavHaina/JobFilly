@@ -79,7 +79,7 @@ export function DraftCard({ draft, heading }: { draft: Draft; heading?: string }
         <span className="text-xs text-stone-500">
           {draft.auto ? "Written automatically" : "Drafted on request"}
           {draft.language ? ` · ${draft.language.toUpperCase()}` : ""}
-          {draft.cvId ? " · CV attached" : ""}
+          {draft.cvAttached ? " · CV attached" : ""}
         </span>
       </header>
 
