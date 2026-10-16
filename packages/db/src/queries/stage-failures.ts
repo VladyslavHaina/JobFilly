@@ -4,8 +4,8 @@ import { stageFailures } from "../tables";
 import type { StaleScope } from "./evaluations";
 
 // Pipeline stages that keep failing (ARCHITECTURE › The analysis pipeline). A failing sender
-// check or role (its cv-choice or match stage) is tried again at the next sweep after its first
-// failure, then waits a back-off that doubles from one sync interval up to a cap, so a
+// check, role (its cv-choice or match stage) or reply stage (the message's drafts and decisions)
+// is tried again at the next sweep after its first failure, then waits a back-off that doubles from one sync interval up to a cap, so a
 // deterministic failure (a provider that refuses, a stage that can't work) doesn't repeat its
 // model and mailbox calls and its log lines on every tick. The back-off lives in the database
 // (stage_failures), so every replica agrees, and is read with the caller's clock.
@@ -16,14 +16,20 @@ import type { StaleScope } from "./evaluations";
 //   getStageHolds       what of one message is still waiting out its back-off
 //
 // A change that marks the item stale again (a sender mark for a check, a profile, rule, CV,
-// decision or category change for a role) ends its wait at once: it is a new question. listTo-
-// Evaluate (./evaluations.ts) leaves held items out with the same conditions (senderHeldSql,
-// roleHeldSql); those two are SQL, so the package index doesn't export them.
+// decision or category change for a role) ends its wait at once: it is a new question. A failed
+// reply stage has nothing of its own to go stale: it runs again with any evaluation of its
+// message, and on its own once its wait is over. listToEvaluate (./evaluations.ts) leaves held
+// items out with the same conditions (senderHeldSql, roleHeldSql, replyHeldSql); those are SQL,
+// so the package index doesn't export them.
 
-/** A sender check, or one role's evaluation (its cv-choice and match stages). */
+/**
+ * A sender check, one role's evaluation (its cv-choice and match stages), or the message's reply
+ * stage (its roles' drafts and decisions, all at once).
+ */
 export type FailedStage =
   | { messageId: string; stage: "sender" }
-  | { messageId: string; stage: "match"; position: number };
+  | { messageId: string; stage: "match"; position: number }
+  | { messageId: string; stage: "reply" };
 
 /** The back-off: none after the first failure, then `intervalMs` doubling up to `capMs`. */
 export interface BackOff {
@@ -31,10 +37,10 @@ export interface BackOff {
   capMs: number;
 }
 
-/** The position a sender check is stored under (it belongs to the message, not a role). */
-const SENDER_POSITION = -1;
+/** The position a sender check or a reply stage is stored under (the message's, no role's). */
+const MESSAGE_POSITION = -1;
 
-const positionOf = (ref: FailedStage) => (ref.stage === "sender" ? SENDER_POSITION : ref.position);
+const positionOf = (ref: FailedStage) => (ref.stage === "match" ? ref.position : MESSAGE_POSITION);
 
 /**
  * Counts one more failure of the stage and sets when it may run again: at once after the first
@@ -163,10 +169,23 @@ export function roleHeldSql(f: string, e: string, now: Date): SQL {
     and not coalesce(${ee}.stale and ${ee}.stale_since is distinct from ${ff}.stale_since, false))`;
 }
 
-/** What of one message waits out its back-off at `now`: its sender check, and which roles. */
+/**
+ * SQL: the reply failure row `f` still holds its message's reply stage at `now`: its retry time
+ * hasn't come.
+ */
+export function replyHeldSql(f: string, now: Date): SQL {
+  return sql`(${sql.raw(f)}.message_id is not null and ${sql.raw(f)}.retry_at > ${iso(now)})`;
+}
+
+/**
+ * What of one message waits out its back-off at `now`: its sender check, and which roles. `reply`
+ * is the reply stage's state: none (it hasn't failed), held (it failed and waits), or due (it
+ * failed and is to be tried again, whether or not anything else of the message is).
+ */
 export interface StageHolds {
   sender: boolean;
   positions: number[];
+  reply: "none" | "held" | "due";
 }
 
 export async function getStageHolds(
@@ -175,20 +194,25 @@ export async function getStageHolds(
   messageId: string,
   now: Date,
 ): Promise<StageHolds> {
-  const rows = await queryRows<{ stage: "sender" | "match"; position: number }>(
+  const rows = await queryRows<{ stage: FailedStage["stage"]; position: number; held: boolean }>(
     db,
-    sql`select f.stage, f.position from stage_failures f
+    sql`select f.stage, f.position, case
+          when f.stage = 'sender' then ${senderHeldSql("f", "sc", now)}
+          when f.stage = 'reply' then ${replyHeldSql("f", now)}
+          else ${roleHeldSql("f", "e", now)} end as held
+      from stage_failures f
       left join sender_checks sc
         on sc.workspace_id = f.workspace_id and sc.message_id = f.message_id
       left join role_evaluations e on e.workspace_id = f.workspace_id
         and e.message_id = f.message_id and e.position = f.position
       where f.workspace_id = ${workspaceId} and f.message_id = ${messageId}
-        and case when f.stage = 'sender' then ${senderHeldSql("f", "sc", now)}
-          else ${roleHeldSql("f", "e", now)} end
       order by f.position`,
   );
+  const held = rows.filter((r) => r.held);
+  const reply = rows.find((r) => r.stage === "reply");
   return {
-    sender: rows.some((r) => r.stage === "sender"),
-    positions: rows.filter((r) => r.stage === "match").map((r) => Number(r.position)),
+    sender: held.some((r) => r.stage === "sender"),
+    positions: held.filter((r) => r.stage === "match").map((r) => Number(r.position)),
+    reply: !reply ? "none" : reply.held ? "held" : "due",
   };
 }

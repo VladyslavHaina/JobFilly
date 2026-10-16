@@ -179,6 +179,7 @@ describe("what waits out its back-off", () => {
     expect(await getStageHolds(conn.db, ws, MSG, at(MINUTE))).toEqual({
       sender: true,
       positions: [0],
+      reply: "none",
     });
     // The sweep sees nothing to do while they wait; the full listing still names them.
     expect(await listToEvaluate(conn.db, ws, { now: at(MINUTE) })).toEqual([]);
@@ -188,6 +189,7 @@ describe("what waits out its back-off", () => {
         messageId: MSG,
         sender: { state: "missing", staleSince: null },
         roles: [{ position: 0, state: "missing", staleSince: null }],
+        reply: false,
       },
     ]);
 
@@ -195,6 +197,7 @@ describe("what waits out its back-off", () => {
     expect(await getStageHolds(conn.db, ws, MSG, at(5 * MINUTE))).toEqual({
       sender: false,
       positions: [],
+      reply: "none",
     });
     expect(await listToEvaluate(conn.db, ws, { now: at(5 * MINUTE) })).toHaveLength(1);
     expect(await listWorkspacesWithWork(conn.db, at(5 * MINUTE))).toEqual([ws]);
@@ -218,12 +221,20 @@ describe("what waits out its back-off", () => {
     await failTwice(role(0));
     await failTwice(sender);
     const now = at(MINUTE);
-    expect(await getStageHolds(conn.db, ws, MSG, now)).toEqual({ sender: true, positions: [0] });
+    expect(await getStageHolds(conn.db, ws, MSG, now)).toEqual({
+      sender: true,
+      positions: [0],
+      reply: "none",
+    });
 
     // A sender mark, then a rule change.
     await markStale(conn.db, ws, { senderDomain: "agency.example" }, at(30_000));
     await markStale(conn.db, ws, { all: true }, at(40_000));
-    expect(await getStageHolds(conn.db, ws, MSG, now)).toEqual({ sender: false, positions: [] });
+    expect(await getStageHolds(conn.db, ws, MSG, now)).toEqual({
+      sender: false,
+      positions: [],
+      reply: "none",
+    });
     expect(await listToEvaluate(conn.db, ws, { now })).toMatchObject([
       {
         messageId: MSG,
@@ -234,5 +245,61 @@ describe("what waits out its back-off", () => {
         ],
       },
     ]);
+  });
+});
+
+describe("a failed reply stage", () => {
+  const reply = { messageId: MSG, stage: "reply" } as const;
+
+  async function evaluated() {
+    await createConfirmedProfile(conn.db, ws, {
+      name: "p",
+      entries: [],
+      createdBy: userId,
+      at: t0,
+    });
+    await seedMessage();
+    await saveSenderCheck(conn.db, ws, MSG, { ...failed, reasons: [], complete: true }, t0);
+    await saveEvaluation(conn.db, ws, MSG, evaluation(0), t0);
+    await saveEvaluation(conn.db, ws, MSG, evaluation(1), t0);
+  }
+
+  it("lists its message although everything is evaluated, until the stage succeeds", async () => {
+    await evaluated();
+    expect(await listToEvaluate(conn.db, ws)).toEqual([]);
+    expect(await getStageHolds(conn.db, ws, MSG, t0)).toEqual({
+      sender: false,
+      positions: [],
+      reply: "none",
+    });
+
+    // At the next sweep after its first failure.
+    await recordStageFailure(conn.db, ws, reply, { ...BACK_OFF, now: t0 });
+    const due = [{ messageId: MSG, sender: null, roles: [], reply: true }];
+    expect(await listToEvaluate(conn.db, ws, { now: t0 })).toEqual(due);
+    expect(await listWorkspacesWithWork(conn.db, t0)).toEqual([ws]);
+    expect((await getStageHolds(conn.db, ws, MSG, t0)).reply).toBe("due");
+
+    // Again: it waits one interval, and the sweep leaves it alone meanwhile.
+    await recordStageFailure(conn.db, ws, reply, { ...BACK_OFF, now: t0 });
+    expect(await listToEvaluate(conn.db, ws, { now: at(MINUTE) })).toEqual([]);
+    expect(await listWorkspacesWithWork(conn.db, at(MINUTE))).toEqual([]);
+    expect((await getStageHolds(conn.db, ws, MSG, at(MINUTE))).reply).toBe("held");
+    expect(await listToEvaluate(conn.db, ws)).toEqual(due);
+    expect(await listToEvaluate(conn.db, ws, { now: at(5 * MINUTE) })).toEqual(due);
+
+    await clearStageFailure(conn.db, ws, reply);
+    expect(await listToEvaluate(conn.db, ws)).toEqual([]);
+    expect((await getStageHolds(conn.db, ws, MSG, t0)).reply).toBe("none");
+  });
+
+  it("is counted apart from the message's sender check", async () => {
+    await evaluated();
+    const options = { ...BACK_OFF, now: t0 };
+    await recordStageFailure(conn.db, ws, sender, options);
+    expect((await recordStageFailure(conn.db, ws, reply, options)).failures).toBe(1);
+    expect((await recordStageFailure(conn.db, ws, reply, options)).failures).toBe(2);
+    await clearStageFailure(conn.db, ws, reply);
+    expect((await recordStageFailure(conn.db, ws, sender, options)).failures).toBe(2);
   });
 });

@@ -268,7 +268,7 @@ CREATE TABLE "stage_failures" (
 	"retry_at" timestamp with time zone NOT NULL,
 	"stale_since" timestamp with time zone,
 	CONSTRAINT "stage_failures_workspace_id_message_id_stage_position_pk" PRIMARY KEY("workspace_id","message_id","stage","position"),
-	CONSTRAINT "stage_failures_stage_check" CHECK (stage in ('sender', 'match'))
+	CONSTRAINT "stage_failures_stage_check" CHECK (stage in ('sender', 'match', 'reply'))
 );
 --> statement-breakpoint
 ALTER TABLE "jobs" ADD COLUMN "dedupe_key" text;--> statement-breakpoint

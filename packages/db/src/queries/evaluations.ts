@@ -14,7 +14,7 @@ import { type Database, queryRows } from "../client";
 import { messages, profiles, roleEvaluations, roles, senderChecks } from "../tables";
 import { type DraftHistory, draftHistory, listDraftsToRetry, roleKey } from "./draft-claims";
 import { fromDomain } from "./sender-domain";
-import { roleHeldSql, senderHeldSql } from "./stage-failures";
+import { replyHeldSql, roleHeldSql, senderHeldSql } from "./stage-failures";
 
 // The pipeline's view of the job mail (ARCHITECTURE › Background work, "The analysis pipeline").
 // Each role of a job message has an evaluation (role_evaluations) and each job message a sender
@@ -158,16 +158,21 @@ export async function markStale(
 
 export type WorkState = "missing" | "stale";
 
-/** A job message with something to evaluate. `staleSince` tells a re-staled item apart. */
+/**
+ * A job message with something to evaluate. `staleSince` tells a re-staled item apart. `reply`:
+ * its reply stage failed and is to run again (stage_failures), even with nothing to evaluate.
+ */
 export interface ToEvaluate {
   messageId: string;
   sender: { state: WorkState; staleSince: Date | null } | null;
   roles: { position: number; state: WorkState; staleSince: Date | null }[];
+  reply: boolean;
 }
 
 interface ToEvaluateRow {
   message_id: string;
   sender_work: boolean;
+  reply_work: boolean;
   sender_stale: boolean;
   sender_stale_since: string | Date | null;
   roles: { position: number; missing: boolean; staleSince: string | null }[] | string;
@@ -178,7 +183,8 @@ const toDate = (v: string | Date | null) => (v === null ? null : new Date(v));
 /**
  * Job messages whose sender check or any role's evaluation is missing or stale, newest first:
  * the first scan's backlog included (F1.6). A message names only what it needs. A sender check
- * whose stage failed is stored incomplete and listed as missing until it succeeds.
+ * whose stage failed is stored incomplete and listed as missing until it succeeds; a message
+ * whose reply stage failed is listed with `reply` until that stage succeeds.
  *
  * With `now`, what still waits out its back-off at that time (./stage-failures.ts) is left out:
  * the sweep asks so, and a deterministic failure isn't retried on every tick. Without it,
@@ -196,11 +202,14 @@ export async function listToEvaluate(
   const senderWork = sql`((sc.message_id is null or sc.stale or sf.message_id is not null)
     and not ${senderHeld})`;
   const roleWork = sql`(r.position is not null and (e.id is null or e.stale) and not ${roleHeld})`;
+  const replyHeld = options.now ? replyHeldSql("pf", options.now) : sql`false`;
+  const replyWork = sql`(pf.message_id is not null and not ${replyHeld})`;
   const rows = await queryRows<ToEvaluateRow>(
     db,
     sql`
       select m.message_id,
         ${senderWork} as sender_work,
+        ${replyWork} as reply_work,
         coalesce(sc.stale, false) as sender_stale,
         sc.stale_since as sender_stale_since,
         coalesce(
@@ -214,6 +223,8 @@ export async function listToEvaluate(
         on sc.workspace_id = m.workspace_id and sc.message_id = m.message_id
       left join stage_failures sf on sf.workspace_id = m.workspace_id
         and sf.message_id = m.message_id and sf.stage = 'sender'
+      left join stage_failures pf on pf.workspace_id = m.workspace_id
+        and pf.message_id = m.message_id and pf.stage = 'reply'
       left join roles r on r.workspace_id = m.workspace_id and r.message_id = m.message_id
       left join role_evaluations e on e.workspace_id = r.workspace_id
         and e.message_id = r.message_id and e.position = r.position
@@ -226,8 +237,8 @@ export async function listToEvaluate(
           sql`, `,
         )})
       group by m.message_id, m.date, sc.message_id, sc.stale, sc.stale_since,
-        sf.message_id, sf.retry_at
-      having ${senderWork} or bool_or(${roleWork})
+        sf.message_id, sf.retry_at, pf.message_id, pf.retry_at
+      having ${senderWork} or bool_or(${roleWork}) or ${replyWork}
       order by m.date desc, m.message_id desc
       limit ${limit}`,
   );
@@ -247,6 +258,7 @@ export async function listToEvaluate(
           staleSince: toDate(r.staleSince),
         }),
       ),
+      reply: row.reply_work,
     };
   });
 }
