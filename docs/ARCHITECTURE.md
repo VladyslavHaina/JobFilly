@@ -220,7 +220,8 @@ Rules:
 - `pipeline.reevaluate` (dedupe `reevaluate:<ws>`) snapshots what is missing or stale, evaluates
   each message at most once per run (a failing AI or mailbox can't make it loop) over one shared
   mailbox connection, re-claims the drafts to retry, and enqueues the next run only if something
-  changed while it ran.
+  changed while it ran. Such a change ends the run at the next batch boundary, so it waits for no
+  long run (the first scores after a CV upload).
 - The sweep (`pipeline/sweep.ts`) enqueues one deduped `pipeline.reevaluate` for every workspace
   with a confirmed profile and work (`listWorkspacesWithWork`): once at startup (`startWork` in
   `apps/server/src/start.ts`, before the queue and the scheduler start), so a deployment

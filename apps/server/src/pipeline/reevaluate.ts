@@ -37,7 +37,10 @@ import type { Stages } from "./stages";
 //   check waits for the next run.
 // - If anything is missing or stale because of a change made during the run (new mail, or an
 //   item marked stale after it started), it enqueues the next run; this one is still running, so
-//   the next one queues.
+//   the next one queues. Such a change also ends the run at the next batch boundary: the rest of
+//   the snapshot is still listed for the next run, and a change made during a long run (the
+//   first scores after a CV upload make a model call per role) is re-scored within the minute of
+//   F2.5 and F4.6 instead of after the whole snapshot.
 
 const BATCH = 20;
 
@@ -88,6 +91,10 @@ export async function reevaluateWorkspace(
         processed += 1;
       }
       await options.renewLease?.();
+      const more = i + BATCH < work.length;
+      if (more && changedDuringRun(snapshot, await listToEvaluate(deps.db, workspaceId), started)) {
+        break;
+      }
     }
   } finally {
     await mailbox.close();

@@ -149,6 +149,34 @@ describe("pipeline.reevaluate", () => {
     });
   });
 
+  it("stops at the next batch boundary after a change, so the change waits for no long run", async () => {
+    await confirm();
+    await backlog(25);
+    // While the first batch of 20 runs, an already processed role is marked stale again (a CV
+    // delete, an override): the rest of the snapshot is left to the next run, which starts
+    // with that role re-scored.
+    const match = stages.match;
+    stages.match = async (input, ctx) => {
+      const evaluation = await match(input, ctx);
+      if (input.message.messageId === "<b2@agency.example>") {
+        await markStale(deps.db, ws, { messageIds: ["<b1@agency.example>"] }, deps.clock.now());
+      }
+      return evaluation;
+    };
+    const outcome = await reevaluateWorkspace(deps, ws, { stages });
+    expect(outcome).toEqual({ processed: 20, retried: 0, next: true });
+    expect(await listToEvaluate(deps.db, ws)).toHaveLength(6);
+    expect((await queued()).alreadyQueued).toBe(true);
+
+    stages.match = match;
+    expect(await reevaluateWorkspace(deps, ws, { stages })).toEqual({
+      processed: 6,
+      retried: 0,
+      next: false,
+    });
+    expect(await listToEvaluate(deps.db, ws)).toEqual([]);
+  });
+
   it("asks for the next run when new mail arrives while it runs", async () => {
     await confirm();
     await backlog(1);
