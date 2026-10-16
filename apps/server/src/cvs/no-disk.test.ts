@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
+import { getCvFile } from "@jobfilly/db";
 import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from "vitest";
 import { type App, createApp } from "../app";
 import {
@@ -19,8 +20,9 @@ import {
 // F2.4: CV files live in Postgres and no replica writes them to disk. Every fs function that
 // writes, creates or opens a file for writing is spied (the CommonJS object, with the ES module
 // bindings synced to it, so `import { writeFile } from "node:fs"` sees the spy too) while a PDF
-// and a DOCX are uploaded, read by cv.read, listed and downloaded; none is called. The test
-// stack's read-only root filesystem proves the same for the image.
+// and a DOCX are uploaded, read by cv.read, listed and downloaded; none is called. The exact
+// bytes are in the CV's database row, and a second app on the same database (another replica)
+// downloads them. The test stack's read-only root filesystem proves the same for the image.
 
 const WRITERS = [
   "writeFile",
@@ -86,8 +88,8 @@ function spyOnDisk() {
   syncBuiltinESMExports();
 }
 
-describe("CV uploads never touch the disk (F2.4)", () => {
-  it("uploads, reads, lists and downloads a PDF and a DOCX without writing a file", async () => {
+describe("CV files live in Postgres (F2.4)", () => {
+  it("uploads never touch the replica's disk", async () => {
     const ws = maria.workspaceId;
     const ai = createFakeAi();
     deps.ai = ai.port;
@@ -134,9 +136,14 @@ describe("CV uploads never touch the disk (F2.4)", () => {
     expect(
       ((await listed.json()) as { items: { readStatus: string }[] }).items.map((c) => c.readStatus),
     ).toEqual(["done", "done"]);
+    const replica = createApp(deps);
     for (const [i, id] of ids.entries()) {
-      const file = await app.request(`/api/workspaces/${ws}/cvs/${id}/file`, { headers });
-      expect(new Uint8Array(await file.arrayBuffer())).toEqual(files[i]?.bytes);
+      expect((await getCvFile(deps.db, ws, id))?.bytes).toEqual(files[i]?.bytes);
+      for (const served of [app, replica]) {
+        const file = await served.request(`/api/workspaces/${ws}/cvs/${id}/file`, { headers });
+        expect(file.status).toBe(200);
+        expect(new Uint8Array(await file.arrayBuffer())).toEqual(files[i]?.bytes);
+      }
     }
 
     for (const spy of spies) expect(spy, spy.getMockName()).not.toHaveBeenCalled();
