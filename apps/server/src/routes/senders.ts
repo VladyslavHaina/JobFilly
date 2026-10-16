@@ -10,8 +10,9 @@ import type { AppDeps } from "../deps";
 import { requestReevaluation } from "../profile/changes";
 
 // Sender marks (F5.4): an editor marks an address or a whole domain trusted or blocked, or clears
-// the mark (null). Marks are keyed by the sender, so they survive syncs and re-evaluations, and
-// the check names them. Changing one re-does that sender's checks and evaluations (a sender
+// the mark (null); SenderMarkInputSchema refuses an address or a domain that isn't one, so
+// validJson gives its 400. Marks are keyed by the sender, so they survive syncs and
+// re-evaluations, and the check names them. Changing one re-does that sender's checks and evaluations (a sender
 // scope), so a newly blocked sender loses its automatic drafts and a trusted one is no longer held
 // back by its verdict. GET tells the mark that applies to a message's sender now, its address's
 // own or its domain's, so the UI clears that one; clearing a mark that isn't there is a 404, never
@@ -20,13 +21,6 @@ import { requestReevaluation } from "../profile/changes";
 // Message-ID, as in the messages routes. Mounted once at /api/workspaces/:workspaceId/senders.
 
 const NO_MARK = { error: "not_found", message: "There is no such mark to clear" } as const;
-
-/** An address has an @, a domain doesn't; both have a dot after it. */
-function validTarget(input: SenderMarkInput): boolean {
-  const at = input.value.lastIndexOf("@");
-  if (input.scope === "address") return at > 0 && input.value.slice(at + 1).includes(".");
-  return at < 0 && input.value.includes(".");
-}
 
 export function sendersRoutes(deps: AppDeps) {
   return new Hono<WorkspaceEnv>()
@@ -39,11 +33,6 @@ export function sendersRoutes(deps: AppDeps) {
     .put("/marks", requireRole("editor"), validJson(SenderMarkInputSchema), async (c) => {
       const workspaceId = c.get("workspaceId");
       const input = c.req.valid("json");
-      if (!validTarget(input)) {
-        const message =
-          input.scope === "address" ? "Give an email address" : "Give a domain such as example.com";
-        return c.json({ error: "invalid", message }, 400);
-      }
       if (input.mark === null) {
         if (!(await clearSenderMark(deps.db, workspaceId, input))) return c.json(NO_MARK, 404);
       } else {

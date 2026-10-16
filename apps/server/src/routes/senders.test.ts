@@ -135,13 +135,23 @@ describe("PUT /senders/marks", () => {
 
   it("refuses an address without a domain, or a domain given as an address", async () => {
     expect((await editor.put(marks(), {})).status).toBe(400);
-    expect(
-      (await editor.put(marks(), { scope: "address", value: "nobody", mark: "blocked" })).status,
-    ).toBe(400);
-    expect(
-      (await editor.put(marks(), { scope: "domain", value: "a@b.example", mark: "blocked" }))
-        .status,
-    ).toBe(400);
+    const address = await editor.put(marks(), {
+      scope: "address",
+      value: "nobody",
+      mark: "blocked",
+    });
+    expect(address.status).toBe(400);
+    expect(await address.json()).toEqual({ error: "invalid", message: "Give an email address" });
+    const domain = await editor.put(marks(), {
+      scope: "domain",
+      value: "a@b.example",
+      mark: "blocked",
+    });
+    expect(domain.status).toBe(400);
+    expect(await domain.json()).toEqual({
+      error: "invalid",
+      message: "Give a domain such as example.com",
+    });
     expect(
       (await editor.put(marks(), { scope: "domain", value: "b.example", mark: "blocked" })).status,
     ).toBe(200);
