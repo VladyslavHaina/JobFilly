@@ -23,14 +23,14 @@ import type { Logger } from "../log";
 // Tests inject their own stages, so the backbone is proven without the slices.
 
 /**
- * @public One job message as the stages read it (packages/db's loadMessageInputs). Its
+ * One job message as the stages read it (packages/db's loadMessageInputs). Its
  * `language` is the body's language as the sender stage last detected it (stored on the
  * message), so the cv-choice stage reads it without the mailbox; null before then.
  */
 export type MessageInput = MessageInputRow;
 
-/** @public One role of the message: its position and facts. */
-export interface RoleInput {
+/** One role of the message: its position and facts. */
+interface RoleInput {
   position: number;
   facts: JobFacts;
 }
@@ -114,8 +114,8 @@ export type MatchStage = (
   ctx: StageContext,
 ) => Promise<Omit<RoleEvaluation, "stale" | "evaluatedAt">>;
 
-/** @public What the reply stage gets. */
-export interface ReplyStageInput {
+/** What the reply stage gets. */
+interface ReplyStageInput {
   message: MessageInput;
   /** The sender check; null while it is missing or stale (no draft is made without one). */
   sender: SenderCheck | null;
