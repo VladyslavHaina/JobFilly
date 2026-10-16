@@ -42,8 +42,39 @@ const asImapLike = (error: unknown) =>
 const IMAPFLOW_CODE =
   /^(NoConnection|EConnectionClosed|StateLogout|ClosedAfterConnect(Text|TLS)|(CONNECT|GREETING|UPGRADE)_TIMEOUT|ETIMEOUT|LockTimeout|ETHROTTLE|UnexpectedTag|InvalidResponse|ResponseProcessingFailed|STARTTLS_INJECTION|COMPRESS_TRAILING_DATA|PollFailed|NotFound|MissingServerExtension|ParserError\w*|MAX_IMAP_NESTING_REACHED|LineTooLarge|LiteralTooLarge|ResponseTooLarge|ProxyError|EPROXY)$/;
 
-/** Node's socket and DNS codes: ECONNREFUSED, ENOTFOUND, ECONNRESET, EAI_AGAIN, EPIPE, ... */
-const SOCKET_CODE = /^E[A-Z][A-Z0-9_]*$/;
+/**
+ * The socket and DNS codes Node sets when the network or the server fails, named one by one:
+ * Node's own programming-error codes (ERR_INVALID_ARG_TYPE, ERR_OUT_OF_RANGE, ...) and the
+ * file system's (ENOENT, EACCES, ...) also start with E, and are the app's, not the server's.
+ */
+const SOCKET_CODES: ReadonlySet<string> = new Set([
+  // The connection.
+  "ECONNREFUSED",
+  "ECONNRESET",
+  "ECONNABORTED",
+  "ETIMEDOUT",
+  "EPIPE",
+  "EHOSTUNREACH",
+  "EHOSTDOWN",
+  "ENETUNREACH",
+  "ENETDOWN",
+  "ENETRESET",
+  "EADDRNOTAVAIL",
+  "ENOTCONN",
+  // Name resolution (getaddrinfo and the DNS resolver).
+  "ENOTFOUND",
+  "EAI_AGAIN",
+  "EAI_FAIL",
+  "EAI_NONAME",
+  "EAI_NODATA",
+  "ENODATA",
+  "ESERVFAIL",
+  "EREFUSED",
+  "EBADRESP",
+]);
+
+/** Node's codes for a socket that closed or timed out: ERR_SOCKET_CLOSED, ... */
+const NODE_SOCKET_CODE = /^ERR_SOCKET_(CLOSED|CLOSED_BEFORE_CONNECTION|CONNECTION_TIMEOUT)$/;
 
 /**
  * Whether an error is the mail server's: the connection (socket, DNS, timeouts), the IMAP
@@ -59,7 +90,12 @@ export function isMailFailure(error: unknown): boolean {
     return true;
   }
   const code = typeof e.code === "string" ? e.code : "";
-  return IMAPFLOW_CODE.test(code) || SOCKET_CODE.test(code) || TLS_CODE.test(code);
+  return (
+    IMAPFLOW_CODE.test(code) ||
+    SOCKET_CODES.has(code) ||
+    NODE_SOCKET_CODE.test(code) ||
+    TLS_CODE.test(code)
+  );
 }
 
 /** Maps an error from the IMAP library, the socket or TLS to a reason the user can act on. */

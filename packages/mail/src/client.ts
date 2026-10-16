@@ -14,10 +14,19 @@ import {
   type OriginalMessage,
   OriginalMessageSchema,
   type SyncedEnvelope,
+  SyncedEnvelopeSchema,
 } from "@jobfilly/schema";
+import { usableDate } from "./dates";
 import { buildDraftMime } from "./drafts/index";
 import { FAILURE_MESSAGES, failureReason, isMailFailure, MailError } from "./errors";
-import { bodyText, envelopeFromSource, originalFromSource } from "./parse";
+import {
+  bodyText,
+  conformed,
+  envelopeFromSource,
+  fallbackEnvelope,
+  originalFromSource,
+  type SourceInfo,
+} from "./parse";
 import { type ImapFolder, type ImapSession, imapflowSession, type SessionFactory } from "./session";
 
 // Mail access over IMAP. Nothing in this package sends mail: there is no send operation at all
@@ -49,9 +58,10 @@ export const UNAVAILABLE_MESSAGES: Record<MailTestFailureReason, string> = {
  * job to a failed sync, retried with back-off, whose status keeps `reason` for the UI to branch
  * on. The message is plain words, never the server's: by default the reason's own words.
  * Every MVP 2 operation (fetchSince, fetchOriginal and the Drafts-folder ones) fails with it when
- * the connection, the IMAP session or TLS fails (isMailFailure); any other error, such as what
- * the server sent failing its schema, is passed on as it is, so the sync records reason `error`
- * rather than an unreachable server.
+ * the connection, the IMAP session or TLS fails (isMailFailure); any other error, such as the
+ * folder's UIDVALIDITY failing its schema or a bug, is passed on as it is, so the sync records
+ * reason `error` rather than an unreachable server. One message that fails its schema fails
+ * nothing: it is checked on its own (envelopesOf).
  */
 export class MailUnavailableError extends Error {
   constructor(
@@ -144,14 +154,6 @@ function locateDrafts(folders: ImapFolder[]): string | null {
   );
 }
 
-/**
- * A message's INTERNALDATE when it is a real date; null when the server sent none or one that
- * can't be read, so the envelope's date stands in for it.
- */
-function arrival(internalDate: Date | null): Date | null {
-  return internalDate && !Number.isNaN(internalDate.getTime()) ? internalDate : null;
-}
-
 const ADDRESS_DOMAIN = /^[^\s@<>]+@([^\s@<>]+\.[^\s@<>]+)$/;
 
 /**
@@ -236,23 +238,32 @@ export function mailClientWith(
 
   /**
    * The envelopes of these UIDs of the open folder, in UID order, each with when it arrived (its
-   * INTERNALDATE, else the envelope's date).
+   * INTERNALDATE, else the envelope's date). What the server sent is checked message by message
+   * before anyone relies on it, so one message can't fail the folder, and with it every sync
+   * after: a field that fails its schema is the fallback envelope's, a message that can't be
+   * parsed at all is the fallback envelope, and only one whose UID is no UID is left out.
    */
   async function envelopesOf(
     s: ImapSession,
     uids: number[],
-    info: { folder: MailFolder; folderPath: string; uidValidity: number },
+    folder: { folder: MailFolder; folderPath: string; uidValidity: number },
   ): Promise<SyncedEnvelope[]> {
     const envelopes: SyncedEnvelope[] = [];
     for await (const message of s.fetch(uids, { maxBytes: ENVELOPE_SOURCE_BYTES })) {
-      const internalDate = arrival(message.internalDate);
-      const envelope = await envelopeFromSource(message.source, {
-        ...info,
+      const info: SourceInfo = {
+        ...folder,
         uid: message.uid,
-        internalDate,
-      });
-      const receivedAt = internalDate?.toISOString() ?? envelope.date;
-      envelopes.push({ ...envelope, receivedAt });
+        internalDate: usableDate(message.internalDate),
+      };
+      const fallback = fallbackEnvelope(info);
+      const envelope = await envelopeFromSource(message.source, info).catch(() => fallback);
+      const receivedAt = info.internalDate?.toISOString() ?? envelope.date;
+      const checked = conformed(
+        SyncedEnvelopeSchema,
+        { ...envelope, receivedAt },
+        { ...fallback, receivedAt: fallback.date },
+      );
+      if (checked) envelopes.push(checked);
     }
     return envelopes.sort((a, b) => a.uid - b.uid);
   }
@@ -331,7 +342,7 @@ export function mailClientWith(
         const uids = await s.searchSince(since);
         const envelopes: Envelope[] = [];
         for await (const message of s.fetch(uids, { maxBytes: ENVELOPE_SOURCE_BYTES })) {
-          const internalDate = arrival(message.internalDate);
+          const internalDate = usableDate(message.internalDate);
           const envelope = await envelopeFromSource(message.source, {
             folder,
             folderPath: path,
@@ -373,7 +384,7 @@ export function mailClientWith(
           folderPath: path,
           uidValidity: current,
         });
-        // What the server sent is checked before anyone relies on it.
+        // Each envelope is checked already; this checks what the server told of the folder.
         return FetchSinceResultSchema.parse({ uidValidity: current, changed, messages });
       }),
 
@@ -383,14 +394,26 @@ export function mailClientWith(
         if (uidValidity !== ref.uidValidity) return null;
         for await (const message of s.fetch([ref.uid], {})) {
           if (message.uid !== ref.uid) continue;
-          const original = await originalFromSource(message.source, {
+          const info: SourceInfo = {
             folder: "inbox",
             folderPath: ref.folderPath,
             uidValidity,
             uid: message.uid,
-            internalDate: arrival(message.internalDate),
+            internalDate: usableDate(message.internalDate),
+          };
+          const original = await originalFromSource(message.source, info);
+          // Checked on its own, as each envelope is: a field that fails its schema is the
+          // fallback envelope's, and every field of that one passes, so it is never refused.
+          const fallback = fallbackEnvelope(info);
+          return conformed(OriginalMessageSchema, original, {
+            messageId: fallback.messageId,
+            references: fallback.references,
+            inReplyTo: fallback.inReplyTo,
+            subject: fallback.subject,
+            from: fallback.from,
+            date: fallback.date,
+            text: "",
           });
-          return OriginalMessageSchema.parse(original);
         }
         return null;
       }),

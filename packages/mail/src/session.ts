@@ -1,5 +1,6 @@
 import type { MailConnection } from "@jobfilly/schema";
 import { ImapFlow } from "imapflow";
+import { usableDate } from "./dates";
 
 // The few IMAP operations the mail client needs, behind a small interface: the client's tests
 // use a hand-written double of it, and imapflowSession is the real one.
@@ -13,7 +14,7 @@ export interface ImapFolder {
 
 interface ImapMessage {
   uid: number;
-  /** The server's INTERNALDATE; null when it sent none or one that isn't a date. */
+  /** The server's INTERNALDATE; null when it sent none or one that isn't a usable date. */
   internalDate: Date | null;
   source: Buffer;
 }
@@ -100,8 +101,9 @@ export const imapflowSession: SessionFactory = (conn) => {
       for await (const message of client.fetch(uids, query, { uid: true })) {
         if (!message.source) continue;
         // imapflow hands over the raw text of an INTERNALDATE it couldn't read: no date then.
-        const date = message.internalDate ? new Date(message.internalDate) : null;
-        const internalDate = date && !Number.isNaN(date.getTime()) ? date : null;
+        const internalDate = usableDate(
+          message.internalDate ? new Date(message.internalDate) : null,
+        );
         yield { uid: message.uid, internalDate, source: message.source };
       }
     },

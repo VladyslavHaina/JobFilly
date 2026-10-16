@@ -181,6 +181,91 @@ describe("fetchSince (F1.1, F1.3)", () => {
     ).rejects.toThrow(RangeError);
   });
 
+  it.each([
+    ["ERR_OUT_OF_RANGE", Object.assign(new RangeError("x"), { code: "ERR_OUT_OF_RANGE" })],
+    ["ERR_INVALID_ARG_TYPE", Object.assign(new TypeError("x"), { code: "ERR_INVALID_ARG_TYPE" })],
+    ["ENOENT", Object.assign(new Error("x"), { code: "ENOENT" })],
+  ])("passes on Node's own %s as it is: not the mail server's", async (_code, thrown) => {
+    // As Buffer.alloc(-1) or Buffer.from(undefined) throw: they start with E, as ECONNREFUSED.
+    const server = fakeServer(mailbox([1]));
+    const factory: typeof server.factory = (c) => ({
+      ...server.factory(c),
+      searchFromUid: async () => {
+        throw thrown;
+      },
+    });
+    const error = await mailClientWith(conn, secure, factory)
+      .fetchSince({ folder: "inbox", uidValidity: 7, afterUid: 0 })
+      .catch((e: unknown) => e);
+    expect(error).toBe(thrown);
+    expect(error).not.toBeInstanceOf(MailUnavailableError);
+  });
+
+  it("syncs past a message whose dates have a five-digit year", async () => {
+    // new Date() reads both, but their toISOString ("+020260-...") is no ISO timestamp the
+    // schema accepts: the whole batch failed, the cursor never moved past it, every sync failed.
+    const box = mailbox([1]);
+    box.contents.INBOX?.messages.push(
+      {
+        uid: 2,
+        internalDate: new Date("+020260-01-01T00:00:00Z"),
+        source: message(2).replace(/^Date: .*$/m, "Date: Fri, 01 Jan 20260 00:00:00 +0000"),
+      },
+      { uid: 3, internalDate: new Date("2026-10-12T08:03:05Z"), source: message(3) },
+    );
+    const result = await mailClientWith(conn, secure, fakeServer(box).factory).fetchSince({
+      folder: "inbox",
+      uidValidity: 7,
+      afterUid: 0,
+    });
+    expect(FetchSinceResultSchema.parse(result)).toEqual(result);
+    expect(result.messages.map((m) => m.uid)).toEqual([1, 2, 3]);
+    // Neither date is usable: the epoch stands in, and the rest of the message is kept.
+    expect(result.messages[1]).toMatchObject({
+      messageId: "<role-2@agency.example>",
+      subject: "Role 2",
+      date: new Date(0).toISOString(),
+      receivedAt: new Date(0).toISOString(),
+    });
+    // A usable INTERNALDATE stands in for a header date that isn't.
+    const late = mailbox([]);
+    late.contents.INBOX?.messages.push({
+      uid: 4,
+      internalDate: new Date("2026-10-12T08:04:05Z"),
+      source: message(4).replace(/^Date: .*$/m, "Date: Fri, 01 Jan 20260 00:00:00 +0000"),
+    });
+    const fallback = await mailClientWith(conn, secure, fakeServer(late).factory).fetchSince({
+      folder: "inbox",
+      uidValidity: 7,
+      afterUid: 0,
+    });
+    expect(fallback.messages.map((m) => [m.uid, m.date, m.receivedAt])).toEqual([
+      [4, "2026-10-12T08:04:05.000Z", "2026-10-12T08:04:05.000Z"],
+    ]);
+  });
+
+  it("leaves out only a message whose UID is no UID; the rest of the folder syncs", async () => {
+    const server = fakeServer(mailbox([1, 2]));
+    const factory: typeof server.factory = (c) => {
+      const s = server.factory(c);
+      return {
+        ...s,
+        async *fetch(uids, options) {
+          for await (const m of s.fetch(uids, options)) {
+            // A UID that is no UID can't be kept: the message is left out, the others stay.
+            yield m.uid === 1 ? { ...m, uid: Number.NaN } : m;
+          }
+        },
+      };
+    };
+    const result = await mailClientWith(conn, secure, factory).fetchSince({
+      folder: "inbox",
+      uidValidity: 7,
+      afterUid: 0,
+    });
+    expect(result.messages.map((m) => m.uid)).toEqual([2]);
+  });
+
   it("fails with MailUnavailableError when the server answers a command NO or BAD", async () => {
     const server = fakeServer(mailbox([1]));
     const factory: typeof server.factory = (c) => ({
@@ -278,6 +363,26 @@ describe("fetchOriginal (F6.3)", () => {
       internalDate: new Date("not a date"),
       // No Date header either: the INTERNALDATE was all there was to read.
       source: message(4).replace(/^Date: .*\n/m, ""),
+    });
+    const original = await mailClientWith(conn, secure, fakeServer(box).factory).fetchOriginal({
+      folderPath: "INBOX",
+      uidValidity: 7,
+      uid: 4,
+    });
+    expect(OriginalMessageSchema.parse(original)).toEqual(original);
+    expect(original).toMatchObject({
+      messageId: "<role-4@agency.example>",
+      subject: "Role 4",
+      date: new Date(0).toISOString(),
+    });
+  });
+
+  it("reads the original when its dates have a five-digit year", async () => {
+    const box = mailbox([]);
+    box.contents.INBOX?.messages.push({
+      uid: 4,
+      internalDate: new Date("+020260-01-01T00:00:00Z"),
+      source: message(4).replace(/^Date: .*$/m, "Date: Fri, 01 Jan 20260 00:00:00 +0000"),
     });
     const original = await mailClientWith(conn, secure, fakeServer(box).factory).fetchOriginal({
       folderPath: "INBOX",
