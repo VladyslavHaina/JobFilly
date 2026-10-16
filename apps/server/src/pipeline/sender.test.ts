@@ -27,7 +27,9 @@ import {
 } from "../testing";
 import { cvChoiceStage } from "./cv-choice";
 import { evaluateMessage } from "./evaluate";
+import { reevaluateWorkspace } from "./reevaluate";
 import { senderStage } from "./sender";
+import { sweep } from "./sweep";
 
 // The sender stage (F5) inside the real pipeline: it reads the body through ctx.body() (so it
 // works for a backlog message fetched from IMAP), never stores it, looks the domain up through
@@ -117,6 +119,38 @@ describe("the sender stage", () => {
     ]);
     expect(stored).not.toContain(SENTINEL);
     expect(deps.rawLogs.join("\n")).not.toContain(SENTINEL);
+  });
+
+  it("checks the first scan's backlog on the sweep, without anyone doing anything (F1.6)", async () => {
+    await confirm();
+    const [scam, plain] = ["<scam@globalcareers-mail.example>", "<grace@tidewater.example>"];
+    const backlog = [scam, plain];
+    await seedJobMail(deps, ws, mailbox, {
+      messageId: scam,
+      receivedAt: daysAgo(18),
+      from: "hr.department@globalcareers-mail.example",
+      roles: [roleFacts({ company: "Global Careers International" })],
+      text: SCAM,
+    });
+    await seedJobMail(deps, ws, mailbox, {
+      messageId: plain,
+      receivedAt: daysAgo(20),
+      from: "grace@tidewater.example",
+      roles: [roleFacts({ company: "Tidewater Systems" })],
+      text: PLAIN,
+    });
+    expect(await sweep(deps)).toBe(1);
+    await reevaluateWorkspace(deps, ws, { stages });
+
+    const checks = await getSenderChecks(deps.db, ws, backlog);
+    expect(checks.map((c) => [c.messageId, c.stale]).sort()).toEqual(
+      backlog.map((id) => [id, false]).sort(),
+    );
+    expect(checks.find((c) => c.messageId === scam)?.verdict).toBe("high_risk");
+    expect(deps.logs.filter((l) => l.event === "sender.checked")).toHaveLength(2);
+    expect(stages.replies.map((r) => r.sender?.verdict).sort()).toEqual(
+      checks.map((c) => c.verdict).sort(),
+    );
   });
 
   it("logs sender.checked with its verdict, and a high-risk verdict reaches the reply stage", async () => {

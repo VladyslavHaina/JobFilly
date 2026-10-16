@@ -387,6 +387,34 @@ describe("tags, download and delete", () => {
     expect((await outsider.delete(`${cvsPath(tom.workspaceId)}/${cv.id}`)).status).toBe(404);
     expect((await list(editor)).items).toHaveLength(1);
   });
+
+  it("gives Maria a 404 for Tom's real CV, by either workspace, and leaves it alone", async () => {
+    const nurse = DATA_EN.map((l) => l.replace("Maria Santos", "Tom Okafor"));
+    const toms = await uploaded(
+      await upload(
+        tom,
+        { bytes: docxWithText(nurse), name: "Nurse (EN).docx" },
+        { workspaceId: tom.workspaceId },
+      ),
+    );
+    const own = await outsider.get(`${cvsPath(tom.workspaceId)}/${toms.id}/file`);
+    expect(own.status).toBe(200);
+
+    const theirs = cvsPath(tom.workspaceId);
+    expect((await editor.get(theirs)).status).toBe(404);
+    expect((await editor.get(`${theirs}/${toms.id}/file`)).status).toBe(404);
+    expect((await editor.patch(`${theirs}/${toms.id}`, { tags: [] })).status).toBe(404);
+    expect((await editor.delete(`${theirs}/${toms.id}`)).status).toBe(404);
+    // Through her own workspace the id names nothing: the queries are workspace-scoped.
+    expect((await editor.get(`${cvsPath()}/${toms.id}/file`)).status).toBe(404);
+    expect((await editor.patch(`${cvsPath()}/${toms.id}`, { tags: [] })).status).toBe(404);
+    expect((await editor.delete(`${cvsPath()}/${toms.id}`)).status).toBe(404);
+    expect((await list(editor)).items).toEqual([]);
+
+    const after = CvListSchema.parse(await (await outsider.get(theirs)).json()).items;
+    expect(after.map((c) => [c.id, c.tags])).toEqual([[toms.id, toms.tags]]);
+    expect((await outsider.get(`${theirs}/${toms.id}/file`)).status).toBe(200);
+  });
 });
 
 describe("re-evaluation after a CV change (requestReevaluation)", () => {

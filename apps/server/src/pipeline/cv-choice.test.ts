@@ -1,4 +1,4 @@
-import { createConfirmedProfile, loadMessageInputs, setRoleCvChoice } from "@jobfilly/db";
+import { createConfirmedProfile, deleteCv, loadMessageInputs, setRoleCvChoice } from "@jobfilly/db";
 import type { Profile } from "@jobfilly/schema";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
@@ -138,6 +138,22 @@ describe("the cv-choice stage", () => {
       reason: "You chose Backend (EN) for this role",
       source: "you",
     });
+  });
+
+  it("leaves a deleted CV: the role gets the automatic choice among the rest", async () => {
+    const { en, de } = await mariasCvs();
+    const input = await message("de");
+    await setRoleCvChoice(deps.db, ws, {
+      messageId: input.messageId,
+      position: 0,
+      cvId: en.id,
+      userId: maria.id,
+      at: NOW,
+    });
+    expect(await deleteCv(deps.db, ws, en.id)).toBe(true);
+    expect(await choose(input)).toMatchObject({ cvId: de.id, source: "auto" });
+    expect(await deleteCv(deps.db, ws, de.id)).toBe(true);
+    expect(await choose(input)).toMatchObject({ cvId: null, reason: "No CV uploaded yet" });
   });
 
   it("refuses to choose without a confirmed profile, never from all the CVs", async () => {
