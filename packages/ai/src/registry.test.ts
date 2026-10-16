@@ -241,10 +241,32 @@ describe("failures in plain words", () => {
         error: {
           kind: "provider_error",
           message: "The provider answered with an error (HTTP 500)",
+          httpStatus: 500,
         },
       },
     ]);
     expect(JSON.stringify(result)).not.toContain(KEY);
     expect(result.usage).toHaveLength(1);
+  });
+
+  it("gives a provider error's type for the logs, and never its message", async () => {
+    // Anthropic's answer when it refuses extract.v1's schema; OpenAI's has the same error.type.
+    const refusal = "Schemas contains too many parameters with union types";
+    const { fetch } = recordingFetch(() =>
+      Response.json(
+        { type: "error", error: { type: "invalid_request_error", message: refusal } },
+        { status: 400 },
+      ),
+    );
+    const result = await createAiClient(settingsFor("anthropic"), { fetch }).extract(mail);
+    expect(result).toMatchObject({
+      ok: false,
+      error: {
+        kind: "provider_error",
+        httpStatus: 400,
+        providerErrorType: "invalid_request_error",
+      },
+    });
+    expect(JSON.stringify(result)).not.toContain(refusal);
   });
 });

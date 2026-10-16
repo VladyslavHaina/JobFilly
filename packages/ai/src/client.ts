@@ -110,7 +110,25 @@ function tokens(usage: LanguageModelUsage | undefined): Omit<Usage, "task"> {
   return { inputTokens: usage?.inputTokens ?? 0, outputTokens: usage?.outputTokens ?? 0 };
 }
 
-/** A failed request in plain words; never the key, the request or the provider's answer. */
+/**
+ * The provider's error type from its error answer: `error.type` (Anthropic, OpenAI and the
+ * OpenAI-compatible servers) or `error.status` (Google). Only a short code is taken, never the
+ * provider's message.
+ */
+function providerErrorType(responseBody: string | undefined): string | undefined {
+  try {
+    const error = (JSON.parse(responseBody ?? "") as { error?: Record<string, unknown> }).error;
+    const type = error?.type ?? error?.status;
+    return typeof type === "string" && /^[\w.-]{1,64}$/.test(type) ? type : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * A failed request in plain words; never the key, the request or the provider's answer. A
+ * provider error also gives its HTTP status and error type for the logs.
+ */
 function transportError(error: unknown): AiError {
   const cause = RetryError.isInstance(error) ? error.lastError : error;
   if (LoadAPIKeyError.isInstance(cause)) return { kind: "auth", message: MESSAGES.auth };
@@ -118,9 +136,12 @@ function transportError(error: unknown): AiError {
     const status = cause.statusCode;
     if (status === 401 || status === 403) return { kind: "auth", message: MESSAGES.auth };
     if (status === undefined) return { kind: "unreachable", message: MESSAGES.unreachable };
+    const providerType = providerErrorType(cause.responseBody);
     return {
       kind: "provider_error",
       message: `The provider answered with an error (HTTP ${status})`,
+      httpStatus: status,
+      ...(providerType ? { providerErrorType: providerType } : {}),
     };
   }
   // fetch itself failed (DNS, refused, reset, timeout): no answer came back at all.
