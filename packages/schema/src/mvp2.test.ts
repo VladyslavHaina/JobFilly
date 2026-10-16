@@ -466,7 +466,8 @@ describe("evaluations, senders, drafts and decisions", () => {
       seniority: null,
       countryHints: [],
       formatHints: [],
-      tags: [{ label: "preferred", source: "you" }],
+      tags: [{ label: "remote", source: "you" }],
+      preferred: true,
       readStatus: "pending",
       uploadedAt: at,
     };
@@ -475,14 +476,15 @@ describe("evaluations, senders, drafts and decisions", () => {
     expect(CvChoiceOverrideSchema.safeParse({ cvId: null }).success).toBe(true);
   });
 
-  it("edits a CV's tags, skills and format hints, each on its own (F2.1)", () => {
+  it("edits a CV's tags, skills, format hints and preferred flag, each on its own (F2.1)", () => {
     expect(CvUpdateSchema.safeParse({ skills: ["Go", " Kafka "] }).data).toEqual({
       skills: ["Go", "Kafka"],
     });
     expect(CvUpdateSchema.safeParse({ formatHints: [] }).success).toBe(true);
-    expect(
-      CvUpdateSchema.safeParse({ tags: [{ label: "preferred", source: "you" }] }).success,
-    ).toBe(true);
+    expect(CvUpdateSchema.safeParse({ tags: [{ label: "remote", source: "you" }] }).success).toBe(
+      true,
+    );
+    expect(CvUpdateSchema.safeParse({ preferred: false }).data).toEqual({ preferred: false });
     expect(CvUpdateSchema.safeParse({}).success).toBe(false);
     expect(CvUpdateSchema.safeParse({ skills: ["  "] }).success).toBe(false);
   });

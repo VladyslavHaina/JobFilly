@@ -44,6 +44,11 @@ export const CvSchema = z.object({
   countryHints: z.array(z.string()),
   formatHints: z.array(z.string()),
   tags: z.array(CvTagSchema),
+  /**
+   * The CV to use when nothing else in a role tells the CVs apart (F2.3): set by the user, a
+   * flag rather than a tag's words, so it means the same in every language.
+   */
+  preferred: z.boolean(),
   readStatus: CvReadStatusSchema,
   uploadedAt: IsoDateTimeSchema,
 });
@@ -64,17 +69,18 @@ const CvLabelSchema = TextSchema.trim().min(1).max(100);
 /**
  * PATCH /cvs/:cvId: what the user leaves of what the AI suggested, and what they add (F2.1), as
  * editable tags: the tags (AI tags kept or removed, own added), the skills (removed, or added
- * when the CV's text contains them, F2.2) and the format hints. Each list replaces the CV's;
- * a field left out stays as it is, and at least one is given.
+ * when the CV's text contains them, F2.2) and the format hints; and whether it is the preferred
+ * CV. Each list replaces the CV's; a field left out stays as it is, and at least one is given.
  */
 export const CvUpdateSchema = z
   .object({
     tags: z.array(CvTagSchema).max(50).optional(),
     skills: z.array(CvLabelSchema).max(100).optional(),
     formatHints: z.array(CvLabelSchema).max(20).optional(),
+    preferred: z.boolean().optional(),
   })
-  .refine((u) => u.tags !== undefined || u.skills !== undefined || u.formatHints !== undefined, {
-    message: "Give the tags, the skills or the format hints to change",
+  .refine((u) => Object.values(u).some((v) => v !== undefined), {
+    message: "Give the tags, the skills, the format hints or preferred to change",
   });
 export type CvUpdate = z.infer<typeof CvUpdateSchema>;
 
