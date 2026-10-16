@@ -102,13 +102,20 @@ function Panel({ workspaceId, onClose }: { workspaceId: string; onClose: () => v
     queryFn: () => api(assistantApi(workspaceId), AssistantStateSchema),
   });
   const thread = state.data?.thread ?? null;
+  // The thread the next message goes to. The first reply names it, and it is kept from then on:
+  // a message sent before the refetch brings the thread back stays in it, not in a new one.
+  const threadId = useRef<string | null>(null);
+  if (thread) threadId.current = thread.id;
   const send = useMutation({
     mutationFn: (message: string) =>
       api(assistantApi(workspaceId), AssistantTurnSchema, {
         method: "POST",
-        body: { threadId: thread?.id ?? null, text: message },
+        body: { threadId: threadId.current, text: message },
       }),
-    onSuccess: () => client.invalidateQueries({ queryKey: assistantKey(workspaceId) }),
+    onSuccess: (turn) => {
+      threadId.current = turn.threadId;
+      return client.invalidateQueries({ queryKey: assistantKey(workspaceId) });
+    },
   });
   const pending = send.isPending ? (send.variables ?? null) : null;
   const ask = (message: string) => {
