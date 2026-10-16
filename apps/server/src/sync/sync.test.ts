@@ -10,7 +10,7 @@ import {
   getSyncState,
   stopScan,
 } from "@jobfilly/db";
-import type { MailClient } from "@jobfilly/mail";
+import { type MailClient, MailUnavailableError } from "@jobfilly/mail";
 import {
   type LiveEvent,
   MAIL_SYNC_JOB,
@@ -98,58 +98,96 @@ function holdable(box: FakeMailbox) {
   };
 }
 
-function registry(): JobRegistry {
+function registry(
+  recording: RecordingStages = stages,
+  reevaluated: PipelineReevaluatePayload[] = reevaluations,
+): JobRegistry {
   return {
     ...jobRegistry,
-    [MAIL_SYNC_JOB]: defineJob(MailSyncPayloadSchema, createMailSyncHandler({ stages })),
+    [MAIL_SYNC_JOB]: defineJob(MailSyncPayloadSchema, createMailSyncHandler({ stages: recording })),
     [PIPELINE_REEVALUATE_JOB]: defineJob(PipelineReevaluatePayloadSchema, async (ctx) => {
-      reevaluations.push(ctx.payload);
+      reevaluated.push(ctx.payload);
     }),
   };
 }
 
+// Each setup builds its test's world in locals and publishes it only when it is still the
+// current one. Under a heavy load a setup can outlive its hook's timeout: such a late setup then
+// closes what it built instead of overwriting the next test's deps, mailbox or AI half-way
+// through (or seeding into a database the next test already took), and the teardown closes only
+// a world that was fully set up.
+let setups = 0;
+let current: TestDeps | undefined;
+
 beforeEach(async () => {
-  stages = recordingStages();
-  reevaluations = [];
-  events = [];
-  deps = await createTestDeps({
+  const setup = ++setups;
+  const recording = recordingStages();
+  const reevaluated: PipelineReevaluatePayload[] = [];
+  const seen: LiveEvent[] = [];
+  const d = await createTestDeps({
     now: NOW,
     config: { syncIntervalSeconds: INTERVAL_S },
-    registry: registry(),
+    registry: registry(recording, reevaluated),
   });
-  mailbox = createFakeMailbox({ uidValidity: 100 });
-  ai = createFakeAi();
-  deps.mail = mailbox.port;
-  deps.ai = ai.port;
-  maria = await seedUser(deps, { name: "Maria Santos" });
-  ws = maria.workspaceId;
-  mailboxId = await seedMailbox(deps, ws, {
-    address: "maria.santos@inbox.example",
-    conn: {
-      host: "imap",
-      port: 3143,
-      tlsMode: "tls",
-      username: "maria.santos@inbox.example",
-      password: "E2E-SECRET-maria-imap",
-    },
-    sentFolderPath: "Sent",
-  });
-  await seedAiSettings(deps, ws, {
-    provider: "openai-compatible",
-    baseUrl: "http://fake-ai.test/v1",
-    models: TEST_AI_MODELS,
-    apiKey: "E2E-SECRET-key",
-  });
-  firstScan = await seedScan(deps, ws, { kind: "first", status: "stopped" });
-  deps.live.subscribe(
-    { workspaceId: ws, userId: maria.id, sessionId: "s" },
-    (e) => events.push(e),
-    () => {},
-  );
-  // The scheduler's own timer is never started: each test ticks by hand.
-  scheduler = createScheduler(deps, { sweep: async () => {} });
+  try {
+    const box = createFakeMailbox({ uidValidity: 100 });
+    const fakeAi = createFakeAi();
+    d.mail = box.port;
+    d.ai = fakeAi.port;
+    const user = await seedUser(d, { name: "Maria Santos" });
+    const id = await seedMailbox(d, user.workspaceId, {
+      address: "maria.santos@inbox.example",
+      conn: {
+        host: "imap",
+        port: 3143,
+        tlsMode: "tls",
+        username: "msantos",
+        password: "E2E-SECRET-maria-imap",
+      },
+      sentFolderPath: "Sent",
+    });
+    await seedAiSettings(d, user.workspaceId, {
+      provider: "openai-compatible",
+      baseUrl: "http://fake-ai.test/v1",
+      models: TEST_AI_MODELS,
+      apiKey: "E2E-SECRET-key",
+    });
+    const scan = await seedScan(d, user.workspaceId, { kind: "first", status: "stopped" });
+    d.live.subscribe(
+      { workspaceId: user.workspaceId, userId: user.id, sessionId: "s" },
+      (e) => seen.push(e),
+      () => {},
+    );
+    if (setup !== setups) {
+      await d.close();
+      return;
+    }
+    current = d;
+    deps = d;
+    mailbox = box;
+    ai = fakeAi;
+    stages = recording;
+    reevaluations = reevaluated;
+    events = seen;
+    maria = user;
+    ws = user.workspaceId;
+    mailboxId = id;
+    firstScan = scan;
+    // The scheduler's own timer is never started: each test ticks by hand.
+    scheduler = createScheduler(d, { sweep: async () => {} });
+  } catch (error) {
+    await d.close();
+    throw error;
+  }
 });
-afterEach(() => deps.close());
+afterEach(async () => {
+  // A setup still running now is late: it closes what it built itself.
+  setups++;
+  const d = current;
+  current = undefined;
+  scheduler?.stop();
+  await d?.close();
+});
 
 /** Runs every queued job on this replica. */
 async function drain() {
@@ -222,6 +260,9 @@ describe("new mail (F1.1)", () => {
       lastUid: 2,
       lastSyncedAt: NOW,
     });
+    // Connected with the mailbox's stored address (the drafts' From), not the IMAP login.
+    expect(mailbox.connections.map((c) => c.username)).toContain("msantos");
+    expect(new Set(mailbox.addresses)).toEqual(new Set(["maria.santos@inbox.example"]));
   });
 
   it("reads only what came after the last sync, and nothing when nothing came", async () => {
@@ -492,6 +533,7 @@ describe("a failing sync (F1.4)", () => {
       state: "failing",
       lastSyncedAt: null,
       failingSince: NOW.toISOString(),
+      reason: "unreachable",
       message: "Couldn't reach the mail server",
     });
     expect(events).toContainEqual({ type: "mailbox.updated", data: {} });
@@ -527,6 +569,7 @@ describe("a failing sync (F1.4)", () => {
       state: "ok",
       lastSyncedAt: deps.clock.now().toISOString(),
       failingSince: null,
+      reason: null,
       message: null,
     });
     expect(await getSyncState(deps.db, ws, mailboxId, SYNC_FOLDER)).toMatchObject({
@@ -541,6 +584,9 @@ describe("a failing sync (F1.4)", () => {
     mailbox.failNext("connect");
     await interval();
     expect(logged("sync.failed")).toMatchObject([{ cause: "mail_unavailable", failures: 1 }]);
+    expect(await getMailboxSyncStatus(deps.db, ws, mailboxId)).toMatchObject({
+      reason: "unreachable",
+    });
     // Nothing was read, so nothing is lost: the next sync reads it.
     expect(await getStoredMessages(deps.db, ws, ["<a@agency.example>"])).toEqual([]);
     knownToAi("<a@agency.example>");
@@ -556,7 +602,18 @@ describe("a failing sync (F1.4)", () => {
     expect(deps.rawLogs.join("\n")).not.toMatch(/E2E-SECRET|imap\.inbox\.example/);
     expect(await getMailboxSyncStatus(deps.db, ws, mailboxId)).toMatchObject({
       state: "failing",
+      reason: "error",
       message: "Something went wrong while syncing the mailbox",
+    });
+  });
+
+  it("keeps the mail server's own reason, for the status to show its words", async () => {
+    mailbox.failNext("fetchSince", new MailUnavailableError("wrong_password"));
+    await interval();
+    expect(await getMailboxSyncStatus(deps.db, ws, mailboxId)).toMatchObject({
+      state: "failing",
+      reason: "wrong_password",
+      message: expect.stringMatching(/didn't accept the user name or password/),
     });
   });
 });
