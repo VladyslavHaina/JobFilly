@@ -493,6 +493,25 @@ describe("Couldn't analyze and the budget (F3.4, TBD-17)", { timeout: SLOW }, ()
     expect(await countNotAnalyzed(s.deps.db, s.workspaceId)).toBe(5);
   });
 
+  it("logs a provider error's HTTP status and error type when it stops", async () => {
+    const box = mailbox(5);
+    const s = await setup(box.envelopes, recruiterAnswers(box.notJob));
+    s.ai.failWith("provider_error", {
+      httpStatus: 400,
+      providerErrorType: "invalid_request_error",
+    });
+    await s.start();
+    await s.runAll();
+    expect(logs(s.deps, "scan.stopped")).toEqual([
+      expect.objectContaining({
+        cause: "ai_provider_error",
+        httpStatus: 400,
+        providerErrorType: "invalid_request_error",
+        stopCause: "ai",
+      }),
+    ]);
+  });
+
   it("stops as failed when the workspace has no AI settings", async () => {
     const s = await setup(mailbox(2).envelopes, {}, { ai: false });
     const scanId = await s.start();

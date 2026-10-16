@@ -30,6 +30,7 @@ import type { AppDeps } from "../../deps";
 import type { Logger } from "../../log";
 import {
   type AnalysisRun,
+  aiFailed,
   analyzeBatch,
   FATAL,
   mailItems,
@@ -253,7 +254,14 @@ export async function runScan(input: RunInput): Promise<void> {
       return;
     }
     if (failure) {
-      log.warn("scan.stopped", { scanId, reason, cause: failure.code, stopCause, calls });
+      log.warn("scan.stopped", {
+        scanId,
+        reason,
+        cause: failure.code,
+        ...failure.detail,
+        stopCause,
+        calls,
+      });
     } else log.info("scan.stopped", { scanId, reason, analyzed: counts.analyzed, calls });
     const message = stopMessage(reason, counts.analyzed, counts.likely, stopCause);
     send({
@@ -287,7 +295,7 @@ export async function runScan(input: RunInput): Promise<void> {
           await markAnalysisFailed(db, workspaceId, { messageId: item.messageId, scanId });
           changed += 1;
         } else if (FATAL.includes(item.error.kind)) {
-          throw new RunFailed("ai", `ai_${item.error.kind}`);
+          throw aiFailed(item.error);
         }
       }
       await propose();

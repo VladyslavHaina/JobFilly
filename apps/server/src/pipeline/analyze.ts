@@ -26,16 +26,27 @@ export const FATAL: readonly AiError["kind"][] = ["auth", "unreachable", "provid
 
 /**
  * The run can't go on. `stopCause` is what the user is told it ran into (the mailbox, the AI
- * provider, or JobFilly itself); `code` is the log's finer cause.
+ * provider, or JobFilly itself); `code` is the log's finer cause, and `detail` adds codes for the
+ * log line (a provider's HTTP status and error type), never a message.
  */
 export class RunFailed extends Error {
   constructor(
     readonly stopCause: StopCause,
     readonly code: string,
+    readonly detail: Record<string, string | number> = {},
   ) {
     super(`analysis run failed: ${code}`);
     this.name = "RunFailed";
   }
+}
+
+/** The run stops on a provider failure; its HTTP status and error type go to the log. */
+export function aiFailed(error: AiError): RunFailed {
+  const { httpStatus, providerErrorType } = error;
+  return new RunFailed("ai", `ai_${error.kind}`, {
+    ...(httpStatus !== undefined ? { httpStatus } : {}),
+    ...(providerErrorType !== undefined ? { providerErrorType } : {}),
+  });
 }
 
 /** What one run of the analysis works with, and the limits its owner sets. */
@@ -131,7 +142,7 @@ export async function analyzeBatch(
       else if (r.error.kind === "invalid_output") {
         await markAnalysisFailed(db, workspaceId, { messageId: r.messageId, scanId });
         outcome.analyzed += 1;
-      } else if (FATAL.includes(r.error.kind)) throw new RunFailed("ai", `ai_${r.error.kind}`);
+      } else if (FATAL.includes(r.error.kind)) throw aiFailed(r.error);
     }
   }
   for (const row of batch) {
@@ -159,7 +170,7 @@ export async function analyzeBatch(
       await markAnalysisFailed(db, workspaceId, { messageId, scanId });
       outcome.analyzed += 1;
     } else if (FATAL.includes(result.error.kind)) {
-      throw new RunFailed("ai", `ai_${result.error.kind}`);
+      throw aiFailed(result.error);
     }
   }
   return outcome;

@@ -92,8 +92,11 @@ export interface FakeAi {
   port: AiPort;
   /** Every call made, in order: the task and the Message-IDs it carried. */
   calls: { task: TaskId; ids: string[] }[];
-  /** Every call from now on fails the way a provider does. */
-  failWith(kind: AiError["kind"] | null): void;
+  /** Every call from now on fails the way a provider does, with the error's codes if given. */
+  failWith(
+    kind: AiError["kind"] | null,
+    codes?: Pick<AiError, "httpStatus" | "providerErrorType">,
+  ): void;
   /** Called before every call answers (n counts calls from 1); a test can act mid-run, or
    * hold one call by returning a promise it resolves later. */
   beforeAnswer: ((task: TaskId, n: number) => Promise<void> | void) | null;
@@ -102,13 +105,13 @@ export interface FakeAi {
 const usage = (task: TaskId): Usage => ({ task, inputTokens: 100, outputTokens: 10 });
 
 export function fakeAi(answers: FakeAiAnswers): FakeAi {
-  let failure: AiError["kind"] | null = null;
+  let failure: AiError | null = null;
 
   const fake: FakeAi = {
     calls: [],
     beforeAnswer: null,
-    failWith(kind) {
-      failure = kind;
+    failWith(kind, codes) {
+      failure = kind && { kind, message: "fake failure", ...codes };
     },
     port: { client: () => client },
   };
@@ -130,7 +133,7 @@ export function fakeAi(answers: FakeAiAnswers): FakeAi {
       await request(task, pending);
       result.usage.push(usage(task));
       if (failure) {
-        const error = { kind: failure, message: "fake failure" };
+        const error = failure;
         for (const messageId of pending) result.items.push({ messageId, ok: false, error });
         return result;
       }
