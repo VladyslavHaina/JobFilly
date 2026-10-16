@@ -161,11 +161,16 @@ test("S5: the job inbox", async ({ page, playwright, baseURL }) => {
 
   await test.step("the correction is kept after a reload", async () => {
     await page.reload();
-    await expect(
-      page.getByRole("heading", { name: subjectOf(invalid), level: 2, exact: true }),
-    ).toBeVisible();
+    const heading = page.getByRole("heading", { name: subjectOf(invalid), level: 2, exact: true });
+    await expect(heading).toBeVisible();
     await expect(page.getByLabel("Category", { exact: true })).toHaveValue(corrected);
     await expect(page.getByText("Corrected by hand: later analysis keeps it.")).toBeVisible();
+    // A corrected message no longer reads as Couldn't analyze.
+    const card = heading.locator("xpath=ancestor::section[1]");
+    await expect(card.getByText("Couldn't analyze", { exact: true })).toHaveCount(0);
+    await expect(card.getByRole("button", { name: "Set the category", exact: true })).toHaveCount(
+      0,
+    );
   });
 
   await test.step("filter Interview: only the interview invite", async () => {
