@@ -10,9 +10,9 @@ import {
   type Profile,
   type Role,
 } from "@jobfilly/schema";
-import { cleanup, configure, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   type FakeRequest,
   fakeApi,
@@ -24,23 +24,6 @@ import {
 import { paths } from "../../paths";
 
 // The intake form inside the app's own routes, against a fake API (F6.1-F6.4, F6.6, F6.7, S4).
-
-/**
- * How long a wait may take. Waits here cross a route's first render, a navigation and fetches,
- * which under heavy CPU load take longer than Testing Library's 1-second default; a wait that
- * would never succeed still fails, only later.
- */
-const SLOW_MS = 10_000;
-
-// Before the tests are collected, so each gets room to wait SLOW_MS (Vitest's default is 5 s).
-vi.setConfig({ testTimeout: 3 * SLOW_MS });
-beforeAll(() => {
-  configure({ asyncUtilTimeout: SLOW_MS });
-});
-afterAll(() => {
-  configure({ asyncUtilTimeout: 1000 });
-  vi.resetConfig();
-});
 
 afterEach(() => {
   cleanup();
@@ -441,12 +424,10 @@ describe("corrections (F6.4, S4)", () => {
 
     await user.click(screen.getByRole("button", { name: "Confirm" }));
     // What Confirm leads to is the next test's; here it is enough that it was sent.
-    await waitFor(
-      () =>
-        expect(requests.filter((r) => r.method === "POST").map((r) => r.path)).toEqual([
-          `/api/workspaces/${ws.id}/intake/confirm`,
-        ]),
-      { timeout: SLOW_MS },
+    await waitFor(() =>
+      expect(requests.filter((r) => r.method === "POST").map((r) => r.path)).toEqual([
+        `/api/workspaces/${ws.id}/intake/confirm`,
+      ]),
     );
     expect(keyboard).not.toHaveBeenCalled();
     expect(type).not.toHaveBeenCalled();
@@ -458,13 +439,8 @@ describe("corrections (F6.4, S4)", () => {
     const user = userEvent.setup({ delay: null });
     await card("Places you'd work onsite or hybrid");
     await user.click(screen.getByRole("button", { name: "Confirm" }));
-    // Navigating and loading the profile take longer under load; wait for each explicitly.
-    await waitFor(() => expect(router.state.location.pathname).toBe(paths.profile(ws.id)), {
-      timeout: SLOW_MS,
-    });
-    expect(
-      await screen.findByRole("heading", { name: "My job search" }, { timeout: SLOW_MS }),
-    ).toBeTruthy();
+    await waitFor(() => expect(router.state.location.pathname).toBe(paths.profile(ws.id)));
+    expect(await screen.findByRole("heading", { name: "My job search" })).toBeTruthy();
     expect(requests.filter((r) => r.method === "POST").map((r) => r.path)).toEqual([
       `/api/workspaces/${ws.id}/intake/confirm`,
     ]);
