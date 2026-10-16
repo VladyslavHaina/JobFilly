@@ -40,6 +40,8 @@ F1 → F2 → F3 → F4 → F5 → F6 → F7 → F8.
   - a second Zurich role in CHF, delivered after the CHF question is answered;
   - a scam asking for a fee and a passport scan;
   - a "recruiter" for a large company writing from a free-mail address.
+  - two onsite backend roles (Munich, Vienna) that her places cap, for S11: `s11-failover` and
+    `s11-recovery`, delivered one at a time.
 - **The first scan's backlog:** every good match in Maria's MVP 1 mailbox is older than 14 days,
   so the backlog gets matches but no automatic drafts.
 - **Assistant:** `e2e/fixtures/assistant/requests.json` — ten requests in English, German and
@@ -302,7 +304,7 @@ header set).
 | S8 | **Assistant: time zones** 📸 Open **Assistant** → type "Lately I don't want jobs in Asian time zones anymore, ignore them" → a "thinking" state, then a proposal card: "Hide roles whose working hours are UTC+5 or later", impact "hides 3 roles; 1 draft is already in your mailbox and stays there" → change the range to UTC+4 → **Apply** → the three Asia-Pacific roles move under **Hidden** with "Hidden by your rule …", and `seed inspect drafts maria` still shows that draft → the profile history shows the change (source: assistant) → **Undo** → the roles are back. Logs: `assistant.proposal_created`, `assistant.proposal_applied`, `rule.applied action=hide`, `profile.change_undone`. | F8.1–F8.5, F8.9, F3.1–F3.5 |
 | S9 | **Assistant: unclear and not allowed** Type "stop showing me bad jobs" → a clarifying question with choices → pick one → a proposal → **Discard** → nothing changed. Type "send my reply to the Berlin recruiter" → "I can't send mail" with where drafts are reviewed. Type a message in German → the reply is in German. Type a message containing `E2E-CHAT-1` → it later appears in the stored history but not in `app.log`. | F8.1, F8.6, F8.7, F8.10 |
 | S10 | **Roles** Maria sets Tom back to **Viewer** → Tom sees drafts, decisions and the assistant; editing, answering and **Apply** are disabled. Probes: Tom applying a proposal, answering a decision, editing a draft → 403 each. | F6.7, F7.7, F8.8 |
-| S11 | **Resilience** Deliver one message, read the `instance` of the next `sync.started`, and kill that replica → the next sync runs on the other replica and the message arrives; start the killed replica again → `docker compose pause imap` → the mailbox shows "Can't reach the mail server since …" → `docker compose unpause imap` → the status recovers and new mail flows again → `seed reset-uidvalidity maria` → after the next sync every correction, decision and draft is still there. Logs: `job.lease_expired`, `sync.failed`, `sync.uidvalidity_changed`. | F1.2–F1.4 |
+| S11 | **Resilience** Deliver one message (`seed deliver s11-failover`), read the `instance` of the next `sync.started`, and kill that replica → the next sync runs on the other replica and the message arrives; start the killed replica again → `docker compose pause imap` → the mailbox shows "Can't reach the mail server since …" → `docker compose unpause imap` → the status recovers and new mail flows again (`seed deliver s11-recovery` arrives) → `seed reset-uidvalidity maria` → after the next sync every correction, decision and draft is still there. Logs: `job.lease_expired`, `sync.failed`, `sync.uidvalidity_changed`. | F1.2–F1.4 |
 | S12 | **Regression** All MVP 1 specs pass. | — |
 
 **Proven outside the walkthrough:** F2.4 by an integration test (uploads never touch the replica's

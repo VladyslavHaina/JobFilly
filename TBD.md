@@ -5534,3 +5534,26 @@ These make sign-off possible; without them the build goes on and records an open
 - **Refs:** MVP-3 F3.1–F3.3, S4
 - **Status:** accepted
 
+## TBD-442 · S11 gets two deliveries of its own
+- **Kind:** decision
+- **Where:** MVP 2 · Validation (S11)
+- **Context:** All fourteen listed deliveries are used by S2 and S5, Tom has none, and `seed deliver` refuses duplicates, so S11's "deliver one message" and "new mail flows again" could not be walked.
+- **Options:**
+  1. Reuse a delivered message by resetting the seed
+  2. Two new deliveries tagged S11
+- **Chosen:** Option 2: `s11-failover` (onsite Munich) and `s11-recovery` (onsite Vienna), both capped by her places, so they get no draft and no decision (ab3ee55). The fixture list and S11 in docs/mvp/MVP-2.md name them (owner edit, decided on the owner's behalf).
+- **If you decide otherwise:** Remove the two deliveries and the spec lines; S11's delivery steps can then not be walked.
+- **Refs:** S11, F1.2–F1.4; e2e/fixtures/build/deliveries.ts
+- **Status:** accepted
+
+## TBD-443 · A remote scope in free words stays unknown
+- **Kind:** decision
+- **Where:** MVP 2 · Fix round 1 (match, I4)
+- **Context:** Every remote role shows "Unknown — Remote, within the EU — not compared with your remote 'EU'". A token match ("EU" in "within the EU") would make it a fit, but without word lists it also makes "Non EU", "not the EU" and "außerhalb der EU" fits, which breaks "unknown means ask".
+- **Options:**
+  1. Token match in core (abd3b4d, not merged)
+  2. Keep unknown (TBD-435) and let the AI judge scope closeness later (match.v1, TBD-247 option 2)
+- **Chosen:** Option 2 for MVP 2: safety over convenience. Revisit in MVP 3 with a scope verdict from match.v1.
+- **If you decide otherwise:** Merge abd3b4d from branch orch2-core and accept the negation cases as fits.
+- **Refs:** F4.1, TBD-247, TBD-435, packages/core/src/match/match.ts
+- **Status:** accepted
