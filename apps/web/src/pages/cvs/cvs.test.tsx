@@ -69,6 +69,31 @@ afterEach(() => {
 });
 
 describe("the CVs page (F2.1)", () => {
+  it("explains what CVs are for and offers the upload when there are none yet", async () => {
+    let items: Cv[] = [];
+    api({
+      [`GET ${url}`]: () => ({ items }),
+      [`POST ${url}`]: () => {
+        items = [backendEn];
+        return Response.json(backendEn, { status: 201 });
+      },
+    });
+    renderInWorkspace(<CvsPage workspaceId={ws.id} />, { role: "editor" });
+    const empty = await screen.findByText(/No CVs uploaded yet/);
+    expect(empty.textContent).toMatch(/matched against the skills in your CVs/);
+    expect(empty.textContent).toMatch(/attached to its draft reply/);
+    expect(screen.queryByText("Nothing to show here yet.")).toBeNull();
+    const input = screen.getByLabelText("Upload CVs") as HTMLInputElement;
+    expect(input.type).toBe("file");
+    expect(input.multiple).toBe(true);
+    await userEvent.upload(
+      input,
+      new File(["%PDF-1.4"], "backend-en.pdf", { type: "application/pdf" }),
+    );
+    expect(await screen.findByRole("heading", { name: "Backend (EN)" })).toBeTruthy();
+    expect(screen.queryByText(/No CVs uploaded yet/)).toBeNull();
+  });
+
   it("uploads the chosen files through the file input with apiUpload", async () => {
     let items = [backendEn];
     const { seen, forms } = api({
@@ -247,7 +272,7 @@ describe("the CVs page (F2.1)", () => {
     const dialog = screen.getByRole("dialog", { name: "Delete Backend (EN)?" });
     expect(dialog.textContent).toContain("Drafts already in your mailbox stay there.");
     await userEvent.click(within(dialog).getByRole("button", { name: "Delete" }));
-    expect(await screen.findByText("No CVs uploaded yet.")).toBeTruthy();
+    expect(await screen.findByText(/^No CVs uploaded yet\./)).toBeTruthy();
     expect(seen.find((r) => r.method === "DELETE")?.path).toBe(`${url}/${backendEn.id}`);
   });
 });

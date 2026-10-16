@@ -259,7 +259,12 @@ export function CvsPage({ workspaceId }: { workspaceId: string }) {
         )}
         {cvs.isPending && <Loading />}
         {cvs.isError && <Alert>{errorText(cvs.error)}</Alert>}
-        {cvs.data?.length === 0 && <p className="text-sm text-stone-600">No CVs uploaded yet.</p>}
+        {cvs.data?.length === 0 && (
+          <p className="rounded-lg border border-dashed border-stone-300 px-4 py-6 text-sm text-stone-600">
+            No CVs uploaded yet. Each role in your job mail is matched against the skills in your
+            CVs, and the CV that fits a role best is attached to its draft reply.
+          </p>
+        )}
         {cvs.data?.map((cv) => (
           <CvCard key={cv.id} cv={cv} />
         ))}
