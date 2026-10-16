@@ -25,14 +25,17 @@
       "ignoreDependencies": ["nodemailer", "@types/nodemailer"]
     },
     // The test stack's entry points are started by stack.ts, compose and the e2e image, not
-    // imported: the stack runner, the fake AI, the seed loader, the fixture generator, the
-    // Playwright config and specs. A change that adds another entry point (MVP 2's fake RDAP
-    // service, say) adds it here in the same change, so this list names only files that exist.
+    // imported: the stack runner, the fake AI, the seed loader, the fake RDAP service (compose
+    // runs `node e2e/rdap/main.ts`), the fixture generator, the Playwright config and specs.
+    // CoreDNS runs from e2e/dns/Corefile, so the dns service has no entry point here. A change
+    // that adds another entry point adds it here in the same change, so this list names only
+    // files that exist (TBD-226, superseding TBD-206's "slices never edit knip.jsonc").
     "e2e": {
       "entry": [
         "stack.ts",
         "fake-ai/main.ts",
         "seed/main.ts",
+        "rdap/main.ts",
         "fixtures/build/main.ts",
         "playwright.config.ts",
         "specs/**/*.spec.ts"

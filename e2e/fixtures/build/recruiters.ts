@@ -27,6 +27,7 @@ export interface RecruiterMail {
   body: string;
   footer: readonly string[];
   facts: JobFacts;
+  language: Lang;
 }
 
 interface Location {
@@ -634,5 +635,6 @@ export function recruiterMail(rnd: Random, lang: Lang, orgName?: string): Recrui
     body,
     footer: p.footer,
     facts,
+    language: lang,
   };
 }

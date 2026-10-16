@@ -66,6 +66,8 @@ export function tom(): PersonaSource {
       stageOne: "job_alert",
       category: "job_alert",
       facts: nhsRoles,
+      // Tom's profile states nothing (MVP 1 S7), so no role of his conflicts with it.
+      hardConflicts: [[], []],
       listUnsubscribe: "<https://www.jobs.nhs.uk/candidate/alerts/unsubscribe?id=55120>",
     },
   );
@@ -100,6 +102,7 @@ export function tom(): PersonaSource {
       stageOne: "job_alert",
       category: "job_alert",
       facts: totaljobsRoles,
+      hardConflicts: [[], []],
       listUnsubscribe: "<https://www.totaljobs.com/alerts/unsubscribe?id=88231>",
     },
   );
@@ -122,6 +125,7 @@ export function tom(): PersonaSource {
           contract: "Agency",
         }),
       ],
+      hardConflicts: [[]],
     },
   );
 
@@ -135,6 +139,7 @@ export function tom(): PersonaSource {
     {
       category: "application_update",
       facts: [role({ title: "Staff Nurse, Ward 4", company: "Kersal Private Hospital" })],
+      hardConflicts: [[]],
     },
   );
 

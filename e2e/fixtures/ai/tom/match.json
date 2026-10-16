@@ -1,0 +1,44 @@
+{
+  "<tom-0001@jobs.nhs.uk>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Staff Nurse – Acute Medical Unit\" is a nursing role, like the Nurse (EN) CV"
+    },
+    "skillCloseness": []
+  },
+  "<tom-0001@jobs.nhs.uk>#1": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Clinical Nurse Specialist – Respiratory\" is a nursing role, like the Nurse (EN) CV"
+    },
+    "skillCloseness": []
+  },
+  "<tom-0003@carelinknursing.example>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Registered General Nurse (agency shifts)\" is a nursing role, like the Nurse (EN) CV"
+    },
+    "skillCloseness": []
+  },
+  "<tom-0004@smartrecruiters.com>#0": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Staff Nurse, Ward 4\" is a nursing role, like the Nurse (EN) CV"
+    },
+    "skillCloseness": []
+  },
+  "<tom-0002@totaljobs.com>#0": {
+    "titleFit": {
+      "verdict": "unknown",
+      "reason": "\"Theatre Practitioner\" may or may not be nursing work"
+    },
+    "skillCloseness": []
+  },
+  "<tom-0002@totaljobs.com>#1": {
+    "titleFit": {
+      "verdict": "fits",
+      "reason": "\"Community Staff Nurse\" is a nursing role, like the Nurse (EN) CV"
+    },
+    "skillCloseness": []
+  }
+}

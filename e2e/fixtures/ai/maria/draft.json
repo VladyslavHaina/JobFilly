@@ -1,0 +1,125 @@
+{
+  "<maria-deliver-berlin-de@kiezwerk.example>#0#1": {
+    "subject": "Re: Senior Backend-Entwicklerin (m/w/d) bei Kiezwerk – Berlin, hybrid",
+    "body": "Hallo Frau Hoffmann,\n\nvielen Dank für Ihre Nachricht. Die Stelle als Senior Backend-Entwicklerin in Berlin, hybrid, passt sehr gut zu dem, was ich suche: Ich arbeite seit Jahren mit Go, PostgreSQL und Kubernetes, und das Gehalt liegt in meinem Rahmen.\n\nMeinen Lebenslauf habe ich angehängt. Ich freue mich auf Ihren Terminvorschlag.\n\nViele Grüße\nMaria Santos",
+    "language": "de",
+    "usedEntries": [
+      "target_roles",
+      "seniority",
+      "places",
+      "min_pay"
+    ],
+    "attachCv": true,
+    "questions": []
+  },
+  "<maria-deliver-remote-eu@fjordline.example>#0#1": {
+    "subject": "Re: Senior Backend Engineer – remote within the EU",
+    "body": "Hi [Name],\n\nThank you for reaching out. A remote Senior Backend Engineer role within the EU on CET hours is exactly what I'm looking for, and I work with Go, Kafka and PostgreSQL every day.\n\nA call next week works for me.\n\nBest regards,\nMaria Santos",
+    "language": "en",
+    "usedEntries": [
+      "target_roles",
+      "seniority",
+      "remote",
+      "min_pay"
+    ],
+    "attachCv": false,
+    "questions": []
+  },
+  "<maria-deliver-remote-eu@fjordline.example>#0#2": {
+    "subject": "Re: Senior Backend Engineer – remote within the EU",
+    "body": "Hi Ingrid,\n\nThank you for reaching out. A remote Senior Backend Engineer role within the EU on CET hours is exactly what I'm looking for, and I work with Go, Kafka and PostgreSQL every day.\n\nA call next week works for me.\n\nBest regards,\nMaria Santos",
+    "language": "en",
+    "usedEntries": [
+      "target_roles",
+      "seniority",
+      "remote",
+      "min_pay"
+    ],
+    "attachCv": false,
+    "questions": []
+  },
+  "<maria-deliver-apac-1@lanterncommerce.example>#0#1": {
+    "subject": "Re: Senior Backend Engineer – remote, Singapore hours",
+    "body": "Hi Aditi,\n\nThank you for getting in touch. The Senior Backend Engineer role sounds interesting: Go, PostgreSQL and Kubernetes are what I work with, and a permanent remote role suits me.\n\nI'd be glad to talk this week.\n\nBest regards,\nMaria Santos",
+    "language": "en",
+    "usedEntries": [
+      "target_roles",
+      "seniority",
+      "remote",
+      "min_pay"
+    ],
+    "attachCv": false,
+    "questions": []
+  },
+  "<maria-deliver-data-eng@nordkap-data.example>#0#1": {
+    "subject": "Re: Data Engineer – remote in the EU",
+    "body": "Hi Oskar,\n\nThank you for your message. I've built reporting pipelines in Python and SQL, scheduled with Apache Airflow and modelled with dbt, so the role caught my eye.\n\nI'd be happy to hear more about the team.\n\nBest regards,\nMaria Santos",
+    "language": "en",
+    "usedEntries": [
+      "remote"
+    ],
+    "attachCv": false,
+    "questions": []
+  },
+  "<maria-deliver-zurich@limmatledger.example>#0#1": {
+    "subject": "Re: Senior Backend Engineer – remote, team in Zurich",
+    "body": "Hi Nina,\n\nThank you for reaching out. A remote Senior Backend Engineer role working in Go on PostgreSQL fits what I'm looking for, and the salary range you mention in CHF works for me.\n\nI'd be glad to set up a call.\n\nBest regards,\nMaria Santos",
+    "language": "en",
+    "usedEntries": [
+      "target_roles",
+      "seniority",
+      "remote",
+      "min_pay"
+    ],
+    "attachCv": false,
+    "questions": []
+  },
+  "<maria-deliver-basel@rheinknie.example>#0#1": {
+    "subject": "Re: Senior Backend-Entwickler (m/w/d) – remote, Team in Basel",
+    "body": "Hallo Herr Meier,\n\nvielen Dank für Ihre Nachricht. Eine Remote-Stelle als Senior Backend-Entwicklerin mit Go und Kubernetes passt sehr gut zu mir, und die genannte Gehaltsspanne in CHF entspricht meinen Vorstellungen.\n\nIch freue mich auf ein erstes Gespräch.\n\nViele Grüße\nMaria Santos",
+    "language": "de",
+    "usedEntries": [
+      "target_roles",
+      "seniority",
+      "remote",
+      "min_pay"
+    ],
+    "attachCv": false,
+    "questions": []
+  },
+  "<maria-deliver-dublin@liffeylabs.example>#0#1": {
+    "subject": "Re: Senior Backend Engineer – remote-first, office in Dublin",
+    "body": "Hi Aoife,\n\nThank you for reaching out. A remote Senior Backend Engineer role in Go and PostgreSQL fits what I'm looking for.\n\nBest regards,\nMaria Santos",
+    "language": "en",
+    "usedEntries": [
+      "target_roles",
+      "seniority",
+      "remote"
+    ],
+    "attachCv": false,
+    "questions": [
+      {
+        "profileKey": "extra.relocation-ireland",
+        "groupKey": "extra.relocation-ireland",
+        "question": "Would you relocate to Ireland?",
+        "choices": [
+          "Yes",
+          "No",
+          "Maybe later"
+        ]
+      }
+    ]
+  },
+  "<maria-deliver-zurich-2@uetliberg.example>#0#1": {
+    "subject": "Re: Backend Engineer (Go) – remote, Zurich",
+    "body": "Hi Marco,\n\nThank you for your message. A remote Backend Engineer role on a Go platform fits what I'm looking for, and the salary range you mention in CHF works for me.\n\nI'd be happy to talk.\n\nBest regards,\nMaria Santos",
+    "language": "en",
+    "usedEntries": [
+      "target_roles",
+      "remote",
+      "min_pay"
+    ],
+    "attachCv": false,
+    "questions": []
+  }
+}

@@ -34,7 +34,7 @@ export const ATS_FOOTER = [
 
 export const ALERT_FOOTER = [
   "You are receiving job alert emails because you created a job alert. You can change how often you receive these alerts, edit your search or stop the alert at any time from your alert settings.",
-  "Jobs are listed by the employers and recruiters who post them; check every listing carefully and never pay a fee or share identity documents to apply. Salaries and locations are shown as the employer provided them.",
+  "Jobs are listed by the employers and recruiters who post them; check every listing carefully: a genuine employer never asks for money or identity documents before an offer. Salaries and locations are shown as the employer provided them.",
   "This email was sent to you by the job platform. Our privacy policy explains how we use your search activity to recommend jobs. To stop receiving all marketing and alert emails, use the unsubscribe link in your settings.",
 ];
 

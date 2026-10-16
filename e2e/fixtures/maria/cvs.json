@@ -1,0 +1,20 @@
+[
+  {
+    "file": "backend-en.pdf",
+    "name": "Backend (EN)",
+    "mediaType": "pdf",
+    "contentHash": "b21d559f3c827b7627d7a03c310acab03de1cf86413d8366d14230928465d4cf"
+  },
+  {
+    "file": "backend-de.docx",
+    "name": "Backend (DE)",
+    "mediaType": "docx",
+    "contentHash": "20abfe9b14d16b6b2aafdfb250161e60a6b83a657a0ac0f9b1cf3b23ec252d75"
+  },
+  {
+    "file": "data-engineering-en.pdf",
+    "name": "Data engineering (EN)",
+    "mediaType": "pdf",
+    "contentHash": "50c3e2b2d0588c41edabeb53cd09ec4ac6c8506e4f0cdebe282ac73ce9b4eb56"
+  }
+]

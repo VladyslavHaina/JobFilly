@@ -1,0 +1,289 @@
+{
+  "domains": {
+    "alfamalabs.example": {
+      "registeredDaysAgo": 4755
+    },
+    "atlantico-talent.example": {
+      "registeredDaysAgo": 5441
+    },
+    "atlantictech.example": {
+      "registeredDaysAgo": 2420
+    },
+    "backendbrief.example": {
+      "registeredDaysAgo": 6723
+    },
+    "bookbarn.example": {
+      "registeredDaysAgo": 1826
+    },
+    "booknest.example": {
+      "registeredDaysAgo": 3875
+    },
+    "brightwave.example": {
+      "registeredDaysAgo": 3439
+    },
+    "canalwalks.example": {
+      "registeredDaysAgo": 1597
+    },
+    "carelinknursing.example": {
+      "registeredDaysAgo": 6786
+    },
+    "cinemaforum.example": {
+      "registeredDaysAgo": 4842
+    },
+    "cityride.example": {
+      "registeredDaysAgo": 5515
+    },
+    "climbportugal.example": {
+      "registeredDaysAgo": 4032
+    },
+    "copperleaf.example": {
+      "registeredDaysAgo": 6142
+    },
+    "councilbins.example": {
+      "registeredDaysAgo": 7009
+    },
+    "devweekly.example": {
+      "registeredDaysAgo": 6811
+    },
+    "dijkstra-logistics.example": {
+      "registeredDaysAgo": 7211
+    },
+    "dourofintech.example": {
+      "registeredDaysAgo": 3453
+    },
+    "elbwerk.example": {
+      "registeredDaysAgo": 4071
+    },
+    "electra-energia.example": {
+      "registeredDaysAgo": 2743
+    },
+    "eurobackendconf.example": {
+      "registeredDaysAgo": 7025
+    },
+    "fithubgym.example": {
+      "registeredDaysAgo": 3083
+    },
+    "fjordline.example": {
+      "registeredDaysAgo": 3308
+    },
+    "ginasio-alfama.example": {
+      "registeredDaysAgo": 5512
+    },
+    "globalcareers-mail.example": {
+      "registeredDaysAgo": 40
+    },
+    "gmail.com": {
+      "registeredDaysAgo": 6156
+    },
+    "gonews.example": {
+      "registeredDaysAgo": 3707
+    },
+    "grachtenbank.example": {
+      "registeredDaysAgo": 7146
+    },
+    "grachtwerk.example": {
+      "registeredDaysAgo": 6165
+    },
+    "greenhouse-mail.io": {
+      "registeredDaysAgo": 2320
+    },
+    "harborline.example": {
+      "registeredDaysAgo": 7159
+    },
+    "harbour-rec.example": {
+      "registeredDaysAgo": 4406
+    },
+    "hire.lever.co": {
+      "registeredDaysAgo": 3331
+    },
+    "hirewave.example": {
+      "registeredDaysAgo": 3499
+    },
+    "inbox.example": {
+      "registeredDaysAgo": 2968
+    },
+    "indeed.com": {
+      "registeredDaysAgo": 5690
+    },
+    "isar-personal.example": {
+      "registeredDaysAgo": 5602
+    },
+    "jobs.nhs.uk": {
+      "registeredDaysAgo": 1564
+    },
+    "kanaalstraat.example": {
+      "registeredDaysAgo": 2359
+    },
+    "kiezwerk.example": {
+      "registeredDaysAgo": 1518
+    },
+    "kitchenstories.example": {
+      "registeredDaysAgo": 7151
+    },
+    "lanterncommerce.example": {
+      "registeredDaysAgo": 2602
+    },
+    "liffeylabs.example": {
+      "registeredDaysAgo": 6228
+    },
+    "limmatledger.example": {
+      "registeredDaysAgo": 7099
+    },
+    "linguapal.example": {
+      "registeredDaysAgo": 6872
+    },
+    "linkedin.com": {
+      "registeredDaysAgo": 5727
+    },
+    "lisboaguide.example": {
+      "registeredDaysAgo": 6481
+    },
+    "lisbontechfair.example": {
+      "registeredDaysAgo": 6935
+    },
+    "lojastejo.example": {
+      "registeredDaysAgo": 6111
+    },
+    "mail.example": {
+      "registeredDaysAgo": 1513
+    },
+    "mcrevening.example": {
+      "registeredDaysAgo": 2284
+    },
+    "mercadofresco.example": {
+      "registeredDaysAgo": 5980
+    },
+    "merlion-pay.example": {
+      "registeredDaysAgo": 3416
+    },
+    "metrotickets.example": {
+      "registeredDaysAgo": 5891
+    },
+    "molenwijkbank.example": {
+      "registeredDaysAgo": 5741
+    },
+    "museudigital.example": {
+      "registeredDaysAgo": 1857
+    },
+    "myworkday.com": {
+      "registeredDaysAgo": 2068
+    },
+    "nationalevacaturebank.nl": {
+      "registeredDaysAgo": 6641
+    },
+    "net-empregos.com": {
+      "registeredDaysAgo": 4034
+    },
+    "nordkap-data.example": {
+      "registeredDaysAgo": 6017
+    },
+    "nordlicht-pay.example": {
+      "registeredDaysAgo": 1760
+    },
+    "northbridge-talent.example": {
+      "registeredDaysAgo": 2828
+    },
+    "northernrail.example": {
+      "registeredDaysAgo": 5719
+    },
+    "northwater.example": {
+      "registeredDaysAgo": 5525
+    },
+    "oceancharity.example": {
+      "registeredDaysAgo": 7234
+    },
+    "parkingpay.example": {
+      "registeredDaysAgo": 2235
+    },
+    "personio.de": {
+      "registeredDaysAgo": 6668
+    },
+    "pgdigest.example": {
+      "registeredDaysAgo": 6849
+    },
+    "picturehouse.example": {
+      "registeredDaysAgo": 1919
+    },
+    "plantshop.example": {
+      "registeredDaysAgo": 1598
+    },
+    "polder-talent.example": {
+      "registeredDaysAgo": 4369
+    },
+    "post.example": {
+      "registeredDaysAgo": 1519
+    },
+    "quaysidebank.example": {
+      "registeredDaysAgo": 5262
+    },
+    "quickhire-global.example": {
+      "registeredDaysAgo": 6
+    },
+    "readly.example": {
+      "registeredDaysAgo": 3224
+    },
+    "recruitee.com": {
+      "registeredDaysAgo": 5713
+    },
+    "reddevilsfans.example": {
+      "registeredDaysAgo": 4703
+    },
+    "rheinknie.example": {
+      "registeredDaysAgo": 2032
+    },
+    "rheinpfad.example": {
+      "registeredDaysAgo": 6281
+    },
+    "ribeira-rh.example": {
+      "registeredDaysAgo": 4732
+    },
+    "skylusa.example": {
+      "registeredDaysAgo": 6727
+    },
+    "smartrecruiters.com": {
+      "registeredDaysAgo": 5503
+    },
+    "stepstone.de": {
+      "registeredDaysAgo": 6936
+    },
+    "streambox.example": {
+      "registeredDaysAgo": 2503
+    },
+    "streamflix.example": {
+      "registeredDaysAgo": 3798
+    },
+    "talentbruecke.example": {
+      "registeredDaysAgo": 6790
+    },
+    "teamtailor.com": {
+      "registeredDaysAgo": 4727
+    },
+    "tidewater.example": {
+      "registeredDaysAgo": 4453
+    },
+    "totaljobs.com": {
+      "registeredDaysAgo": 6452
+    },
+    "trailrunner.example": {
+      "registeredDaysAgo": 4891
+    },
+    "uetliberg.example": {
+      "registeredDaysAgo": 2040
+    },
+    "valuemart.example": {
+      "registeredDaysAgo": 5216
+    },
+    "vodafino.example": {
+      "registeredDaysAgo": 3547
+    },
+    "wattledata.example": {
+      "registeredDaysAgo": 6442
+    },
+    "workablemail.com": {
+      "registeredDaysAgo": 3388
+    },
+    "xing.com": {
+      "registeredDaysAgo": 6534
+    }
+  }
+}
