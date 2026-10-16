@@ -30,6 +30,8 @@ interface ResponderState {
   literal: number;
   appendTag: string | null;
   appended: string[];
+  /** The INTERNALDATE the responder sends for its message. */
+  internalDate: string;
 }
 
 function respond(socket: Socket, line: string, state: ResponderState) {
@@ -83,7 +85,7 @@ function respond(socket: Socket, line: string, state: ResponderState) {
         const body = Buffer.from(MESSAGE);
         const section = /BODY\.PEEK\[\]<0\.\d+>/.test(args) ? "BODY[]<0>" : "BODY[]";
         socket.write(
-          `* 1 FETCH (UID 7 INTERNALDATE "28-Sep-2026 08:15:05 +0000" ${section} {${body.length}}\r\n`,
+          `* 1 FETCH (UID 7 INTERNALDATE "${state.internalDate}" ${section} {${body.length}}\r\n`,
         );
         socket.write(body);
         return send(")", `${tag} OK done`);
@@ -102,7 +104,11 @@ const servers: Server[] = [];
 
 const sessions: ResponderState[] = [];
 
-async function scriptedImap(): Promise<number> {
+async function scriptedImap({
+  internalDate = "28-Sep-2026 08:15:05 +0000",
+}: {
+  internalDate?: string;
+} = {}): Promise<number> {
   const server = createServer((socket) => {
     const state: ResponderState = {
       selected: false,
@@ -110,6 +116,7 @@ async function scriptedImap(): Promise<number> {
       literal: 0,
       appendTag: null,
       appended: [],
+      internalDate,
     };
     sessions.push(state);
     let buffer = "";
@@ -231,6 +238,29 @@ describe("the imapflow session", () => {
     expect(commands.find((c) => c.startsWith("UID STORE"))).toMatch(/^UID STORE 9 \+FLAGS/);
     expect(state?.appended[0]).toContain("In-Reply-To: <wired-1@agency.example>");
     expect(state?.appended[0]).toContain("Hi Lena, yes.");
+  });
+
+  it("syncs a message whose INTERNALDATE the server sent in no date format", async () => {
+    // imapflow hands such an INTERNALDATE over as its raw text; it once became an Invalid Date
+    // whose toISOString failed every sync as an unreachable server.
+    const port = await scriptedImap({ internalDate: "sometime last week" });
+    const client = createMailClient(connection(port), { allowInsecure: true, address: ADDRESS });
+    try {
+      const synced = await client.fetchSince({ folder: "inbox", uidValidity: 42, afterUid: 6 });
+      expect(synced.messages).toMatchObject([
+        {
+          uid: 7,
+          messageId: "<wired-1@agency.example>",
+          // No arrival time to read: the envelope's date stands in for it.
+          receivedAt: "2026-09-28T08:15:00.000Z",
+        },
+      ]);
+      expect(await client.fetchOriginal({ folderPath: "INBOX", uidValidity: 42, uid: 7 })).toEqual(
+        expect.objectContaining({ date: "2026-09-28T08:15:00.000Z" }),
+      );
+    } finally {
+      await client.close();
+    }
   });
 
   it("maps a refused login to wrong_password without the password", async () => {

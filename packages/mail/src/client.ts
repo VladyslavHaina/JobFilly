@@ -1,20 +1,22 @@
 import { randomUUID } from "node:crypto";
-import type {
-  Address,
-  DraftMailInput,
-  DraftRef,
-  Envelope,
-  FetchSinceResult,
-  MailConnection,
-  MailFolder,
-  MailTestFailureReason,
-  MailTestResult,
-  MessageRef,
-  OriginalMessage,
-  SyncedEnvelope,
+import {
+  type Address,
+  type DraftMailInput,
+  type DraftRef,
+  type Envelope,
+  type FetchSinceResult,
+  FetchSinceResultSchema,
+  type MailConnection,
+  type MailFolder,
+  type MailTestFailureReason,
+  type MailTestResult,
+  type MessageRef,
+  type OriginalMessage,
+  OriginalMessageSchema,
+  type SyncedEnvelope,
 } from "@jobfilly/schema";
 import { buildDraftMime } from "./drafts/index";
-import { FAILURE_MESSAGES, failureReason, MailError } from "./errors";
+import { FAILURE_MESSAGES, failureReason, isMailFailure, MailError } from "./errors";
 import { bodyText, envelopeFromSource, originalFromSource } from "./parse";
 import { type ImapFolder, type ImapSession, imapflowSession, type SessionFactory } from "./session";
 
@@ -46,7 +48,10 @@ export const UNAVAILABLE_MESSAGES: Record<MailTestFailureReason, string> = {
  * draft.create maps it to a draft failed with kind `mailbox`, which the sweep retries; the sync
  * job to a failed sync, retried with back-off, whose status keeps `reason` for the UI to branch
  * on. The message is plain words, never the server's: by default the reason's own words.
- * Every MVP 2 operation (fetchSince, fetchOriginal and the Drafts-folder ones) fails with it.
+ * Every MVP 2 operation (fetchSince, fetchOriginal and the Drafts-folder ones) fails with it when
+ * the connection, the IMAP session or TLS fails (isMailFailure); any other error, such as what
+ * the server sent failing its schema, is passed on as it is, so the sync records reason `error`
+ * rather than an unreachable server.
  */
 export class MailUnavailableError extends Error {
   constructor(
@@ -139,6 +144,14 @@ function locateDrafts(folders: ImapFolder[]): string | null {
   );
 }
 
+/**
+ * A message's INTERNALDATE when it is a real date; null when the server sent none or one that
+ * can't be read, so the envelope's date stands in for it.
+ */
+function arrival(internalDate: Date | null): Date | null {
+  return internalDate && !Number.isNaN(internalDate.getTime()) ? internalDate : null;
+}
+
 const ADDRESS_DOMAIN = /^[^\s@<>]+@([^\s@<>]+\.[^\s@<>]+)$/;
 
 /**
@@ -178,28 +191,30 @@ export function mailClientWith(
     return connecting;
   }
 
-  /** Runs `work` alone; any failure becomes a MailError with a plain reason, never raw text. */
-  function exclusive<T>(work: (s: ImapSession) => Promise<T>): Promise<T> {
-    const run = queue.then(async () => {
-      try {
-        return await work(await session());
-      } catch (error) {
-        throw error instanceof MailError || error instanceof MailUnavailableError
-          ? error
-          : new MailError(failureReason(error));
-      }
-    });
+  /** Runs `work` alone, after every operation before it; its error is passed on as it is. */
+  function alone<T>(work: (s: ImapSession) => Promise<T>): Promise<T> {
+    const run = queue.then(async () => work(await session()));
     queue = run.catch(() => undefined);
     return run;
   }
 
+  /** Runs `work` alone; any failure becomes a MailError with a plain reason, never raw text. */
+  function exclusive<T>(work: (s: ImapSession) => Promise<T>): Promise<T> {
+    return alone(work).catch((error: unknown) => {
+      throw error instanceof MailError || error instanceof MailUnavailableError
+        ? error
+        : new MailError(failureReason(error));
+    });
+  }
+
   /**
-   * Like exclusive, for the MVP 2 operations: any failure (the connection, a refused append or
-   * store) becomes a MailUnavailableError in plain words.
+   * Runs `work` alone, for the MVP 2 operations: a failure of the connection, the IMAP session or
+   * TLS (a refused append or store too) becomes a MailUnavailableError in plain words. Anything
+   * else is the app's, not the server's, and is passed on as it is.
    */
   function available<T>(work: (s: ImapSession) => Promise<T>): Promise<T> {
-    return exclusive(work).catch((error: unknown) => {
-      if (error instanceof MailUnavailableError) throw error;
+    return alone(work).catch((error: unknown) => {
+      if (error instanceof MailUnavailableError || !isMailFailure(error)) throw error;
       throw new MailUnavailableError(failureReason(error));
     });
   }
@@ -230,12 +245,13 @@ export function mailClientWith(
   ): Promise<SyncedEnvelope[]> {
     const envelopes: SyncedEnvelope[] = [];
     for await (const message of s.fetch(uids, { maxBytes: ENVELOPE_SOURCE_BYTES })) {
+      const internalDate = arrival(message.internalDate);
       const envelope = await envelopeFromSource(message.source, {
         ...info,
         uid: message.uid,
-        internalDate: message.internalDate,
+        internalDate,
       });
-      const receivedAt = message.internalDate?.toISOString() ?? envelope.date;
+      const receivedAt = internalDate?.toISOString() ?? envelope.date;
       envelopes.push({ ...envelope, receivedAt });
     }
     return envelopes.sort((a, b) => a.uid - b.uid);
@@ -315,15 +331,16 @@ export function mailClientWith(
         const uids = await s.searchSince(since);
         const envelopes: Envelope[] = [];
         for await (const message of s.fetch(uids, { maxBytes: ENVELOPE_SOURCE_BYTES })) {
+          const internalDate = arrival(message.internalDate);
           const envelope = await envelopeFromSource(message.source, {
             folder,
             folderPath: path,
             uidValidity,
             uid: message.uid,
-            internalDate: message.internalDate,
+            internalDate,
           });
           // IMAP's SINCE works in whole days; the window itself is exact.
-          const received = message.internalDate ?? new Date(envelope.date);
+          const received = internalDate ?? new Date(envelope.date);
           if (received >= since) envelopes.push(envelope);
         }
         return envelopes.sort((a, b) => b.date.localeCompare(a.date) || b.uid - a.uid);
@@ -356,7 +373,8 @@ export function mailClientWith(
           folderPath: path,
           uidValidity: current,
         });
-        return { uidValidity: current, changed, messages };
+        // What the server sent is checked before anyone relies on it.
+        return FetchSinceResultSchema.parse({ uidValidity: current, changed, messages });
       }),
 
     fetchOriginal: (ref) =>
@@ -365,13 +383,14 @@ export function mailClientWith(
         if (uidValidity !== ref.uidValidity) return null;
         for await (const message of s.fetch([ref.uid], {})) {
           if (message.uid !== ref.uid) continue;
-          return originalFromSource(message.source, {
+          const original = await originalFromSource(message.source, {
             folder: "inbox",
             folderPath: ref.folderPath,
             uidValidity,
             uid: message.uid,
-            internalDate: message.internalDate,
+            internalDate: arrival(message.internalDate),
           });
+          return OriginalMessageSchema.parse(original);
         }
         return null;
       }),

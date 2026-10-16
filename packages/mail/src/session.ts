@@ -13,6 +13,7 @@ export interface ImapFolder {
 
 interface ImapMessage {
   uid: number;
+  /** The server's INTERNALDATE; null when it sent none or one that isn't a date. */
   internalDate: Date | null;
   source: Buffer;
 }
@@ -98,8 +99,10 @@ export const imapflowSession: SessionFactory = (conn) => {
       };
       for await (const message of client.fetch(uids, query, { uid: true })) {
         if (!message.source) continue;
+        // imapflow hands over the raw text of an INTERNALDATE it couldn't read: no date then.
         const date = message.internalDate ? new Date(message.internalDate) : null;
-        yield { uid: message.uid, internalDate: date, source: message.source };
+        const internalDate = date && !Number.isNaN(date.getTime()) ? date : null;
+        yield { uid: message.uid, internalDate, source: message.source };
       }
     },
     async searchFromUid(fromUid) {

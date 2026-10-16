@@ -253,7 +253,13 @@ describe("saveDraft (F6.3)", () => {
   it("fails with MailUnavailableError when the server refuses the append or can't be reached", async () => {
     for (const box of [
       mailbox({ appendError: false }),
-      mailbox({ appendError: Object.assign(new Error("NO [OVERQUOTA]"), { code: "NO" }) }),
+      // As imapflow reports a command the server answered NO.
+      mailbox({
+        appendError: Object.assign(new Error("Command failed"), {
+          responseStatus: "NO",
+          serverResponseCode: "OVERQUOTA",
+        }),
+      }),
       mailbox({ connectError: Object.assign(new Error("refused"), { code: "ECONNREFUSED" }) }),
     ]) {
       const client = mailClientWith(conn, secure, fakeServer(box).factory);
@@ -286,7 +292,7 @@ describe("replaceDraft and deleteDraft (F6.4)", () => {
     const box = mailbox();
     const client = mailClientWith(conn, secure, fakeServer(box).factory);
     const first = await client.saveDraft(input());
-    box.appendError = Object.assign(new Error("NO"), { code: "NO" });
+    box.appendError = Object.assign(new Error("Command failed"), { responseStatus: "NO" });
     await expect(client.replaceDraft(first, input())).rejects.toBeInstanceOf(MailUnavailableError);
     box.appendError = undefined;
     await client.replaceDraft(first, input());

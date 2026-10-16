@@ -131,6 +131,74 @@ describe("fetchSince (F1.1, F1.3)", () => {
     ]);
   });
 
+  it("still syncs when the server sends an INTERNALDATE that isn't a date", async () => {
+    // imapflow hands over an unreadable INTERNALDATE as text, which became an Invalid Date: its
+    // toISOString threw on every sync, shown for ever as "Can't reach the mail server".
+    const box = mailbox([1]);
+    box.contents.INBOX?.messages.push({
+      uid: 2,
+      internalDate: new Date("32-Foo-2026 99:99:99 +0000"),
+      source: message(2),
+    });
+    const result = await mailClientWith(conn, secure, fakeServer(box).factory).fetchSince({
+      folder: "inbox",
+      uidValidity: 7,
+      afterUid: 0,
+    });
+    expect(FetchSinceResultSchema.parse(result)).toEqual(result);
+    // No arrival time to read: the envelope's date stands in for it.
+    expect(result.messages.map((m) => [m.uid, m.receivedAt])).toEqual([
+      [1, "2026-10-12T08:00:05.000Z"],
+      [2, "2026-10-12T08:02:00.000Z"],
+    ]);
+  });
+
+  it("checks what the server sent against the schema; a mismatch isn't an unreachable server", async () => {
+    // A UIDVALIDITY that isn't a number (Number() of what the server sent).
+    const box = mailbox([1], Number.NaN);
+    const error = await mailClientWith(conn, secure, fakeServer(box).factory)
+      .fetchSince({ folder: "inbox", uidValidity: null, afterUid: 0 })
+      .catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(Error);
+    expect(error).not.toBeInstanceOf(MailUnavailableError);
+    expect((error as Error).name).toBe("ZodError");
+  });
+
+  it("passes on an error that isn't the mail server's as it is", async () => {
+    const server = fakeServer(mailbox([1]));
+    const factory: typeof server.factory = (c) => ({
+      ...server.factory(c),
+      searchFromUid: async () => {
+        throw new RangeError("Invalid time value");
+      },
+    });
+    await expect(
+      mailClientWith(conn, secure, factory).fetchSince({
+        folder: "inbox",
+        uidValidity: 7,
+        afterUid: 0,
+      }),
+    ).rejects.toThrow(RangeError);
+  });
+
+  it("fails with MailUnavailableError when the server answers a command NO or BAD", async () => {
+    const server = fakeServer(mailbox([1]));
+    const factory: typeof server.factory = (c) => ({
+      ...server.factory(c),
+      // As imapflow reports a command the server refused.
+      searchFromUid: async () => {
+        throw Object.assign(new Error("Command failed"), { responseStatus: "BAD" });
+      },
+    });
+    await expect(
+      mailClientWith(conn, secure, factory).fetchSince({
+        folder: "inbox",
+        uidValidity: 7,
+        afterUid: 0,
+      }),
+    ).rejects.toMatchObject({ name: "MailUnavailableError", reason: "unreachable" });
+  });
+
   it("reads Sent from the folder the server marks as Sent", async () => {
     const box = mailbox([]);
     box.contents.Sent?.messages.push({ uid: 2, internalDate: null, source: message(2) });
@@ -201,6 +269,27 @@ describe("fetchOriginal (F6.3)", () => {
     });
     // The whole message is read, not just its start.
     expect(server.calls).toContain("fetch 4");
+  });
+
+  it("reads the original when the server sends an INTERNALDATE that isn't a date", async () => {
+    const box = mailbox([]);
+    box.contents.INBOX?.messages.push({
+      uid: 4,
+      internalDate: new Date("not a date"),
+      // No Date header either: the INTERNALDATE was all there was to read.
+      source: message(4).replace(/^Date: .*\n/m, ""),
+    });
+    const original = await mailClientWith(conn, secure, fakeServer(box).factory).fetchOriginal({
+      folderPath: "INBOX",
+      uidValidity: 7,
+      uid: 4,
+    });
+    expect(OriginalMessageSchema.parse(original)).toEqual(original);
+    expect(original).toMatchObject({
+      messageId: "<role-4@agency.example>",
+      subject: "Role 4",
+      date: new Date(0).toISOString(),
+    });
   });
 
   it("returns null when the folder was rebuilt or the message is gone", async () => {
