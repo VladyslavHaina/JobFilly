@@ -22,8 +22,6 @@ const TASK_ID: TaskId = "match.v1";
 const INSTRUCTION =
   "Judge only two things for this role: does its title fit one of the target roles, and how close is each of the role's skills to the CV skills and the profile skills. Answer fits, conflicts or unknown with a short reason; never count a missing skill as a fit.";
 
-const NOTE = BLOCKS_NOTE;
-
 export function matchPrompt(input: MatchTaskInput): Prompt {
   const user = [
     `task: ${TASK_ID}`,
@@ -42,5 +40,5 @@ export function matchPrompt(input: MatchTaskInput): Prompt {
     "",
     "",
   ].join("\n");
-  return { system: systemMessage(TASK_ID, INSTRUCTION, NOTE), user };
+  return { system: systemMessage(TASK_ID, INSTRUCTION, BLOCKS_NOTE), user };
 }

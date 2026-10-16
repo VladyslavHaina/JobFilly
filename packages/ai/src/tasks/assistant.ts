@@ -16,8 +16,6 @@ const TASK_ID: TaskId = "assistant.v1";
 const INSTRUCTION =
   "You help the user steer their job search automation. Reply in the user's language. When they ask to change preferences or rules, propose the changes; when the request is unclear, ask one clarifying question with choices. You can't send mail, invite people, change mailboxes or AI settings, or delete data: say so and where that is done.";
 
-const NOTE = BLOCKS_NOTE;
-
 export function assistantPrompt(input: AssistantTaskInput): Prompt {
   const user = [
     `task: ${TASK_ID}`,
@@ -42,5 +40,5 @@ export function assistantPrompt(input: AssistantTaskInput): Prompt {
     "",
     "",
   ].join("\n");
-  return { system: systemMessage(TASK_ID, INSTRUCTION, NOTE), user };
+  return { system: systemMessage(TASK_ID, INSTRUCTION, BLOCKS_NOTE), user };
 }

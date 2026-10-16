@@ -24,8 +24,6 @@ const TASK_ID: TaskId = "draft.v1";
 const INSTRUCTION =
   "Write a short reply to this recruiter email, in the language of the email, for the role given. Use only the profile and the CV given; for anything they don't answer, add a question instead of guessing. Never write a template placeholder such as [Name] or {company}. Set attachCv when the email asks for a CV.";
 
-const NOTE = BLOCKS_NOTE;
-
 export function draftPrompt(input: DraftTaskInput): Prompt {
   const { mail } = input;
   const from = mail.from.name ? `${mail.from.name} <${mail.from.address}>` : mail.from.address;
@@ -62,5 +60,5 @@ export function draftPrompt(input: DraftTaskInput): Prompt {
     "",
     "",
   ].join("\n");
-  return { system: systemMessage(TASK_ID, INSTRUCTION, NOTE), user };
+  return { system: systemMessage(TASK_ID, INSTRUCTION, BLOCKS_NOTE), user };
 }
