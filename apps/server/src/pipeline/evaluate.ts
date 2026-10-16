@@ -1,13 +1,17 @@
 import { withinReplyWindow } from "@jobfilly/core";
 import {
+  type BackOff,
+  clearStageFailure,
+  clearStageFailures,
   draftHistory,
   getEvaluations,
-  getMailboxConnection,
   getSenderChecks,
+  getStageHolds,
   listProfiles,
   listRules,
   loadMessageInputs,
   markStale,
+  recordStageFailure,
   roleKey,
   saveEvaluation,
   saveMessageLanguage,
@@ -15,14 +19,17 @@ import {
 } from "@jobfilly/db";
 import type { MailClient } from "@jobfilly/mail";
 import {
+  CHECK_FAILED_SIGNAL,
   MESSAGE_GONE_SIGNAL,
   type OriginalMessage,
   type Profile,
   type RoleEvaluation,
   type SenderCheck,
 } from "@jobfilly/schema";
+import { MINUTE } from "../clock";
 import type { AppDeps } from "../deps";
-import { open } from "../secrets";
+import { failureFields } from "../log";
+import { connectMailbox } from "../mailbox";
 import { cvChoiceStage } from "./cv-choice";
 import { matchStage } from "./match";
 import { replyStage } from "./reply";
@@ -36,9 +43,18 @@ import { MessageGoneError, type SenderStageResult, type StageContext, type Stage
 //   backlog) or stale (a sender mark changed). A re-evaluation after a rule, profile, decision or
 //   CV change passes the stored check on and never calls body(): re-scoring stays inside the
 //   minute of F3.5, F4.6, F7.4 and F8.3 and works while the mailbox is down.
-// - When the sender stage fails (the mailbox can't be reached…), the check stays missing for a
-//   later sweep; the roles are still matched and the reply waits for the check
-//   (sender_check_pending).
+// - When the sender stage fails (the mailbox can't be reached…), an incomplete check is stored
+//   with the neutral check_failed reason ("Couldn't check this sender yet"), never "looks fine"
+//   (F5.3), so the inbox shows that the check is incomplete instead of nothing. A check stored
+//   earlier keeps what it found: its verdict (looks fine drops to caution, high risk stays) and an
+//   editor's mark. It still counts as missing: it is checked again by a later sweep, the roles
+//   are still matched, and the reply waits for a real check (sender_check_pending).
+// - A stage that throws is logged with why (failureFields: the error's name, kind or code and a
+//   short masked reason) and recorded in stage_failures (packages/db): it is tried again at the
+//   next sweep, then with a back-off doubling from one sync interval up to an hour, so a stage
+//   that keeps failing doesn't repeat its calls and log lines on every tick. A change that makes
+//   the item stale again ends the wait. A message whose every pending stage still waits is left
+//   alone: no stage, no reply stage, no log line.
 // - When the message is gone from the mailbox (body() throws MessageGoneError), the check is
 //   stored incomplete with the message_gone reason, never "looks fine" (F5.3): a message that
 //   can't be read isn't fetched again on every sweep. A scan or sync that sees it again makes
@@ -92,7 +108,7 @@ export function mailboxSession(deps: AppDeps, ws: string): MailboxSession {
   let opened: Promise<MailClient | null> | null = null;
   return {
     get() {
-      opened ??= openMailbox(deps, ws);
+      opened ??= connectMailbox(deps, ws);
       return opened;
     },
     async close() {
@@ -103,23 +119,35 @@ export function mailboxSession(deps: AppDeps, ws: string): MailboxSession {
   };
 }
 
-/** Opens the workspace's mailbox, or null when none is connected. */
-async function openMailbox(deps: AppDeps, ws: string): Promise<MailClient | null> {
-  const mailbox = await getMailboxConnection(deps.db, ws);
-  if (!mailbox) return null;
-  return deps.mail.connect(
-    {
-      host: mailbox.host,
-      port: mailbox.port,
-      tlsMode: mailbox.tlsMode,
-      username: mailbox.username,
-      password: open(deps.config.secretKey, mailbox.secretCiphertext),
-    },
-    { allowInsecure: deps.config.allowInsecureMail },
-  );
+/** The longest a failing stage waits between tries (it starts at one sync interval). */
+const MAX_BACK_OFF_MS = 60 * MINUTE;
+
+const backOffOf = (deps: AppDeps): BackOff => ({
+  intervalMs: deps.config.syncIntervalSeconds * 1000,
+  capMs: MAX_BACK_OFF_MS,
+});
+
+const FAILED_REASON = {
+  signal: CHECK_FAILED_SIGNAL,
+  reason: "Couldn't check this sender yet. JobFilly tries again shortly.",
+};
+
+/**
+ * The check of a message whose sender stage failed: incomplete, at best caution. A check stored
+ * earlier keeps its verdict and its mark (a known high risk or an editor's mark isn't lost).
+ */
+function failedCheck(check: SenderCheck | null): SenderCheck {
+  if (!check) return { verdict: "caution", complete: false, reasons: [FAILED_REASON], mark: null };
+  return {
+    ...check,
+    verdict: check.verdict === "looks_fine" ? "caution" : check.verdict,
+    complete: false,
+    reasons: isFailedCheck(check) ? check.reasons : [...check.reasons, FAILED_REASON],
+  };
 }
 
-const errorName = (error: unknown) => (error instanceof Error ? error.name : "unknown");
+const isFailedCheck = (check: SenderCheck) =>
+  check.reasons.some((r) => r.signal === CHECK_FAILED_SIGNAL);
 
 const GONE_REASON = {
   signal: MESSAGE_GONE_SIGNAL,
@@ -201,15 +229,61 @@ export async function evaluateMessage(
     },
   };
 
+  const backOff = { ...backOffOf(deps), now };
+  /** Records a failed stage and logs why, and when it is tried again. */
+  const failed = async (
+    stage: "sender" | "cv_choice" | "match",
+    error: unknown,
+    position?: number,
+  ) => {
+    const { failures, retryAt } = await recordStageFailure(
+      deps.db,
+      ws,
+      position === undefined
+        ? { messageId, stage: "sender" }
+        : { messageId, stage: "match", position },
+      backOff,
+    );
+    log.warn("pipeline.stage_failed", {
+      stage,
+      ...(position === undefined ? {} : { position }),
+      ...failureFields(error),
+      failures,
+      retryAt,
+    });
+  };
+
+  // What is to do, and what of it still waits out a back-off (stage_failures).
+  const [stored] = await getSenderChecks(deps.db, ws, [messageId]);
+  const senderWork = !stored || stored.stale || isFailedCheck(stored);
+  let holds = await getStageHolds(deps.db, ws, messageId, now);
+  const evaluationsBefore = profile ? await getEvaluations(deps.db, ws, [messageId]) : [];
+  const rolesToDo = profile
+    ? message.facts
+        .map((_, position) => position)
+        .filter((p) => {
+          const current = evaluationsBefore.find((e) => e.position === p);
+          return !current || current.stale;
+        })
+    : [];
+  const senderDue = senderWork && !holds.sender;
+  const rolesDue = rolesToDo.filter((p) => !holds.positions.includes(p));
+  const waiting = (senderWork && holds.sender) || rolesDue.length < rolesToDo.length;
+  if (waiting && !senderDue && rolesDue.length === 0) {
+    // Everything pending waits out its back-off, and nothing changed since the last try.
+    return outcome;
+  }
+
+  let rolesWaiting = 0;
   try {
-    const [stored] = await getSenderChecks(deps.db, ws, [messageId]);
     let sender: SenderCheck | null = stored && !stored.stale ? stripCheck(stored) : null;
-    if (!stored || stored.stale) {
+    if (senderDue) {
       let result: SenderStageResult | null = null;
+      let failure: { error: unknown } | null = null;
       try {
         result = await stages.sender({ message }, ctx);
       } catch (error) {
-        if (!gone) log.warn("pipeline.stage_failed", { stage: "sender", error: errorName(error) });
+        failure = { error };
       }
       if (gone) {
         // The language stays as last detected: nothing new was read.
@@ -219,11 +293,21 @@ export async function evaluateMessage(
       if (result) {
         sender = result.check;
         await saveSenderCheck(deps.db, ws, messageId, sender, now);
+        await clearStageFailure(deps.db, ws, { messageId, stage: "sender" });
         outcome.senderChecked = true;
         if (await saveMessageLanguage(deps.db, ws, messageId, result.language)) {
           message.language = result.language;
           await markStale(deps.db, ws, { messageIds: [messageId] }, now);
+          // A new question for every role: an evaluated one is stale now, and one never evaluated
+          // (no stale flag to show the change) has its wait ended here.
+          await clearStageFailures(deps.db, ws, { messageIds: [messageId] });
+          holds = await getStageHolds(deps.db, ws, messageId, now);
         }
+      } else if (failure) {
+        // Incomplete, never "looks fine", and still to do (F5.3).
+        sender = failedCheck(stored ? stripCheck(stored) : null);
+        await saveSenderCheck(deps.db, ws, messageId, sender, now);
+        await failed("sender", failure.error);
       }
     }
 
@@ -234,15 +318,22 @@ export async function evaluateMessage(
       for (const [position, facts] of message.facts.entries()) {
         const current = existing.get(position);
         if (current && !current.stale) continue;
+        if (holds.positions.includes(position)) {
+          rolesWaiting += 1;
+          continue;
+        }
+        let stage: "cv_choice" | "match" = "cv_choice";
         try {
           const role = { position, facts };
           const cvChoice = await stages.cvChoice({ message, role }, ctx);
+          stage = "match";
           const evaluation = await stages.match({ message, role, cvChoice }, ctx);
           await saveEvaluation(deps.db, ws, messageId, { ...evaluation, position }, now);
+          await clearStageFailure(deps.db, ws, { messageId, stage: "match", position });
           outcome.evaluated.push(position);
         } catch (error) {
           outcome.failed.push(position);
-          log.warn("pipeline.stage_failed", { stage: "match", position, error: errorName(error) });
+          await failed(stage, error, position);
         }
       }
 
@@ -258,7 +349,8 @@ export async function evaluateMessage(
         await stages.reply(
           {
             message,
-            sender,
+            // A check whose stage failed isn't one: the reply waits (sender_check_pending).
+            sender: sender && !isFailedCheck(sender) ? sender : null,
             evaluations,
             draftHistory: new Map(
               message.facts.map((_, position) => [
@@ -274,7 +366,8 @@ export async function evaluateMessage(
           ctx,
         );
       } catch (error) {
-        log.warn("pipeline.stage_failed", { stage: "reply", error: errorName(error) });
+        // Not backed off: the reply stage runs only when something above changed.
+        log.warn("pipeline.stage_failed", { stage: "reply", ...failureFields(error) });
       }
     }
   } finally {
@@ -287,6 +380,7 @@ export async function evaluateMessage(
     senderChecked: outcome.senderChecked,
     rolesEvaluated: outcome.evaluated.length,
     rolesFailed: outcome.failed.length,
+    rolesWaiting,
   });
   await deps.live.publish(ws, { type: "messages.updated", data: { messageIds: [messageId] } });
   return outcome;

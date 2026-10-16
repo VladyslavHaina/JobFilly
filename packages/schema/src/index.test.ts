@@ -8,6 +8,7 @@ import {
   batchResultSchema,
   CATEGORIES,
   CategorySchema,
+  CHECK_FAILED_SIGNAL,
   ClaimedJobSchema,
   ClassifyOutputSchema,
   ConfirmIntakeInputSchema,
@@ -17,6 +18,7 @@ import {
   ExtraAnswerSchema,
   ExtractOutputSchema,
   ExtraQuestionSchema,
+  IntakeAnswerParamsSchema,
   IntakeExtraInputSchema,
   IntakeExtraOutputSchema,
   IntakeProposalSchema,
@@ -30,16 +32,20 @@ import {
   LiveEventSchema,
   MailboxParamsSchema,
   MailTestResultSchema,
+  MESSAGE_GONE_SIGNAL,
   MemberParamsSchema,
   MessageRefSchema,
   PreferencesSchema,
   PrefsOutputSchema,
   ProfileEntrySchema,
   ProfileKeySchema,
+  ProfileParamsSchema,
   ProfilePatchSchema,
   profileValueSchema,
   RegisterInputSchema,
+  RoleParamsSchema,
   roleAtLeast,
+  SenderReasonSchema,
   StageOneOutcomeSchema,
   StageOneResultSchema,
   StageOneVerdictSchema,
@@ -203,6 +209,18 @@ describe("mail", () => {
     expect(
       MailTestResultSchema.safeParse({ ok: false, reason: "other", message: "x" }).success,
     ).toBe(false);
+  });
+});
+
+describe("sender check", () => {
+  it("accepts the pipeline's own signals as reasons", () => {
+    for (const signal of [CHECK_FAILED_SIGNAL, MESSAGE_GONE_SIGNAL]) {
+      expect(SenderReasonSchema.safeParse({ signal, reason: "x" }).success).toBe(true);
+    }
+    expect(CHECK_FAILED_SIGNAL).toBe("check_failed");
+    expect(SenderReasonSchema.safeParse({ signal: "Check Failed", reason: "x" }).success).toBe(
+      false,
+    );
   });
 });
 
@@ -505,6 +523,35 @@ describe("path params and the live envelope", () => {
       expect(MemberParamsSchema.safeParse({ userId: bad }).success).toBe(false);
       expect(InviteParamsSchema.safeParse({ inviteId: bad }).success).toBe(false);
       expect(MailboxParamsSchema.safeParse({ mailboxId: bad }).success).toBe(false);
+    }
+  });
+
+  it("take a role's position as a nonnegative integer, coerced from the path", () => {
+    const messageId = "<abc+1/2%3@mail.example>";
+    expect(RoleParamsSchema.parse({ messageId, position: "0" })).toEqual({
+      messageId,
+      position: 0,
+    });
+    expect(RoleParamsSchema.parse({ messageId, position: "12" }).position).toBe(12);
+    expect(RoleParamsSchema.parse({ messageId, position: "10001" }).position).toBe(10001);
+    // At most what the int4 position columns hold, so a larger one is a 400, not a database error.
+    expect(RoleParamsSchema.parse({ messageId, position: "2147483647" }).position).toBe(
+      2_147_483_647,
+    );
+    for (const bad of ["x", "-1", "1.5", "NaN", "2147483648", "99999999999"]) {
+      expect(RoleParamsSchema.safeParse({ messageId, position: bad }).success).toBe(false);
+    }
+    expect(RoleParamsSchema.safeParse({ messageId: "", position: "0" }).success).toBe(false);
+  });
+
+  it("take a profile by its id and an intake answer by its profile key", () => {
+    expect(ProfileParamsSchema.safeParse({ profileId: id }).success).toBe(true);
+    expect(ProfileParamsSchema.safeParse({ profileId: "xyz" }).success).toBe(false);
+    for (const key of ["min_pay", "reply_window_days", "extra.b2b"]) {
+      expect(IntakeAnswerParamsSchema.safeParse({ key }).success).toBe(true);
+    }
+    for (const key of ["", "spam", "extra.", "extra.Not Slug"]) {
+      expect(IntakeAnswerParamsSchema.safeParse({ key }).success).toBe(false);
     }
   });
 

@@ -1,3 +1,4 @@
+import { MailUnavailableError } from "@jobfilly/mail";
 import type { LogLevel } from "./config";
 
 // JSON lines on stdout (ARCHITECTURE › Logs): time, level, instance, event, and ids. Passwords,
@@ -62,8 +63,9 @@ export type LogEvent =
   | "assistant.proposal_applied"
   | "assistant.proposal_discarded"
   | "profile.change_undone"
-  // Operational: a pipeline stage or the sweep failed for one item (it is retried later), or a
-  // message's body was gone from the mailbox (its sender check is stored incomplete).
+  // Operational: a pipeline stage or the sweep failed for one item (it is retried later; a stage
+  // failure says why with failureFields, and when it is tried again), or a message's body was
+  // gone from the mailbox (its sender check is stored incomplete).
   | "pipeline.stage_failed"
   | "pipeline.sweep_failed"
   | "pipeline.message_gone";
@@ -193,6 +195,58 @@ function redactError(error: Error, depth: number): Record<string, unknown> {
   // Without a cause, what's left of the message ("Failed query", or a wrapper's own words).
   const message = (cause?.message ?? error.message).replace(FAILED_QUERY, "Failed query");
   return { name, ...(code ? { code } : {}), message: redact(message, depth + 1) };
+}
+
+/** The longest reason a failure line carries. */
+export const MAX_FAILURE_REASON = 200;
+// A kind the error names itself: an AI task error's kind (unreachable, invalid_output…), a mail
+// error's reason (wrong_password, tls…). Anything else in those fields is left out.
+const ERROR_KIND = /^[a-z][a-z0-9_]{0,31}$/;
+
+function errorKind(error: Error): string | undefined {
+  if (error instanceof MailUnavailableError) return "mailbox_unavailable";
+  for (const field of ["kind", "reason"] as const) {
+    const value = (error as Partial<Record<typeof field, unknown>>)[field];
+    if (typeof value === "string" && ERROR_KIND.test(value)) return value;
+  }
+  return undefined;
+}
+
+/** Why something failed, as a log line carries it (see failureFields). */
+export interface FailureFields {
+  error: string;
+  kind?: string;
+  code?: string;
+  reason: string;
+}
+
+/**
+ * Why something failed, safe to log (pipeline.stage_failed): the error's name, the kind it names
+ * (AI and mail errors), its code (a pg SQLSTATE, a Node system error), and its message masked as
+ * every logged error's is (a failed query's SQL and values dropped, addresses and Message-IDs
+ * masked), on one line of at most MAX_FAILURE_REASON characters. Nothing else an error carries is
+ * read: not its stack, its cause's detail, or an SDK error's request or response body.
+ */
+export function failureFields(error: unknown): FailureFields {
+  if (!(error instanceof Error)) {
+    return { error: "unknown", reason: "Something that isn't an error was thrown" };
+  }
+  const logged = redactError(error, 0);
+  const kind = errorKind(error);
+  const code = typeof logged.code === "string" ? logged.code : undefined;
+  const message = String(logged.message ?? "")
+    .replace(/\s+/g, " ")
+    .trim();
+  const reason =
+    message.length > MAX_FAILURE_REASON
+      ? `${message.slice(0, MAX_FAILURE_REASON - 1)}…`
+      : message || "No reason given";
+  return {
+    error: String(logged.name),
+    ...(kind ? { kind } : {}),
+    ...(code ? { code } : {}),
+    reason,
+  };
 }
 
 export interface LoggerOptions {

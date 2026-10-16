@@ -13,6 +13,7 @@ import { and, asc, eq, inArray, isNotNull, ne, or, type SQL, sql } from "drizzle
 import { type Database, queryRows } from "../client";
 import { messages, profiles, roleEvaluations, roles, senderChecks } from "../tables";
 import { type DraftHistory, draftHistory, listDraftsToRetry, roleKey } from "./draft-claims";
+import { roleHeldSql, senderHeldSql } from "./stage-failures";
 
 // The pipeline's view of the job mail (ARCHITECTURE › Background work, "The analysis pipeline").
 // Each role of a job message has an evaluation (role_evaluations) and each job message a sender
@@ -168,8 +169,8 @@ export interface ToEvaluate {
 
 interface ToEvaluateRow {
   message_id: string;
-  sender_missing: boolean;
-  sender_stale: boolean | null;
+  sender_work: boolean;
+  sender_stale: boolean;
   sender_stale_since: string | Date | null;
   roles: { position: number; missing: boolean; staleSince: string | null }[] | string;
 }
@@ -178,42 +179,57 @@ const toDate = (v: string | Date | null) => (v === null ? null : new Date(v));
 
 /**
  * Job messages whose sender check or any role's evaluation is missing or stale, newest first:
- * the first scan's backlog included (F1.6). A message names only what it needs.
+ * the first scan's backlog included (F1.6). A message names only what it needs. A sender check
+ * whose stage failed is stored incomplete and listed as missing until it succeeds.
+ *
+ * With `now`, what still waits out its back-off at that time (./stage-failures.ts) is left out:
+ * the sweep asks so, and a deterministic failure isn't retried on every tick. Without it,
+ * everything to do is listed, and the pipeline holds back the waiting stages itself
+ * (getStageHolds), so a run started for other work doesn't retry them early.
  */
 export async function listToEvaluate(
   db: Database,
   workspaceId: string,
-  options: { limit?: number } = {},
+  options: { limit?: number; now?: Date } = {},
 ): Promise<ToEvaluate[]> {
   const limit = options.limit ?? 10_000;
+  const senderHeld = options.now ? senderHeldSql("sf", "sc", options.now) : sql`false`;
+  const roleHeld = options.now ? roleHeldSql("rf", "e", options.now) : sql`false`;
+  const senderWork = sql`((sc.message_id is null or sc.stale or sf.message_id is not null)
+    and not ${senderHeld})`;
+  const roleWork = sql`(r.position is not null and (e.id is null or e.stale) and not ${roleHeld})`;
   const rows = await queryRows<ToEvaluateRow>(
     db,
     sql`
       select m.message_id,
-        sc.message_id is null as sender_missing,
-        sc.stale as sender_stale,
+        ${senderWork} as sender_work,
+        coalesce(sc.stale, false) as sender_stale,
         sc.stale_since as sender_stale_since,
         coalesce(
           json_agg(json_build_object(
             'position', r.position, 'missing', e.id is null, 'staleSince', e.stale_since)
             order by r.position)
-          filter (where r.position is not null and (e.id is null or e.stale)),
+          filter (where ${roleWork}),
           '[]') as roles
       from messages m
       left join sender_checks sc
         on sc.workspace_id = m.workspace_id and sc.message_id = m.message_id
+      left join stage_failures sf on sf.workspace_id = m.workspace_id
+        and sf.message_id = m.message_id and sf.stage = 'sender'
       left join roles r on r.workspace_id = m.workspace_id and r.message_id = m.message_id
       left join role_evaluations e on e.workspace_id = r.workspace_id
         and e.message_id = r.message_id and e.position = r.position
+      left join stage_failures rf on rf.workspace_id = r.workspace_id
+        and rf.message_id = r.message_id and rf.stage = 'match' and rf.position = r.position
       where m.workspace_id = ${workspaceId}
         and m.stage_one <> 'own_reply' and m.analysis_status = 'done'
         and m.category in (${sql.join(
           JOB_CATEGORIES.map((c) => sql`${c}`),
           sql`, `,
         )})
-      group by m.message_id, m.date, sc.message_id, sc.stale, sc.stale_since
-      having sc.message_id is null or sc.stale
-        or bool_or(r.position is not null and (e.id is null or e.stale))
+      group by m.message_id, m.date, sc.message_id, sc.stale, sc.stale_since,
+        sf.message_id, sf.retry_at
+      having ${senderWork} or bool_or(${roleWork})
       order by m.date desc, m.message_id desc
       limit ${limit}`,
   );
@@ -221,11 +237,11 @@ export async function listToEvaluate(
     const list = typeof row.roles === "string" ? JSON.parse(row.roles) : row.roles;
     return {
       messageId: row.message_id,
-      sender: row.sender_missing
-        ? { state: "missing", staleSince: null }
+      sender: !row.sender_work
+        ? null
         : row.sender_stale
           ? { state: "stale", staleSince: toDate(row.sender_stale_since) }
-          : null,
+          : { state: "missing", staleSince: null },
       roles: (list as { position: number; missing: boolean; staleSince: string | null }[]).map(
         (r) => ({
           position: Number(r.position),
@@ -490,8 +506,9 @@ async function liveDrafts(db: Database, workspaceId: string, messageIds: string[
 }
 
 /**
- * The workspaces with pipeline work: a confirmed profile, and something to evaluate or a draft
- * to retry. Like the job claim, it reads across workspaces (ARCHITECTURE › Workspaces): the sweep
+ * The workspaces with pipeline work: a confirmed profile, and something to evaluate at `now`
+ * (what waits out a stage's back-off doesn't count) or a draft to retry. Like the job claim, it
+ * reads across workspaces (ARCHITECTURE › Workspaces): the sweep
  * (apps/server/src/pipeline/sweep.ts) serves them all and enqueues one re-evaluation for each.
  */
 export async function listWorkspacesWithWork(db: Database, now: Date): Promise<string[]> {
@@ -501,7 +518,7 @@ export async function listWorkspacesWithWork(db: Database, now: Date): Promise<s
     .where(isNotNull(profiles.confirmedAt));
   const out: string[] = [];
   for (const { workspaceId } of confirmed) {
-    if ((await listToEvaluate(db, workspaceId, { limit: 1 })).length > 0) {
+    if ((await listToEvaluate(db, workspaceId, { limit: 1, now })).length > 0) {
       out.push(workspaceId);
     } else if ((await listDraftsToRetry(db, workspaceId, now)).length > 0) {
       out.push(workspaceId);

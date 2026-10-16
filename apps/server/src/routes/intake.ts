@@ -23,18 +23,17 @@ import {
   DEFAULT_PROFILE_NAME,
   type ExtraQuestion,
   IntakeAnswerInputSchema,
+  IntakeAnswerParamsSchema,
   type IntakeEdit,
   type IntakeExtraOutput,
   type IntakeForm,
   type IntakeProposal,
   isExtraKey,
   type Profile,
-  ProfileKeySchema,
   profileValueSchema,
   type TaskResult,
 } from "@jobfilly/schema";
 import { Hono } from "hono";
-import { z } from "zod";
 import { requireRole, validJson, validParam, type WorkspaceEnv } from "../access";
 import { aiClientFor } from "../ai-usage";
 import { MINUTE } from "../clock";
@@ -75,8 +74,6 @@ const EXTRAS_PENDING = {
 
 /** A pending claim older than this belongs to a replica that is gone. */
 const EXTRAS_CLAIM_STALE_MS = 2 * MINUTE;
-
-const AnswerParamsSchema = z.object({ key: ProfileKeySchema });
 
 /** Whether the first scan has stopped, which opens the form. */
 async function formIsOpen(deps: AppDeps, workspaceId: string): Promise<boolean> {
@@ -254,7 +251,7 @@ export function intakeRoutes(deps: AppDeps) {
     .put(
       "/answers/:key",
       requireRole("editor"),
-      validParam(AnswerParamsSchema),
+      validParam(IntakeAnswerParamsSchema),
       validJson(IntakeAnswerInputSchema),
       async (c) => {
         const workspaceId = c.get("workspaceId");

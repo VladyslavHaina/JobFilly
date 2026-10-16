@@ -684,6 +684,37 @@ export const senderChecks = pgTable(
   ],
 );
 
+/**
+ * A pipeline stage that keeps failing for one message (queries/stage-failures.ts): its sender
+ * check (stage sender, position -1) or one role's cv-choice and match (stage match). It is tried
+ * again at the next sweep after its first failure, then with a back-off that doubles up to a cap
+ * (retry_at), unless a change makes the item stale again. Stored here, so every replica agrees.
+ * `stale_since` is the role evaluation's as it was when the stage failed: a later markStale
+ * changes it, which makes the role due at once. Deleted when the stage succeeds.
+ */
+export const stageFailures = pgTable(
+  "stage_failures",
+  {
+    workspaceId: workspaceId(),
+    messageId: text("message_id").notNull(),
+    stage: text("stage").$type<"sender" | "match">().notNull(),
+    position: integer("position").notNull(),
+    failures: integer("failures").notNull(),
+    failedAt: at("failed_at").notNull(),
+    retryAt: at("retry_at").notNull(),
+    staleSince: at("stale_since"),
+  },
+  (t) => [
+    primaryKey({ columns: [t.workspaceId, t.messageId, t.stage, t.position] }),
+    foreignKey({
+      name: "stage_failures_message_fk",
+      columns: [t.workspaceId, t.messageId],
+      foreignColumns: [messages.workspaceId, messages.messageId],
+    }).onDelete("cascade"),
+    check("stage_failures_stage_check", oneOf("stage", ["sender", "match"])),
+  ],
+);
+
 /** An editor's trusted or blocked mark on an address or a domain (F5.4). */
 export const senderMarks = pgTable(
   "sender_marks",

@@ -24,7 +24,8 @@ import { aiClientFor } from "../../ai-usage";
 import { DAY } from "../../clock";
 import type { AppDeps } from "../../deps";
 import type { Logger } from "../../log";
-import { open, openAiKey } from "../../secrets";
+import { connectStoredMailbox, MailboxSecretError } from "../../mailbox";
+import { openAiKey } from "../../secrets";
 import type { JobContext, JobHandler } from "../queue";
 import { RunFailed, runScan } from "./run";
 
@@ -141,13 +142,10 @@ export function createScanRunHandler(
     if (!mailbox) return fail(deps, scan, log, "mailbox", "no_mailbox");
 
     // A stored secret that won't open was sealed with another JOBFILLY_SECRET_KEY: the server's
-    // configuration, not the user's settings.
-    let secrets: { apiKey: string | null; password: string };
+    // configuration, not the user's settings. The mail password is opened by connectStoredMailbox.
+    let apiKey: string | null;
     try {
-      secrets = {
-        apiKey: openAiKey(deps.config.secretKey, settings.keyCiphertext),
-        password: open(deps.config.secretKey, mailbox.secretCiphertext),
-      };
+      apiKey = openAiKey(deps.config.secretKey, settings.keyCiphertext);
     } catch {
       return fail(deps, scan, log, "internal", "secret_error");
     }
@@ -160,7 +158,7 @@ export function createScanRunHandler(
           provider: settings.provider,
           baseUrl: settings.baseUrl,
           models: settings.models,
-          apiKey: secrets.apiKey,
+          apiKey,
         },
         { scanId: scan.id },
       );
@@ -169,17 +167,11 @@ export function createScanRunHandler(
     }
     let mail: MailClient;
     try {
-      mail = deps.mail.connect(
-        {
-          host: mailbox.host,
-          port: mailbox.port,
-          tlsMode: mailbox.tlsMode,
-          username: mailbox.username,
-          password: secrets.password,
-        },
-        { allowInsecure: deps.config.allowInsecureMail },
-      );
-    } catch {
+      mail = connectStoredMailbox(deps, mailbox);
+    } catch (error) {
+      if (error instanceof MailboxSecretError) {
+        return fail(deps, scan, log, "internal", "secret_error");
+      }
       return fail(deps, scan, log, "mailbox", "mail_setup_error");
     }
 

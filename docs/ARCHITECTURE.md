@@ -88,9 +88,12 @@ Rules:
   (with `stale`), `sender_marks`, `domain_lookups` (the RDAP and MX cache, workspace-scoped),
   `drafts`, `decisions` and `decision_messages`, `assistant_threads`, `assistant_messages`,
   `assistant_proposals`, `profile_history`, `mailbox_sync` (per mailbox and folder: UIDVALIDITY,
-  last UID, last success, failing since, the back-off's next attempt), `jobs.dedupe_key` and
-  `messages.language` (the body's language as the sender stage detected it). The migration also
-  gives saved AI settings a model for each new task, from their extract model.
+  last UID, last success, failing since, the back-off's next attempt), `stage_failures` (per
+  message and pipeline stage: the failure count, the last failure, the back-off's `retry_at` and
+  the evaluation's `stale_since` when it failed; a sender check is stored under position -1),
+  `jobs.dedupe_key` and `messages.language` (the body's language as the sender stage detected
+  it). The migration also gives saved AI settings a model for each new task, from their extract
+  model.
 - A reference from one workspace-owned row to another includes `workspace_id`: `cvs`,
   `profiles` and `assistant_threads` have a unique `(workspace_id, id)`, and every foreign key to
   them is composite, as those to `messages` and `roles` are. The database itself refuses a link,
@@ -198,7 +201,15 @@ Rules:
   with a confirmed profile and work (`listWorkspacesWithWork`): once at startup (`startWork` in
   `apps/server/src/start.ts`, before the queue and the scheduler start), so a deployment
   confirmed before MVP 2 is evaluated without anyone doing anything, and on every scheduler tick
-  whatever the syncs did, so failed evaluations and drafts are retried within one interval.
+  whatever the syncs did, so failed evaluations and drafts are retried within one interval. A
+  stage that fails again then backs off: `stage_failures` (`packages/db`, so every replica
+  agrees) holds the message's sender check or the role for one interval, doubling up to an hour,
+  and `listWorkspacesWithWork` and `evaluateMessage` skip what still waits, so a deterministic
+  failure doesn't repeat its calls and log lines on every tick. `requestReevaluation` and any
+  change that marks the item stale end the wait at once. Each failure logs
+  `pipeline.stage_failed` with why (`failureFields` in `apps/server/src/log.ts`: name, kind or
+  code, a short masked reason) and when it is tried again; a failed sender check is stored
+  incomplete with the `check_failed` reason, never "looks fine", and still counts as missing.
 - The reply policy is one pure function, `replyEligibility` (`packages/core/src/policy`): reply_to
   (default recruiter outreach), the reply window (`reply_window_days`, default 14), the threshold
   (`reply_threshold`, default 70), a sender check present and not high risk, no hide, no_draft or
@@ -239,7 +250,11 @@ Rules:
   answered" is decided by group key (`answeredFor`), never by profile key.
 - `requestReevaluation(scope)` is the one way evaluations go stale: `{all}`, `{roles}`,
   `{messageIds}`, or a sender scope (`{senderAddress}`, `{senderDomain}`), which alone also makes
-  the sender checks stale. It enqueues `pipeline.reevaluate` and tells open inboxes.
+  the sender checks stale. It enqueues `pipeline.reevaluate` and tells open inboxes. Its triggers:
+  intake confirm, a profile or rule change, a finished CV read and a CV delete, a CV-choice
+  override, a sender mark, a decision answer, apply and undo, and a category correction
+  (`{messageIds}`: the reply policy reads the category, so corrected mail gets or loses its
+  draft).
 
 ## AI
 
@@ -265,6 +280,15 @@ Rules:
   records each call's usage (`ai_usage`, retries and failures included, at the clock's time), so
   the per-scan totals and Settings › AI's calls and tokens per day (`usagePerDay`, F1.5) count
   every task. Nothing calls `deps.ai.client` directly.
+- The same way, the server opens a workspace's stored mailbox only through
+  `apps/server/src/mailbox.ts`, which opens the sealed password with `JOBFILLY_SECRET_KEY`
+  (`MailboxSecretError` when it won't open) and connects through `deps.mail` with
+  `JOBFILLY_ALLOW_INSECURE_MAIL`. `connectMailbox(deps, workspaceId)` reads the stored
+  connection itself and answers null when there is none; the body route and the pipeline use it.
+  `connectStoredMailbox(deps, mailbox)` opens a row the caller has already read; the scan uses it
+  (it needs the address too). The sync and the drafts, when their slices write them, are to use
+  `connectMailbox` too. Nothing else calls `deps.mail.connect` with a stored mailbox; the
+  connection test in Settings connects with the settings being tested, not a stored row.
 - The assistant can only propose changes. Applying one is a separate request made by the user.
 
 ## Configuration (environment)

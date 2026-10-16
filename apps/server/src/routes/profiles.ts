@@ -1,13 +1,12 @@
 import { listProfiles, updateProfile } from "@jobfilly/db";
 import {
-  IdSchema,
   isPolicyKey,
   type Profile,
   type ProfileList,
+  ProfileParamsSchema,
   ProfilePatchSchema,
 } from "@jobfilly/schema";
 import { Hono } from "hono";
-import { z } from "zod";
 import { NOT_FOUND, requireRole, validJson, validParam, type WorkspaceEnv } from "../access";
 import type { AppDeps } from "../deps";
 import { applyAndReevaluate } from "../profile/changes";
@@ -18,8 +17,6 @@ import { applyAndReevaluate } from "../profile/changes";
 // profile history and every role is re-evaluated (F4.6). The form changes only the questions the
 // profile has, and the policy keys (reply_threshold, reply_window_days).
 // Mounted once at /api/workspaces/:workspaceId/profiles; each handler applies its own role.
-
-const ProfileParamsSchema = z.object({ profileId: IdSchema });
 
 const NO_SUCH_QUESTION = { error: "invalid", message: "The profile has no such question" } as const;
 

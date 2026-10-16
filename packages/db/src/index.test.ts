@@ -37,6 +37,16 @@ afterEach(async () => {
   conn = undefined;
 });
 
+// A worker's first PGlite start (initdb in WebAssembly, then migrating and loading the template
+// in testing.ts) takes 5-10 seconds on a quiet machine and over 30 at load 50-119, and the first
+// tests below each pay for one. vitest.config.ts gives this project the room (hookTimeout and
+// testTimeout are set together); this fails without it.
+describe("room on a loaded machine", () => {
+  it("gives a test and its hooks 120 seconds", ({ task }) => {
+    expect(task.timeout).toBeGreaterThanOrEqual(120_000);
+  });
+});
+
 describe("migrations", () => {
   it("applies the MVP 1 and MVP 2 migrations once, then reports nothing to apply", async () => {
     conn = await openTestDatabase({ migrated: false });
@@ -88,6 +98,7 @@ describe("migrations", () => {
       "sender_checks",
       "sender_marks",
       "sessions",
+      "stage_failures",
       "users",
       "workspaces",
     ]);

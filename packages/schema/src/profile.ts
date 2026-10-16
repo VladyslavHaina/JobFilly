@@ -3,6 +3,7 @@ import { CategorySchema } from "./category";
 import {
   CountryCodeSchema,
   CurrencyCodeSchema,
+  IdSchema,
   IsoDateTimeSchema,
   PayPeriodSchema,
   TextSchema,
@@ -240,6 +241,9 @@ export type Profile = z.infer<typeof ProfileSchema>;
 export const ProfileListSchema = z.object({ items: z.array(ProfileSchema) });
 export type ProfileList = z.infer<typeof ProfileListSchema>;
 
+/** The path of PATCH /profiles/:profileId. */
+export const ProfileParamsSchema = z.object({ profileId: IdSchema });
+
 /** PATCH /profiles/:profileId: rename, and/or replace some entries' values (source: you). */
 export const ProfilePatchSchema = z.object({
   name: TextSchema.trim().min(1).max(100).optional(),
@@ -350,6 +354,9 @@ export type IntakeForm = z.infer<typeof IntakeFormSchema>;
 /** PUT /intake/answers/:key; the value is checked against the key's schema. */
 export const IntakeAnswerInputSchema = z.object({ value: ProfileValueSchema });
 export type IntakeAnswerInput = z.infer<typeof IntakeAnswerInputSchema>;
+
+/** The path of PUT /intake/answers/:key: a profile key (core, policy or extra.<slug>). */
+export const IntakeAnswerParamsSchema = z.object({ key: ProfileKeySchema });
 
 /** POST /intake/confirm. */
 export const ConfirmIntakeInputSchema = z.object({

@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
 import {
+  getEvaluations,
+  getJob,
   getStoredMessages,
   markAnalysisFailed,
   saveAnalysis,
@@ -16,10 +18,12 @@ import {
   MessageDetailSchema,
   MessageListSchema,
   type MessageRef,
+  PIPELINE_REEVALUATE_JOB,
   type StageOneVerdict,
 } from "@jobfilly/schema";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../app";
+import { requestRun } from "../pipeline/reevaluate";
 import {
   createTestDeps,
   fakeMailClient,
@@ -427,12 +431,13 @@ describe("PUT /messages/:messageId/category (F5.4)", () => {
       category: "offer",
       categorySource: "you",
     });
-    await expect
-      .poll(() => events)
-      .toContainEqual({
-        type: "messages.updated",
-        data: { messageIds: [id(2)] },
-      });
+    // One messages.updated, naming the message: everything published before a later event has
+    // arrived once that one has (one NOTIFY channel, in order).
+    await deps.live.publish(ws.workspaceId, { type: "workspace.updated", data: {} });
+    await expect.poll(() => events.some((e) => e.type === "workspace.updated")).toBe(true);
+    expect(events.filter((e) => e.type === "messages.updated")).toEqual([
+      { type: "messages.updated", data: { messageIds: [id(2)] } },
+    ]);
     unsubscribe();
 
     // A later analysis run refreshes the facts but keeps the person's category.
@@ -446,6 +451,42 @@ describe("PUT /messages/:messageId/category (F5.4)", () => {
     expect(after.items).toEqual([
       expect.objectContaining({ id: id(2), category: "offer", categorySource: "you" }),
     ]);
+  });
+
+  it("re-evaluates the corrected message: its evaluations go stale and a run is queued", async () => {
+    await seedMix();
+    const evaluation = {
+      position: 0,
+      match: null,
+      hidden: null,
+      ruleEffects: [],
+      cvChoice: { cvId: null, reason: "No CV yet", source: "auto" as const },
+    };
+    await saveEvaluation(deps.db, ws.workspaceId, id(2), evaluation, deps.clock.now());
+    await saveEvaluation(deps.db, ws.workspaceId, id(7), evaluation, deps.clock.now());
+
+    const res = await editor.put(path(ws.workspaceId, id(2), "/category"), {
+      category: "job_alert",
+    });
+    expect(res.status).toBe(200);
+    // Only the corrected message's roles: the reply policy reads its category (reply_to).
+    expect(
+      (await getEvaluations(deps.db, ws.workspaceId, [id(2), id(7)])).map((e) => [
+        e.messageId,
+        e.stale,
+      ]),
+    ).toEqual([
+      [id(2), true],
+      [id(7), false],
+    ]);
+    // A pipeline.reevaluate waits (a second request is deduped onto it).
+    const probe = await requestRun(deps, ws.workspaceId, "probe");
+    expect(probe.enqueued).toBe(false);
+    expect(await getJob(deps.db, ws.workspaceId, probe.id)).toMatchObject({
+      type: PIPELINE_REEVALUATE_JOB,
+      status: "queued",
+      payload: { workspaceId: ws.workspaceId, reason: "category.corrected" },
+    });
   });
 
   it("lets admins correct too, and moves mail corrected to not job behind the toggle", async () => {
@@ -536,9 +577,13 @@ describe("the inbox of MVP 2 (F3.4, F2.3)", () => {
     expect((await outsider.put(cvPath, { cvId: null })).status).toBe(404);
     expect((await viewer.put(cvPath, { cvId: null })).status).toBe(403);
     expect((await editor.put(cvPath, { cvId: "not-a-uuid" })).status).toBe(400);
-    expect(
-      (await editor.put(`${path(ws.workspaceId, id(2))}/roles/x/cv`, { cvId: null })).status,
-    ).toBe(404);
+    // A position that isn't one, or past what the int4 position columns hold, is no role: a 404,
+    // never a database error.
+    for (const bad of ["x", "-1", "99999999999"]) {
+      expect(
+        (await editor.put(`${path(ws.workspaceId, id(2))}/roles/${bad}/cv`, { cvId: null })).status,
+      ).toBe(404);
+    }
     // cvs-senders writes the choice itself (cvs/override.ts).
     expect((await editor.put(cvPath, { cvId: null })).status).toBe(501);
   });

@@ -9,7 +9,19 @@ import { defineConfig } from "vitest/config";
 // core count, a worker's first PGlite start took over 30 seconds and jsdom renders of the web
 // app over Vitest's default 5 seconds, failing tests that pass on a quiet machine. A test that
 // really hangs still fails, only later.
-const pglite = { isolate: false, hookTimeout: 120_000, testTimeout: 120_000 };
+//
+// expect.poll gives up after its own timeout (Vitest's default is 1 second), whatever the test's:
+// a background job that ends in 0.1 seconds on a quiet machine took longer than that at load 50,
+// so a poll waits up to 30 seconds. vi.waitFor has no such setting; a server test that waits on
+// background work passes the same 30 seconds itself (WAIT in routes/intake.test.ts). The tests
+// under "room on a loaded machine" (packages/db/src/index.test.ts, apps/server/src/start.test.ts)
+// fail if these are dropped.
+const pglite = {
+  isolate: false,
+  hookTimeout: 120_000,
+  testTimeout: 120_000,
+  expect: { poll: { timeout: 30_000 } },
+};
 
 export default defineConfig({
   test: {

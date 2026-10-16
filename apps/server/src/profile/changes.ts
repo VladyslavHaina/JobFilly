@@ -3,6 +3,7 @@ import { type AppliedChanges, applyChanges, type ChangeError } from "@jobfilly/c
 import {
   type ApplyProfileChangesResult,
   applyProfileChanges,
+  clearStageFailures,
   markStale,
   type StaleScope,
 } from "@jobfilly/db";
@@ -20,11 +21,15 @@ import { requestRun } from "../pipeline/reevaluate";
 // requestReevaluation is the one way to make evaluations stale. Its triggers, each with its
 // owner: intake confirm (foundation), a profile or rule change (here), a finished CV read and a
 // CV delete (cvs-senders), a CV-choice override (cvs-senders), a sender mark (cvs-senders, sender
-// scopes), a decision answer (replies), apply and undo (assistant).
+// scopes), a decision answer (replies), apply and undo (assistant), and a category correction
+// (foundation, routes/messages.ts: the message's roles, as reply_to reads the category).
 
 /**
- * Marks the scope's evaluations stale (and, for a sender scope only, the sender checks), asks
- * for a deduped pipeline.reevaluate, and tells open inboxes their scores are stale meanwhile.
+ * Marks the scope's evaluations stale (and, for a sender scope only, the sender checks), ends
+ * the back-off of the scope's failing roles (a change is a new question, tried at once), asks
+ * for a deduped pipeline.reevaluate, and tells open inboxes their scores are stale meanwhile:
+ * one messages.updated, naming the messages when the scope is a list of them. A caller doesn't
+ * publish its own messages.updated for the same change.
  */
 export async function requestReevaluation(
   deps: AppDeps,
@@ -33,8 +38,10 @@ export async function requestReevaluation(
   reason: string,
 ): Promise<void> {
   await markStale(deps.db, ws, scope, deps.clock.now());
+  await clearStageFailures(deps.db, ws, scope);
   await requestRun(deps, ws, reason);
-  await deps.live.publish(ws, { type: "messages.updated", data: {} });
+  const data = "messageIds" in scope ? { messageIds: [...scope.messageIds] } : {};
+  await deps.live.publish(ws, { type: "messages.updated", data });
 }
 
 export interface ChangeRequest {

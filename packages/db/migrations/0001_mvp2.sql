@@ -256,6 +256,19 @@ CREATE TABLE "sender_marks" (
 	CONSTRAINT "sender_marks_mark_check" CHECK (mark in ('trusted', 'blocked'))
 );
 --> statement-breakpoint
+CREATE TABLE "stage_failures" (
+	"workspace_id" uuid NOT NULL,
+	"message_id" text NOT NULL,
+	"stage" text NOT NULL,
+	"position" integer NOT NULL,
+	"failures" integer NOT NULL,
+	"failed_at" timestamp with time zone NOT NULL,
+	"retry_at" timestamp with time zone NOT NULL,
+	"stale_since" timestamp with time zone,
+	CONSTRAINT "stage_failures_workspace_id_message_id_stage_position_pk" PRIMARY KEY("workspace_id","message_id","stage","position"),
+	CONSTRAINT "stage_failures_stage_check" CHECK (stage in ('sender', 'match'))
+);
+--> statement-breakpoint
 ALTER TABLE "jobs" ADD COLUMN "dedupe_key" text;--> statement-breakpoint
 ALTER TABLE "messages" ADD COLUMN "language" text;--> statement-breakpoint
 -- Hand-placed: the composite foreign keys below reference profiles (workspace_id, id).
@@ -306,6 +319,8 @@ ALTER TABLE "sender_checks" ADD CONSTRAINT "sender_checks_workspace_id_workspace
 ALTER TABLE "sender_checks" ADD CONSTRAINT "sender_checks_message_fk" FOREIGN KEY ("workspace_id","message_id") REFERENCES "public"."messages"("workspace_id","message_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "sender_marks" ADD CONSTRAINT "sender_marks_workspace_id_workspaces_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspaces"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "sender_marks" ADD CONSTRAINT "sender_marks_marked_by_users_id_fk" FOREIGN KEY ("marked_by") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "stage_failures" ADD CONSTRAINT "stage_failures_workspace_id_workspaces_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspaces"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "stage_failures" ADD CONSTRAINT "stage_failures_message_fk" FOREIGN KEY ("workspace_id","message_id") REFERENCES "public"."messages"("workspace_id","message_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "assistant_messages_thread_idx" ON "assistant_messages" USING btree ("thread_id","created_at");--> statement-breakpoint
 CREATE INDEX "assistant_proposals_thread_idx" ON "assistant_proposals" USING btree ("thread_id");--> statement-breakpoint
 CREATE INDEX "assistant_threads_workspace_user_idx" ON "assistant_threads" USING btree ("workspace_id","user_id");--> statement-breakpoint

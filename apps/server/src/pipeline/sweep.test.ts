@@ -2,9 +2,12 @@ import {
   claimDraft,
   createConfirmedProfile,
   getDraftClaim,
+  getEvaluations,
   getJob,
   getSenderChecks,
+  getStageHolds,
   listToEvaluate,
+  listWorkspacesWithWork,
   markDraftFailed,
   saveEnvelopes,
 } from "@jobfilly/db";
@@ -112,6 +115,73 @@ describe("the sweep", () => {
     expect(await sweep(deps)).toBe(0);
   });
 
+  it("checks and matches a confirmed profile's first-scan backlog, retrying what failed within one interval (F1.6)", async () => {
+    // The intake was confirmed after the first scan; none of its job mail was evaluated.
+    await confirm();
+    const DAY = 24 * 60 * 60 * 1000;
+    await seedJobMail(deps, ws, mailbox, {
+      messageId: "<a@x.example>",
+      receivedAt: new Date(NOW.getTime() - 20 * DAY),
+      roles: [roleFacts({ title: "A" }), roleFacts({ title: "B" })],
+    });
+    await seedJobMail(deps, ws, mailbox, {
+      messageId: "<b@x.example>",
+      receivedAt: new Date(NOW.getTime() - 3 * DAY),
+    });
+    // One message's sender check and match fail on the first run.
+    stages.failing.sender = "<b@x.example>";
+    stages.failing.match = "<b@x.example>";
+
+    // The startup sweep: no one does anything.
+    expect(await sweep(deps)).toBe(1);
+    expect(await deps.queue.runOnce()).toBe(true);
+    expect((await getSenderChecks(deps.db, ws, ["<a@x.example>"]))[0]).toMatchObject({
+      verdict: "looks_fine",
+      complete: true,
+      stale: false,
+    });
+    expect(
+      (await getEvaluations(deps.db, ws, ["<a@x.example>"])).map((e) => [e.position, e.stale]),
+    ).toEqual([
+      [0, false],
+      [1, false],
+    ]);
+    expect(
+      deps.logs
+        .filter((l) => l.event === "pipeline.message_processed")
+        .map((l) => [l.origin, l.senderChecked, l.rolesEvaluated, l.rolesFailed]),
+    ).toEqual([
+      // Newest first.
+      ["backlog", false, 0, 1],
+      ["backlog", true, 2, 0],
+    ]);
+    expect(
+      deps.logs
+        .filter((l) => l.event === "pipeline.stage_failed")
+        .map((l) => [l.stage, l.reason, l.failures]),
+    ).toEqual([
+      ["sender", "sender stage failed", 1],
+      ["match", "match stage failed", 1],
+    ]);
+    expect(await listToEvaluate(deps.db, ws)).toMatchObject([{ messageId: "<b@x.example>" }]);
+
+    // The next interval's tick retries what failed.
+    stages.failing = {};
+    deps.clock.advance(deps.config.syncIntervalSeconds * 1000);
+    await createScheduler(deps).tick();
+    expect(await deps.queue.runOnce()).toBe(true);
+    expect((await getSenderChecks(deps.db, ws, ["<b@x.example>"]))[0]).toMatchObject({
+      verdict: "looks_fine",
+      complete: true,
+    });
+    expect((await getEvaluations(deps.db, ws, ["<b@x.example>"]))[0]).toMatchObject({
+      position: 0,
+      stale: false,
+    });
+    expect(await listToEvaluate(deps.db, ws)).toEqual([]);
+    expect(await sweep(deps)).toBe(0);
+  });
+
   it("leaves a workspace without a confirmed profile alone", async () => {
     await seedJobMail(deps, ws, mailbox, { messageId: "<a@x.example>", receivedAt: NOW });
     expect(await sweep(deps)).toBe(0);
@@ -131,6 +201,99 @@ describe("the sweep", () => {
     await scheduler.tick();
     expect(await deps.queue.runOnce()).toBe(true);
     expect(await listToEvaluate(deps.db, ws)).toEqual([]);
+  });
+
+  it("backs off a stage that keeps failing: not retried on every tick, and again after the wait", async () => {
+    await confirm();
+    await seedJobMail(deps, ws, mailbox, { messageId: "<a@x.example>", receivedAt: NOW });
+    stages.failing.match = "*";
+    const scheduler = createScheduler(deps);
+    const interval = deps.config.syncIntervalSeconds * 1000;
+    const matches = () => stages.calls.filter((c) => c.startsWith("match")).length;
+    /** One scheduler tick; whether it ran a re-evaluation. */
+    const tick = async (advance: number) => {
+      deps.clock.advance(advance);
+      await scheduler.tick();
+      return deps.queue.runOnce();
+    };
+
+    expect(await tick(0)).toBe(true); // the first try
+    expect(await tick(interval)).toBe(true); // the first retry, within one interval
+    expect(matches()).toBe(2);
+    // Now it waits one interval, then two: the ticks between do nothing.
+    expect(await tick(interval / 2)).toBe(false);
+    expect(await tick(interval / 2)).toBe(true);
+    expect(matches()).toBe(3);
+    expect(await tick(interval)).toBe(false);
+    expect(await tick(interval)).toBe(true);
+    expect(matches()).toBe(4);
+    expect(
+      deps.logs
+        .filter((l) => l.event === "pipeline.stage_failed")
+        .map((l) => [l.stage, l.failures, l.reason]),
+    ).toEqual([
+      ["match", 1, "match stage failed"],
+      ["match", 2, "match stage failed"],
+      ["match", 3, "match stage failed"],
+      ["match", 4, "match stage failed"],
+    ]);
+
+    // Once it works, the role is evaluated and the ticks have nothing more to do.
+    stages.failing = {};
+    expect(await tick(interval * 4)).toBe(true);
+    expect(await listToEvaluate(deps.db, ws)).toEqual([]);
+    expect(await tick(interval)).toBe(false);
+  });
+
+  it("backs off a sender check while the mailbox is down: no login or fetch on the ticks between", async () => {
+    await confirm();
+    await seedJobMail(deps, ws, mailbox, { messageId: "<a@x.example>", receivedAt: NOW });
+    mailbox.pause();
+    const scheduler = createScheduler(deps);
+    const interval = deps.config.syncIntervalSeconds * 1000;
+    const senders = () => stages.calls.filter((c) => c.startsWith("sender")).length;
+    /** One scheduler tick; whether it ran a re-evaluation. */
+    const tick = async (advance: number) => {
+      deps.clock.advance(advance);
+      await scheduler.tick();
+      return deps.queue.runOnce();
+    };
+
+    expect(await tick(0)).toBe(true); // the first try; the role is matched meanwhile
+    expect(await tick(interval)).toBe(true); // the first retry, within one interval
+    expect(senders()).toBe(2);
+    expect(mailbox.calls.fetchBody).toBe(2);
+
+    // Now it waits one interval: the tick between runs nothing and touches no mailbox.
+    const before = { ...mailbox.calls };
+    expect(await listWorkspacesWithWork(deps.db, deps.clock.now())).toEqual([]);
+    expect(await tick(interval / 2)).toBe(false);
+    expect(mailbox.calls).toEqual(before);
+    expect(senders()).toBe(2);
+    expect(await tick(interval / 2)).toBe(true);
+    expect(senders()).toBe(3);
+    expect(mailbox.calls.fetchBody).toBe(before.fetchBody + 1);
+    expect(
+      deps.logs
+        .filter((l) => l.event === "pipeline.stage_failed")
+        .map((l) => [l.stage, l.error, l.kind, l.failures]),
+    ).toEqual([
+      ["sender", "MailUnavailableError", "mailbox_unavailable", 1],
+      ["sender", "MailUnavailableError", "mailbox_unavailable", 2],
+      ["sender", "MailUnavailableError", "mailbox_unavailable", 3],
+    ]);
+
+    // The mailbox is back: after the wait the real check is stored and the failure forgotten.
+    mailbox.resume();
+    expect(await tick(interval)).toBe(false);
+    expect(await tick(interval)).toBe(true);
+    expect((await getSenderChecks(deps.db, ws, ["<a@x.example>"]))[0]).toMatchObject({
+      verdict: "looks_fine",
+      complete: true,
+    });
+    expect((await getStageHolds(deps.db, ws, "<a@x.example>", new Date(0))).sender).toBe(false);
+    expect(await listToEvaluate(deps.db, ws)).toEqual([]);
+    expect(await tick(interval)).toBe(false);
   });
 
   it("checks a message gone from the mailbox once, then leaves it alone until it is seen again", async () => {
