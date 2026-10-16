@@ -1,6 +1,6 @@
 import { execFile, execFileSync, spawnSync } from "node:child_process";
 import { promisify } from "node:util";
-import { expect, type Route, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import {
   compose,
   composeArgs,
@@ -18,11 +18,13 @@ import {
 // S11 of docs/mvp/MVP-1.md: startup, health and shutdown (F7.1, F7.2, F7.4, F7.5), a shell
 // scenario on the test stack's compose project. The slow request is a Settings › AI Test that the
 // fake AI holds for FAKE_AI_SLOW_TEST_MS (TBD-33: the stateless fake-ai is started again with
-// 15000, and with 0 at the end). The proxy picks a replica per request, so the browser's Test
-// request and its live-update stream are sent to app-b's direct port while they open: that is
-// what "open on app-b" means here. Once app-b is going down, the stream reconnects through the
-// proxy. Whatever happens, the cleanup leaves Postgres, both replicas and a quick fake AI up and
-// ready, the state MVP 2's specs start from.
+// 15000, and with 0 at the end). The proxy picks a replica per request, so app-a is paused while
+// the browser's Test request and its live-update stream open: the proxy takes it out and sends
+// them to app-b. (They can't be routed to app-b's direct port instead: that is another origin to
+// the browser, which then leaves the session cookie off fetch and EventSource requests.) app-a
+// is unpaused before app-b goes down, and the stream reconnects through the proxy. Whatever
+// happens, the cleanup leaves Postgres, both replicas and a quick fake AI up and ready, the state
+// MVP 2's specs start from.
 
 const SLOW_TEST_MS = "15000";
 
@@ -42,16 +44,27 @@ async function restartFakeAi(slowTestMs: string) {
     .toBe(true);
 }
 
-/** Sends a request to app-b's direct port instead of the proxy. */
-function toAppB(route: Route) {
-  const url = new URL(route.request().url());
-  url.port = String(DIRECT_PORTS["app-b"]);
-  return route.continue({ url: url.toString() });
+/**
+ * True when the proxy answers several requests in a row at once: none goes to a paused app-a,
+ * where it would hang.
+ */
+async function proxySkipsPausedAppA(): Promise<boolean> {
+  for (let i = 0; i < 4; i++) {
+    const status = await fetch(`http://127.0.0.1:${PROXY_PORT}/api/health/ready`, {
+      signal: AbortSignal.timeout(2_000),
+    }).then(
+      (r) => r.status,
+      () => null,
+    );
+    if (status !== 200) return false;
+  }
+  return true;
 }
 
 test("S11: startup, health and shutdown", async ({ page }) => {
   test.setTimeout(15 * 60_000);
   let slowFakeAi = false;
+  let appAPaused = false;
 
   await withCleanup(
     async () => {
@@ -101,8 +114,9 @@ test("S11: startup, health and shutdown", async ({ page }) => {
         await restartFakeAi(SLOW_TEST_MS);
         const mark = serviceLog("app-b").length;
 
-        await page.route("**/api/workspaces/*/events", toAppB);
-        await page.route("**/api/workspaces/*/ai/test", toAppB);
+        compose(["pause", "app-a"]);
+        appAPaused = true;
+        await expect.poll(proxySkipsPausedAppA, { timeout: 60_000, intervals: [1_000] }).toBe(true);
         await signIn(page, "maria");
         await openSettingsTab(page, "AI");
 
@@ -110,8 +124,9 @@ test("S11: startup, health and shutdown", async ({ page }) => {
         await page.getByRole("button", { name: "Test", exact: true }).click();
         await sent;
         await expect(page.getByText("Waiting for the AI to answer…")).toBeVisible();
-        // From here on the stream reconnects through the proxy.
-        await page.unroute("**/api/workspaces/*/events");
+        // The proxy has app-a again for the stream to reconnect to.
+        compose(["unpause", "app-a"]);
+        appAPaused = false;
         const reconnected = page.waitForResponse(
           (r) => /\/api\/workspaces\/[^/]+\/events$/.test(new URL(r.url()).pathname) && r.ok(),
           { timeout: 90_000 },
@@ -126,7 +141,6 @@ test("S11: startup, health and shutdown", async ({ page }) => {
         });
         await stopped;
         await reconnected;
-        await page.unroute("**/api/workspaces/*/ai/test");
 
         const id = compose(["ps", "--all", "--quiet", "app-b"]).trim();
         const exit = execFileSync("docker", ["inspect", "--format", "{{.State.ExitCode}}", id], {
@@ -146,6 +160,7 @@ test("S11: startup, health and shutdown", async ({ page }) => {
       });
     },
     async () => {
+      if (appAPaused) compose(["unpause", "app-a"]);
       compose(["start", "postgres", ...REPLICAS]);
       if (slowFakeAi) await restartFakeAi("0");
       for (const replica of REPLICAS) await waitReady(DIRECT_PORTS[replica]);
