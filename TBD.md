@@ -5497,3 +5497,15 @@ These make sign-off possible; without them the build goes on and records an open
 - **If you decide otherwise:** Drop the .replace in entryLabel; single-word slugs such as 'relocation' are unaffected either way.
 - **Refs:** packages/schema/src/profile.ts (entryLabel); packages/core/src/assistant/words.ts; packages/core/src/profile/changes.ts; apps/web/src/pages/match/index.tsx
 - **Status:** open
+
+## TBD-439 · A preferred CV is a switch, not the tag word "preferred"
+- **Kind:** decision
+- **Where:** MVP 2 · Fix (cvs-senders, F2.1, S1)
+- **Context:** The CV choice gave extra weight to a CV tagged with the English word "preferred", which is a user-typed word hard-coded in packages/core/src/cv/choice.ts and breaks "nothing user-specific in code".
+- **Options:**
+  1. Keep the tag word and record an exception to the hard rule
+  2. A structured "Preferred CV" switch on each CV (`Cv.preferred`, migration 0002_cv_preferred, `PATCH /cvs/:cvId`); tag words carry no weight
+- **Chosen:** Option 2, decided by the owner on 2026-10-16. S1 in docs/mvp/MVP-2.md now says Maria turns on **Preferred CV** for Backend (EN) (owner edit).
+- **If you decide otherwise:** Revert 5d84f96, 447b6eb, db12651, 3d8f22a, 66c5f9e and 2bcb931, and restore the S1 wording.
+- **Refs:** F2.1, S1, packages/core/src/cv/choice.ts, packages/db migration 0002_cv_preferred
+- **Status:** accepted
