@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { NavLink, Outlet, useNavigate, useParams } from "react-router";
+import { NavLink, Outlet, useLocation, useNavigate, useParams } from "react-router";
 import { Button, Card, Loading } from "../components";
 import {
   useLiveInvalidation,
@@ -13,11 +13,15 @@ import { AssistantLauncher } from "../pages/assistant";
 import { DecisionCount } from "../pages/decisions";
 import { PendingInvitations } from "../pages/invites";
 import { paths } from "../paths";
+import { PageFrame } from "./PageFrame";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 
-function Nav() {
+type NavItem = { to: string; label: string; extra?: ReactNode };
+
+/** The pages of a workspace, as the navigation lists them for the user's role. */
+function useNavItems(): NavItem[] {
   const { workspaceId, can } = useWorkspace();
-  const links: { to: string; label: string; extra?: ReactNode }[] = [
+  return [
     { to: paths.inbox(workspaceId), label: "Inbox" },
     { to: paths.drafts(workspaceId), label: "Drafts" },
     {
@@ -36,6 +40,17 @@ function Nav() {
         ]
       : []),
   ];
+}
+
+/** "drafts" for /w/:workspaceId/drafts/...: the page of the workspace a path is on. */
+function pageOf(pathname: string, workspaceId: string): string | null {
+  const base = `${paths.workspace(workspaceId)}/`;
+  if (!pathname.startsWith(base)) return null;
+  return pathname.slice(base.length).split("/")[0] || null;
+}
+
+function Nav() {
+  const links = useNavItems();
   return (
     <nav aria-label="Main" className="flex flex-wrap gap-1">
       {links.map((l) => (
@@ -87,6 +102,19 @@ function Header() {
   );
 }
 
+/** The page under the header, framed so it is never a blank <main> (see PageFrame). */
+function Page() {
+  const { workspaceId } = useWorkspace();
+  const { pathname } = useLocation();
+  const page = pageOf(pathname, workspaceId);
+  const item = useNavItems().find((l) => pageOf(l.to, workspaceId) === page);
+  return (
+    <PageFrame key={page ?? ""} title={page && item ? item.label : null}>
+      <Outlet />
+    </PageFrame>
+  );
+}
+
 function LiveUpdates() {
   const { workspaceId } = useWorkspace();
   useLiveInvalidation(workspaceId);
@@ -129,7 +157,7 @@ export function AppShell() {
         <Header />
         <main className="mx-auto max-w-6xl px-4 py-6">
           <PendingInvitations />
-          <Outlet />
+          <Page />
         </main>
         {/* The assistant opens from every page (F8.1). */}
         <AssistantLauncher workspaceId={workspace.id} />
