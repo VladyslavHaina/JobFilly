@@ -2791,7 +2791,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** The Role key line, between Message-ID and Attempt, with the wire sample, the e2e wire test, packages/ai tests, the server's fake AI key and ARCHITECTURE updated. Per-role drafts are what the database (one live draft per role), the dedupe key and Draft a reply (F6.5) already assume. Changing the key line is mechanical and keeps every role's answer distinct. Whether two automatic drafts in one thread are wanted is left to replyEligibility, which can still restrict it.
 - **If you decide otherwise:** Revert the key line and add a per-message limit in packages/core replyEligibility with a test; the fake AI key goes back to Message-ID#attempt.
 - **Refs:** F6.1, F6.5, TBD-210 item 2; packages/ai/src/tasks/draft.ts; e2e/fixtures/wire/draft.v1.request.json; apps/server/src/testing/ai.ts
-- **Status:** open
+- **Status:** changed: at most one automatic draft per message, for the best-scoring eligible role (owner, 2026-10-16); Draft a reply stays per role.
 
 ## TBD-222 · A failed draft.v1 call marks the draft failed with a new 'ai' kind, retried under the same 5-attempt cap
 - **Kind:** decision
@@ -5396,7 +5396,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Per-role only. The draft prompt gets the answer as an extra entry (extra.answer_<groupKey>, label = the question, value = [the words]), which exists only in the prompt. Never invent profile content. 'Unknown means ask' still holds: a later message asks again, and the user can answer or dismiss it.
 - **If you decide otherwise:** A later role with the same group key would never be asked, and the profile would hold an item the user never wrote.
 - **Refs:** packages/core/src/drafts/entries.ts; apps/server/src/drafts/write.ts roleAnswers
-- **Status:** open
+- **Status:** accepted for MVP 2 (owner, 2026-10-16): a declined place or remote answer is asked again for later mail; revisit in MVP 3 by storing a remembered no.
 
 ## TBD-431 · A small yes/no and field-word vocabulary in core to read answer words
 - **Kind:** decision
