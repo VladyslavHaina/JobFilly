@@ -754,14 +754,46 @@ describe("what the assistant can't do (F8.7)", () => {
   });
 
   it("answers no reply to a malformed rule change, after the client's one retry", async () => {
+    // As the model writes it (AssistantRequestSchema): flat, the rule as JSON text.
+    const flat = { ruleId: null, key: null, value: null };
+    const rule = JSON.stringify({ description: "x" });
     const requests = realClientAnswering(
-      proposalAnswer([{ op: "add", target: "rule", rule: { description: "x" } } as never]),
+      proposalAnswer([{ op: "add", target: "rule", rule, ...flat } as never]),
     );
     const res = await maria.post(`${base()}/assistant`, { threadId: null, text: "hide them" });
     expect(res.status).toBe(502);
     expect(requests).toHaveLength(2);
     const state = AssistantStateSchema.parse(await (await maria.get(`${base()}/assistant`)).json());
     expect(state.thread).toBeNull();
+  });
+
+  it("logs why the model gave no answer, in codes only, never the words", async () => {
+    const providerWords = "The compiled grammar is too large E2E-SECRET-provider";
+    deps.ai = {
+      client: (settings) =>
+        createAiClient(settings, {
+          fetch: async () =>
+            Response.json(
+              { error: { type: "invalid_request_error", message: providerWords } },
+              { status: 400 },
+            ),
+        }),
+    };
+    const text = "hide them E2E-CHAT-failed";
+    const res = await maria.post(`${base()}/assistant`, { threadId: null, text });
+    expect(res.status).toBe(502);
+    expect(deps.logs.filter((l) => l.event === "assistant.failed")).toEqual([
+      expect.objectContaining({
+        level: "warn",
+        task: "assistant.v1",
+        reason: "provider_error",
+        httpStatus: 400,
+        providerErrorType: "invalid_request_error",
+      }),
+    ]);
+    const logged = JSON.stringify(deps.logs);
+    expect(logged).not.toContain(providerWords);
+    expect(logged).not.toContain(text);
   });
 
   it("gets the same outcomes from the fake AI port, which checks answers the same way", async () => {

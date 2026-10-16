@@ -156,7 +156,17 @@ export async function sendMessage(
     entries: (profile?.entries ?? []).map((e) => ({ key: e.key, label: e.label, value: e.value })),
     rules,
   });
-  if (!result.ok) return fail(502, "ai_failed", "The assistant couldn't answer. Try again.");
+  if (!result.ok) {
+    // Why, in codes packages/ai prepared for the logs; never the message or the provider's words.
+    const { kind, httpStatus, providerErrorType } = result.error;
+    log.warn("assistant.failed", {
+      task: "assistant.v1",
+      reason: kind,
+      ...(httpStatus !== undefined ? { httpStatus } : {}),
+      ...(providerErrorType !== undefined ? { providerErrorType } : {}),
+    });
+    return fail(502, "ai_failed", "The assistant couldn't answer. Try again.");
+  }
 
   let text = result.data.reply;
   const clarify: AssistantClarify | null = result.data.clarify;
