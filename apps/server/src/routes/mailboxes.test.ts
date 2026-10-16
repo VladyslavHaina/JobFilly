@@ -348,6 +348,34 @@ describe("one mailbox per workspace (F2.5)", () => {
     expect((await admin.post(url, form)).status).toBe(201);
   });
 
+  it("tells every open browser of the workspace when it is connected or disconnected (F1.4)", async () => {
+    const tom = await seedUser(deps, { name: "Tom Okafor" });
+    const seen: { ws: string; type: string }[] = [];
+    const watch = (ws: string, userId: string) =>
+      deps.live.subscribe(
+        { workspaceId: ws, userId, sessionId: `s-${userId}` },
+        (e) => seen.push({ ws, type: e.type }),
+        () => {},
+      );
+    watch(workspaceId, owner.id);
+    watch(tom.workspaceId, tom.id);
+    const changed = [
+      { ws: workspaceId, type: "workspace.updated" },
+      { ws: workspaceId, type: "mailbox.updated" },
+    ];
+
+    const { id } = MailboxPublicSchema.parse(await (await admin.post(url, form)).json());
+    await expect.poll(() => seen).toEqual(changed);
+    expect((await admin.delete(`${url}/${id}`)).status).toBe(204);
+    await expect.poll(() => seen).toEqual([...changed, ...changed]);
+
+    // Refused changes change nothing, so they tell no one.
+    mail.result = { ok: false, reason: "unreachable", message: "x" };
+    expect((await admin.post(url, form)).status).toBe(400);
+    expect((await admin.delete(`${url}/${id}`)).status).toBe(404);
+    expect(seen).toEqual([...changed, ...changed]);
+  });
+
   it("can't disconnect another workspace's mailbox", async () => {
     const tom = await seedUser(deps, { name: "Tom Okafor" });
     const tomClient = await signedIn(createApp(deps), deps, tom);

@@ -24,7 +24,10 @@ import { seal } from "../secrets";
 // The workspace's mailbox (F2): presets, test, connect, disconnect, and the continuous sync's
 // status for everyone in the workspace (MVP 2 F1.4). One mailbox per workspace in MVP 1 (F2.5).
 // The password is sealed before it is stored, never returned and never logged (F2.3); plain-text
-// IMAP is refused unless JOBFILLY_ALLOW_INSECURE_MAIL=true (F2.4).
+// IMAP is refused unless JOBFILLY_ALLOW_INSECURE_MAIL=true (F2.4). Connecting and disconnecting
+// tell every open browser of the workspace (MVP 2 F1.4): workspace.updated for the mailbox itself
+// and mailbox.updated for its sync status, so no one keeps showing a mailbox that is gone or a
+// status of one that isn't there.
 
 const INSECURE: MailTestResult = {
   ok: false,
@@ -71,6 +74,12 @@ export function mailboxRoutes(deps: AppDeps) {
     return result;
   }
 
+  /** Tells the workspace's open browsers that its mailbox and its status changed. */
+  async function publishChange(workspaceId: string) {
+    await deps.live.publish(workspaceId, { type: "workspace.updated", data: {} });
+    await deps.live.publish(workspaceId, { type: "mailbox.updated", data: {} });
+  }
+
   return new Hono<WorkspaceEnv>()
     .get("/", requireRole("viewer"), async (c) => {
       const workspaceId = c.get("workspaceId");
@@ -115,6 +124,7 @@ export function mailboxRoutes(deps: AppDeps) {
       const created = await createMailbox(deps.db, workspaceId, stored);
       if (!created.ok) return c.json(EXISTS, 409);
       c.get("log").info("mailbox.connected", { mailboxId: created.mailboxId });
+      await publishChange(workspaceId);
       const body: MailboxPublic = toPublic({
         ...stored,
         mailboxId: created.mailboxId,
@@ -123,11 +133,10 @@ export function mailboxRoutes(deps: AppDeps) {
       return c.json(body, 201);
     })
     .delete("/:mailboxId", requireRole("admin"), validParam(MailboxParamsSchema), async (c) => {
-      const deleted = await deleteMailbox(
-        deps.db,
-        c.get("workspaceId"),
-        c.req.valid("param").mailboxId,
-      );
-      return deleted ? c.body(null, 204) : c.json(NOT_FOUND, 404);
+      const workspaceId = c.get("workspaceId");
+      const deleted = await deleteMailbox(deps.db, workspaceId, c.req.valid("param").mailboxId);
+      if (!deleted) return c.json(NOT_FOUND, 404);
+      await publishChange(workspaceId);
+      return c.body(null, 204);
     });
 }
