@@ -150,6 +150,42 @@ describe("the Decisions page (F7.2)", () => {
     });
   });
 
+  it("answers a no for the waiting messages only, as it writes nothing to the profile", async () => {
+    const dublin: Decision = {
+      ...RELOCATE,
+      id: "00000000-0000-4000-8000-0000000000c4",
+      question: "Hybrid in Dublin?",
+      profileKey: "places",
+      groupKey: "places:IE:Dublin:hybrid",
+      choices: [
+        { label: "Yes", value: { country: "IE", city: "Dublin", mode: "hybrid" } },
+        { label: "No", value: "No" },
+      ],
+    };
+    const seen = fakeApi({
+      [`GET ${BASE}`]: { items: [dublin] },
+      [`POST ${BASE}/:id/answer`]: { ...dublin, status: "answered", waiting: [] },
+    });
+    renderInWorkspace(<DecisionsPage workspaceId={W} />);
+    await screen.findByRole("heading", { name: "Hybrid in Dublin?" });
+    const similar = screen.getByRole("checkbox", {
+      name: "Use this answer for similar mail",
+    }) as HTMLInputElement;
+    await userEvent.click(screen.getByRole("radio", { name: "Yes" }));
+    expect(similar.checked).toBe(true);
+    expect(similar.disabled).toBe(false);
+    await userEvent.click(screen.getByRole("radio", { name: "No" }));
+    expect(similar.checked).toBe(false);
+    expect(similar.disabled).toBe(true);
+    expect(screen.getByText(/nothing is added to your profile/)).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Answer" }));
+    await waitFor(() => expect(seen.some((r) => r.method === "POST")).toBe(true));
+    expect(seen.find((r) => r.method === "POST")?.body).toEqual({
+      value: "No",
+      useForSimilar: false,
+    });
+  });
+
   it("keeps a decision with Not now, and closes it for one message with Don't ask", async () => {
     let items = [CHF];
     const seen = fakeApi({

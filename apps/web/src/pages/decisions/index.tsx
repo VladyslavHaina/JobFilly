@@ -1,4 +1,4 @@
-import type { Decision, ProfileItem } from "@jobfilly/schema";
+import { type Decision, type ProfileItem, turnsDown } from "@jobfilly/schema";
 import { useId, useState } from "react";
 import { Link } from "react-router";
 import { errorText } from "../../api";
@@ -9,7 +9,8 @@ import { useAnswer, useDecisionCount, useDecisions, useDismiss, useNotNow } from
 
 // The decision inbox in the UI (F7): each question once, the messages waiting on it, answers to
 // click plus a free-text option, and Use this answer for similar mail (F7.2; an ask_first rule's
-// question shows it switched off, with why: the rule asks for each message); Not now and Don't
+// question shows it switched off, with why: the rule asks for each message, and so does a no
+// that turns a question down, which writes nothing to the profile); Not now and Don't
 // ask for this message (F7.5); the open count in the navigation, kept live by decisions.updated
 // events. Viewers see everything but can't answer (F7.7).
 
@@ -37,6 +38,10 @@ function DecisionCard({ decision }: { decision: Decision }) {
   const locked = !can.edit || busy;
   // An ask_first rule's question has no profile key: the rule asks it for each message.
   const perRule = decision.profileKey === null;
+  // A no to "Hybrid in Dublin?" answers the messages above and writes nothing (turnsDown).
+  const choice = picked !== null && picked !== OTHER ? decision.choices[Number(picked)] : null;
+  const declines = choice ? turnsDown(decision.profileKey, choice.value) : false;
+  const forTheseOnly = perRule || declines;
 
   return (
     <Card>
@@ -79,7 +84,7 @@ function DecisionCard({ decision }: { decision: Decision }) {
           className="flex flex-col gap-3"
           onSubmit={(e) => {
             e.preventDefault();
-            if (value !== null) answer.mutate({ value, useForSimilar: similar && !perRule });
+            if (value !== null) answer.mutate({ value, useForSimilar: similar && !forTheseOnly });
           }}
         >
           <fieldset className="flex flex-col gap-2" disabled={locked}>
@@ -118,17 +123,23 @@ function DecisionCard({ decision }: { decision: Decision }) {
             <label className="flex items-center gap-2 text-sm text-stone-800">
               <input
                 type="checkbox"
-                checked={perRule ? false : similar}
-                disabled={locked || perRule}
-                aria-describedby={perRule ? `${name}-rule` : undefined}
+                checked={forTheseOnly ? false : similar}
+                disabled={locked || forTheseOnly}
+                aria-describedby={forTheseOnly ? `${name}-only` : undefined}
                 onChange={(e) => setSimilar(e.target.checked)}
               />
               Use this answer for similar mail
             </label>
             {perRule && (
-              <p id={`${name}-rule`} className="text-xs text-stone-500">
+              <p id={`${name}-only`} className="text-xs text-stone-500">
                 One of your rules asks this for each message, so the answer is for the messages
                 above only. To stop being asked, switch the rule off on your profile.
+              </p>
+            )}
+            {declines && !perRule && (
+              <p id={`${name}-only`} className="text-xs text-stone-500">
+                "{choice?.label}" answers the messages above only: their replies are told, and
+                nothing is added to your profile.
               </p>
             )}
           </fieldset>
