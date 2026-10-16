@@ -44,7 +44,7 @@ export function openDatabase(url: string, options: OpenDatabaseOptions = {}): Da
   const pool = new pg.Pool({ ...config, max: 10, idleTimeoutMillis: 30_000 });
   pool.on("error", (error) => options.onError?.(error));
   const db: Database = drizzle({ client: pool });
-  const notifier = pgNotifier(pool, config, { onError: options.onError });
+  const notifier = pgNotifier(config, { onError: options.onError });
   return {
     db,
     notifier,

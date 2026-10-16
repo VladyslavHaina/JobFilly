@@ -43,20 +43,22 @@ function removeCallback(callbacks: Callbacks, channel: string, cb: (payload: str
 }
 
 export interface PgNotifierOptions {
-  /** Called when the listening connection fails; it reconnects and listens again on its own. */
+  /** Called when the dedicated connection fails; it reconnects and listens again on its own. */
   onError?: (error: Error) => void;
-  /** Delay before reconnecting the listening connection. */
+  /** Delay before reconnecting the dedicated connection while something listens. */
   reconnectDelayMs?: number;
-  /** Makes the dedicated listening client; tests pass a fake. */
+  /** Makes the dedicated client; tests pass a fake. */
   createClient?: (config: pg.ClientConfig) => pg.Client;
 }
 
 /**
- * LISTEN on one dedicated connection (a pooled one could be handed to someone else), NOTIFY
- * through the pool. The dedicated connection reconnects after an error and listens again.
+ * LISTEN and NOTIFY on one dedicated connection, never a pooled one. A pooled connection could be
+ * handed to someone else while it listens; and a NOTIFY through the pool waits in line behind
+ * every query queued for a connection, so while the pipeline keeps the pool busy, live updates
+ * (a scan's progress, its stop) would reach the browsers late (F4.6). The dedicated connection
+ * reconnects after an error and listens again; a NOTIFY meanwhile opens it again at once.
  */
 export function pgNotifier(
-  pool: pg.Pool,
   clientConfig: pg.ClientConfig,
   options: PgNotifierOptions = {},
 ): Notifier {
@@ -100,6 +102,10 @@ export function pgNotifier(
         void c.end().catch(() => {});
         throw error;
       }
+      if (closed) {
+        void c.end().catch(() => {});
+        throw new Error("the notifier is closed");
+      }
       client = c;
       listening = channels;
       return c;
@@ -131,7 +137,10 @@ export function pgNotifier(
       };
     },
     async notify(channel, payload) {
-      await pool.query("select pg_notify($1, $2)", [checkChannel(channel), payload]);
+      checkChannel(channel);
+      if (closed) throw new Error("the notifier is closed");
+      const c = await connect();
+      await c.query("select pg_notify($1, $2)", [channel, payload]);
     },
     async close() {
       closed = true;
