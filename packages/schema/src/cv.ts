@@ -77,11 +77,15 @@ export type CvChoice = z.infer<typeof CvChoiceSchema>;
 export const CvChoiceOverrideSchema = z.object({ cvId: z.uuid().nullable() });
 export type CvChoiceOverride = z.infer<typeof CvChoiceOverrideSchema>;
 
+/** The largest role position: every position column (roles, role_evaluations…) is an int4. */
+const MAX_ROLE_POSITION = 2_147_483_647;
+
 /**
  * The path of PUT /messages/:messageId/roles/:position/cv: the Message-ID (decoded by the router)
- * and the role's position, a nonnegative integer like every other role position.
+ * and the role's position, a nonnegative integer like every other role position, at most what
+ * the position columns hold (a larger one would fail in the database, not here).
  */
 export const RoleParamsSchema = z.object({
   messageId: z.string().min(1),
-  position: z.coerce.number().int().nonnegative(),
+  position: z.coerce.number().int().nonnegative().max(MAX_ROLE_POSITION),
 });

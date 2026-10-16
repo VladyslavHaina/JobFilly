@@ -533,9 +533,12 @@ describe("path params and the live envelope", () => {
       position: 0,
     });
     expect(RoleParamsSchema.parse({ messageId, position: "12" }).position).toBe(12);
-    // No upper bound, like every other role position.
     expect(RoleParamsSchema.parse({ messageId, position: "10001" }).position).toBe(10001);
-    for (const bad of ["x", "-1", "1.5", "NaN"]) {
+    // At most what the int4 position columns hold, so a larger one is a 400, not a database error.
+    expect(RoleParamsSchema.parse({ messageId, position: "2147483647" }).position).toBe(
+      2_147_483_647,
+    );
+    for (const bad of ["x", "-1", "1.5", "NaN", "2147483648", "99999999999"]) {
       expect(RoleParamsSchema.safeParse({ messageId, position: bad }).success).toBe(false);
     }
     expect(RoleParamsSchema.safeParse({ messageId: "", position: "0" }).success).toBe(false);
