@@ -16,7 +16,15 @@ import {
   type RuleFact,
   type TimeZoneRange,
 } from "@jobfilly/schema";
-import { formatAmount, formatRange, norm, orList, rangeDisjoint, rangeWithin } from "./words";
+import {
+  formatAmount,
+  formatRange,
+  mentions,
+  norm,
+  orList,
+  rangeDisjoint,
+  rangeWithin,
+} from "./words";
 
 // The rules engine (F3): whether each of a profile's rules holds for one role, with the outcome it
 // causes and the rule that caused it. Pure: the same role, message fields and rules always give
@@ -31,6 +39,8 @@ import { formatAmount, formatRange, norm, orList, rangeDisjoint, rangeWithin } f
 // - A condition whose value can't test its fact (a time-zone range against a company name) never
 //   holds.
 // - Every outcome names the rule (F3.3): "Hidden by your rule "…"".
+// - Text "contains" a word only in whole words, as its plain words say ("mentions"); a list
+//   contains an item only when it is that item.
 
 /** What the engine reads of one role: its facts, and the message fields rules may test. */
 export interface RuleSubject {
@@ -186,7 +196,9 @@ function wordsCondition(op: Condition["op"], fact: FactValue, words: string[]): 
     const isOne = wanted.includes(value);
     if (op === "in" || op === "equals") return when(isOne);
     if (op === "not_in") return when(!isOne);
-    if (op === "contains") return when(wanted.some((w) => w !== "" && value.includes(w)));
+    // "mentions" in its plain words: in whole words, so 'crypto' holds for "Crypto Exchange
+    // GmbH" but not for "Cryptography Solutions".
+    if (op === "contains") return when(words.some((w) => mentions(fact.value, w)));
     return FAILS;
   }
   if (fact.kind === "list") {

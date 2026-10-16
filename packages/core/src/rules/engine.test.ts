@@ -345,12 +345,35 @@ describe("every op against every fact", () => {
     }
   }
 
-  it("compares text by containing and lists by item", () => {
-    expect(state({ fact: "company", op: "contains", value: ["licht"] }, known).state).toBe("holds");
+  it("compares text by whole words and lists by item", () => {
+    expect(state({ fact: "company", op: "contains", value: ["nordlicht"] }, known).state).toBe(
+      "holds",
+    );
+    // "mentions" means in whole words: no word inside a longer one.
+    expect(state({ fact: "company", op: "contains", value: ["licht"] }, known).state).toBe("fails");
     // A list item must be the word itself: "Go" is no "Golang", "Java" no "JavaScript".
     expect(state({ fact: "skills", op: "contains", value: ["G"] }, known).state).toBe("fails");
     expect(state({ fact: "skills", op: "in", value: ["php", "go"] }, known).state).toBe("holds");
     expect(state({ fact: "skills", op: "equals", value: ["Go"] }, known).state).toBe("fails");
+  });
+
+  it("holds a company that mentions a word only when it says it in whole words", () => {
+    const company = (name: string) =>
+      state(
+        { fact: "company", op: "contains", value: ["crypto"] },
+        { ...known, facts: { ...known.facts, company: name } },
+      ).state;
+    expect(company("Cryptography Solutions")).toBe("fails");
+    expect(company("Crypto Exchange GmbH")).toBe("holds");
+    expect(company("Crypto-Exchange GmbH")).toBe("holds");
+    const hide = rule([{ fact: "company", op: "contains", value: ["crypto"] }]);
+    expect(describeRule(hide)).toBe("Hide roles whose company mentions crypto");
+    const subject = (name: string) => ({ ...known, facts: { ...known.facts, company: name } });
+    expect(evaluateRules([hide], subject("Cryptography Solutions")).hidden).toBeNull();
+    expect(evaluateRules([hide], subject("Crypto Exchange GmbH")).hidden).toEqual({
+      ruleId: hide.id,
+      reason: 'Hidden by your rule "Hide roles whose company mentions crypto"',
+    });
   });
 
   it.each<[RuleOp, ConditionValue, Expected]>([
