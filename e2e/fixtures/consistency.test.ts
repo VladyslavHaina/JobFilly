@@ -25,7 +25,6 @@ import {
   type EnvelopeEntry,
   type ExpectedAnswer,
   type ExpectedCv,
-  type ExpectedFileMvp2,
   type ExpectedMessage,
   type ExpectedMessageAll,
   type ExpectedRole,
@@ -58,84 +57,17 @@ import {
   type StageOneVerdict,
   WINDOW_MINUTES,
 } from "./format.ts";
+import type { ExpectedFileMvp3 } from "./format-mvp3.ts";
+import { decodeWords, type ParsedEml, parseAddresses, parseEml } from "./read-eml.ts";
 
 // Checks the committed fixtures against what the scenarios and the aggregation rules need, from
 // the files alone: the .eml headers and bodies, envelopes.json, expected.json and the fake AI's
 // answers. Nothing here imports the generator, so it can't hide a mistake the generator makes.
+// MVP 3's own files are checked in mvp3.test.ts; here, MVP 3's messages are counted wherever a
+// check covers every message or every answer.
 
 const root = fixturesDir();
 const read = <T>(path: string): T => readJson<T>(join(root, path));
-
-// --- Reading .eml files --------------------------------------------------------------------
-
-interface ParsedEml {
-  headers: Map<string, string>;
-  text: string;
-  html: string;
-}
-
-function decodeWords(value: string): string {
-  return value
-    .replace(/(=\?[^?]+\?[BbQq]\?[^?]*\?=)\s+(?==\?)/g, "$1")
-    .replace(/=\?UTF-8\?([BbQq])\?([^?]*)\?=/gi, (_, enc: string, data: string) =>
-      enc.toUpperCase() === "B"
-        ? Buffer.from(data, "base64").toString("utf8")
-        : decodeQp(data.replace(/_/g, " ")),
-    );
-}
-
-function decodeQp(data: string): string {
-  const bytes: number[] = [];
-  const s = data.replace(/=\r?\n/g, "");
-  for (let i = 0; i < s.length; i++) {
-    if (s[i] === "=" && /^[0-9A-F]{2}$/.test(s.slice(i + 1, i + 3))) {
-      bytes.push(Number.parseInt(s.slice(i + 1, i + 3), 16));
-      i += 2;
-    } else {
-      bytes.push(...Buffer.from(s[i] as string, "utf8"));
-    }
-  }
-  return Buffer.from(bytes).toString("utf8");
-}
-
-function parseEml(raw: string): ParsedEml {
-  const split = raw.indexOf("\r\n\r\n");
-  const headers = new Map<string, string>();
-  for (const line of raw
-    .slice(0, split)
-    .replace(/\r\n(?=[ \t])/g, "")
-    .split("\r\n")) {
-    const colon = line.indexOf(":");
-    headers.set(line.slice(0, colon).toLowerCase(), line.slice(colon + 1).trim());
-  }
-  const boundary = /boundary="([^"]+)"/.exec(headers.get("content-type") ?? "")?.[1];
-  const parts: Record<string, string> = {};
-  for (const part of raw.slice(split + 4).split(`--${boundary}`)) {
-    const end = part.indexOf("\r\n\r\n");
-    const type = /Content-Type: (text\/\w+)/.exec(part.slice(0, end))?.[1];
-    if (type)
-      parts[type] = decodeQp(part.slice(end + 4).replace(/\r\n$/, "")).replace(/\r\n/g, "\n");
-  }
-  return { headers, text: parts["text/plain"] ?? "", html: parts["text/html"] ?? "" };
-}
-
-function parseAddresses(value: string | undefined): { address: string; name: string | null }[] {
-  if (!value) return [];
-  const out: { address: string; name: string | null }[] = [];
-  for (const item of value.match(/(?:"(?:[^"\\]|\\.)*"|[^,])+/g) ?? []) {
-    const m = /^\s*(.*?)\s*<([^>]+)>\s*$/.exec(item);
-    if (!m) {
-      out.push({ address: item.trim(), name: null });
-      continue;
-    }
-    const rawName = m[1] as string;
-    const name = rawName.startsWith('"')
-      ? rawName.slice(1, -1).replace(/\\(.)/g, "$1")
-      : decodeWords(rawName);
-    out.push({ address: m[2] as string, name: name || null });
-  }
-  return out;
-}
 
 // --- The rules the fixtures are checked against -------------------------------------------
 
@@ -276,7 +208,7 @@ function aggregate(replies: Reply[], jobs: Job[]): Record<CoreKey, ExpectedAnswe
 function load(persona: Persona) {
   const paths = personaPaths(persona);
   const envelopes = read<EnvelopeEntry[]>(paths.envelopes);
-  const expected = read<ExpectedFileMvp2>(paths.expected);
+  const expected = read<ExpectedFileMvp3>(paths.expected);
   const deliveries = read<DeliveryEntry[]>(personaPathsMvp2(persona).deliveries);
   const classify = read<AnswerFile<ClassifyAnswer>>(paths.classify);
   const extract = read<AnswerFile<ExtractAnswer>>(paths.extract);
@@ -316,9 +248,14 @@ function load(persona: Persona) {
   const likely = envelopes
     .filter((e) => ["likely_job", "job_alert"].includes(truth(e.messageId).stageOne))
     .sort((a, b) => a.minutesAgo - b.minutesAgo);
+  // MVP 3: the replies `seed deliver S1` appends to Sent, and the second mailbox (Maria's).
+  const sentDelivered = Object.keys(expected.mvp3?.sent ?? {});
+  const home = expected.mvp3?.home.messages ?? {};
   return {
     envelopes,
     deliveries,
+    sentDelivered,
+    home,
     expected,
     classify,
     extract,
@@ -538,9 +475,14 @@ describe.each(PERSONAS)("%s's fixtures", (persona) => {
     const sentIds = d.envelopes.filter((e) => e.folder === "sent").map((e) => e.messageId);
     // The delivered mail (MVP 2) is all job mail; the MVP 2 checks below compare its answers.
     const delivered = d.deliveries.map((e) => e.messageId);
-    expect(Object.keys(d.classify).sort()).toEqual([...ids, ...delivered].sort());
-    expect(Object.keys(d.extract).sort()).toEqual([...jobIds, ...delivered].sort());
-    expect(Object.keys(d.prefs).sort()).toEqual([...sentIds].sort());
+    // MVP 3: the replies delivered to Sent, and the second mailbox's mail.
+    const home = Object.keys(d.home);
+    const homeJobs = home.filter((id) => isJobCategory(d.home[id]?.category ?? "not_job"));
+    expect(Object.keys(d.classify).sort()).toEqual(
+      [...ids, ...delivered, ...d.sentDelivered, ...home].sort(),
+    );
+    expect(Object.keys(d.extract).sort()).toEqual([...jobIds, ...delivered, ...homeJobs].sort());
+    expect(Object.keys(d.prefs).sort()).toEqual([...sentIds, ...d.sentDelivered].sort());
     for (const id of ids) {
       const t = d.truth(id);
       const c = d.classify[id] as ClassifyAnswer;
@@ -646,14 +588,18 @@ describe.each(PERSONAS)("%s's fixtures", (persona) => {
   it("write envelopes, ground truth and roles with exactly the fields format.ts names", () => {
     const keys = (value: object) => Object.keys(value).sort();
     for (const e of d.envelopes) expect(keys(e), e.file).toEqual([...ENVELOPE_KEYS].sort());
-    expect(keys(d.expected)).toEqual([
-      "address",
-      "cvs",
-      "deliveries",
-      "messages",
-      "persona",
-      "profile",
-    ]);
+    expect(keys(d.expected)).toEqual(
+      [
+        "address",
+        "cvs",
+        "deliveries",
+        "messages",
+        "persona",
+        "profile",
+        // MVP 3's ground truth is Maria's (mvp3.test.ts checks it).
+        ...(persona === "maria" ? ["mvp3"] : []),
+      ].sort(),
+    );
     expect(keys(d.expected.profile)).toEqual(["answers", "extraQuestions"]);
     const all = { ...d.expected.messages, ...d.expected.deliveries };
     const roles = [
@@ -808,9 +754,9 @@ describe("Maria's mailbox", () => {
     expect(d.truth(id)).toMatchObject({ stageOne: "likely_job", category: "recruiter_outreach" });
     expect(d.classify[id]).toEqual({ category: "recruiter_outreach" });
     expect(d.extract[id]).toEqual({ roles: d.truth(id).facts });
-    expect(count(Object.values(d.classify), (a) => !isInvalid(a) && a.category === "offer")).toBe(
-      1,
-    );
+    // In her mailbox, the one genuine offer is the only one (MVP 3 delivers another in S6).
+    const backlog = Object.entries(d.classify).filter(([key]) => d.byId.has(key));
+    expect(count(backlog, ([, a]) => !isInvalid(a) && a.category === "offer")).toBe(1);
   });
 
   it("states every answered key in at least two replies, and only replies are its evidence", () => {
@@ -1051,15 +997,21 @@ function loadMvp2(persona: Persona) {
   return { cvList, cvAnswers, match, draft, cvText, delivered };
 }
 
+/** The steps that deliver MVP 2's mail; MVP 3's (S1, S6) are checked in mvp3.test.ts. */
+const MVP2_STEPS = new Set(["S2", "S5", "S11"]);
+
 const mvp2 = Object.fromEntries(PERSONAS.map((p) => [p, loadMvp2(p)])) as Record<
   Persona,
   ReturnType<typeof loadMvp2>
 >;
 
-/** Every analysed job message of a persona, backlog and delivered, with its ground truth. */
+/**
+ * Every analysed job message of a persona, backlog and delivered, and from MVP 3 the second
+ * mailbox's, with its ground truth.
+ */
 function analysed(persona: Persona): [string, ExpectedMessageAll][] {
   const e = data[persona].expected;
-  return Object.entries({ ...e.messages, ...e.deliveries }).filter(
+  return Object.entries({ ...e.messages, ...e.deliveries, ...data[persona].home }).filter(
     ([, t]) => isJobCategory(t.category) && !t.ownReply && !t.invalid,
   );
 }
@@ -1164,9 +1116,12 @@ describe("the delivered mail (MVP 2)", () => {
     );
   });
 
+  /** MVP 2's deliveries only. */
+  const mvp2Delivered = () => [...m.delivered.values()].filter((x) => MVP2_STEPS.has(x.entry.step));
+
   it("is dated within the 14-day reply window, with headers and sentinels like the mailbox's", () => {
     const reference = Date.parse(FIXTURE_REFERENCE_TIME);
-    for (const { entry, eml } of m.delivered.values()) {
+    for (const { entry, eml } of mvp2Delivered()) {
       expect(entry.minutesAgo).toBeGreaterThan(0);
       expect(entry.minutesAgo).toBeLessThan(REPLY_WINDOW_MINUTES);
       expect(eml.headers.get("message-id")).toBe(entry.messageId);
@@ -1188,7 +1143,8 @@ describe("the delivered mail (MVP 2)", () => {
     for (const { entry, truth } of m.delivered.values()) {
       expect(d.classify[entry.messageId]).toEqual({ category: truth.category });
       expect(d.extract[entry.messageId]).toEqual({ roles: truth.facts });
-      expect(truth.category).toBe("recruiter_outreach");
+      // MVP 2's is all recruiter outreach; MVP 3's pipeline threads (S6) are not.
+      if (MVP2_STEPS.has(entry.step)) expect(truth.category).toBe("recruiter_outreach");
       expect(truth.sender?.verdict).toBeDefined();
       expect(truth.roles?.length).toBe(truth.facts?.length);
       expect(truth.facts?.length).toBeGreaterThan(0);
@@ -1199,8 +1155,9 @@ describe("the delivered mail (MVP 2)", () => {
   });
 
   it("is delivered in S2, but the second Zurich role (S5) and S11's two capped roles", () => {
+    const mvp2Steps = d.deliveries.filter((e) => MVP2_STEPS.has(e.step));
     expect(
-      Object.fromEntries(d.deliveries.map((e) => [e.id, e.step]).filter(([, s]) => s !== "S2")),
+      Object.fromEntries(mvp2Steps.map((e) => [e.id, e.step]).filter(([, s]) => s !== "S2")),
     ).toEqual({ "zurich-2": "S5", "s11-failover": "S11", "s11-recovery": "S11" });
     // S11 delivers them one at a time, so each needs neither a draft nor a decision to show up.
     for (const id of ["s11-failover", "s11-recovery"]) {
@@ -1382,7 +1339,7 @@ describe("the delivered mail (MVP 2)", () => {
   });
 
   it("writes every draft in the language of the message it answers", () => {
-    for (const { entry } of m.delivered.values()) {
+    for (const { entry } of mvp2Delivered()) {
       for (const attempt of [1, 2] as const) {
         const a = m.draft[draftKey(entry.messageId, 0, attempt)];
         if (a)
@@ -1452,8 +1409,12 @@ describe("the first scan's backlog (MVP 2)", () => {
           ids.has(id) ? minutesAgo >= REPLY_WINDOW_MINUTES : undefined,
         );
       }
-      for (const [id, t] of Object.entries(d.expected.deliveries)) {
-        expect(t.outsideReplyWindow, id).toBe(false);
+      // MVP 2's deliveries are all inside it; MVP 3's S6 threads start before it.
+      for (const e of d.deliveries) {
+        expect(d.expected.deliveries[e.messageId]?.outsideReplyWindow, e.id).toBe(
+          e.minutesAgo >= REPLY_WINDOW_MINUTES,
+        );
+        if (MVP2_STEPS.has(e.step)) expect(e.minutesAgo, e.id).toBeLessThan(REPLY_WINDOW_MINUTES);
       }
     },
   );

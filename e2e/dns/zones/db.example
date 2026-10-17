@@ -7,12 +7,16 @@ $TTL 300
 ns IN A 192.0.2.53
 alfamalabs IN MX 10 mx.alfamalabs.example.
 mx.alfamalabs IN A 192.0.2.25
+alsterkontor IN MX 10 mx.alsterkontor.example.
+mx.alsterkontor IN A 192.0.2.25
 atlantico-talent IN MX 10 mx.atlantico-talent.example.
 mx.atlantico-talent IN A 192.0.2.25
 atlantictech IN MX 10 mx.atlantictech.example.
 mx.atlantictech IN A 192.0.2.25
 backendbrief IN MX 10 mx.backendbrief.example.
 mx.backendbrief IN A 192.0.2.25
+bergwerk-personal IN MX 10 mx.bergwerk-personal.example.
+mx.bergwerk-personal IN A 192.0.2.25
 bookbarn IN MX 10 mx.bookbarn.example.
 mx.bookbarn IN A 192.0.2.25
 booknest IN MX 10 mx.booknest.example.
@@ -41,6 +45,8 @@ donaukanal IN MX 10 mx.donaukanal.example.
 mx.donaukanal IN A 192.0.2.25
 dourofintech IN MX 10 mx.dourofintech.example.
 mx.dourofintech IN A 192.0.2.25
+elbe-talent IN MX 10 mx.elbe-talent.example.
+mx.elbe-talent IN A 192.0.2.25
 elbwerk IN MX 10 mx.elbwerk.example.
 mx.elbwerk IN A 192.0.2.25
 electra-energia IN MX 10 mx.electra-energia.example.
@@ -71,8 +77,12 @@ inbox IN MX 10 mx.inbox.example.
 mx.inbox IN A 192.0.2.25
 isar-personal IN MX 10 mx.isar-personal.example.
 mx.isar-personal IN A 192.0.2.25
+isarblick IN MX 10 mx.isarblick.example.
+mx.isarblick IN A 192.0.2.25
 isarwerk IN MX 10 mx.isarwerk.example.
 mx.isarwerk IN A 192.0.2.25
+kaispeicher IN MX 10 mx.kaispeicher.example.
+mx.kaispeicher IN A 192.0.2.25
 kanaalstraat IN MX 10 mx.kanaalstraat.example.
 mx.kanaalstraat IN A 192.0.2.25
 kiezwerk IN MX 10 mx.kiezwerk.example.
@@ -85,6 +95,8 @@ liffeylabs IN MX 10 mx.liffeylabs.example.
 mx.liffeylabs IN A 192.0.2.25
 limmatledger IN MX 10 mx.limmatledger.example.
 mx.limmatledger IN A 192.0.2.25
+lindwurm-robotics IN MX 10 mx.lindwurm-robotics.example.
+mx.lindwurm-robotics IN A 192.0.2.25
 linguapal IN MX 10 mx.linguapal.example.
 mx.linguapal IN A 192.0.2.25
 lisboaguide IN MX 10 mx.lisboaguide.example.
@@ -111,6 +123,8 @@ nordkap-data IN MX 10 mx.nordkap-data.example.
 mx.nordkap-data IN A 192.0.2.25
 nordlicht-pay IN MX 10 mx.nordlicht-pay.example.
 mx.nordlicht-pay IN A 192.0.2.25
+nordstern-personal IN MX 10 mx.nordstern-personal.example.
+mx.nordstern-personal IN A 192.0.2.25
 northbridge-talent IN MX 10 mx.northbridge-talent.example.
 mx.northbridge-talent IN A 192.0.2.25
 northernrail IN MX 10 mx.northernrail.example.
@@ -145,6 +159,8 @@ rheinpfad IN MX 10 mx.rheinpfad.example.
 mx.rheinpfad IN A 192.0.2.25
 ribeira-rh IN MX 10 mx.ribeira-rh.example.
 mx.ribeira-rh IN A 192.0.2.25
+scheldt-data IN MX 10 mx.scheldt-data.example.
+mx.scheldt-data IN A 192.0.2.25
 skylusa IN MX 10 mx.skylusa.example.
 mx.skylusa IN A 192.0.2.25
 streambox IN MX 10 mx.streambox.example.
@@ -161,6 +177,8 @@ uetliberg IN MX 10 mx.uetliberg.example.
 mx.uetliberg IN A 192.0.2.25
 valuemart IN MX 10 mx.valuemart.example.
 mx.valuemart IN A 192.0.2.25
+vistula-cloud IN MX 10 mx.vistula-cloud.example.
+mx.vistula-cloud IN A 192.0.2.25
 vodafino IN MX 10 mx.vodafino.example.
 mx.vodafino IN A 192.0.2.25
 wattledata IN MX 10 mx.wattledata.example.

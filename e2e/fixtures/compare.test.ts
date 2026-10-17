@@ -13,6 +13,7 @@ import {
   personaPaths,
   readJson,
 } from "./format.ts";
+import type { ExpectedFileMvp3 } from "./format-mvp3.ts";
 
 function expectedFile(persona: Persona): ExpectedFile {
   return readJson<ExpectedFile>(`${fixturesDir()}${personaPaths(persona).expected}`);
@@ -219,6 +220,35 @@ describe("compareWithExpected (F5.3)", () => {
     delivered.category = "job_alert";
     expect(compareWithExpected("maria", stored)).toEqual([
       { messageId: id, field: "category", expected: "recruiter_outreach", stored: "job_alert" },
+    ]);
+  });
+
+  it("compares the second mailbox's mail (MVP 3) with its ground truth, and never requires it", () => {
+    const { mvp3 } = readJson<ExpectedFileMvp3>(
+      `${fixturesDir()}${personaPaths("maria").expected}`,
+    );
+    const home = Object.entries(mvp3?.home.messages ?? {}).filter(([, t]) =>
+      isJobCategory(t.category),
+    );
+    expect(home.length).toBeGreaterThan(0);
+    const stored: StoredMessage[] = home.map(([id, t]) => ({
+      id,
+      category: t.category,
+      categorySource: "scan",
+      analysisStatus: "done",
+      roles: structuredClone(t.facts ?? []),
+    }));
+    const all = [...storedFromExpected("maria"), ...stored];
+    expect(compareWithExpected("maria", all, { complete: true })).toEqual([]);
+    const first = stored[0] as StoredMessage;
+    first.category = "not_job";
+    expect(compareWithExpected("maria", all)).toEqual([
+      {
+        messageId: first.id,
+        field: "category",
+        expected: home[0]?.[1].category,
+        stored: "not_job",
+      },
     ]);
   });
 

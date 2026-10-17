@@ -1846,5 +1846,65 @@
   },
   "<maria-deliver-s11-recovery@donaukanal.example>": {
     "category": "recruiter_outreach"
+  },
+  "<maria-deliver-munich-1@isarblick.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-deliver-munich-2@bergwerk-personal.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-deliver-hamburg-1@alsterkontor.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-deliver-hamburg-2@kaispeicher.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-deliver-remote-eu-2@vistula-cloud.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-deliver-remote-eu-3@scheldt-data.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-deliver-lindwurm-applied@greenhouse-mail.io>": {
+    "category": "application_update"
+  },
+  "<maria-deliver-lindwurm-interview@lindwurm-robotics.example>": {
+    "category": "interview"
+  },
+  "<maria-deliver-lindwurm-offer@lindwurm-robotics.example>": {
+    "category": "offer"
+  },
+  "<maria-deliver-mainwelle-applied@personio.de>": {
+    "category": "application_update"
+  },
+  "<maria-deliver-mainwelle-rejected@personio.de>": {
+    "category": "rejection"
+  },
+  "<maria-deliver-brandung-applied@hire.lever.co>": {
+    "category": "application_update"
+  },
+  "<maria-deliver-moewe-elbe@elbe-talent.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-deliver-moewe-nordstern@nordstern-personal.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-deliver-moved-hamburg@inbox.example>": {
+    "category": "other_job"
+  },
+  "<maria-deliver-moved-munich@inbox.example>": {
+    "category": "other_job"
+  },
+  "<maria-home-0001@linkedin.com>": {
+    "category": "job_alert"
+  },
+  "<maria-home-0002@teamtailor.com>": {
+    "category": "application_update"
+  },
+  "<maria-home-0003@ribeira-rh.example>": {
+    "category": "recruiter_outreach"
+  },
+  "<maria-home-0004@mail.example>": {
+    "category": "not_job"
   }
 }

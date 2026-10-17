@@ -1,1 +1,19 @@
-{}
+{
+  "i've moved to germany, permanent roles only": {
+    "countries": [
+      "DE"
+    ],
+    "cities": [],
+    "languages": [],
+    "workModes": [],
+    "contracts": [
+      "permanent"
+    ],
+    "words": [
+      "Germany",
+      "Deutschland",
+      "unbefristet",
+      "Festanstellung"
+    ]
+  }
+}

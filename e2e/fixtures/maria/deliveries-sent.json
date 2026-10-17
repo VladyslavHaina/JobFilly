@@ -1,0 +1,16 @@
+[
+  {
+    "id": "moved-hamburg",
+    "file": "moved-hamburg.eml",
+    "messageId": "<maria-deliver-moved-hamburg@inbox.example>",
+    "minutesAgo": 1380,
+    "step": "S1"
+  },
+  {
+    "id": "moved-munich",
+    "file": "moved-munich.eml",
+    "messageId": "<maria-deliver-moved-munich@inbox.example>",
+    "minutesAgo": 840,
+    "step": "S1"
+  }
+]

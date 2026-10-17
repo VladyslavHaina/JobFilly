@@ -3,6 +3,9 @@
     "alfamalabs.example": {
       "registeredDaysAgo": 4755
     },
+    "alsterkontor.example": {
+      "registeredDaysAgo": 7155
+    },
     "atlantico-talent.example": {
       "registeredDaysAgo": 5441
     },
@@ -11,6 +14,9 @@
     },
     "backendbrief.example": {
       "registeredDaysAgo": 6723
+    },
+    "bergwerk-personal.example": {
+      "registeredDaysAgo": 2188
     },
     "bookbarn.example": {
       "registeredDaysAgo": 1826
@@ -53,6 +59,9 @@
     },
     "dourofintech.example": {
       "registeredDaysAgo": 3453
+    },
+    "elbe-talent.example": {
+      "registeredDaysAgo": 7003
     },
     "elbwerk.example": {
       "registeredDaysAgo": 4071
@@ -111,11 +120,17 @@
     "isar-personal.example": {
       "registeredDaysAgo": 5602
     },
+    "isarblick.example": {
+      "registeredDaysAgo": 5114
+    },
     "isarwerk.example": {
       "registeredDaysAgo": 2831
     },
     "jobs.nhs.uk": {
       "registeredDaysAgo": 1564
+    },
+    "kaispeicher.example": {
+      "registeredDaysAgo": 1506
     },
     "kanaalstraat.example": {
       "registeredDaysAgo": 2359
@@ -134,6 +149,9 @@
     },
     "limmatledger.example": {
       "registeredDaysAgo": 7099
+    },
+    "lindwurm-robotics.example": {
+      "registeredDaysAgo": 3359
     },
     "linguapal.example": {
       "registeredDaysAgo": 6872
@@ -185,6 +203,9 @@
     },
     "nordlicht-pay.example": {
       "registeredDaysAgo": 1760
+    },
+    "nordstern-personal.example": {
+      "registeredDaysAgo": 6538
     },
     "northbridge-talent.example": {
       "registeredDaysAgo": 2828
@@ -243,6 +264,9 @@
     "ribeira-rh.example": {
       "registeredDaysAgo": 4732
     },
+    "scheldt-data.example": {
+      "registeredDaysAgo": 5507
+    },
     "skylusa.example": {
       "registeredDaysAgo": 6727
     },
@@ -278,6 +302,9 @@
     },
     "valuemart.example": {
       "registeredDaysAgo": 5216
+    },
+    "vistula-cloud.example": {
+      "registeredDaysAgo": 2002
     },
     "vodafino.example": {
       "registeredDaysAgo": 3547

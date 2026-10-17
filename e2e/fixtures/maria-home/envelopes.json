@@ -1,0 +1,110 @@
+[
+  {
+    "file": "inbox/0001.eml",
+    "messageId": "<maria-home-0001@linkedin.com>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 2160,
+    "from": {
+      "address": "jobalerts-noreply@linkedin.com",
+      "name": "LinkedIn Job Alerts"
+    },
+    "to": [
+      {
+        "address": "maria.home@post.example",
+        "name": "Maria Santos"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "2 new jobs for \"backend engineer\"",
+    "listId": null,
+    "listUnsubscribe": "<https://www.linkedin.com/comm/jobs/alerts/unsubscribe?alertId=706555>",
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Your job alert for \"backend engineer\" in European Union: 2 new jobs. Backend Developer Tejo Cloud · Lisbon, Portugal · On-site View job: https://www.linkedin.com/jobs/view/3896212138 Senior Backend En"
+  },
+  {
+    "file": "inbox/0002.eml",
+    "messageId": "<maria-home-0002@teamtailor.com>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 4608,
+    "from": {
+      "address": "no-reply@teamtailor.com",
+      "name": "Alfama Labs"
+    },
+    "to": [
+      {
+        "address": "maria.home@post.example",
+        "name": "Maria Santos"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Thank you for applying to Alfama Labs",
+    "listId": null,
+    "listUnsubscribe": null,
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Hi Maria, Thank you for applying for the Backend Developer position at Alfama Labs. We've received your application and our team is reviewing it now. We aim to get back to everyone within two weeks. B"
+  },
+  {
+    "file": "inbox/0003.eml",
+    "messageId": "<maria-home-0003@ribeira-rh.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 6624,
+    "from": {
+      "address": "rui.almeida@ribeira-rh.example",
+      "name": "Rui Almeida"
+    },
+    "to": [
+      {
+        "address": "maria.home@post.example",
+        "name": "Maria Santos"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Engenheira de Backend – presencial em Lisboa",
+    "listId": null,
+    "listUnsubscribe": null,
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Olá Maria, Sou consultor na Ribeira Recrutamento. O nosso cliente, a Mar Azul Logística, procura uma Engenheira de Backend para trabalhar presencialmente no escritório de Lisboa, cinco dias por semana"
+  },
+  {
+    "file": "inbox/0004.eml",
+    "messageId": "<maria-home-0004@mail.example>",
+    "folder": "inbox",
+    "folderPath": "INBOX",
+    "minutesAgo": 8784,
+    "from": {
+      "address": "rita.almeida@mail.example",
+      "name": "Rita Almeida"
+    },
+    "to": [
+      {
+        "address": "maria.home@post.example",
+        "name": "Maria Santos"
+      }
+    ],
+    "cc": [],
+    "replyTo": [],
+    "inReplyTo": null,
+    "references": [],
+    "subject": "Como está a correr a mudança?",
+    "listId": null,
+    "listUnsubscribe": null,
+    "precedence": null,
+    "autoSubmitted": null,
+    "snippet": "Olá Maria! Então, já estás instalada na Alemanha? Conta-me tudo: a casa nova, o bairro, se já encontraste um café decente. Por aqui está tudo igual, o gato continua a dormir em cima do teu casaco velh"
+  }
+]

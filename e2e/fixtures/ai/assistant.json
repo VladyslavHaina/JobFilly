@@ -395,5 +395,207 @@
       "clarify": null,
       "proposal": null
     }
+  },
+  "what's waiting on me?": {
+    "*": {
+      "reply": "Let me check what's open.",
+      "clarify": null,
+      "proposal": null,
+      "lookups": [
+        {
+          "tool": "waiting",
+          "words": null,
+          "messageId": null,
+          "position": null,
+          "stage": null,
+          "days": null
+        }
+      ]
+    }
+  },
+  "why didn't the singapore role get a draft?": {
+    "*": {
+      "reply": "Let me look at that role.",
+      "clarify": null,
+      "proposal": null,
+      "lookups": [
+        {
+          "tool": "find_roles",
+          "words": "Singapore",
+          "messageId": null,
+          "position": null,
+          "stage": null,
+          "days": null
+        }
+      ]
+    }
+  },
+  "how many interviews did i have in the last 30 days?": {
+    "*": {
+      "reply": "Let me count them in your pipeline.",
+      "clarify": null,
+      "proposal": null,
+      "lookups": [
+        {
+          "tool": "pipeline",
+          "words": null,
+          "messageId": null,
+          "position": null,
+          "stage": null,
+          "days": 30
+        }
+      ]
+    }
+  },
+  "show me the text of the kiezwerk email": {
+    "*": {
+      "reply": "Let me look for that email.",
+      "clarify": null,
+      "proposal": null,
+      "lookups": [
+        {
+          "tool": "find_roles",
+          "words": "Kiezwerk",
+          "messageId": null,
+          "position": null,
+          "stage": null,
+          "days": null
+        },
+        {
+          "tool": "message_text",
+          "words": null,
+          "messageId": "<maria-deliver-berlin-de@kiezwerk.example>",
+          "position": null,
+          "stage": null,
+          "days": null
+        }
+      ]
+    }
+  },
+  "what does the hirewave email ask me to do?": {
+    "*": {
+      "reply": "Let me read that email.",
+      "clarify": null,
+      "proposal": null,
+      "lookups": [
+        {
+          "tool": "find_roles",
+          "words": "HireWave",
+          "messageId": null,
+          "position": null,
+          "stage": null,
+          "days": null
+        },
+        {
+          "tool": "message_text",
+          "words": null,
+          "messageId": "<maria-0004@hirewave.example>",
+          "position": null,
+          "stage": null,
+          "days": null
+        }
+      ]
+    }
+  },
+  "warum hat mir mainwelle energie abgesagt?": {
+    "*": {
+      "reply": "Ich sehe mir die Absage an.",
+      "clarify": null,
+      "proposal": null,
+      "lookups": [
+        {
+          "tool": "find_roles",
+          "words": "Mainwelle",
+          "messageId": null,
+          "position": null,
+          "stage": null,
+          "days": null
+        },
+        {
+          "tool": "message_text",
+          "words": null,
+          "messageId": "<maria-deliver-mainwelle-rejected@personio.de>",
+          "position": null,
+          "stage": null,
+          "days": null
+        }
+      ]
+    }
+  },
+  "porque é que a vaga do grachten bank não teve rascunho?": {
+    "*": {
+      "reply": "Vou ver essa vaga.",
+      "clarify": null,
+      "proposal": null,
+      "lookups": [
+        {
+          "tool": "find_roles",
+          "words": "Grachten Bank",
+          "messageId": null,
+          "position": null,
+          "stage": null,
+          "days": null
+        }
+      ]
+    }
+  },
+  "which profile is the isarblick role in münchen assigned to, and why?": {
+    "*": {
+      "reply": "Let me look at that role.",
+      "clarify": null,
+      "proposal": null,
+      "lookups": [
+        {
+          "tool": "find_roles",
+          "words": "Isarblick",
+          "messageId": null,
+          "position": null,
+          "stage": null,
+          "days": null
+        },
+        {
+          "tool": "role",
+          "words": null,
+          "messageId": "<maria-deliver-munich-1@isarblick.example>",
+          "position": 0,
+          "stage": null,
+          "days": null
+        }
+      ]
+    }
+  },
+  "which role did two agencies send me?": {
+    "*": {
+      "reply": "Let me check your pipeline.",
+      "clarify": null,
+      "proposal": null,
+      "lookups": [
+        {
+          "tool": "pipeline",
+          "words": null,
+          "messageId": null,
+          "position": null,
+          "stage": null,
+          "days": null
+        }
+      ]
+    }
+  },
+  "qual é o salário mínimo no meu perfil germany permanent?": {
+    "*": {
+      "reply": "Vou ver o seu perfil.",
+      "clarify": null,
+      "proposal": null,
+      "lookups": [
+        {
+          "tool": "profile",
+          "words": null,
+          "messageId": null,
+          "position": null,
+          "stage": null,
+          "days": null
+        }
+      ]
+    }
   }
 }

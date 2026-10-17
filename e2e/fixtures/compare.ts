@@ -1,7 +1,6 @@
 import {
   type Category,
   comparedForF53,
-  type ExpectedFileMvp2,
   fixturesDir,
   isJobCategory,
   type JobFacts,
@@ -9,6 +8,7 @@ import {
   personaPaths,
   readJson,
 } from "./format.ts";
+import type { ExpectedFileMvp3 } from "./format-mvp3.ts";
 
 // F5.3: with the fake AI, the category and facts the app stores for every analysed message equal
 // expected.json. collectStored reads what the app serves for a workspace, compareWithExpected
@@ -65,7 +65,8 @@ export interface CompareOptions {
  *
  * From MVP 2 the mailbox also holds the mail `seed deliver` brought in, compared with its ground
  * truth in expected.json's `deliveries`. A run delivers it step by step, so `complete` never
- * requires it.
+ * requires it. From MVP 3, also the replies S1 delivers to Sent and the second mailbox's mail
+ * (expected.json `mvp3.sent` and `mvp3.home`).
  */
 export function compareWithExpected(
   persona: Persona,
@@ -73,12 +74,16 @@ export function compareWithExpected(
   options: CompareOptions = {},
 ): Difference[] {
   const dir = options.dir ?? fixturesDir();
-  const expected = readJson<ExpectedFileMvp2>(`${dir}${personaPaths(persona).expected}`);
+  const expected = readJson<ExpectedFileMvp3>(`${dir}${personaPaths(persona).expected}`);
   const differences: Difference[] = [];
   const seen = new Set<string>();
   for (const s of stored) {
     seen.add(s.id);
-    const truth = expected.messages[s.id] ?? expected.deliveries[s.id];
+    const truth =
+      expected.messages[s.id] ??
+      expected.deliveries[s.id] ??
+      expected.mvp3?.sent[s.id] ??
+      expected.mvp3?.home.messages[s.id];
     if (truth === undefined) {
       differences.push({ messageId: s.id, field: "message", expected: null, stored: s.id });
       continue;

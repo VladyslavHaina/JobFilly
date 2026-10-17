@@ -110,5 +110,103 @@
     "messageId": "<maria-deliver-s11-recovery@donaukanal.example>",
     "minutesAgo": 5,
     "step": "S11"
+  },
+  {
+    "id": "munich-1",
+    "file": "munich-1.eml",
+    "messageId": "<maria-deliver-munich-1@isarblick.example>",
+    "minutesAgo": 600,
+    "step": "S1"
+  },
+  {
+    "id": "munich-2",
+    "file": "munich-2.eml",
+    "messageId": "<maria-deliver-munich-2@bergwerk-personal.example>",
+    "minutesAgo": 900,
+    "step": "S1"
+  },
+  {
+    "id": "hamburg-1",
+    "file": "hamburg-1.eml",
+    "messageId": "<maria-deliver-hamburg-1@alsterkontor.example>",
+    "minutesAgo": 1200,
+    "step": "S1"
+  },
+  {
+    "id": "hamburg-2",
+    "file": "hamburg-2.eml",
+    "messageId": "<maria-deliver-hamburg-2@kaispeicher.example>",
+    "minutesAgo": 1500,
+    "step": "S1"
+  },
+  {
+    "id": "remote-eu-2",
+    "file": "remote-eu-2.eml",
+    "messageId": "<maria-deliver-remote-eu-2@vistula-cloud.example>",
+    "minutesAgo": 400,
+    "step": "S1"
+  },
+  {
+    "id": "remote-eu-3",
+    "file": "remote-eu-3.eml",
+    "messageId": "<maria-deliver-remote-eu-3@scheldt-data.example>",
+    "minutesAgo": 800,
+    "step": "S1"
+  },
+  {
+    "id": "lindwurm-applied",
+    "file": "lindwurm-applied.eml",
+    "messageId": "<maria-deliver-lindwurm-applied@greenhouse-mail.io>",
+    "minutesAgo": 28800,
+    "step": "S6"
+  },
+  {
+    "id": "lindwurm-interview",
+    "file": "lindwurm-interview.eml",
+    "messageId": "<maria-deliver-lindwurm-interview@lindwurm-robotics.example>",
+    "minutesAgo": 17280,
+    "step": "S6"
+  },
+  {
+    "id": "lindwurm-offer",
+    "file": "lindwurm-offer.eml",
+    "messageId": "<maria-deliver-lindwurm-offer@lindwurm-robotics.example>",
+    "minutesAgo": 4320,
+    "step": "S6"
+  },
+  {
+    "id": "mainwelle-applied",
+    "file": "mainwelle-applied.eml",
+    "messageId": "<maria-deliver-mainwelle-applied@personio.de>",
+    "minutesAgo": 25920,
+    "step": "S6"
+  },
+  {
+    "id": "mainwelle-rejected",
+    "file": "mainwelle-rejected.eml",
+    "messageId": "<maria-deliver-mainwelle-rejected@personio.de>",
+    "minutesAgo": 8640,
+    "step": "S6"
+  },
+  {
+    "id": "brandung-applied",
+    "file": "brandung-applied.eml",
+    "messageId": "<maria-deliver-brandung-applied@hire.lever.co>",
+    "minutesAgo": 36000,
+    "step": "S6"
+  },
+  {
+    "id": "moewe-elbe",
+    "file": "moewe-elbe.eml",
+    "messageId": "<maria-deliver-moewe-elbe@elbe-talent.example>",
+    "minutesAgo": 8640,
+    "step": "S6"
+  },
+  {
+    "id": "moewe-nordstern",
+    "file": "moewe-nordstern.eml",
+    "messageId": "<maria-deliver-moewe-nordstern@nordstern-personal.example>",
+    "minutesAgo": 5760,
+    "step": "S6"
   }
 ]
