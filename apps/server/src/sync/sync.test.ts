@@ -5,6 +5,7 @@ import {
   createConfirmedProfile,
   getDraftClaim,
   getEvaluations,
+  getMailboxConnection,
   getMailboxSyncStatus,
   getStoredMessages,
   getSyncState,
@@ -28,6 +29,7 @@ import { jobRegistry } from "../jobs/registry";
 import {
   createFakeAi,
   createFakeMailbox,
+  createFakeOAuth,
   createTestDeps,
   type FakeAiClient,
   type FakeMailbox,
@@ -36,6 +38,7 @@ import {
   roleFacts,
   type SeededUser,
   seedAiSettings,
+  seedGoogleMailbox,
   seedJobMail,
   seedMailbox,
   seedScan,
@@ -802,5 +805,59 @@ describe("the back-off", () => {
     expect(isDue(null, NOW, INTERVAL)).toBe(true);
     expect(isDue(new Date(NOW.getTime() + 7_000), NOW, INTERVAL)).toBe(true);
     expect(isDue(new Date(NOW.getTime() + 8_000), NOW, INTERVAL)).toBe(false);
+  });
+});
+
+describe("a Google mailbox (MVP 3, F3.2)", () => {
+  it("syncs with its access token, and waits once Google refuses it, losing nothing", async () => {
+    const gmail = createFakeMailbox({ address: "maria.gmail@gmail.example" });
+    deps.mail = {
+      connect: (c, o) => (c.host === "imap.gmail.example" ? gmail : mailbox).port.connect(c, o),
+    };
+    const oauth = createFakeOAuth({ now: () => deps.clock.now() });
+    deps.oauth = oauth.port;
+    const google = await seedGoogleMailbox(deps, ws);
+    const deliverTo = (id: string) =>
+      gmail.deliver({ messageId: id, date: minutesAgo(1).toISOString(), subject: "Backend role" });
+    deliverTo("<g1@agency.example>");
+    knownToAi("<g1@agency.example>");
+
+    expect(await syncMailbox(deps, ws, google.mailboxId)).toMatchObject({
+      status: "synced",
+      fresh: 1,
+    });
+    expect(gmail.connections).toEqual([
+      expect.objectContaining({
+        username: "maria.gmail@gmail.example",
+        accessToken: "E2E-SECRET-access-0",
+      }),
+    ]);
+
+    // An hour later its access token has expired, and Google refuses to refresh it.
+    deps.clock.advance(61 * 60_000);
+    oauth.revoke();
+    deliverTo("<g2@agency.example>");
+    const reconnect = { status: "skipped", reason: "reconnect_needed" };
+    expect(await syncMailbox(deps, ws, google.mailboxId)).toEqual(reconnect);
+    expect((await getMailboxConnection(deps.db, ws, google.mailboxId))?.status).toBe(
+      "reconnect_needed",
+    );
+    // Not a failing sync: the cursor and the stored mail stay as they were.
+    expect(await getSyncState(deps.db, ws, google.mailboxId, SYNC_FOLDER)).toMatchObject({
+      lastUid: 1,
+      failures: 0,
+      failingSince: null,
+    });
+    expect(await getStoredMessages(deps.db, ws, ["<g1@agency.example>"])).toHaveLength(1);
+    expect(logged("sync.failed")).toEqual([]);
+    expect(logged("mailbox.reconnect_needed")).toMatchObject([
+      { level: "warn", mailboxId: google.mailboxId },
+    ]);
+
+    // Until the user signs in again, neither a queued sync nor the scheduler asks Google again.
+    expect(await syncMailbox(deps, ws, google.mailboxId)).toEqual(reconnect);
+    await interval();
+    expect(oauth.refreshes).toHaveLength(1);
+    expect(gmail.connections).toHaveLength(1);
   });
 });

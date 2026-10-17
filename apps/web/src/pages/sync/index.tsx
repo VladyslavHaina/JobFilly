@@ -1,4 +1,10 @@
-import { AiUsageListSchema, MailboxListSchema, type MailboxSyncStatus } from "@jobfilly/schema";
+import {
+  AiUsageListSchema,
+  MailboxListSchema,
+  type MailboxPublic,
+  type MailboxSyncStatus,
+  NEVER_SYNCED,
+} from "@jobfilly/schema";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { api } from "../../api";
@@ -11,6 +17,8 @@ import { apiPaths } from "../../paths";
 // model usage per day in Settings › AI. The status refetches on every mailbox.updated event (the
 // "mailbox" live area) and its wording follows the clock; the usage refetches whenever messages
 // were analysed (the "messages" area), which is when the sync and the scans call the model.
+// MVP 3 (F3.1, F3.2): with several mailboxes each has its own line, named by its address, and a
+// Google mailbox whose sign-in Google refused says "Reconnect needed".
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
@@ -76,6 +84,47 @@ function statusText(sync: MailboxSyncStatus, now: Date): { line: string; detail:
 const statusKey = (workspaceId: string) =>
   [...queryKeys.area(workspaceId, "mailbox"), "status"] as const;
 
+/** The workspace's mailboxes with their status, refetched on every mailbox.updated event. */
+export function useMailboxes(workspaceId: string) {
+  return useQuery({
+    queryKey: statusKey(workspaceId),
+    queryFn: () => api(`${apiPaths.workspace(workspaceId)}/mailboxes`, MailboxListSchema),
+  });
+}
+
+/** One mailbox's status line; named by its address when the workspace has several. */
+function MailboxLine(props: { mailbox: MailboxPublic; now: Date; named: boolean }) {
+  const { mailbox } = props;
+  const reconnect = mailbox.status === "reconnect_needed";
+  const sync = mailbox.sync ?? NEVER_SYNCED;
+  const { line, detail } = reconnect
+    ? {
+        line: "Reconnect needed",
+        detail:
+          "Google no longer accepts this mailbox's sign-in. Reconnect it in Settings › Mailbox.",
+      }
+    : statusText(sync, props.now);
+  const failing = reconnect || sync.state === "failing";
+  return (
+    <>
+      <p className={failing ? "font-medium text-red-700" : "text-stone-600"}>
+        <span
+          aria-hidden="true"
+          className={`mr-1.5 inline-block size-2 rounded-full ${
+            failing ? "bg-red-600" : sync.state === "ok" ? "bg-emerald-500" : "bg-stone-400"
+          }`}
+        />
+        {props.named && <span className="font-medium">{mailbox.address}: </span>}
+        <span>{line}</span>
+      </p>
+      {detail && <p className="text-xs text-stone-600">{detail}</p>}
+      {failing && !reconnect && (
+        <p className="text-xs text-stone-500">It's tried again on its own.</p>
+      )}
+    </>
+  );
+}
+
 interface MailboxStatusProps {
   workspaceId: string;
   /** Right-aligned in a page header (the default), left-aligned at the top of a page's content. */
@@ -85,30 +134,16 @@ interface MailboxStatusProps {
 /** The mailbox status (F1.4) of the inbox header and Settings › Mailbox; nothing without one. */
 export function MailboxStatus({ workspaceId, align = "end" }: MailboxStatusProps) {
   const now = useNow(30_000);
-  const mailboxes = useQuery({
-    queryKey: statusKey(workspaceId),
-    queryFn: () => api(`${apiPaths.workspace(workspaceId)}/mailboxes`, MailboxListSchema),
-  });
-  const sync = mailboxes.data?.items[0]?.sync;
-  if (!sync) return null;
-  const { line, detail } = statusText(sync, now);
-  const failing = sync.state === "failing";
+  const items = useMailboxes(workspaceId).data?.items ?? [];
+  if (items.length === 0) return null;
   return (
     <div
       role="status"
       className={`flex flex-col text-sm ${align === "end" ? "items-end text-right" : "items-start"}`}
     >
-      <p className={failing ? "font-medium text-red-700" : "text-stone-600"}>
-        <span
-          aria-hidden="true"
-          className={`mr-1.5 inline-block size-2 rounded-full ${
-            failing ? "bg-red-600" : sync.state === "ok" ? "bg-emerald-500" : "bg-stone-400"
-          }`}
-        />
-        {line}
-      </p>
-      {detail && <p className="text-xs text-stone-600">{detail}</p>}
-      {failing && <p className="text-xs text-stone-500">It's tried again on its own.</p>}
+      {items.map((m) => (
+        <MailboxLine key={m.id} mailbox={m} now={now} named={items.length > 1} />
+      ))}
     </div>
   );
 }

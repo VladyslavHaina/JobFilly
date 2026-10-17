@@ -41,3 +41,41 @@ export const OAuthTokensSchema = z.object({
   email: z.email(),
 });
 export type OAuthTokens = z.infer<typeof OAuthTokensSchema>;
+
+/**
+ * POST /api/workspaces/:workspaceId/oauth/google/start's body: the Google mailbox to sign in to
+ * again after "Reconnect needed", or none to connect a new one.
+ */
+export const OAuthStartInputSchema = z.object({ mailboxId: z.uuid().optional() });
+export type OAuthStartInput = z.infer<typeof OAuthStartInputSchema>;
+
+/**
+ * Where the callback sends the browser back (the `oauth` query parameter of the mailbox page):
+ * connected; denied on the consent page; failed (the token exchange or the IMAP login didn't
+ * work); exists (the workspace already has a mailbox at that address); wrong_account (a
+ * reconnect signed in to another account than the mailbox's).
+ */
+export const OAuthOutcomeSchema = z.enum([
+  "connected",
+  "denied",
+  "failed",
+  "exists",
+  "wrong_account",
+]);
+export type OAuthOutcome = z.infer<typeof OAuthOutcomeSchema>;
+
+/**
+ * Google's token endpoint answer as the server reads it (RFC 6749 section 5.1, with OpenID
+ * Connect's id_token): an exchange carries the refresh token and the id_token, a refresh only a
+ * new access token.
+ */
+export const GoogleTokenAnswerSchema = z.object({
+  access_token: z.string().min(1),
+  expires_in: z.number().int().positive(),
+  refresh_token: z.string().min(1).optional(),
+  id_token: z.string().min(1).optional(),
+});
+export type GoogleTokenAnswer = z.infer<typeof GoogleTokenAnswerSchema>;
+
+/** The id_token's claims the server reads: the account's address. */
+export const GoogleIdClaimsSchema = z.object({ email: z.email() });

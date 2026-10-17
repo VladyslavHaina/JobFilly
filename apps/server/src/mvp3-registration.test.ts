@@ -99,7 +99,6 @@ const ROUTES = (): Route[] => [
     pipeline: true,
     built: 400,
   },
-  { method: "post", path: `${ws()}/oauth/google/start`, role: "admin", pipeline: true },
   { method: "get", path: `${ws()}/export`, role: "admin", pipeline: false },
   { method: "get", path: `${ws()}/activity`, role: "admin", pipeline: true },
   { method: "delete", path: ws(), role: "admin", pipeline: true },
@@ -164,12 +163,14 @@ describe("the MVP 3 workspace routes", () => {
 describe("the MVP 3 routes outside a workspace", () => {
   it("need a signed-in user, then answer 501 until built", async () => {
     const app = createApp(deps);
-    for (const path of ["/api/account/deletion", "/api/oauth/providers"]) {
+    for (const path of ["/api/account/deletion"]) {
       expect((await app.request(path)).status).toBe(401);
       expect((await clients.maria?.get(path))?.status).toBe(501);
     }
     expect((await clients.maria?.delete("/api/account"))?.status).toBe(501);
-    expect((await clients.maria?.get("/api/oauth/google/callback?state=s"))?.status).toBe(501);
+    // Built by the mailboxes slice (routes/oauth.test.ts): still behind the signed-in user.
+    expect((await app.request("/api/oauth/providers")).status).toBe(401);
+    expect((await app.request("/api/oauth/google/callback?state=s")).status).toBe(401);
   });
 });
 

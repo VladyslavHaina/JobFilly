@@ -333,6 +333,7 @@ export function MessageDetailView(props: { workspaceId: string; messageId: strin
           </p>
           <p className="text-xs text-stone-500">
             <time dateTime={message.date}>{formatFullDate(message.date)}</time>
+            {message.mailbox && <> · in {message.mailbox.address}</>}
           </p>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {message.category && <CategoryChip category={message.category} />}

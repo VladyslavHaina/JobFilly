@@ -29,7 +29,7 @@ import { aiClientFor } from "../ai-usage";
 import { DAY, MINUTE } from "../clock";
 import type { AppDeps } from "../deps";
 import type { Logger } from "../log";
-import { connectStoredMailbox, MailboxSecretError } from "../mailbox";
+import { connectStoredMailbox, MailboxSecretError, ReconnectNeededError } from "../mailbox";
 import { type AnalysisRun, analyzeBatch, RunFailed } from "../pipeline/analyze";
 import { evaluateMessage, type MailboxSession } from "../pipeline/evaluate";
 import type { Stages } from "../pipeline/stages";
@@ -93,7 +93,10 @@ export function isDue(nextAttemptAt: Date | null, now: Date, intervalMs: number)
 }
 
 export type SyncOutcome =
-  | { status: "skipped"; reason: "no_mailbox" | "first_scan_running" | "backing_off" }
+  | {
+      status: "skipped";
+      reason: "no_mailbox" | "first_scan_running" | "backing_off" | "reconnect_needed";
+    }
   | { status: "synced"; fresh: number; uidValidityChanged: boolean; lastUid: number }
   | { status: "failed"; failures: number };
 
@@ -269,6 +272,10 @@ export async function syncMailbox(
   const mailbox = await getMailboxConnection(db, workspaceId, mailboxId);
   // Disconnected since the job was queued.
   if (!mailbox) return { status: "skipped", reason: "no_mailbox" };
+  // MVP 3 (F3.2): Google refused its sign-in; it waits, cursor and all, until the user signs in
+  // again.
+  if (mailbox.status === "reconnect_needed")
+    return { status: "skipped", reason: "reconnect_needed" };
   const firstScan = await getLatestScan(db, workspaceId, "first");
   if (firstScan?.status !== "stopped") {
     return { status: "skipped", reason: "first_scan_running" };
@@ -407,6 +414,10 @@ export async function syncMailbox(
   } catch (error) {
     // Shutting down or taken over: the job runs again elsewhere, from the same cursor.
     if (options.signal?.aborted) throw error;
+    // Google refused the refresh just now: the mailbox says "Reconnect needed", not failing.
+    if (error instanceof ReconnectNeededError) {
+      return { status: "skipped", reason: "reconnect_needed" };
+    }
     return await recordFailure(deps, log, workspaceId, mailboxId, state, error);
   } finally {
     await mail?.close().catch(() => {});

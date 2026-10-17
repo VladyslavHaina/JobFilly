@@ -189,6 +189,33 @@ describe("MailboxStatus (F1.4)", () => {
     await act(async () => {});
     expect(container.textContent).toBe("");
   });
+
+  it("gives each of several mailboxes its own line, and says when one needs reconnecting", async () => {
+    const [work] = mailbox(ok(new Date(Date.now() - 5_000))).items;
+    fakeApi({
+      [MAILBOXES]: {
+        items: [
+          work,
+          {
+            ...work,
+            id: "00000000-0000-4000-8000-0000000000b2",
+            address: "maria.gmail@gmail.example",
+            auth: "google",
+            status: "reconnect_needed",
+          },
+        ],
+      },
+    });
+    renderInWorkspace(<MailboxStatus workspaceId={W} />);
+    const status = await screen.findByRole("status");
+    expect(await within(status).findByText("maria.santos@inbox.example:")).toBeTruthy();
+    expect(within(status).getByText("Synced just now")).toBeTruthy();
+    expect(within(status).getByText("maria.gmail@gmail.example:")).toBeTruthy();
+    expect(within(status).getByText("Reconnect needed")).toBeTruthy();
+    expect(within(status).getByText(/Reconnect it in Settings › Mailbox/)).toBeTruthy();
+    // Waiting for the user, not tried again on its own.
+    expect(within(status).queryByText("It's tried again on its own.")).toBeNull();
+  });
 });
 
 describe("UsagePerDay (F1.5)", () => {
