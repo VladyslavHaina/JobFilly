@@ -1,6 +1,7 @@
 // The shared contract. Every API payload, every AI structured output, job facts and the profile
 // format are defined here once, one module per domain, and imported everywhere else.
 
+export * from "./activity";
 export * from "./ai";
 export * from "./ai-output";
 export * from "./applications";
@@ -11,6 +12,7 @@ export * from "./cv";
 export * from "./decisions";
 export * from "./drafts";
 export * from "./events";
+export * from "./export";
 export * from "./facts";
 export * from "./health";
 export * from "./jobs";

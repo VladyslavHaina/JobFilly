@@ -7,6 +7,20 @@ export type Role = z.infer<typeof RoleSchema>;
 
 const RANK: Record<Role, number> = { viewer: 0, editor: 1, admin: 2 };
 
+/**
+ * What a member sees (MVP 3, F6.1), chosen by an admin when inviting and later: everything, or
+ * the job pipeline only — roles, facts, matches, stages, the profile and decisions, but no message
+ * bodies, drafts (nor sending) or non-job mail. The server enforces it: hidden resources answer
+ * 404 for that member, the assistant included (F6.2).
+ */
+export const MemberScopeSchema = z.enum(["everything", "pipeline"]);
+export type MemberScope = z.infer<typeof MemberScopeSchema>;
+
+/** A scope that isn't stored (a previous replica's answer) reads as everything. */
+export function scopeOf(value: { scope?: MemberScope }): MemberScope {
+  return value.scope ?? "everything";
+}
+
 /** True when `role` includes everything `needed` may do. */
 export function roleAtLeast(role: Role, needed: Role): boolean {
   return RANK[role] >= RANK[needed];
@@ -23,6 +37,8 @@ export type Workspace = z.infer<typeof WorkspaceSchema>;
 export const WorkspaceSummarySchema = WorkspaceSchema.extend({
   role: RoleSchema,
   isOwner: z.boolean(),
+  /** MVP 3 (F6.1): what the user sees here; absent reads as everything (scopeOf). */
+  scope: MemberScopeSchema.optional(),
 });
 export type WorkspaceSummary = z.infer<typeof WorkspaceSummarySchema>;
 
@@ -35,6 +51,8 @@ export const MemberSchema = z.object({
   email: z.string(),
   role: RoleSchema,
   isOwner: z.boolean(),
+  /** MVP 3 (F6.1); absent reads as everything (scopeOf). */
+  scope: MemberScopeSchema.optional(),
 });
 export type Member = z.infer<typeof MemberSchema>;
 
@@ -47,6 +65,16 @@ export type MemberParams = z.infer<typeof MemberParamsSchema>;
 
 export const ChangeRoleInputSchema = z.object({ role: RoleSchema });
 export type ChangeRoleInput = z.infer<typeof ChangeRoleInputSchema>;
+
+/** PATCH /members/:userId (MVP 3, F6.1, F6.3): change a member's role, scope, or both. */
+export const ChangeMemberInputSchema = z
+  .object({ role: RoleSchema.optional(), scope: MemberScopeSchema.optional() })
+  .refine((v) => v.role !== undefined || v.scope !== undefined, "Change the role or the scope");
+export type ChangeMemberInput = z.infer<typeof ChangeMemberInputSchema>;
+
+/** POST /members/:userId/ownership (F6.3): the owner hands the workspace to another admin. */
+export const TransferOwnershipInputSchema = z.object({ confirm: z.literal(true) });
+export type TransferOwnershipInput = z.infer<typeof TransferOwnershipInputSchema>;
 
 /** Invites expire 7 days after they are created (F1.6). */
 export const INVITE_TTL_DAYS = 7;
@@ -61,6 +89,8 @@ export const InviteSchema = z.object({
   status: InviteStatusSchema,
   createdAt: IsoDateTimeSchema,
   expiresAt: IsoDateTimeSchema,
+  /** MVP 3 (F6.1); absent reads as everything. */
+  scope: MemberScopeSchema.optional(),
 });
 export type Invite = z.infer<typeof InviteSchema>;
 
@@ -78,6 +108,8 @@ export const CreateInviteInputSchema = z.object({
     .toLowerCase()
     .pipe(z.email({ message: "Enter a valid email address" })),
   role: RoleSchema,
+  /** MVP 3 (F6.1): what the member will see; everything when left out. */
+  scope: MemberScopeSchema.optional(),
 });
 export type CreateInviteInput = z.infer<typeof CreateInviteInputSchema>;
 

@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
+  ACTIVITY_KINDS,
+  AccountDeletionPreviewSchema,
+  ActivityRecordSchema,
   APPLICATION_STAGES,
+  ChangeMemberInputSchema,
+  CreateInviteInputSchema,
+  DeleteWorkspaceInputSchema,
   DraftStatusSchema,
+  EXPORT_PARTS,
+  ExportManifestSchema,
   jobDedupeKey,
   MAIL_SEND_JOB,
   MAX_SCAN_HINT_LENGTH,
@@ -27,6 +35,8 @@ import {
   SmtpLoginSchema,
   SmtpSettingsInputSchema,
   StartScanInputSchema,
+  scopeOf,
+  WorkspaceSummarySchema,
 } from "./index";
 
 // The shapes MVP 3 adds to the shared contract (docs/mvp/MVP-3.md). The slices that build on them
@@ -233,5 +243,96 @@ describe("the application pipeline (F5)", () => {
     expect(SetStageInputSchema.safeParse({ role, stage: "interview" }).success).toBe(true);
     expect(SetStageInputSchema.safeParse({ role, stage: null }).success).toBe(true);
     expect(SetStageInputSchema.safeParse({ role, stage: "hired" }).success).toBe(false);
+  });
+});
+
+describe("sharing and members (F6)", () => {
+  it("reads a member without a scope as seeing everything", () => {
+    const summary = {
+      id: ID,
+      name: "Maria's workspace",
+      ownerId: ID,
+      role: "editor",
+      isOwner: false,
+    };
+    expect(scopeOf(WorkspaceSummarySchema.parse(summary))).toBe("everything");
+    expect(scopeOf(WorkspaceSummarySchema.parse({ ...summary, scope: "pipeline" }))).toBe(
+      "pipeline",
+    );
+  });
+
+  it("invites with a scope, everything when left out", () => {
+    const invite = { email: "Tom.Okafor@inbox.example", role: "editor" };
+    expect(CreateInviteInputSchema.parse(invite)).toEqual({
+      email: "tom.okafor@inbox.example",
+      role: "editor",
+    });
+    expect(CreateInviteInputSchema.parse({ ...invite, scope: "pipeline" }).scope).toBe("pipeline");
+  });
+
+  it("changes a member's role, scope or both, but not nothing", () => {
+    expect(ChangeMemberInputSchema.safeParse({ scope: "pipeline" }).success).toBe(true);
+    expect(ChangeMemberInputSchema.safeParse({ role: "admin", scope: "everything" }).success).toBe(
+      true,
+    );
+    expect(ChangeMemberInputSchema.safeParse({}).success).toBe(false);
+  });
+});
+
+describe("your data and the activity log (F7, F9)", () => {
+  it("records actions by id, a user's or the app's", () => {
+    expect(ACTIVITY_KINDS).toContain("mail.sent");
+    expect(
+      ActivityRecordSchema.safeParse({
+        kind: "draft.saved",
+        actor: { kind: "system" },
+        targetUserId: null,
+        refs: { draftId: ID, messageId: "<m@x.example>", position: 0 },
+      }).success,
+    ).toBe(true);
+    // Refs hold ids only: a name or an address handed in is not kept.
+    expect(
+      ActivityRecordSchema.parse({
+        kind: "member.removed",
+        actor: { kind: "user", userId: ID },
+        targetUserId: ID,
+        refs: { name: "Tom", email: "tom.okafor@inbox.example" },
+      }).refs,
+    ).toEqual({});
+  });
+
+  it("exports every listed part with a schema version", () => {
+    expect(EXPORT_PARTS).toEqual([
+      "profiles",
+      "rules",
+      "cvs",
+      "messages",
+      "facts",
+      "matches",
+      "decisions",
+      "drafts",
+      "pipeline",
+      "activity",
+    ]);
+    const manifest = {
+      schemaVersion: 1,
+      workspaceId: ID,
+      workspaceName: "Maria's workspace",
+      exportedAt: "2026-10-16T10:00:00.000Z",
+      parts: [...EXPORT_PARTS],
+      cvFiles: ["cvs/backend-en.pdf"],
+    };
+    expect(ExportManifestSchema.parse(manifest)).toEqual(manifest);
+    expect(ExportManifestSchema.safeParse({ ...manifest, schemaVersion: 2 }).success).toBe(false);
+  });
+
+  it("needs the workspace's name to delete it and lists what an account deletion takes", () => {
+    expect(DeleteWorkspaceInputSchema.safeParse({ name: "" }).success).toBe(false);
+    expect(
+      AccountDeletionPreviewSchema.parse({
+        owned: [{ workspaceId: ID, name: "Tom's workspace", members: [] }],
+        memberOf: [{ workspaceId: ID, name: "Maria's workspace" }],
+      }).owned,
+    ).toHaveLength(1);
   });
 });
