@@ -1,4 +1,7 @@
 import {
+  POLICY_DEFAULTS,
+  POLICY_KEYS,
+  POLICY_LABELS,
   type Profile,
   ProfileChangeResultSchema,
   type ProfileEntry,
@@ -38,7 +41,10 @@ import { changedText } from "./changed";
 //
 // MVP 3: with several profiles (F1.1) a switcher picks the one shown (?profile=<id>), each is
 // switched on or off (F1.2; the server keeps one on), and a changed answer says how many of the
-// profile's roles it changes (F2.3).
+// profile's roles it changes (F2.3). The reply automation's numbers (POLICY_KEYS) are listed
+// even while the profile doesn't set them, at the value in effect, its default (F2.1): setting one
+// stores it as the profile's entry, in the history with Undo like any other, and undoing that
+// brings the default back.
 
 const errorText = (error: unknown) =>
   error instanceof ApiError ? error.message : "That didn't work. Try again.";
@@ -208,6 +214,29 @@ function Entries({ profile }: { profile: Profile }) {
               workspaceId={workspaceId}
               messageIds={entry.evidence.map((e) => e.messageId)}
               label={entry.label}
+            />
+          </div>
+        </section>
+      ))}
+      {POLICY_KEYS.filter((key) => !profile.entries.some((e) => e.key === key)).map((key) => (
+        <section
+          key={key}
+          aria-label={POLICY_LABELS[key]}
+          className="rounded-lg border border-stone-200 bg-white p-5 shadow-xs"
+        >
+          <header className="flex flex-wrap items-center gap-2">
+            <h2 className="text-base font-semibold text-stone-900">{POLICY_LABELS[key]}</h2>
+            <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset bg-stone-50 text-stone-600 ring-stone-200">
+              Default
+            </span>
+          </header>
+          <div className="mt-3">
+            <AnswerEditor
+              entryKey={key}
+              label={POLICY_LABELS[key]}
+              value={[POLICY_DEFAULTS[key]]}
+              disabled={!can.edit || update.isPending}
+              onChange={(value) => update.mutate({ entries: [{ key, value }] })}
             />
           </div>
         </section>

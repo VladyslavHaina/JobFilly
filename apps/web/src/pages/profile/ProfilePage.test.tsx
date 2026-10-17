@@ -1,4 +1,10 @@
-import type { CurrentScan, Profile, ProfileEntry, Role } from "@jobfilly/schema";
+import {
+  type CurrentScan,
+  entryLabel,
+  type Profile,
+  type ProfileEntry,
+  type Role,
+} from "@jobfilly/schema";
 import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -113,6 +119,18 @@ function profileApi(
             : e;
         }),
       };
+      // A key the profile doesn't set yet (a policy number at its default) becomes its entry.
+      for (const change of patch.entries ?? []) {
+        if (updated.entries.some((e) => e.key === change.key)) continue;
+        updated.entries.push(
+          entry({
+            key: change.key as ProfileEntry["key"],
+            label: entryLabel(change.key as ProfileEntry["key"]),
+            value: change.value as ProfileEntry["value"],
+            source: "you",
+          }),
+        );
+      }
       profiles = [updated];
       // MVP 3 (F2.3): with how many roles the change changes.
       return { ...updated, changed: 0 };
@@ -151,7 +169,9 @@ describe("the profile page (F6.5)", () => {
     expect(name).toHaveProperty("value", "My job search");
     await user.clear(name);
     await user.type(name, "Remote EU");
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    // The rename form's Save: the reply numbers have their own.
+    const form = name.closest("form") as HTMLElement;
+    await user.click(within(form).getByRole("button", { name: "Save" }));
     expect(await screen.findByRole("heading", { name: "Remote EU" })).toBeTruthy();
     expect(requests.find((r) => r.method === "PATCH")).toMatchObject({
       path: `/api/workspaces/${ws.id}/profiles/${PROFILE.id}`,
@@ -195,6 +215,34 @@ describe("the profile page (F6.5)", () => {
     expect(requests.find((r) => r.method === "PATCH")?.body).toEqual({
       entries: [{ key: "reply_threshold", value: [80] }],
     });
+  });
+
+  it("shows the reply numbers the profile doesn't set at their defaults, to be changed (MVP 3, F2.1)", async () => {
+    const { ws, requests } = profileApi();
+    const user = userEvent.setup();
+    renderApp(paths.profile(ws.id));
+    const threshold = within(await section("Fit score that gets an automatic reply"));
+    expect(threshold.getByText("Default")).toBeTruthy();
+    const field = threshold.getByLabelText("Fit score that gets an automatic reply");
+    expect(field).toHaveProperty("value", "70");
+    const days = within(await section("Days a message can wait for an automatic reply"));
+    expect(days.getByLabelText("Days a message can wait for an automatic reply")).toHaveProperty(
+      "value",
+      "14",
+    );
+    await user.clear(field);
+    await user.type(field, "80");
+    await user.click(threshold.getByRole("button", { name: "Save" }));
+    expect(requests.find((r) => r.method === "PATCH")?.body).toEqual({
+      entries: [{ key: "reply_threshold", value: [80] }],
+    });
+    // Stored now: the profile's own entry, set by you, no longer the default.
+    const stored = within(await section("Fit score that gets an automatic reply"));
+    expect(await stored.findByText("Set by you")).toBeTruthy();
+    expect(stored.queryByText("Default")).toBeNull();
+    expect(
+      screen.getAllByRole("region", { name: "Fit score that gets an automatic reply" }),
+    ).toHaveLength(1);
   });
 
   it("points to the intake form when nothing is confirmed yet", async () => {

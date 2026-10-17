@@ -162,6 +162,29 @@ describe("the cv-choice stage", () => {
     ).rejects.toThrow("confirmed profile");
   });
 
+  it("gives a role of a profile made by a re-run the CVs the profile page lists (MVP 3, F1.3)", async () => {
+    const { de } = await mariasCvs();
+    deps.clock.advance(1000);
+    const rerun = await createConfirmedProfile(deps.db, ws, {
+      name: "Germany permanent",
+      entries: [],
+      createdBy: maria.id,
+      at: deps.clock.now(),
+      alongside: true,
+    });
+    if (!rerun.ok) throw new Error("expected a second profile");
+    const input = await message("de");
+    const choice = await cvChoiceStage(
+      { message: input, role: { position: 0, facts: input.facts[0] ?? roleFacts() } },
+      context(rerun.profile),
+    );
+    expect(choice).toMatchObject({
+      cvId: de.id,
+      skills: ["Go", "PostgreSQL"],
+      reason: "German backend role → Backend (DE)",
+    });
+  });
+
   it("gives cvId null when the profile has no CV", async () => {
     const other = await seedUser(deps);
     await seedCv(deps, other.workspaceId, { name: "Tom's CV", language: "de" });
