@@ -1,13 +1,16 @@
 // PostgreSQL storage through Drizzle. Workspace data is read and written only through the
-// functions in ./queries, and they take a workspace id, with three deliberate exceptions
+// functions in ./queries, and they take a workspace id, with these deliberate exceptions
 // (ARCHITECTURE › Workspaces, access and sessions): the invitee answering an invite by its id
 // (getInviteForResponse, acceptInvite, declineInvite), after the server has checked the invite's
 // email or token; the queue worker's lease operations on a job it claimed by id (claimJob,
 // renewLease, saveJobCheckpoint, completeJob, handBackJob), which are guarded by the lease
-// owner; and the signed-in user's own view across workspaces (listWorkspacesForUser by user id,
-// listPendingInvitations by the email the server matched to them). Three cross-workspace reads
-// serve every workspace the way the job claim does: listWorkspacesWithWork and
-// listWorkspacesWithFailedLookups (the pipeline sweep) and listMailboxesToSync (the sync
+// owner; the signed-in user's own view across workspaces (listWorkspacesForUser by user id,
+// listPendingInvitations by the email the server matched to them, and from MVP 3
+// accountDeletionPreview and deleteAccount, F7.3); and from MVP 3 the Google callback's
+// takeOAuthState (F3.2), which finds the waiting sign-in by the state's hash, since the callback
+// URL can't name a workspace, and the server then checks the user it names. Three
+// cross-workspace reads serve every workspace the way the job claim does: listWorkspacesWithWork
+// and listWorkspacesWithFailedLookups (the pipeline sweep) and listMailboxesToSync (the sync
 // scheduler's mailbox listing); each only finds the workspaces to work on. registerAccount and
 // createWorkspace make a workspace, so they have no id to take yet. There is no raw-SQL export.
 
