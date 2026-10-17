@@ -91,8 +91,12 @@ export function fakeMail(
   return fake;
 }
 
-/** An answer the fake model gives for one message; "invalid" fails its schema every time. */
-type Answer<T> = T | "invalid" | undefined;
+/**
+ * An answer the fake model gives for one message; "invalid" fails its schema every time, and
+ * "fails" makes every request carrying the message an HTTP 500, as the test stack's fake AI
+ * answers a message it has no answer for.
+ */
+type Answer<T> = T | "invalid" | "fails" | undefined;
 
 export interface FakeAiAnswers {
   classify?: (messageId: string) => Answer<Category>;
@@ -146,8 +150,13 @@ export function fakeAi(answers: FakeAiAnswers): FakeAi {
     for (let attempt = 1; pending.length > 0 && attempt <= maxCalls; attempt++) {
       await request(task, pending);
       result.usage.push(usage(task));
-      if (failure) {
-        const error = failure;
+      const fails = pending.some((id) => answer(id) === "fails");
+      if (failure || fails) {
+        const error: AiError = failure ?? {
+          kind: "provider_error",
+          message: "fake failure",
+          httpStatus: 500,
+        };
         for (const messageId of pending) result.items.push({ messageId, ok: false, error });
         return result;
       }
@@ -155,7 +164,7 @@ export function fakeAi(answers: FakeAiAnswers): FakeAi {
       for (const messageId of pending) {
         const data = answer(messageId);
         if (data === undefined) throw new Error(`fake AI has no ${task} answer for ${messageId}`);
-        if (data === "invalid") next.push(messageId);
+        if (data === "invalid" || data === "fails") next.push(messageId);
         else result.items.push({ messageId, ok: true, data });
       }
       pending = next;

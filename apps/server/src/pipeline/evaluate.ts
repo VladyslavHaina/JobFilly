@@ -344,8 +344,6 @@ export async function evaluateMessage(
           const role = { position, facts };
           const assigned = assignRole(profiles, {
             facts,
-            senderAddress: message.from.address,
-            category: message.category,
             chosen: choices.get(position) ?? null,
           });
           const own = profiles.confirmed.find((p) => p.id === assigned?.profileId) ?? profile;

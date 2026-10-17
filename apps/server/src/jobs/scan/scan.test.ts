@@ -448,6 +448,80 @@ describe("Couldn't analyze and the budget (F3.4, TBD-17)", { timeout: SLOW }, ()
     });
   });
 
+  it("marks a message the provider fails on, asked alone, and goes on (walkthrough I5)", async () => {
+    // HTTP 500 for any request carrying it, as the test stack's fake AI answers a message it has
+    // no answer for: the scan's own sent reply in the walkthrough.
+    const box = mailbox(3);
+    const [sentByApp, reply] = box.replies as [Envelope, Envelope];
+    const bad = box.recruiters[1] as Envelope;
+    const unread = box.recruiters[2] as Envelope;
+    const s = await setup(box.envelopes, {
+      ...recruiterAnswers(box.notJob),
+      prefs: (id) =>
+        id === sentByApp.messageId ? "fails" : { target_roles: ["Backend Engineer"] },
+      classify: (id) => (id === bad.messageId ? "fails" : "recruiter_outreach"),
+      extract: (id) => (id === unread.messageId ? "fails" : [role(`Role ${id}`)]),
+    });
+    const scanId = await s.start();
+    await s.runAll();
+    const ids = (task: string) => s.ai.calls.filter((c) => c.task === task).map((c) => c.ids);
+    expect(ids("prefs.v1")).toEqual([
+      [sentByApp.messageId, reply.messageId],
+      [sentByApp.messageId],
+      [reply.messageId],
+    ]);
+    const classified = orderNewestFirst(box.recruiters).map((e) => e.messageId);
+    expect(ids("classify.v1")).toEqual([classified, ...classified.map((id) => [id])]);
+    // A job message's extract.v1 is asked once more, then the message is marked.
+    expect(ids("extract.v1").filter(([id]) => id === unread.messageId)).toHaveLength(2);
+    const stored = await getStoredMessages(s.deps.db, s.workspaceId, [
+      sentByApp.messageId,
+      reply.messageId,
+      bad.messageId,
+      unread.messageId,
+    ]);
+    expect(new Map(stored.map((m) => [m.envelope.messageId, m.analysisStatus]))).toEqual(
+      new Map([
+        [sentByApp.messageId, "failed"],
+        [reply.messageId, "done"],
+        [bad.messageId, "failed"],
+        [unread.messageId, "failed"],
+      ]),
+    );
+    expect(await getScan(s.deps.db, s.workspaceId, scanId)).toMatchObject({
+      stopReason: "done",
+      counts: expect.objectContaining({ analyzed: 3, jobFound: 1 }),
+    });
+  });
+
+  it("still stops when the provider fails on every message, also alone", async () => {
+    const box = mailbox(3);
+    const s = await setup(box.recruiters, recruiterAnswers(box.notJob));
+    s.ai.failWith("provider_error", { httpStatus: 500 });
+    const scanId = await s.start();
+    await s.runAll();
+    // The batch, then each of its three messages alone.
+    expect(s.ai.calls.map((c) => c.ids.length)).toEqual([3, 1, 1, 1]);
+    expect(await getScan(s.deps.db, s.workspaceId, scanId)).toMatchObject({
+      stopReason: "failed",
+      stopCause: "ai",
+    });
+    expect(await countNotAnalyzed(s.deps.db, s.workspaceId)).toBe(3);
+  });
+
+  it("stops at once on a rate limit or used-up quota (HTTP 429)", async () => {
+    const box = mailbox(3);
+    const s = await setup(box.recruiters, recruiterAnswers(box.notJob));
+    s.ai.failWith("provider_error", { httpStatus: 429 });
+    const scanId = await s.start();
+    await s.runAll();
+    expect(s.ai.calls).toHaveLength(1);
+    expect(await getScan(s.deps.db, s.workspaceId, scanId)).toMatchObject({
+      stopReason: "failed",
+      stopCause: "ai",
+    });
+  });
+
   it("leaves an item pending when no call is left for its retry", async () => {
     const box = mailbox(3);
     const bad = box.recruiters[0] as Envelope;

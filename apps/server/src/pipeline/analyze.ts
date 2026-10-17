@@ -4,6 +4,8 @@ import { type MailClient, MailError } from "@jobfilly/mail";
 import type {
   AiError,
   AiMailItem,
+  BatchItemResult,
+  BatchResult,
   Category,
   StopCause,
   StoredMessage,
@@ -22,7 +24,27 @@ import type {
 const MAX_TEXT_LENGTH = 8000;
 
 /** Provider failures that no other message would get past: the run stops. */
-export const FATAL: readonly AiError["kind"][] = ["auth", "unreachable", "provider_error"];
+const FATAL: readonly AiError["kind"][] = ["auth", "unreachable", "provider_error"];
+
+/**
+ * The provider as a whole fails: a refused key, no answer at all, or a rate limit or used-up
+ * quota (HTTP 429). Any other error answer (HTTP 500, an answer that couldn't be read) may be one
+ * message's doing, as when a provider can't handle one message of a batch.
+ */
+const providerWide = (error: AiError) =>
+  error.kind === "auth" || error.kind === "unreachable" || error.httpStatus === 429;
+
+/** An error answer that may be one message's doing (see providerWide). */
+const requestFailed = (error: AiError) => error.kind === "provider_error" && !providerWide(error);
+
+/**
+ * Whether a failed item stops the run. In a run that asks again one by one (the scan), only a
+ * provider-wide failure does, and any other is the item's: it is marked "Couldn't analyze". The
+ * sync stops on every provider failure and tries the mail again on its next run.
+ */
+export function stopsRun(run: Pick<AnalysisRun, "oneByOne">, error: AiError): boolean {
+  return run.oneByOne ? providerWide(error) : FATAL.includes(error.kind);
+}
 
 /**
  * The run can't go on. `stopCause` is what the user is told it ran into (the mailbox, the AI
@@ -68,6 +90,41 @@ export interface AnalysisRun {
   stopRequested(): boolean;
   /** Makes one model call (two with a retry) and counts its usage; may throw to stop the run. */
   call<T extends { usage: Usage[] }>(make: () => Promise<T>): Promise<T>;
+  /**
+   * The scan's (walkthrough I5): a request that failed with an error answer that may be one
+   * message's doing is asked again one message at a time (askBatch), and a message that fails
+   * again is marked, so one message never stops the run. Off for the sync (see stopsRun).
+   */
+  oneByOne?: boolean;
+}
+
+/**
+ * One batched call (classify.v1, prefs.v1), each item's outcome. In a run that asks one by one,
+ * the items of a request that failed with an error answer are asked again each alone, once (as
+ * F3.4 retries an invalid answer once): an item that fails alone again comes back failed, for
+ * the caller to mark. When none of several items gets an answer, together or alone, the
+ * provider is failing, and the run stops. An item left without a call for its retry is left out
+ * (pending, for a later run).
+ */
+export async function askBatch<T>(
+  run: AnalysisRun,
+  items: AiMailItem[],
+  ask: (items: AiMailItem[], options: { maxCalls: 1 | 2 }) => Promise<BatchResult<T>>,
+): Promise<BatchItemResult<T>[]> {
+  const result = await run.call(() => ask(items, { maxCalls: maxCalls(run) }));
+  const failed = (r: BatchItemResult<T>) => !r.ok && requestFailed(r.error);
+  if (!run.oneByOne || !result.items.some(failed)) return result.items;
+  const outcomes: BatchItemResult<T>[] = [];
+  let everyRetried = true;
+  for (const r of result.items) {
+    const item = items.find((i) => i.messageId === r.messageId);
+    if (!failed(r) || !item) outcomes.push(r);
+    else if (run.stopRequested() || run.callsLeft() <= 0) everyRetried = false;
+    else outcomes.push(...(await run.call(() => ask([item], { maxCalls: maxCalls(run) }))).items);
+  }
+  const error = outcomes.find((r) => !r.ok)?.error;
+  if (items.length > 1 && everyRetried && error && outcomes.every(failed)) throw aiFailed(error);
+  return outcomes;
 }
 
 export interface BatchOutcome {
@@ -81,8 +138,7 @@ export interface BatchOutcome {
 export type MailSource = MailClient | ((row: StoredMessage) => Promise<MailClient>);
 
 /** Two calls (a retry) while two are left, else one. */
-export const maxCalls = (run: Pick<AnalysisRun, "callsLeft">): 1 | 2 =>
-  run.callsLeft() >= 2 ? 2 : 1;
+const maxCalls = (run: Pick<AnalysisRun, "callsLeft">): 1 | 2 => (run.callsLeft() >= 2 ? 2 : 1);
 
 /**
  * What the model reads of each message: its headers and the body, fetched now, never kept. A
@@ -149,15 +205,16 @@ export async function analyzeBatch(
   const toClassify = batch.filter((row) => !categories.has(row.envelope.messageId));
   if (toClassify.length > 0) {
     if (run.callsLeft() <= 0) return outcome;
-    const result = await run.call(() =>
-      ai.classify(toClassify.map(item), { maxCalls: maxCalls(run) }),
+    const results = await askBatch(run, toClassify.map(item), (items, options) =>
+      ai.classify(items, options),
     );
-    for (const r of result.items) {
+    for (const r of results) {
       if (r.ok) categories.set(r.messageId, r.data.category);
-      else if (r.error.kind === "invalid_output") {
+      else if (stopsRun(run, r.error)) throw aiFailed(r.error);
+      else if (r.error.kind !== "not_retried") {
         await markAnalysisFailed(db, workspaceId, { messageId: r.messageId, scanId });
         outcome.analyzed += 1;
-      } else if (FATAL.includes(r.error.kind)) throw aiFailed(r.error);
+      }
     }
   }
   for (const row of batch) {
@@ -171,7 +228,14 @@ export async function analyzeBatch(
     const category = categories.get(messageId);
     if (!category || category === "not_job") continue;
     if (run.stopRequested() || run.callsLeft() <= 0) return outcome;
-    const result = await run.call(() => ai.extract(item(row), { maxCalls: maxCalls(run) }));
+    const extract = () => run.call(() => ai.extract(item(row), { maxCalls: maxCalls(run) }));
+    let result = await extract();
+    // Asked again once after an error answer, in a run that asks one by one (askBatch); left
+    // pending when no call is left for it.
+    if (run.oneByOne && !result.ok && requestFailed(result.error)) {
+      if (run.stopRequested() || run.callsLeft() <= 0) return outcome;
+      result = await extract();
+    }
     if (result.ok) {
       await saveAnalysis(db, workspaceId, {
         messageId,
@@ -181,11 +245,11 @@ export async function analyzeBatch(
       });
       outcome.analyzed += 1;
       outcome.jobs.push(messageId);
-    } else if (result.error.kind === "invalid_output") {
+    } else if (stopsRun(run, result.error)) {
+      throw aiFailed(result.error);
+    } else if (result.error.kind !== "not_retried") {
       await markAnalysisFailed(db, workspaceId, { messageId, scanId });
       outcome.analyzed += 1;
-    } else if (FATAL.includes(result.error.kind)) {
-      throw aiFailed(result.error);
     }
   }
   return outcome;

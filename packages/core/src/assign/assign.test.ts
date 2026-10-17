@@ -1,10 +1,11 @@
 import type { JobFacts, ProfileEntry, Rule } from "@jobfilly/schema";
 import { describe, expect, it } from "vitest";
+import { evaluateRules } from "../rules/engine";
 import { assignProfile, type ProfileCandidate } from "./index";
 
 // Which profile a role belongs to (MVP 3, F1.3), pure: the best profile that is on by places,
-// title, languages and contract, a profile whose rule hides the role last, ties to the oldest, an
-// editor's choice first; always with the reason in words.
+// title, languages and contract (rules play no part), ties to the oldest, an editor's choice
+// first; always with the reason in words.
 
 const AT = "2026-10-15T12:00:00.000Z";
 
@@ -38,9 +39,8 @@ const facts = (overrides: Partial<JobFacts>): JobFacts => ({
   ...overrides,
 });
 
-const candidate = (id: string, name: string, entries: ProfileEntry[], rules: Rule[] = []) => ({
+const candidate = (id: string, name: string, entries: ProfileEntry[]) => ({
   profile: { id, name, entries },
-  rules,
 });
 
 const REMOTE_EU: ProfileCandidate = candidate("p1", "Remote EU", [
@@ -62,8 +62,6 @@ const GERMANY: ProfileCandidate = candidate("p2", "Germany permanent", [
 const assign = (role: JobFacts, profiles = [REMOTE_EU, GERMANY], chosen: string | null = null) =>
   assignProfile({
     facts: role,
-    senderAddress: "jobs@agency.example",
-    category: "recruiter_outreach",
     profiles,
     chosen,
   });
@@ -124,7 +122,7 @@ describe("assignProfile", () => {
     });
   });
 
-  it("gives a role to a profile whose rule hides it only when every profile would", () => {
+  it("ignores rules: a role stays with the profile it fits best, whose hide rule then hides it", () => {
     const hideGermany: Rule = {
       id: "6f1c2f4e-8d3a-4b5c-9e7f-0a1b2c3d4e5f",
       profileId: "p2",
@@ -136,14 +134,13 @@ describe("assignProfile", () => {
       createdAt: AT,
       createdBy: null,
     };
-    const hiding = candidate("p2", "Germany permanent", GERMANY.profile.entries as ProfileEntry[], [
-      hideGermany,
-    ]);
+    const hiding = { ...GERMANY, rules: [hideGermany] };
     const munich = facts({ places: [{ country: "DE", city: "Munich" }], workMode: "onsite" });
-    expect(assign(munich, [REMOTE_EU, hiding])).toMatchObject({ profileId: "p1" });
-    expect(
-      assign(munich, [REMOTE_EU, { ...hiding, rules: [{ ...hideGermany, enabled: false }] }]),
-    ).toMatchObject({ profileId: "p2" });
+    // It is not moved to the profile without the rule…
+    expect(assign(munich, [REMOTE_EU, hiding])).toMatchObject({ profileId: "p2" });
+    // …and the assigned profile's rule hides it there (the match stage applies it).
+    const ctx = { facts: munich, senderAddress: "jobs@agency.example", category: null };
+    expect(evaluateRules(hiding.rules, ctx).hidden).toMatchObject({ ruleId: hideGermany.id });
   });
 
   it("follows an editor's choice of a profile that is on, and none without profiles", () => {

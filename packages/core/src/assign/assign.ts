@@ -1,16 +1,8 @@
-import type {
-  Category,
-  JobFacts,
-  ProfileEntry,
-  ProfileValues,
-  RoleProfileSource,
-  Rule,
-} from "@jobfilly/schema";
-import { evaluateRules } from "../rules/engine";
+import type { JobFacts, ProfileEntry, ProfileValues, RoleProfileSource } from "@jobfilly/schema";
 import { mentions, norm, saysPlainly } from "../rules/words";
 
 // Which profile a role belongs to (MVP 3, F1.3): the best of the profiles that are on, by the
-// role's places, title, languages and contract and the profile's rules, with the reason in plain
+// role's places, title, languages and contract, with the reason in plain
 // words ("Munich role, German, permanent → 'Germany permanent'"). Pure: the same role and profiles
 // always give the same profile, so the assignment is explainable and re-evaluating changes it
 // only when the role or a profile changed.
@@ -24,23 +16,20 @@ import { mentions, norm, saysPlainly } from "../rules/words";
 //     count;
 //   - the role's title naming one of the profile's target roles, or the other way round: +1;
 //   - a working language of the role the profile lists: +1;
-//   - a contract the profile lists, said plainly by the role: +1;
-//   - an enabled hide rule of the profile that holds for the role: −10, so a profile that would
-//     hide the role gets it only when every profile would.
+//   - a contract the profile lists, said plainly by the role: +1.
+// Rules play no part (owner's decision): a role goes to the profile it fits best, and that
+// profile's rules then apply to it as usual in the match stage, so a hide rule hides it there
+// rather than moving it to a profile without the rule.
 // The highest score wins; a tie goes to the oldest profile (the first given). An editor's choice
 // of a profile that is on wins over all of it (source you).
 
-/** A profile that is on, with its rules, oldest first. */
+/** A profile that is on, oldest first. */
 export interface ProfileCandidate {
   profile: { id: string; name: string; entries: readonly ProfileEntry[] };
-  rules: readonly Rule[];
 }
 
 export interface AssignInput {
   facts: JobFacts;
-  /** The message's From address and category, which rules may test. */
-  senderAddress: string;
-  category: Category | null;
   /** The profiles that are on, oldest first. */
   profiles: readonly ProfileCandidate[];
   /** The profile an editor chose for the role, if any. */
@@ -53,8 +42,6 @@ export interface Assignment {
   reason: string;
   source: RoleProfileSource;
 }
-
-const HIDE_PENALTY = -10;
 
 function valuesOf<K extends keyof ProfileValues>(
   entries: readonly ProfileEntry[],
@@ -91,8 +78,7 @@ function placePoints(facts: JobFacts, entries: readonly ProfileEntry[]): Score {
   return best;
 }
 
-function score(input: AssignInput, candidate: ProfileCandidate): Score {
-  const { facts } = input;
+function score(facts: JobFacts, candidate: ProfileCandidate): Score {
   const { entries } = candidate.profile;
   const total = placePoints(facts, entries);
   const add = (part: string) => {
@@ -115,11 +101,6 @@ function score(input: AssignInput, candidate: ProfileCandidate): Score {
     ? valuesOf(entries, "contracts").find((c) => saysPlainly(contract, c))
     : undefined;
   if (wanted) add(wanted);
-  const hidden = evaluateRules(
-    candidate.rules.filter((r) => r.enabled),
-    { facts, senderAddress: input.senderAddress, category: input.category },
-  ).hidden;
-  if (hidden) total.points += HIDE_PENALTY;
   return total;
 }
 
@@ -132,7 +113,7 @@ export function assignProfile(input: AssignInput): Assignment | null {
   }
   let best: { candidate: ProfileCandidate; score: Score } | null = null;
   for (const candidate of input.profiles) {
-    const s = score(input, candidate);
+    const s = score(input.facts, candidate);
     if (!best || s.points > best.score.points) best = { candidate, score: s };
   }
   if (!best) return null;
