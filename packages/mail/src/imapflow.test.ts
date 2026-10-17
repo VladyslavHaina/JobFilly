@@ -1,14 +1,18 @@
 import { createServer, type Server, type Socket } from "node:net";
-import type { MailConnection } from "@jobfilly/schema";
+import type { MailConnection, OAuthMailConnection } from "@jobfilly/schema";
 import { afterEach, describe, expect, it } from "vitest";
 import { createMailClient } from "./client";
 
 // The real imapflow, driven against a scripted IMAP responder on node:net: just enough of
 // RFC 3501 for the client's commands, plain text only, on a random local port. It proves the
 // adapter's wiring (options, folder listing, fetch of UIDs with their source) and the failure
-// mapping on real sockets, without a mail server or any extra dependency.
+// mapping on real sockets, without a mail server or any extra dependency. MVP 3 (F3.3): it can
+// also offer AUTH=XOAUTH2 as Gmail does, which proves the OAuth login with an access token
+// against a fake IMAP server, as whether the test stack's mail server takes XOAUTH2 is unknown.
 
 const PASSWORD = "E2E-SECRET-maria-imap";
+const ACCESS_TOKEN = "E2E-SECRET-maria-gmail-access";
+const GMAIL = "maria.gmail@gmail.example";
 
 const MESSAGE = [
   "Message-ID: <wired-1@agency.example>",
@@ -32,6 +36,12 @@ interface ResponderState {
   appended: string[];
   /** The INTERNALDATE the responder sends for its message. */
   internalDate: string;
+  /** The capabilities it announces (MVP 3: AUTH=XOAUTH2 and SASL-IR, as Gmail does). */
+  capabilities: string;
+  /** The XOAUTH2 payloads received, decoded. */
+  xoauth2: string[];
+  /** A refused AUTHENTICATE's tag, answered once the client sends its empty response. */
+  refusedTag: string | null;
 }
 
 function respond(socket: Socket, line: string, state: ResponderState) {
@@ -50,7 +60,21 @@ function respond(socket: Socket, line: string, state: ResponderState) {
     case "CREATE":
       return send(`${tag} OK created`);
     case "CAPABILITY":
-      return send("* CAPABILITY IMAP4rev1", `${tag} OK done`);
+      return send(`* CAPABILITY ${state.capabilities}`, `${tag} OK done`);
+    case "AUTHENTICATE": {
+      // AUTHENTICATE XOAUTH2 <base64> with SASL-IR: "user=<user>^Aauth=Bearer <token>^A^A".
+      const [mechanism, payload = ""] = rest;
+      if (mechanism?.toUpperCase() !== "XOAUTH2") return send(`${tag} NO unsupported`);
+      const decoded = Buffer.from(payload, "base64").toString();
+      state.xoauth2.push(decoded);
+      if (decoded === `user=${GMAIL}\x01auth=Bearer ${ACCESS_TOKEN}\x01\x01`) {
+        return send(`${tag} OK Authenticated`);
+      }
+      // As Gmail: a continuation with the error as base64 JSON; the client answers an empty line.
+      state.refusedTag = tag ?? null;
+      const error = Buffer.from(JSON.stringify({ status: "401", schemes: "Bearer" }));
+      return send(`+ ${error.toString("base64")}`);
+    }
     case "LOGIN": {
       const [, user, pass] = /^"?([^" ]+)"? "?([^"]+)"?$/.exec(args) ?? [];
       if (user === "maria" && pass === PASSWORD) return send(`${tag} OK Logged in`);
@@ -106,8 +130,10 @@ const sessions: ResponderState[] = [];
 
 async function scriptedImap({
   internalDate = "28-Sep-2026 08:15:05 +0000",
+  capabilities = "IMAP4rev1",
 }: {
   internalDate?: string;
+  capabilities?: string;
 } = {}): Promise<number> {
   const server = createServer((socket) => {
     const state: ResponderState = {
@@ -117,11 +143,14 @@ async function scriptedImap({
       appendTag: null,
       appended: [],
       internalDate,
+      capabilities,
+      xoauth2: [],
+      refusedTag: null,
     };
     sessions.push(state);
     let buffer = "";
     socket.on("error", () => {});
-    socket.write("* OK [CAPABILITY IMAP4rev1] scripted responder ready\r\n");
+    socket.write(`* OK [CAPABILITY ${capabilities}] scripted responder ready\r\n`);
     socket.on("data", (chunk) => {
       buffer += chunk.toString("latin1");
       for (;;) {
@@ -135,7 +164,11 @@ async function scriptedImap({
         if (i < 0) return;
         const line = buffer.slice(0, i);
         buffer = buffer.slice(i + 2);
-        if (state.appendTag !== null) {
+        if (state.refusedTag !== null) {
+          // The client's empty response ends the refused exchange.
+          socket.write(`${state.refusedTag} NO [AUTHENTICATIONFAILED] Invalid credentials\r\n`);
+          state.refusedTag = null;
+        } else if (state.appendTag !== null) {
           // The line the literal ended: the append is complete.
           socket.write(`${state.appendTag} OK [APPENDUID 42 9] appended\r\n`);
           state.appendTag = null;
@@ -296,5 +329,48 @@ describe("the imapflow session", () => {
     const result = await client.test();
     await client.close();
     expect(result).toMatchObject({ ok: false, reason: "unreachable" });
+  });
+});
+
+describe("the XOAUTH2 login (MVP 3, F3.2, F3.3)", () => {
+  const GMAIL_CAPABILITIES = "IMAP4rev1 SASL-IR AUTH=XOAUTH2";
+
+  const oauth = (port: number, accessToken = ACCESS_TOKEN): OAuthMailConnection => ({
+    host: "127.0.0.1",
+    port,
+    tlsMode: "none",
+    username: GMAIL,
+    accessToken,
+  });
+
+  it("signs in with the access token instead of a password", async () => {
+    const port = await scriptedImap({ capabilities: GMAIL_CAPABILITIES });
+    const client = createMailClient(oauth(port), { allowInsecure: true, address: GMAIL });
+    try {
+      expect(await client.test()).toEqual({
+        ok: true,
+        folders: ["INBOX", "Sent Mail"],
+        sentPath: "Sent Mail",
+      });
+    } finally {
+      await client.close();
+    }
+    const [state] = sessions;
+    expect(state?.xoauth2).toEqual([`user=${GMAIL}\x01auth=Bearer ${ACCESS_TOKEN}\x01\x01`]);
+    // No password login was tried.
+    expect(state?.commands.some((c) => / LOGIN /i.test(c))).toBe(false);
+  });
+
+  it("maps a refused token to wrong_password without the token", async () => {
+    const port = await scriptedImap({ capabilities: GMAIL_CAPABILITIES });
+    const client = createMailClient(oauth(port, "E2E-SECRET-expired"), {
+      allowInsecure: true,
+      address: GMAIL,
+    });
+    const result = await client.test();
+    await client.close();
+    expect(result).toMatchObject({ ok: false, reason: "wrong_password" });
+    expect(JSON.stringify(result)).not.toContain("E2E-SECRET");
+    expect(sessions[0]?.xoauth2).toHaveLength(1);
   });
 });
