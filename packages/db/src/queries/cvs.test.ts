@@ -178,11 +178,12 @@ describe("CV base queries (F2)", () => {
   });
 
   it("lists a workspace's CVs and a profile's linked ones, never another workspace's", async () => {
+    // The profile first: a new profile is linked to the CVs already there (see "profile links").
+    const profileId = await confirmProfile();
     const a = await upload(ws, "A");
     const b = await upload(ws, "B");
     await upload(other, "Tom's");
     expect((await listCvs(conn.db, ws)).map((c) => c.name)).toEqual(["A", "B"]);
-    const profileId = await confirmProfile();
     await linkProfileCv(conn.db, ws, profileId, b.id);
     await linkProfileCv(conn.db, ws, profileId, b.id);
     expect((await listProfileCvs(conn.db, ws, profileId)).map((c) => c.id)).toEqual([b.id]);
@@ -269,6 +270,27 @@ describe("profile links", () => {
     await linkCvToProfiles(conn.db, ws, cv.id);
     await linkCvToProfiles(conn.db, ws, cv.id);
     expect((await listProfileCvs(conn.db, ws, profileId)).map((c) => c.id)).toEqual([cv.id]);
+  });
+
+  it("links a new profile, as a re-run makes one, to every CV of the workspace (MVP 3, F1.3)", async () => {
+    const first = await confirmProfile();
+    const cv = await upload(ws, "Backend (DE)");
+    await linkCvToProfiles(conn.db, ws, cv.id);
+    await upload(other, "Tom's");
+    const created = await createConfirmedProfile(conn.db, ws, {
+      name: "Germany permanent",
+      entries: [],
+      createdBy: userId,
+      at,
+      alongside: true,
+    });
+    if (!created.ok) throw new Error("expected a second profile");
+    expect((await listProfileCvs(conn.db, ws, created.profile.id)).map((c) => c.id)).toEqual([
+      cv.id,
+    ]);
+    expect((await listCvsForProfile(conn.db, ws, created.profile.id)).map((c) => c.id)).toEqual(
+      (await listCvsForProfile(conn.db, ws, first)).map((c) => c.id),
+    );
   });
 
   it("does nothing before a profile exists", async () => {

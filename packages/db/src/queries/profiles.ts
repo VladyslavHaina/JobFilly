@@ -12,7 +12,15 @@ import type {
 } from "@jobfilly/schema";
 import { and, asc, eq, isNotNull, ne, sql } from "drizzle-orm";
 import type { Database } from "../client";
-import { intakeAnswers, intakeExtras, profileHistory, profiles, workspaces } from "../tables";
+import {
+  cvs,
+  intakeAnswers,
+  intakeExtras,
+  profileCvs,
+  profileHistory,
+  profiles,
+  workspaces,
+} from "../tables";
 
 // Profiles, the intake answers edited before Confirm and the cached extra questions (tables
 // profiles, intake_answers and intake_extras). Every function takes a workspace id.
@@ -266,6 +274,19 @@ export async function createConfirmedProfile(
       })
       .returning();
     if (!row) throw new Error("createConfirmedProfile: no row returned");
+    // A new profile uses every CV of the workspace, as the profile page lists them (F1.3): a
+    // profile made by a re-run gets a CV choice like the first one. Later uploads link to every
+    // profile (linkCvToProfiles).
+    const workspaceCvs = await tx
+      .select({ id: cvs.id })
+      .from(cvs)
+      .where(eq(cvs.workspaceId, workspaceId));
+    if (workspaceCvs.length > 0) {
+      await tx
+        .insert(profileCvs)
+        .values(workspaceCvs.map((cv) => ({ workspaceId, profileId: row.id, cvId: cv.id })))
+        .onConflictDoNothing();
+    }
     if (!input.history) return { ok: true as const, profile: toProfile(row) };
     const before: ProfileSnapshot = {
       entries: input.entries.map((e) => ({ key: e.key, value: null })),
