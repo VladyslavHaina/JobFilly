@@ -34,7 +34,7 @@ import {
   wiringProblems,
 } from "./stack.ts";
 
-// The test stack is never started by tests (TBD-24): these check the compose file and the proxy
+// The test stack is never started by tests: these check the compose file and the proxy
 // config as data, and stack.ts with an injected command runner. Validate runs the real thing.
 
 const ROOT = join(import.meta.dirname, "..");
@@ -351,6 +351,65 @@ const typedAddresses = (text: string) =>
 
 const byName = (names: readonly string[]) => [...names].sort((a, b) => a.localeCompare(b));
 
+/** The scenario specs one MVP's directory holds, in name order. */
+const scenarioSpecs = (entries: readonly string[]) =>
+  byName(entries.filter((name) => SCENARIO_SPEC.test(name)));
+
+/** 1 to n: every MVP numbers its scenarios from S1 up, with no gaps. */
+const upTo = (n: number) => Array.from({ length: n }, (_, i) => i + 1);
+
+// Every scenario of each MVP, one spec each. The regression scenario of MVP 2 (S12) and MVP 3
+// (S13) is the earlier MVPs' own specs, which run first on the same stack, so it has none.
+const MVP_1_SCENARIOS = [
+  "01-s1-maria-registers.spec.ts",
+  "02-s2-maria-picks-the-ai.spec.ts",
+  "03-s3-first-scan.spec.ts",
+  "04-s4-intake-to-profile.spec.ts",
+  "05-s5-job-inbox.spec.ts",
+  "06-s6-inviting-tom.spec.ts",
+  "07-s7-toms-thin-inbox.spec.ts",
+  "08-s8-budget-stop.spec.ts",
+  "09-s9-replica-dies.spec.ts",
+  "10-s10-sign-out.spec.ts",
+  "11-s11-startup-health-shutdown.spec.ts",
+];
+const MVP_2_SCENARIOS = [
+  "01-s1-cvs.spec.ts",
+  "02-s2-new-mail-flows-in.spec.ts",
+  "03-s3-good-match-gets-a-draft.spec.ts",
+  "04-s4-edit-discard-draft-on-demand.spec.ts",
+  "05-s5-decisions.spec.ts",
+  "06-s6-sender-check.spec.ts",
+  "07-s7-conflicts-and-policy.spec.ts",
+  "08-s8-assistant-time-zones.spec.ts",
+  "09-s9-assistant-unclear-and-not-allowed.spec.ts",
+  "10-s10-roles.spec.ts",
+  "11-s11-resilience.spec.ts",
+];
+const MVP_3_SCENARIOS = [
+  "01-s1-moving-to-germany.spec.ts",
+  "02-s2-roles-go-to-the-right-profile.spec.ts",
+  "03-s3-editing-by-hand.spec.ts",
+  "04-s4-second-mailbox.spec.ts",
+  "05-s5-send-then-undo.spec.ts",
+  "06-s6-pipeline.spec.ts",
+  "07-s7-sharing-with-control.spec.ts",
+  "08-s8-members.spec.ts",
+  "09-s9-ask-the-assistant.spec.ts",
+  "10-s10-rolling-restart-under-load.spec.ts",
+  "11-s11-export-and-delete.spec.ts",
+  "12-s12-disconnect-a-mailbox.spec.ts",
+];
+
+describe("the expected scenario lists", () => {
+  it("name every scenario once, S1 to the last, in order", () => {
+    for (const list of [MVP_1_SCENARIOS, MVP_2_SCENARIOS, MVP_3_SCENARIOS]) {
+      expect(list).toEqual(byName(list));
+      expect(codifiedScenarios(list)).toEqual(upTo(list.length));
+    }
+  });
+});
+
 describe("e2e/specs/mvp-1", () => {
   // The specs run only against a live stack (pnpm e2e), but what they are can be read here, so
   // pnpm check fails a run that would play only part of MVP 1 (and leave MVP 2 without the state
@@ -361,19 +420,12 @@ describe("e2e/specs/mvp-1", () => {
   const specs = entries.filter((name) => name.endsWith(".spec.ts"));
   const source = (name: string) => readFileSync(join(SPECS, name), "utf8");
 
-  it("codifies every scenario of docs/mvp/MVP-1.md as a spec of its own, and no other", () => {
-    const doc = readRepo("docs/mvp/MVP-1.md");
-    const scenarios = [...doc.matchAll(/^\| S(\d+) \| \*\*/gm)].map((m) => Number(m[1]));
-    expect(scenarios.length).toBeGreaterThan(0);
-    const codified = codifiedScenarios(entries);
-    expect(scenarios.filter((n) => !codified.includes(n)).map((n) => `S${n}`)).toEqual([]);
-    expect(codified.filter((n) => !scenarios.includes(n)).map((n) => `S${n}`)).toEqual([]);
-    expect(new Set(codified).size).toBe(codified.length);
+  it("codifies every MVP 1 scenario, S1 to S11, as a spec of its own, and no other", () => {
+    expect(scenarioSpecs(entries)).toEqual(MVP_1_SCENARIOS);
   });
 
   it("holds only the stack check, the scenario specs, the proof and nothing that skips", () => {
-    // A skipped spec is not a passed one (docs/mvp/README.md › Sign-off): no spec here skips,
-    // is marked fixme, or runs alone.
+    // A skipped spec is not a passed one: no spec here skips, is marked fixme, or runs alone.
     for (const name of specs) {
       expect(name === "00-stack.spec.ts" || name === PROOF || SCENARIO_SPEC.test(name), name).toBe(
         true,
@@ -384,9 +436,9 @@ describe("e2e/specs/mvp-1", () => {
   });
 
   it("types no address but the start URL, besides the direct-port view S3 asks for", () => {
-    // docs/mvp/README.md › Walk it like a person: the only URLs typed by hand are the start URL
-    // and invite links. S3 opens the scan screen a second time through the other replica's
-    // direct port, as its scenario says.
+    // Walk it like a person: the only URLs typed by hand are the start URL and invite links. S3
+    // opens the scan screen a second time through the other replica's direct port, as its
+    // scenario says.
     expect(typedAddresses(readFileSync(join(E2E, "specs", "shared.ts"), "utf8"))).toEqual([]);
     const elsewhere = Object.fromEntries(
       specs
@@ -468,24 +520,16 @@ describe("e2e/specs/mvp-1", () => {
 });
 
 describe("e2e/specs/mvp-2", () => {
-  // MVP 2's scenarios start from the state MVP 1's leave behind (docs/mvp/README.md › The test
-  // stack) and from each other's: S2 delivers the mail S3 to S11 open. So they run after every
-  // MVP 1 spec, in the scenarios' order, and none skips.
+  // MVP 2's scenarios start from the state MVP 1's leave behind and from each other's: S2
+  // delivers the mail S3 to S11 open. So they run after every MVP 1 spec, in the scenarios'
+  // order, and none skips.
   const SPECS = join(E2E, "specs", "mvp-2");
   const entries = readdirSync(SPECS);
   const source = (name: string) => readFileSync(join(SPECS, name), "utf8");
 
-  it("codifies every scenario of docs/mvp/MVP-2.md as a spec of its own, but the regression", () => {
-    // The regression scenario is MVP 1's own specs, which run first on the same stack.
-    const doc = readRepo("docs/mvp/MVP-2.md");
-    const rows = [...doc.matchAll(/^\| S(\d+) \| \*\*([^*]+)\*\*/gm)];
-    expect(rows.filter((m) => m[2] === "Regression")).toHaveLength(1);
-    const scenarios = rows.filter((m) => m[2] !== "Regression").map((m) => Number(m[1]));
-    expect(scenarios.length).toBeGreaterThan(0);
-    const codified = codifiedScenarios(entries);
-    expect(scenarios.filter((n) => !codified.includes(n)).map((n) => `S${n}`)).toEqual([]);
-    expect(codified.filter((n) => !scenarios.includes(n)).map((n) => `S${n}`)).toEqual([]);
-    expect(new Set(codified).size).toBe(codified.length);
+  it("codifies every MVP 2 scenario, S1 to S11, as a spec of its own, but the regression", () => {
+    // The regression scenario (S12) is MVP 1's own specs, which run first on the same stack.
+    expect(scenarioSpecs(entries)).toEqual(MVP_2_SCENARIOS);
   });
 
   it("holds only scenario specs named NN-sN-<slug>, NN the scenario, and nothing that skips", () => {
@@ -531,17 +575,9 @@ describe("e2e/specs/mvp-3", () => {
   const spec = (scenario: number) =>
     entries.find((name) => Number(SCENARIO_SPEC.exec(name)?.[2]) === scenario) ?? "";
 
-  it("codifies every scenario of docs/mvp/MVP-3.md as a spec of its own, but the regression", () => {
-    // The regression scenario is MVP 1's and MVP 2's own specs, which run first on the stack.
-    const doc = readRepo("docs/mvp/MVP-3.md");
-    const rows = [...doc.matchAll(/^\| S(\d+) \| \*\*([^*]+)\*\*/gm)];
-    expect(rows.filter((m) => m[2] === "Regression")).toHaveLength(1);
-    const scenarios = rows.filter((m) => m[2] !== "Regression").map((m) => Number(m[1]));
-    expect(scenarios.length).toBeGreaterThan(0);
-    const codified = codifiedScenarios(entries);
-    expect(scenarios.filter((n) => !codified.includes(n)).map((n) => `S${n}`)).toEqual([]);
-    expect(codified.filter((n) => !scenarios.includes(n)).map((n) => `S${n}`)).toEqual([]);
-    expect(new Set(codified).size).toBe(codified.length);
+  it("codifies every MVP 3 scenario, S1 to S12, as a spec of its own, but the regression", () => {
+    // The regression scenario (S13) is MVP 1's and MVP 2's own specs, which run first.
+    expect(scenarioSpecs(entries)).toEqual(MVP_3_SCENARIOS);
   });
 
   it("holds only scenario specs named NN-sN-<slug>, NN the scenario, and nothing that skips", () => {
@@ -577,7 +613,7 @@ describe("e2e/specs/mvp-3", () => {
   });
 
   it("delivers mail with the seed steps the scenarios list, and restarts through the S10 script", () => {
-    // docs/mvp/MVP-3.md: `seed deliver` the Germany batch (S1) and the pipeline threads (S6);
+    // MVP 3's scenarios: `seed deliver` the Germany batch (S1) and the pipeline threads (S6);
     // S10's restarts are e2e/scripts/rolling-restart.ts, never docker commands in the spec.
     const delivered = Object.fromEntries(
       entries.map((name) => [
