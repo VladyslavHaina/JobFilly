@@ -1,4 +1,4 @@
-import type { CurrentScan, ScanProgress } from "@jobfilly/schema";
+import { type CurrentScan, SCAN_WINDOW_DAYS, type ScanProgress } from "@jobfilly/schema";
 import { focusManager } from "@tanstack/react-query";
 import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -222,6 +222,33 @@ describe("ScanPage", () => {
     renderInWorkspace(<ScanPage workspaceId={W} />, { role: "editor" });
     expect(await screen.findByText(/An admin of this workspace can start it/)).toBeTruthy();
     expect(screen.queryByRole("button")).toBeNull();
+  });
+});
+
+describe("a re-run of setup on the scan page (MVP 3, F1.1)", () => {
+  it("says the re-run is reading, then leads on to its answers", async () => {
+    let done = false;
+    fakeApi({
+      [CURRENT]: () =>
+        current(
+          progress({
+            kind: "rerun",
+            ...(done ? { status: "stopped", stopReason: "confident" } : {}),
+          }),
+          done ? "Stopped: confident after 20 of 345 likely job emails" : null,
+        ),
+    });
+    renderInWorkspace(<ScanPage workspaceId={W} />);
+    expect(
+      await screen.findByText(
+        `Re-running setup over the last ${SCAN_WINDOW_DAYS} days of your mail…`,
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Start scan again" })).toBeNull();
+    cleanup();
+    done = true;
+    renderInWorkspace(<ScanPage workspaceId={W} />);
+    expect(await screen.findByRole("link", { name: "Review your answers" })).toBeTruthy();
   });
 });
 

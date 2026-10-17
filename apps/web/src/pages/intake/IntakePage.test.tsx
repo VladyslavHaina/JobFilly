@@ -650,3 +650,56 @@ describe("once confirmed", () => {
     );
   });
 });
+
+describe("a re-run of setup's form (MVP 3, F1.1)", () => {
+  const FIRST: Profile = {
+    id: "00000000-0000-4000-8000-0000000000f0",
+    workspaceId: testWorkspace().id,
+    name: "Remote EU",
+    confirmedAt: "2026-09-01T10:05:00.000Z",
+    entries: [],
+  };
+
+  it("confirms the re-run's answers as a new, named profile", async () => {
+    const rerun = structuredClone(stopped);
+    if (rerun.progress) rerun.progress.kind = "rerun";
+    const { ws, requests, state } = intakeApi({
+      profiles: [FIRST],
+      scan: rerun,
+      extras: { status: "done", questions: [] },
+    });
+    Object.assign(state.form, { rerun: { hint: "I've moved to Germany", confirmed: false } });
+    const { router } = renderApp(paths.intake(ws.id));
+    const user = userEvent.setup({ delay: null });
+    expect(
+      await screen.findByText("with your note “I've moved to Germany”", { exact: false }),
+    ).toBeTruthy();
+    // The first profile doesn't make this form confirmed.
+    expect(screen.queryByText("Saved as “Remote EU”.", { exact: false })).toBeNull();
+    const confirm = await screen.findByRole("button", { name: "Confirm" });
+    expect(confirm).toHaveProperty("disabled", true);
+    await user.type(screen.getByLabelText("Name of the new profile"), "Germany permanent");
+    await user.click(confirm);
+    await waitFor(() => expect(router.state.location.pathname).toBe(paths.profile(ws.id)));
+    expect(router.state.location.search).toBe("?profile=00000000-0000-4000-8000-0000000000f1");
+    expect(requests.find((r) => r.path.endsWith("/intake/confirm"))?.body).toEqual({
+      name: "Germany permanent",
+    });
+  });
+
+  it("says the form waits while the re-run is still reading", async () => {
+    const running = structuredClone(stopped);
+    if (running.progress) {
+      running.progress.kind = "rerun";
+      running.progress.status = "running";
+    }
+    const { ws, requests } = intakeApi({ profiles: [FIRST], scan: running });
+    renderApp(paths.intake(ws.id));
+    expect(
+      await screen.findByText("The form fills itself in once the re-run of setup has stopped.", {
+        exact: false,
+      }),
+    ).toBeTruthy();
+    expect(requests.some((r) => r.path.endsWith("/intake"))).toBe(false);
+  });
+});

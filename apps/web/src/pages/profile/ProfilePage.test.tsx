@@ -1,10 +1,11 @@
 import type { CurrentScan, Profile, ProfileEntry, Role } from "@jobfilly/schema";
-import { cleanup, screen, within } from "@testing-library/react";
+import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   type FakeRequest,
   fakeApi,
+  json,
   renderApp,
   TEST_USER,
   testWorkspace,
@@ -113,7 +114,8 @@ function profileApi(
         }),
       };
       profiles = [updated];
-      return updated;
+      // MVP 3 (F2.3): with how many roles the change changes.
+      return { ...updated, changed: 0 };
     },
   });
   return { ws, requests };
@@ -275,5 +277,107 @@ describe("for viewers (F6.7)", () => {
       within(await section("Contracts")).getByRole("button", { name: "Remove permanent" }),
     );
     expect(requests.filter((r) => r.method !== "GET")).toEqual([]);
+    expect(screen.getByRole("switch", { name: "Give roles to this profile" })).toHaveProperty(
+      "disabled",
+      true,
+    );
+    expect(screen.queryByRole("button", { name: "Re-run setup" })).toBeNull();
+  });
+});
+
+describe("several profiles (MVP 3, F1.1, F1.2, F2.3)", () => {
+  const GERMANY: Profile = {
+    ...PROFILE,
+    id: "00000000-0000-4000-8000-0000000000f2",
+    name: "Germany permanent",
+    enabled: true,
+  };
+
+  function severalApi(role: Role = "admin") {
+    const ws = testWorkspace({ role });
+    let profiles: Profile[] = [{ ...PROFILE, name: "Remote EU", enabled: true }, GERMANY];
+    const requests = fakeApi({
+      "GET /api/auth/session": { user: TEST_USER },
+      "GET /api/workspaces": { items: [ws] },
+      "GET /api/invites": { items: [] },
+      "GET /api/workspaces/:id/scans/current": scanState("stopped"),
+      "GET /api/workspaces/:id/profiles": () => ({ items: profiles }),
+      "PATCH /api/workspaces/:id/profiles/:profileId": (
+        req: FakeRequest,
+        p: Record<string, string>,
+      ) => {
+        const patch = req.body as { enabled?: boolean };
+        const others = profiles.filter((x) => x.id !== p.profileId && x.enabled !== false);
+        if (patch.enabled === false && others.length === 0) {
+          return json({ error: "last_on", message: "At least one profile stays on." }, 409);
+        }
+        profiles = profiles.map((x) =>
+          x.id === p.profileId && patch.enabled !== undefined
+            ? { ...x, enabled: patch.enabled }
+            : x,
+        );
+        const updated = profiles.find((x) => x.id === p.profileId) as Profile;
+        return { ...updated, changed: patch.enabled === undefined ? 3 : 0 };
+      },
+      "POST /api/workspaces/:id/scans": json(scanState("running"), 201),
+    });
+    return { ws, requests };
+  }
+
+  it("switches between profiles, and switches one off but not the last one on", async () => {
+    const { ws, requests } = severalApi("editor");
+    const { router } = renderApp(paths.profile(ws.id));
+    const user = userEvent.setup();
+    expect(await screen.findByRole("heading", { name: "Remote EU" })).toBeTruthy();
+    await user.selectOptions(screen.getByLabelText("Profile"), "Germany permanent");
+    expect(await screen.findByRole("heading", { name: "Germany permanent" })).toBeTruthy();
+    expect(router.state.location.search).toBe(`?profile=${GERMANY.id}`);
+
+    await user.click(screen.getByRole("switch", { name: "Give roles to this profile" }));
+    expect(await screen.findByText("Off: it gets no roles")).toBeTruthy();
+    expect(requests.find((r) => r.method === "PATCH")).toMatchObject({
+      path: `/api/workspaces/${ws.id}/profiles/${GERMANY.id}`,
+      body: { enabled: false },
+    });
+    expect(screen.getByRole("option", { name: "Germany permanent (off)" })).toBeTruthy();
+
+    await user.selectOptions(screen.getByLabelText("Profile"), "Remote EU");
+    await user.click(await screen.findByRole("switch", { name: "Give roles to this profile" }));
+    expect(await screen.findByText("At least one profile stays on.")).toBeTruthy();
+  });
+
+  it("says how many roles a changed answer changes", async () => {
+    const { ws } = severalApi("editor");
+    renderApp(paths.profile(ws.id));
+    const user = userEvent.setup();
+    const contracts = within(await section("Contracts"));
+    await user.click(contracts.getByRole("button", { name: "Remove permanent" }));
+    expect(
+      await screen.findByText("Saved. It changes 3 roles; your inbox shows them within a minute."),
+    ).toBeTruthy();
+  });
+
+  it("lets an admin re-run setup with a hint, then shows the scan", async () => {
+    const { ws, requests } = severalApi("admin");
+    const { router } = renderApp(paths.profile(ws.id));
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Re-run setup" }));
+    await user.type(
+      screen.getByLabelText("What changed? (optional)"),
+      "I've moved to Germany, permanent roles only",
+    );
+    await user.click(screen.getByRole("button", { name: "Start the re-run" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe(paths.scan(ws.id)));
+    expect(requests.find((r) => r.method === "POST")).toMatchObject({
+      path: `/api/workspaces/${ws.id}/scans`,
+      body: { kind: "rerun", hint: "I've moved to Germany, permanent roles only" },
+    });
+  });
+
+  it("offers no re-run to an editor", async () => {
+    const { ws } = severalApi("editor");
+    renderApp(paths.profile(ws.id));
+    expect(await screen.findByRole("heading", { name: "Remote EU" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Re-run setup" })).toBeNull();
   });
 });

@@ -79,7 +79,15 @@ function Status({
 }) {
   if (progress.status === "queued") {
     return (
-      <Loading label={progress.kind === "first" ? "Starting the scan…" : "Analyze them started…"} />
+      <Loading
+        label={
+          progress.kind === "first"
+            ? "Starting the scan…"
+            : progress.kind === "rerun"
+              ? "Starting the re-run of setup…"
+              : "Analyze them started…"
+        }
+      />
     );
   }
   if (progress.status === "running") {
@@ -88,7 +96,9 @@ function Status({
         label={
           progress.kind === "first"
             ? `Scanning the last ${SCAN_WINDOW_DAYS} days of your Inbox and Sent mail…`
-            : "Analyzing the rest of your likely job emails…"
+            : progress.kind === "rerun"
+              ? `Re-running setup over the last ${SCAN_WINDOW_DAYS} days of your mail…`
+              : "Analyzing the rest of your likely job emails…"
         }
       />
     );
@@ -170,7 +180,7 @@ export function ScanPage({ workspaceId }: { workspaceId: string }) {
               {action.isPending ? "Starting…" : "Analyze them"}
             </Button>
           )}
-          {stopped && progress.kind === "first" && !canStart && (
+          {stopped && progress.kind !== "analyze_rest" && !canStart && (
             <Link
               to={paths.intake(workspaceId)}
               className="text-sm font-medium text-indigo-700 hover:underline"
