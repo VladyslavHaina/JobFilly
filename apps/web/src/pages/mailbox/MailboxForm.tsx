@@ -170,10 +170,9 @@ function ConnectedMailbox(props: { mailbox: MailboxPublic; canManage: boolean })
   const google = mailbox.auth === "google";
   return (
     <Card>
-      <h2 className="text-base font-semibold text-stone-900">Connected mailbox</h2>
+      {/* Headed by its address: with several mailboxes, each card says which one it is. */}
+      <h2 className="text-base font-semibold text-stone-900">{mailbox.address}</h2>
       <dl className="mt-3 grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-sm">
-        <dt className="text-stone-500">Address</dt>
-        <dd className="text-stone-900">{mailbox.address}</dd>
         <dt className="text-stone-500">Signs in with</dt>
         <dd className="text-stone-900">{google ? "Google" : "Password"}</dd>
         <dt className="text-stone-500">Server</dt>
@@ -206,7 +205,11 @@ function ConnectedMailbox(props: { mailbox: MailboxPublic; canManage: boolean })
           <DisconnectConfirmation mailbox={mailbox} onKeep={() => setConfirming(false)} />
         ) : (
           <div className="mt-4">
-            <Button variant="secondary" onClick={() => setConfirming(true)}>
+            <Button
+              variant="secondary"
+              aria-label={`Disconnect ${mailbox.address}`}
+              onClick={() => setConfirming(true)}
+            >
               Disconnect
             </Button>
           </div>

@@ -159,6 +159,12 @@ describe("Settings › Data (F7.1, F7.2)", () => {
       `/api/workspaces/${W}/export`,
     );
     expect(screen.getByText(/Drafts and mail in your mailbox stay there/)).toBeTruthy();
+    // Every mailbox, and a Google one has no password: its sign-in goes, whichever it is.
+    expect(
+      screen.getByText(
+        /every mailbox connection and its stored sign-in \(a password or Google's access\)/,
+      ),
+    ).toBeTruthy();
     const button = screen.getByRole("button", { name: "Delete workspace" });
     expect(button).toHaveProperty("disabled", true);
     await userEvent.type(
