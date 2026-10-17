@@ -1,13 +1,14 @@
 import type {
+  AnswerSource,
   AssistantClarify,
   Change,
   Impact,
   ProfileSnapshot,
   ProposalStatus,
 } from "@jobfilly/schema";
-import { and, asc, desc, eq, max } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, max } from "drizzle-orm";
 import type { Database } from "../client";
-import { assistantMessages, assistantProposals, assistantThreads } from "../tables";
+import { assistantMessages, assistantProposals, assistantThreads, decisions } from "../tables";
 
 // The assistant's storage (F8): each member's threads, their messages and the proposals in them.
 // Messages and proposals are stored for the history and never logged (F8.10). A thread belongs to
@@ -25,6 +26,8 @@ export interface StoredAssistantMessage {
   text: string;
   clarify: AssistantClarify | null;
   proposalId: string | null;
+  /** MVP 3 (F8.1): the refs an answer used, as the lookups returned them; [] for any other. */
+  sources: AnswerSource[];
   at: Date;
 }
 
@@ -121,6 +124,7 @@ export async function listThreadMessages(
     text: r.text,
     clarify: r.clarify ?? null,
     proposalId: r.proposalId,
+    sources: r.sources ?? [],
     at: r.createdAt,
   }));
 }
@@ -141,8 +145,8 @@ export async function nextTurn(
 }
 
 /**
- * Stores one turn: the user's message and the assistant's reply, with its clarifying question
- * or its proposal. Pass the transaction that stores the proposal.
+ * Stores one turn: the user's message and the assistant's reply, with its clarifying question,
+ * its proposal or the refs its answer used. Pass the transaction that stores the proposal.
  */
 export async function saveTurn(
   db: Database,
@@ -154,6 +158,7 @@ export async function saveTurn(
     reply: string;
     clarify: AssistantClarify | null;
     proposalId: string | null;
+    sources?: AnswerSource[];
     at: Date;
   },
 ): Promise<void> {
@@ -176,6 +181,7 @@ export async function saveTurn(
       text: input.reply,
       clarify: input.clarify,
       proposalId: input.proposalId,
+      sources: input.sources && input.sources.length > 0 ? input.sources : null,
       createdAt: replyAt,
     },
   ]);
@@ -332,4 +338,24 @@ export async function decideProposal(
     .where(isOpen(workspaceId, proposalId))
     .returning({ id: assistantProposals.id });
   return rows.length > 0;
+}
+
+/**
+ * The question of each decision by group key (an answer's decision link, F8.1): the open one,
+ * else the newest answered one. Group keys with no decision are left out.
+ */
+export async function decisionQuestions(
+  db: Database,
+  workspaceId: string,
+  groupKeys: readonly string[],
+): Promise<Map<string, string>> {
+  if (groupKeys.length === 0) return new Map();
+  const rows = await db
+    .select({ groupKey: decisions.groupKey, question: decisions.question })
+    .from(decisions)
+    .where(and(eq(decisions.workspaceId, workspaceId), inArray(decisions.groupKey, [...groupKeys])))
+    // "answered" sorts before "open", each oldest first: the one kept per key is the open one,
+    // else the newest.
+    .orderBy(asc(decisions.status), asc(decisions.createdAt));
+  return new Map(rows.map((r) => [r.groupKey, r.question]));
 }

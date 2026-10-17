@@ -6,6 +6,7 @@ import { registerAccount } from "./accounts";
 import {
   createThread,
   decideProposal,
+  decisionQuestions,
   getLatestThread,
   getProposal,
   getThread,
@@ -16,6 +17,7 @@ import {
   saveTurn,
   updateOpenProposal,
 } from "./assistant";
+import { recordNeeds } from "./decisions";
 import { createConfirmedProfile } from "./profiles";
 import { addMember } from "./workspaces";
 
@@ -212,5 +214,51 @@ describe("assistant proposals", () => {
       decidedAt: at,
       impact: edited,
     });
+  });
+});
+
+describe("answers (MVP 3, F8.1)", () => {
+  it("store the refs an answer used with its reply, and none with any other message", async () => {
+    const { id } = await createThread(conn.db, ws, maria, at);
+    const sources = [
+      { kind: "role" as const, ref: "<sg@x.example>#0" },
+      { kind: "decision" as const, ref: "min_pay:CHF:year" },
+    ];
+    await saveTurn(conn.db, ws, id, {
+      turn: 1,
+      text: "What's waiting on me?",
+      reply: "One decision.",
+      clarify: null,
+      proposalId: null,
+      sources,
+      at,
+    });
+    await saveTurn(conn.db, ws, id, {
+      turn: 2,
+      text: "Thanks",
+      reply: "You're welcome.",
+      clarify: null,
+      proposalId: null,
+      sources: [],
+      at: later(1000),
+    });
+    const messages = await listThreadMessages(conn.db, ws, id);
+    expect(messages.map((m) => m.sources)).toEqual([[], sources, [], []]);
+  });
+
+  it("name a decision by its group key, in its own workspace only", async () => {
+    const group = (groupKey: string) => ({
+      groupKey,
+      profileKey: null,
+      question: `${groupKey}?`,
+      choices: [],
+      waiting: [],
+    });
+    await recordNeeds(conn.db, ws, [group("open-key"), group("other-key")], at);
+    expect(await decisionQuestions(conn.db, ws, ["open-key", "missing"])).toEqual(
+      new Map([["open-key", "open-key?"]]),
+    );
+    expect(await decisionQuestions(conn.db, other, ["open-key"])).toEqual(new Map());
+    expect(await decisionQuestions(conn.db, ws, [])).toEqual(new Map());
   });
 });
