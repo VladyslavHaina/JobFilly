@@ -10,7 +10,7 @@ import { getInboxMessage, getMessageMailbox, getMessageRef, listInbox } from "./
 import { createMailbox } from "./mailboxes";
 import { newestStoredUid, reindexMessages, saveAnalysis, saveEnvelopes } from "./messages";
 import { createConfirmedProfile, listProfiles } from "./profiles";
-import { getMembership, listMembers, listWorkspacesForUser } from "./workspaces";
+import { getMembership, listMembers, listWorkspacesForUser, setMemberScope } from "./workspaces";
 
 // What the MVP 3 foundation adds to packages/db: messages filed under their mailbox (F3.1), the
 // inbox's mailbox filter and job-mail-only list (F6.2), the role's profile in the detail (F1.3),
@@ -231,6 +231,23 @@ describe("members' scope and profiles' on/off (F6.1, F1.2)", () => {
     await expect(
       conn.db.execute(sql`update memberships set scope = 'mail' where user_id = ${userId}`),
     ).rejects.toThrow();
+  });
+
+  it("lets an admin choose a member's scope, never the owner's", async () => {
+    const [tom] = await queryRows<{ id: string }>(
+      conn.db,
+      sql`insert into users (name, email, password_hash) values ('Tom', 't@x.example', 'h') returning id`,
+    );
+    const tomId = tom?.id as string;
+    await conn.db.execute(
+      sql`insert into memberships (workspace_id, user_id, role) values (${ws}, ${tomId}, 'editor')`,
+    );
+    expect(await setMemberScope(conn.db, ws, tomId, "pipeline")).toBe("ok");
+    expect((await getMembership(conn.db, ws, tomId))?.scope).toBe("pipeline");
+    expect(await setMemberScope(conn.db, ws, userId, "pipeline")).toBe("owner");
+    expect(
+      await setMemberScope(conn.db, ws, "6f1c2f4e-8d3a-4b5c-9e7f-0a1b2c3d4e5f", "pipeline"),
+    ).toBe("not_found");
   });
 
   it("makes a profile on", async () => {

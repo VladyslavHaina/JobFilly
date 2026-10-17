@@ -1,4 +1,4 @@
-import type { Member, Role, WorkspaceSummary } from "@jobfilly/schema";
+import type { Member, MemberScope, Role, WorkspaceSummary } from "@jobfilly/schema";
 import { and, asc, eq } from "drizzle-orm";
 import type { Database } from "../client";
 import { memberships, users, workspaces } from "../tables";
@@ -120,6 +120,25 @@ export async function setMemberRole(
   const rows = await db
     .update(memberships)
     .set({ role })
+    .where(and(eq(memberships.workspaceId, workspaceId), eq(memberships.userId, userId)))
+    .returning({ userId: memberships.userId });
+  return rows.length > 0 ? "ok" : "not_found";
+}
+
+/**
+ * Changes what a member sees (MVP 3, F6.1): everything, or the job pipeline only. The owner always
+ * sees everything.
+ */
+export async function setMemberScope(
+  db: Database,
+  workspaceId: string,
+  userId: string,
+  scope: MemberScope,
+): Promise<MemberChange> {
+  if ((await ownerOf(db, workspaceId)) === userId) return "owner";
+  const rows = await db
+    .update(memberships)
+    .set({ scope })
     .where(and(eq(memberships.workspaceId, workspaceId), eq(memberships.userId, userId)))
     .returning({ userId: memberships.userId });
   return rows.length > 0 ? "ok" : "not_found";
