@@ -36,10 +36,15 @@ export const ROOT = resolve(import.meta.dirname, "../..");
 /** The running stack's compose project: the one stack.ts passes on, else e2e/.stack's. */
 const project = process.env.JOBFILLY_E2E_PROJECT ?? fileState(join(ROOT, "e2e", ".stack")).read();
 
-export const REPLICAS = ["app-a", "app-b"] as const;
+/** The app's replicas: three from MVP 3 (F10.1), so every log read covers app-c too. */
+export const REPLICAS = ["app-a", "app-b", "app-c"] as const;
 export type Replica = (typeof REPLICAS)[number];
 /** Each replica's direct port on the test stack's proxy, for read-only views and health. */
-export const DIRECT_PORTS: Record<Replica, number> = { "app-a": 8081, "app-b": 8082 };
+export const DIRECT_PORTS: Record<Replica, number> = {
+  "app-a": 8081,
+  "app-b": 8082,
+  "app-c": 8083,
+};
 /** The proxy's own port, where the start URL is. */
 export const PROXY_PORT = 8080;
 
@@ -104,11 +109,11 @@ export function serviceLog(service: string): LogLine[] {
 /** Where each replica's log is now, for eventsSince and logSince. */
 export const logMark = (): number[] => REPLICAS.map((replica) => serviceLog(replica).length);
 
-/** Every line both replicas logged since `mark`, app-a's first. */
+/** Every line the replicas logged since `mark`, app-a's first. */
 export const logSince = (mark: number[]): LogLine[] =>
   REPLICAS.flatMap((replica, i) => serviceLog(replica).slice(mark[i]));
 
-/** The events both replicas logged since `mark`. */
+/** The events the replicas logged since `mark`. */
 export const eventsSince = (mark: number[]): unknown[] => logSince(mark).map((l) => l.event);
 
 /**
@@ -118,11 +123,11 @@ export const eventsSince = (mark: number[]): unknown[] => logSince(mark).map((l)
 export const errorsSince = (mark: number[]): LogLine[] =>
   logSince(mark).filter((l) => l.level === "error" || l.level === "fatal");
 
-/** Both replicas' whole log as written, JSON or not, for the leak checks. */
+/** Every replica's whole log as written, JSON or not, for the leak checks. */
 export const replicaLogText = (): string =>
   compose(["logs", "--no-color", "--no-log-prefix", ...REPLICAS]);
 
-/** Every line both replicas logged with this event and these fields. */
+/** Every line the replicas logged with this event and these fields. */
 export const logged = (event: string, fields: Record<string, unknown>): LogLine[] =>
   REPLICAS.flatMap(serviceLog).filter(
     (l) => l.event === event && Object.entries(fields).every(([k, v]) => l[k] === v),

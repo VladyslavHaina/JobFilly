@@ -164,7 +164,8 @@ test("S11: resilience", async ({ page }) => {
 
       await test.step("the other replica takes the sync over once the lease expires", async () => {
         const afterKill = logMark();
-        const other = REPLICAS.find((r) => r !== killed);
+        // Any replica but the killed one: from MVP 3 there are two others (F10.1).
+        const others: unknown[] = REPLICAS.filter((r) => r !== killed);
         await expect
           .poll(
             () =>
@@ -174,7 +175,7 @@ test("S11: resilience", async ({ page }) => {
                   l.event === "job.lease_expired" &&
                   l.jobType === "mail.sync" &&
                   l.previousInstance === killed &&
-                  l.instance === other,
+                  others.includes(l.instance),
               ).length,
             { timeout: 120_000, intervals: [2_000] },
           )
@@ -189,7 +190,7 @@ test("S11: resilience", async ({ page }) => {
           .toBeGreaterThan(0);
         // One read: the log grows while the step runs.
         const instances = syncs().map((l) => l.instance);
-        expect(instances).toEqual(instances.map(() => other));
+        expect(instances.filter((i) => !others.includes(i))).toEqual([]);
       });
 
       await test.step("the message arrives", async () => {

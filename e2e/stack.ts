@@ -9,8 +9,8 @@ import { MARIA_HOME } from "./fixtures/format-mvp3.ts";
 //   pnpm e2e:stack up|down    node e2e/stack.ts stack up|down
 //   pnpm e2e:specs            node e2e/stack.ts specs [--mvp <n>]  specs against the running stack
 // `up` checks that no Docker network holds the stack's fixed subnet, starts
-// docker/compose.e2e.yaml under a project name of its own, waits until the proxy and both
-// replicas answer /api/health/ready, checks from inside app-a that the fixture DNS zones and the
+// docker/compose.e2e.yaml under a project name of its own, waits until the proxy and every
+// replica answer /api/health/ready, checks from inside app-a that the fixture DNS zones and the
 // fake RDAP service answer (MVP 2, F5), loads the mail of every persona of fixtures/format.ts
 // and Maria's personal mailbox (MVP 3) with `seed load <name>` (SEED_LOADS), prints the name and keeps it in e2e/.stack/project. `down` removes
 // that project's containers (one-off seed runs too), networks and volumes, checks nothing is left
@@ -24,11 +24,12 @@ const E2E_DIR = join(ROOT, "e2e");
 export const COMPOSE_FILE = "docker/compose.e2e.yaml";
 /** What `up` loads with `seed load <name>`, in order: each persona's mailbox, then Maria's other. */
 export const SEED_LOADS = [...PERSONAS, MARIA_HOME] as const;
-/** The proxy, then app-a's and app-b's direct ports. */
+/** The proxy, then app-a's, app-b's and app-c's direct ports. */
 export const READY_URLS = [
   "http://127.0.0.1:8080/api/health/ready",
   "http://127.0.0.1:8081/api/health/ready",
   "http://127.0.0.1:8082/api/health/ready",
+  "http://127.0.0.1:8083/api/health/ready",
 ];
 export const READY_TIMEOUT_MS = 180_000;
 /** The exit code of a run stopped by Ctrl-C (128 + SIGINT). */
@@ -232,9 +233,11 @@ async function up(deps: StackDeps): Promise<number> {
     if (seeded.code !== 0) return failed(`loading ${name}'s mail failed`);
   }
   deps.print(`Test stack is up: ${project}`);
-  deps.print("  App:   http://127.0.0.1:8080 (app-a directly on :8081, app-b on :8082)");
   deps.print(
-    `  Logs:  docker compose -p ${project} -f ${COMPOSE_FILE} logs -f --no-log-prefix app-a app-b`,
+    "  App:   http://127.0.0.1:8080 (app-a directly on :8081, app-b on :8082, app-c on :8083)",
+  );
+  deps.print(
+    `  Logs:  docker compose -p ${project} -f ${COMPOSE_FILE} logs -f --no-log-prefix app-a app-b app-c`,
   );
   deps.print("  Down:  pnpm e2e:stack down");
   return 0;
