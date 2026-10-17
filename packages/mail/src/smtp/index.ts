@@ -141,6 +141,11 @@ export async function testSmtp(login: SmtpLogin, options: SmtpOptions): Promise<
     return { ok: true };
   } catch (error) {
     const failure = asSmtpError(error);
-    return { ok: false, reason: failure.reason, message: failure.message };
+    return {
+      ok: false,
+      reason: failure.reason,
+      message: failure.message,
+      ...(failure.code ? { code: failure.code } : {}),
+    };
   }
 }

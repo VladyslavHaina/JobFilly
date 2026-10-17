@@ -172,7 +172,14 @@ describe("test (F2.1)", () => {
   ])("fails as %s with a plain reason that never holds the password", async (reason, error) => {
     const server = fakeServer(mailbox({ connectError: error }));
     const result = await mailClientWith(conn, secure, server.factory).test();
-    expect(result).toEqual({ ok: false, reason, message: expect.any(String) });
+    // The error's own code comes along for the server's log; a failure without one has none.
+    const code = (error as { code?: string }).code;
+    expect(result).toEqual({
+      ok: false,
+      reason,
+      message: expect.any(String),
+      ...(code ? { code } : {}),
+    });
     expect(JSON.stringify(result)).not.toContain(PASSWORD);
     expect(JSON.stringify(result)).not.toContain("LOGIN");
   });

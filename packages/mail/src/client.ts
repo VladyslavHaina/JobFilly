@@ -373,7 +373,9 @@ export function mailClientWith(
         return { ok: true, folders: sent ? [inbox, sent] : [inbox], sentPath: sent };
       } catch (error) {
         const reason = failureReason(error);
-        return { ok: false, reason, message: FAILURE_MESSAGES[reason] };
+        // The code is for the server's log (mailCode): a known code only, never the words.
+        const code = error instanceof MailError ? error.code : mailErrorCode(error);
+        return { ok: false, reason, message: FAILURE_MESSAGES[reason], ...(code ? { code } : {}) };
       }
     },
 
