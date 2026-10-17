@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { AnswerToolResultSchema } from "./assistant";
 import { IsoDateTimeSchema } from "./common";
 import { JobFactsSchema } from "./facts";
 import { AddressSchema, MailFolderSchema } from "./mailbox";
@@ -243,6 +244,10 @@ export type DraftTaskInput = z.infer<typeof DraftTaskInputSchema>;
  * thread, the earlier turns, the profile's entries and rules a proposal would change, and the
  * languages the workspace's job mail is in (ISO 639-1, most frequent first), so a rule on free
  * text can name the phrases in each of them.
+ *
+ * MVP 3 (F8): a question's lookups run in rounds. From round 2 on, assistant.v1 is asked again
+ * with the results so far (`round`, `results`), so it can follow a search's refs into the lookups
+ * that take a Message-ID; absent, it is the first round, with no results yet.
  */
 export const AssistantTaskInputSchema = z.object({
   turn: z.number().int().min(1),
@@ -251,6 +256,8 @@ export const AssistantTaskInputSchema = z.object({
   entries: z.array(PromptEntrySchema),
   rules: z.array(RuleSchema),
   mailLanguages: z.array(z.string().regex(/^[a-z]{2}$/, "an ISO 639-1 code")),
+  round: z.number().int().min(1).optional(),
+  results: z.array(AnswerToolResultSchema).optional(),
 });
 export type AssistantTaskInput = z.infer<typeof AssistantTaskInputSchema>;
 
