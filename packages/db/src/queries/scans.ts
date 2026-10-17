@@ -7,11 +7,10 @@ import {
   type StopCause,
   type StopReason,
 } from "@jobfilly/schema";
-import { and, asc, desc, eq, ne } from "drizzle-orm";
+import { and, desc, eq, ne } from "drizzle-orm";
 import type { Database } from "../client";
-import { mailboxes, scans } from "../tables";
+import { scans } from "../tables";
 import { enqueueJob } from "./jobs";
-import type { StoredMailbox } from "./mailboxes";
 
 // Scan runs. At most one is queued or running per workspace (a partial unique index). Once a
 // scan is stopped nothing moves it again, so a cancel can't be overwritten by a late progress
@@ -174,30 +173,4 @@ export async function saveScanFocus(
     .update(scans)
     .set({ focus })
     .where(and(eq(scans.workspaceId, workspaceId), eq(scans.id, scanId)));
-}
-
-/**
- * Every mailbox of the workspace with its sealed secret, oldest first (MVP 3, F3.1): a scan reads
- * them all. The first is where mail stored without a mailbox lives.
- */
-export async function listScanMailboxes(
-  db: Database,
-  workspaceId: string,
-): Promise<StoredMailbox[]> {
-  return db
-    .select({
-      mailboxId: mailboxes.id,
-      address: mailboxes.address,
-      host: mailboxes.host,
-      port: mailboxes.port,
-      tlsMode: mailboxes.tlsMode,
-      username: mailboxes.username,
-      secretCiphertext: mailboxes.secretCiphertext,
-      sentFolderPath: mailboxes.sentFolderPath,
-      status: mailboxes.status,
-      authKind: mailboxes.authKind,
-    })
-    .from(mailboxes)
-    .where(eq(mailboxes.workspaceId, workspaceId))
-    .orderBy(asc(mailboxes.createdAt), asc(mailboxes.id));
 }

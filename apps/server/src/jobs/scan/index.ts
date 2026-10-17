@@ -6,7 +6,7 @@ import {
   getAiSettings,
   getMessageMailbox,
   getScan,
-  listScanMailboxes,
+  listMailboxes,
   type StoredMailbox,
   saveEnvelopes,
   saveScanFocus,
@@ -173,7 +173,7 @@ export function createScanRunHandler(
     }
 
     const settings = await getAiSettings(deps.db, scan.workspaceId);
-    const stored = await listScanMailboxes(deps.db, scan.workspaceId);
+    const stored = await listMailboxes(deps.db, scan.workspaceId);
     if (!settings) return fail(deps, scan, log, "ai", "no_ai_settings");
     if (stored.length === 0) return fail(deps, scan, log, "mailbox", "no_mailbox");
 
