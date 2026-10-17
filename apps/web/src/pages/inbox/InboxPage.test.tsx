@@ -2,6 +2,7 @@ import {
   type CurrentScan,
   CurrentScanSchema,
   type JobFacts,
+  type MailboxPublic,
   type MessageBody,
   type MessageDetail,
   type MessageList,
@@ -196,10 +197,13 @@ function inboxApi(
     scope?: "everything" | "pipeline";
     pages?: number;
     scan?: CurrentScan;
+    /** MVP 3 (F3.1): the workspace's mailboxes; each message names its own. */
+    mailboxes?: MailboxPublic[];
   } = {},
 ) {
   const ws = testWorkspace({ role: options.role ?? "admin", scope: options.scope });
   const details = structuredClone(DETAILS);
+  for (const d of Object.values(details)) d.mailbox = mailboxOf(d, options.mailboxes);
   let scan = options.scan;
   const requests = fakeApi({
     "GET /api/auth/session": { user: TEST_USER },
@@ -217,15 +221,20 @@ function inboxApi(
       });
       return json(CurrentScanSchema.parse(scan), 201);
     },
+    "GET /api/workspaces/:id/mailboxes": { items: options.mailboxes ?? [] },
     "GET /api/workspaces/:id/messages": (req: FakeRequest): MessageList => {
       const category = req.search.get("category");
+      const mailboxId = req.search.get("mailboxId");
       const q = req.search.get("q")?.toLowerCase();
       const page = Number(req.search.get("page") ?? 1);
       let items = req.search.get("showNonJob") === "true" ? [...JOB_ITEMS, NEWSLETTER] : JOB_ITEMS;
       if (category) items = [...JOB_ITEMS, NEWSLETTER].filter((m) => m.category === category);
       const matches = (m: MessageListItem) =>
         !q || `${m.from.name ?? ""} ${m.from.address} ${m.subject}`.toLowerCase().includes(q);
-      items = items.filter(matches).map((m) => ({ ...m, ...details[m.id] }));
+      items = items
+        .filter(matches)
+        .map((m) => ({ ...m, ...details[m.id] }))
+        .filter((m) => !mailboxId || m.mailbox?.id === mailboxId);
       const pages = options.pages ?? 1;
       return {
         items: page === 1 ? items : [INTERVIEW],
@@ -257,6 +266,12 @@ function inboxApi(
     },
   });
   return { ws, requests };
+}
+
+/** With mailboxes: the recruiter and the alert came to the first, the rest to the second. */
+function mailboxOf(m: MessageListItem, mailboxes: MailboxPublic[] | undefined) {
+  const box = mailboxes?.[m.id === RECRUITER.id || m.id === ALERT.id ? 0 : 1];
+  return box ? { id: box.id, address: box.address } : null;
 }
 
 const listRequests = (requests: FakeRequest[]) =>
@@ -397,6 +412,56 @@ describe("the list (F5.1)", () => {
     expect(await screen.findByText("Page 2")).toBeTruthy();
     expect(listRequests(requests).at(-1)?.search.get("page")).toBe("2");
     expect(screen.getByRole("button", { name: "Older" })).toHaveProperty("disabled", true);
+  });
+});
+
+describe("several mailboxes (MVP 3, F3.1)", () => {
+  const box = (n: number, address: string): MailboxPublic => ({
+    id: `00000000-0000-4000-8000-0000000000b${n}`,
+    address,
+    host: "imap.example",
+    port: 993,
+    tlsMode: "tls",
+    username: address,
+    sentFolderPath: "Sent",
+    status: "connected",
+  });
+  const WORK = box(1, "maria.santos@inbox.example");
+  const HOME = box(2, "maria.home@post.example");
+
+  it("names each message's mailbox, and filters by mailbox", async () => {
+    const { ws, requests } = inboxApi({ mailboxes: [WORK, HOME] });
+    renderApp(paths.inbox(ws.id));
+    const user = userEvent.setup();
+    const filter = await screen.findByLabelText("Mailbox");
+    const rows = within(await messageList()).getAllByRole("link");
+    expect(rows.map((r) => within(r).getByText(/^In /).textContent)).toEqual([
+      "In maria.santos@inbox.example",
+      "In maria.santos@inbox.example",
+      "In maria.home@post.example",
+      "In maria.home@post.example",
+    ]);
+    await user.selectOptions(filter, "maria.home@post.example");
+    await waitFor(() => expect(screen.queryByText("Anna Weber")).toBeNull());
+    expect(within(await messageList()).getAllByRole("link")).toHaveLength(2);
+    expect(listRequests(requests).at(-1)?.search.get("mailboxId")).toBe(HOME.id);
+    await user.selectOptions(screen.getByLabelText("Mailbox"), "All mailboxes");
+    await waitFor(() => expect(screen.getByText("Anna Weber")).toBeTruthy());
+    expect(listRequests(requests).at(-1)?.search.has("mailboxId")).toBe(false);
+  });
+
+  it("names the mailbox in the open message too", async () => {
+    const { ws } = inboxApi({ mailboxes: [WORK, HOME] });
+    renderApp(paths.message(ws.id, INTERVIEW.id));
+    expect(await screen.findByText(/· in maria\.home@post\.example/)).toBeTruthy();
+  });
+
+  it("shows neither the filter nor the names with one mailbox", async () => {
+    const { ws } = inboxApi({ mailboxes: [WORK] });
+    renderApp(paths.inbox(ws.id));
+    const rows = within(await messageList()).getAllByRole("link");
+    expect(rows.some((r) => r.textContent?.includes("In maria"))).toBe(false);
+    expect(screen.queryByLabelText("Mailbox")).toBeNull();
   });
 });
 

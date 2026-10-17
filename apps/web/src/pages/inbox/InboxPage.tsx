@@ -8,13 +8,21 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { ApiError, api } from "../../api";
-import { Alert, Button, Loading, PageHeader, TextField, useEscapeLayer } from "../../components";
+import {
+  Alert,
+  Button,
+  Loading,
+  PageHeader,
+  SelectField,
+  TextField,
+  useEscapeLayer,
+} from "../../components";
 import { queryKeys, useWorkspace } from "../../hooks";
 import { apiPaths, paths } from "../../paths";
 import { FitScore, HiddenFilter, HiddenReason } from "../match";
 import { likelyJobEmails, useCurrentScan } from "../scan/queries";
 import { SenderBadge } from "../senders";
-import { MailboxStatus } from "../sync";
+import { MailboxStatus, useMailboxes } from "../sync";
 import { CategoryChip, CouldNotAnalyze, CouldNotAnalyzeReason, couldNotAnalyze } from "./badges";
 import { CATEGORY_LABELS, formatListDate, senderLabel } from "./format";
 import { MessageDetailView } from "./MessageDetail";
@@ -24,6 +32,8 @@ import { MessageDetailView } from "./MessageDetail";
 // (paths.message), which is also how intake evidence links open the user's own replies; Esc
 // goes back to the list. Search and the category filter only reach analysed mail, so while
 // likely job mail is left unanalysed, filtered results say how much is left out (F4.10, F5.5).
+// MVP 3 (F3.1): with several mailboxes every message names the one it came from, and the inbox
+// filters by mailbox.
 
 const SEARCH_DELAY_MS = 250;
 
@@ -42,6 +52,8 @@ interface Filters {
   showNonJob: boolean;
   /** The Hidden filter (F3.4): only messages hidden by a rule. */
   hidden: boolean;
+  /** MVP 3 (F3.1): one mailbox's messages only. */
+  mailboxId: string | null;
   page: number;
 }
 
@@ -51,6 +63,7 @@ function listUrl(workspaceId: string, f: Filters): string {
   if (f.q) params.set("q", f.q);
   if (f.showNonJob) params.set("showNonJob", "true");
   if (f.hidden) params.set("hidden", "true");
+  if (f.mailboxId) params.set("mailboxId", f.mailboxId);
   if (f.page > 1) params.set("page", String(f.page));
   const query = params.toString();
   return `${apiPaths.workspace(workspaceId)}/messages${query ? `?${query}` : ""}`;
@@ -122,7 +135,13 @@ function LeftOutNote({ workspaceId }: { workspaceId: string }) {
   );
 }
 
-function MessageRow(props: { workspaceId: string; message: MessageListItem; open: boolean }) {
+function MessageRow(props: {
+  workspaceId: string;
+  message: MessageListItem;
+  open: boolean;
+  /** Name the message's mailbox: the workspace has several (F3.1). */
+  showMailbox: boolean;
+}) {
   const { message: m } = props;
   const { can } = useWorkspace();
   return (
@@ -144,6 +163,11 @@ function MessageRow(props: { workspaceId: string; message: MessageListItem; open
         <span className="mt-0.5 block truncate text-sm text-stone-700">
           {m.subject || "(no subject)"}
         </span>
+        {props.showMailbox && m.mailbox && (
+          <span className="mt-0.5 block truncate text-xs text-stone-500">
+            In {m.mailbox.address}
+          </span>
+        )}
         <span className="mt-1.5 flex flex-wrap gap-1.5">
           {m.category && <CategoryChip category={m.category} />}
           {couldNotAnalyze(m) && <CouldNotAnalyze />}
@@ -169,13 +193,16 @@ export function InboxPage({
   const [search, setSearch] = useState("");
   const [showNonJob, setShowNonJob] = useState(false);
   const [hidden, setHidden] = useState(false);
+  const [mailboxId, setMailboxId] = useState<string | null>(null);
+  const mailboxes = useMailboxes(workspaceId).data?.items ?? [];
+  const several = mailboxes.length > 1;
   const q = useDebounced(search.trim(), SEARCH_DELAY_MS);
   // The page belongs to one choice of filters: a new filter or search starts at the first page.
-  const filterKey = JSON.stringify([category, q, showNonJob, hidden]);
+  const filterKey = JSON.stringify([category, q, showNonJob, hidden, mailboxId]);
   const [paging, setPaging] = useState({ filterKey, page: 1 });
   const page = paging.filterKey === filterKey ? paging.page : 1;
   const setPage = (n: number) => setPaging({ filterKey, page: n });
-  const filters: Filters = { category, q, showNonJob, hidden, page };
+  const filters: Filters = { category, q, showNonJob, hidden, mailboxId, page };
 
   const list = useQuery({
     queryKey: [...queryKeys.area(workspaceId, "messages"), "list", filters],
@@ -206,7 +233,7 @@ export function InboxPage({
   }, [messageId]);
 
   const data = list.data;
-  const filtered = category !== null || q !== "";
+  const filtered = category !== null || q !== "" || mailboxId !== null;
 
   return (
     <div>
@@ -224,6 +251,20 @@ export function InboxPage({
           <div className="flex flex-col gap-3">
             <CategoryFilter value={category} onChange={setCategory} />
             <HiddenFilter value={hidden} onChange={setHidden} />
+            {several && (
+              <SelectField
+                label="Mailbox"
+                value={mailboxId ?? ""}
+                onChange={(e) => setMailboxId(e.target.value || null)}
+              >
+                <option value="">All mailboxes</option>
+                {mailboxes.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.address}
+                  </option>
+                ))}
+              </SelectField>
+            )}
             <TextField
               label="Search sender or subject"
               type="search"
@@ -278,6 +319,7 @@ export function InboxPage({
                     workspaceId={workspaceId}
                     message={m}
                     open={m.id === messageId}
+                    showMailbox={several}
                   />
                 ))}
               </ul>
