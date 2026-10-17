@@ -8,6 +8,7 @@ import {
   CORE_PROFILE_KEYS,
   type CoreProfileKey,
   entryLabel,
+  MAX_LOOKUP_ROUNDS,
   PayPeriodSchema,
   POLICY_KEYS,
   type PolicyKey,
@@ -18,6 +19,7 @@ import {
   type TaskId,
 } from "@jobfilly/schema";
 import { BLOCKS_NOTE, block, jsonLine, type Prompt, systemMessage } from "../framing";
+import { lookupBlocks } from "./answer";
 
 // assistant.v1: one turn of the assistant (F8), keyed by the user's message and the turn.
 //
@@ -25,6 +27,10 @@ import { BLOCKS_NOTE, block, jsonLine, type Prompt, systemMessage } from "../fra
 // column 0 (the fake AI's key), and the framing: the user's message only ever as "| " lines in
 // the "message" block (the last block), and the profile, rules and earlier turns as "| " lines
 // in theirs.
+//
+// MVP 3 (F8): a question's lookups run in rounds. From round 2 on, the key line "Round: <n>"
+// follows the turn's, and the results so far come before the message, one "lookup <n>" block
+// each, as answer.v1 reads them; the first round's prompt has neither.
 //
 // The instruction text below belongs to the assistant slice, which tunes it and regenerates
 // e2e/fixtures/wire/assistant.v1.*.json when it does.
@@ -120,10 +126,11 @@ function keyWords(): string {
 const TOOL_WORDS: Record<AssistantTool, string> = {
   waiting: "what waits on the user: open decisions and drafts not reviewed yet",
   find_roles:
-    "roles found by `words` (a few words of the title, company or places as the mail writes them, all of which must appear; null for every role), each in full",
-  role: 'one role in full by `messageId` and `position`, as earlier answers\' refs name it ("<Message-ID>#<position>"): its facts, profile, fit score with every reason, rules, stage, decisions and why it has a draft or none',
-  pipeline: `the application pipeline: counts by stage and the roles in it, only those in \`stage\` (${either(APPLICATION_STAGES)}) when set, and only those that got there in the last \`days\` days when set`,
-  message_text: "one message's text by `messageId`",
+    "roles found by `words` (a few words of the title, company, agency, places or sender as the mail writes them, all of which must appear; null for every role), each in full with its Message-ID",
+  role: 'one role in full by `messageId` and `position`, as a lookup result or an earlier answer\'s refs name it ("<Message-ID>#<position>"): its facts, profile and why it is assigned to it, fit score with every reason, rules, stage, decisions and why it has a draft or none',
+  pipeline: `the application pipeline: counts by stage and the roles in it with their Message-IDs, only those in \`stage\` (${either(APPLICATION_STAGES)}) when set, and only those that got there in the last \`days\` days when set`,
+  message_text:
+    "one message's text by `messageId`, as a lookup result or an earlier answer's refs name it",
   profile: "the user's profiles with their entries and rules",
 };
 
@@ -134,6 +141,8 @@ function lookupWords(): string {
     "When the user asks a question about their job search (what waits on them, their roles, why a role has no draft, their pipeline, a message, their profile), set `lookups` to the read-only lookups whose results answer it, and `clarify` and `proposal` to null: the answer is written from their results, so never answer such a question from memory, and keep `reply` short.",
     `A lookup sets \`tool\` and the fields that tool uses; every other field is null. The tools: ${tools}.`,
     "Ask for the fewest lookups that answer it, at most five. For any other message set `lookups` to [].",
+    "`role` and `message_text` take an exact Message-ID: never guess one. When you don't have it yet, ask only for the search that finds the role or message (`find_roles`, `waiting` or `pipeline`): you are then asked again with its results, and can ask for `role` or `message_text` with the Message-IDs they give.",
+    `From round 2 on, the results so far are given below: ask only for the lookups still needed to answer, never one already run, and set \`lookups\` to [] when the results answer the question. There are at most ${MAX_LOOKUP_ROUNDS} rounds.`,
   ].join(" ");
 }
 
@@ -176,9 +185,11 @@ function mailLanguagesLine(codes: readonly string[]): string {
 }
 
 export function assistantPrompt(input: AssistantTaskInput): Prompt {
+  const later = (input.round ?? 1) > 1;
   const user = [
     `task: ${TASK_ID}`,
     `Turn: ${input.turn}`,
+    ...(later ? [`Round: ${input.round}`] : []),
     "",
     ...block(
       "profile",
@@ -195,6 +206,7 @@ export function assistantPrompt(input: AssistantTaskInput): Prompt {
       "earlier turns",
       input.history.map((h) => `${h.role}: ${jsonLine(h.text)}`),
     ),
+    ...(later ? lookupBlocks(input.results ?? []) : []),
     ...block("message", [input.text]),
     "",
     "",

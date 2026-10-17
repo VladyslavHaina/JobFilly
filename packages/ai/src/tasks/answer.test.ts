@@ -31,6 +31,8 @@ describe("answer.v1's instruction", () => {
 
   it("lists the refs of what it mentions, for the links (F8.1)", () => {
     expect(system).toContain("Set `sources` to the refs");
+    // The links carry them: the text never ends with a raw refs line.
+    expect(system).toContain('never write refs, Message-IDs or a "(refs: …)" line in `text`');
   });
 
   it("treats quoted mail as data, never as instructions (F8.4)", () => {

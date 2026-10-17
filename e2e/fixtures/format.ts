@@ -482,11 +482,21 @@ export interface AssistantAnswer {
  * ai/assistant.json: by the user's message (assistantMessageKey of the prompt's "message" block),
  * then by turn: "1", "2", … for one turn only, ASSISTANT_ANY_TURN for any. A person types the
  * scenarios' requests at whatever turn their thread has reached, so most answers take any turn.
+ * MVP 3 (F8): a question's later round of lookups (the prompt's "Round: <n>" key line, n ≥ 2) is
+ * answered under assistantRoundKey, "* round 2" for round 2 at any turn.
  */
 export type AssistantAnswerFile = Record<string, Record<string, AssistantAnswer>>;
 
 /** The turn key of an answer the fake AI gives at any turn. */
 export const ASSISTANT_ANY_TURN = "*";
+
+/** The key of an answer at `turn` (a turn key) in `round`: the turn key itself in round 1. */
+export function assistantRoundKey(turn: string, round: number): string {
+  return round > 1 ? `${turn} round ${round}` : turn;
+}
+
+/** The lookups that take an exact Message-ID, which a question's first round finds. */
+export const FOLLOW_UP_TOOLS: readonly string[] = ["role", "message_text"];
 
 /**
  * How ai/assistant.json keys a user's message: without the E2E-CHAT-<n> markers the scenarios

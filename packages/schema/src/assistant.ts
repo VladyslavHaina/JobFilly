@@ -141,6 +141,13 @@ export const ASSISTANT_TOOLS = [
   "profile",
 ] as const;
 export const AssistantToolSchema = z.enum(ASSISTANT_TOOLS);
+
+/**
+ * A question's lookups run in at most this many rounds: after a round whose searches returned
+ * refs, assistant.v1 is asked again with the results so far, so it can read a message or a role
+ * it has just found (F8.2).
+ */
+export const MAX_LOOKUP_ROUNDS = 3;
 export type AssistantTool = z.infer<typeof AssistantToolSchema>;
 
 /**

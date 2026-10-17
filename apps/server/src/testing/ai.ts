@@ -24,9 +24,11 @@ import type { AiPort } from "../deps";
 // A fake AI behind the AiPort, keyed like the test stack's fake AI (tests only): classify,
 // extract and prefs by Message-ID, cv.v1 by the CV's content hash, match.v1 by
 // "<Message-ID>#<position>", draft.v1 by "<Message-ID>#<position>#<attempt>", assistant.v1 by
-// the user's text (or "<turn>#<text>" for one turn); MVP 3's focus.v1 by the hint and answer.v1
-// like assistant.v1, by the question. A call it has no answer for fails the way a
-// provider does (provider_error), so a missing answer is never silent; an assistant.v1 answer
+// the user's text (or "<turn>#<text>" for one turn), a question's later round by
+// "r<round>#<text>"; MVP 3's focus.v1 by the hint and answer.v1 like assistant.v1, by the
+// question. A call it has no answer for fails the way a provider does (provider_error), so a
+// missing answer is never silent, except a later round's, which asks for no more lookups; an
+// assistant.v1 answer
 // that doesn't fit AssistantAnswerSchema, the check packages/ai makes, fails as invalid_output.
 // One Usage per call; per-task call counts; failNext(task) fails that task's next call once.
 
@@ -195,8 +197,15 @@ export function createFakeAi(answers: FakeAiAnswers = {}): FakeAiClient {
       return single("draft", "draft.v1", key, all.draft[key]);
     },
     assistant: (input) => {
-      const turnKey = `${input.turn}#${input.text}`;
-      const answer = all.assistant[turnKey] ?? all.assistant[input.text];
+      // A question's later round (MVP 3) by "r<round>#<text>"; with no answer for it, the model
+      // asks for no more lookups.
+      const round = input.round ?? 1;
+      const text = round > 1 ? `r${round}#${input.text}` : input.text;
+      const turnKey = `${input.turn}#${text}`;
+      const answer =
+        all.assistant[turnKey] ??
+        all.assistant[text] ??
+        (round > 1 ? { reply: "", clarify: null, proposal: null, lookups: [] } : undefined);
       // Checked like packages/ai checks it: an answer the real client would reject (after its
       // retry) fails here too, so no test reaches a state production can't.
       return single<AssistantAnswer>(

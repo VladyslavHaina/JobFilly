@@ -9,6 +9,7 @@ import {
   ASSISTANT_ANY_TURN,
   type AssistantAnswerFile,
   assistantMessageKey,
+  assistantRoundKey,
   type ClassifyAnswer,
   type DeliveryEntry,
   type DraftAnswer,
@@ -18,6 +19,7 @@ import {
   type ExtractAnswer,
   FIXTURE_REFERENCE_TIME,
   FOCUS_ANSWERS_PATH,
+  FOLLOW_UP_TOOLS,
   type FocusAnswerFile,
   fixturesDir,
   isJobCategory,
@@ -36,6 +38,7 @@ import {
   type AssistantQuestion,
   type ExpectedFileMvp3,
   type ExpectedMvp3,
+  type Lookup,
   MARIA_HOME_ADDRESS,
   MARIA_PROFILES,
   MARIA_RERUN_HINT,
@@ -376,14 +379,19 @@ describe("the assistant's questions (MVP 3)", () => {
     expect(questions.filter((q) => q.expected.ignoresMailInstructions)).toHaveLength(1);
   });
 
-  it("get assistant.v1's lookups and answer.v1's answer at any turn", () => {
+  it("get assistant.v1's lookups over two rounds and answer.v1's answer at any turn", () => {
     for (const q of questions) {
-      expect(assistant[assistantMessageKey(q.text)]?.[ASSISTANT_ANY_TURN], q.id).toMatchObject({
-        clarify: null,
-        proposal: null,
-        lookups: q.lookups,
-      });
-      expect(q.lookups.length, q.id).toBeGreaterThan(0);
+      const byTurn = assistant[assistantMessageKey(q.text)];
+      const first = byTurn?.[ASSISTANT_ANY_TURN];
+      const second = byTurn?.[assistantRoundKey(ASSISTANT_ANY_TURN, 2)];
+      for (const round of [first, second]) {
+        expect(round, q.id).toMatchObject({ clarify: null, proposal: null });
+      }
+      // Round 1 finds what round 2 reads by its Message-ID, as a model that knows none would.
+      const later = (l: Lookup) => FOLLOW_UP_TOOLS.includes(l.tool);
+      expect(first?.lookups, q.id).toEqual(q.lookups.filter((l) => !later(l)));
+      expect(second?.lookups, q.id).toEqual(q.lookups.filter(later));
+      expect(first?.lookups?.length, q.id).toBeGreaterThan(0);
       expect(answerOf(q), q.id).toBeDefined();
     }
   });

@@ -6,6 +6,7 @@ export {
   parseRoleRef,
   quotedLines,
   roleRef,
+  withoutRefsNotes,
 } from "./lookups";
 export { type ImpactPreview, type PreviewRole, previewImpact } from "./preview";
 export { changeLines, editedSummary, rewordEdited, rewordProposed } from "./words";

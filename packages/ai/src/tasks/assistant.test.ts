@@ -2,6 +2,7 @@ import {
   APPLICATION_STAGES,
   ASSISTANT_TOOLS,
   CORE_PROFILE_KEYS,
+  MAX_LOOKUP_ROUNDS,
   POLICY_KEYS,
 } from "@jobfilly/schema";
 import { describe, expect, it } from "vitest";
@@ -98,6 +99,14 @@ describe("assistant.v1's instruction", () => {
     expect(system).toContain("For any other message set `lookups` to [].");
     for (const tool of ASSISTANT_TOOLS) expect(system).toContain(`\`${tool}\`: `);
     for (const stage of APPLICATION_STAGES) expect(system).toContain(stage);
+  });
+
+  it("finds a Message-ID first instead of guessing it, then reads on in a later round", () => {
+    expect(system).toContain("take an exact Message-ID: never guess one");
+    expect(system).toContain("ask only for the search that finds the role or message");
+    expect(system).toContain("you are then asked again with its results");
+    expect(system).toContain("never one already run");
+    expect(system).toContain(`There are at most ${MAX_LOOKUP_ROUNDS} rounds.`);
   });
 
   it("proposes for the profile shown, and reads a profile's name as the answer to which one", () => {

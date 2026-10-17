@@ -1,6 +1,13 @@
 import type { AnswerToolResult, JobFacts } from "@jobfilly/schema";
 import { describe, expect, it } from "vitest";
-import { knownSources, matchesWords, parseRoleRef, quotedLines, roleRef } from "./lookups";
+import {
+  knownSources,
+  matchesWords,
+  parseRoleRef,
+  quotedLines,
+  roleRef,
+  withoutRefsNotes,
+} from "./lookups";
 
 // The pure parts of the assistant's lookups (F8.2–F8.4): role refs both ways, finding roles by
 // words, quoting mail as untrusted lines, and keeping only the refs the lookups returned.
@@ -51,6 +58,28 @@ describe("matchesWords", () => {
     expect(matchesWords(facts(), "Singapore Berlin")).toBe(false);
     expect(matchesWords(facts(), null)).toBe(true);
     expect(matchesWords(facts(), "  ")).toBe(true);
+  });
+
+  it("finds a role by its mail's sender, name or address", () => {
+    const from = { address: "jobs@hirewave.example", name: "Sam at HireWave" };
+    expect(matchesWords(facts({ company: null }), "HireWave", from)).toBe(true);
+    expect(matchesWords(facts({ company: null }), "hirewave.example", from)).toBe(true);
+    expect(matchesWords(facts({ company: null }), "HireWave")).toBe(false);
+  });
+});
+
+describe("withoutRefsNotes", () => {
+  it("drops the '(refs: …)' notes a model copies from the earlier turns", () => {
+    expect(
+      withoutRefsNotes("Yes, from two agencies.\n(refs: role <a@x.example>#0, role <b@y>#0)"),
+    ).toBe("Yes, from two agencies.");
+    expect(withoutRefsNotes("It's remote (refs: message <a@x.example>). Nothing changed.")).toBe(
+      "It's remote. Nothing changed.",
+    );
+    expect(withoutRefsNotes("Two roles (Berlin and Munich).")).toBe(
+      "Two roles (Berlin and Munich).",
+    );
+    expect(withoutRefsNotes("(refs: role <a@x.example>#0)")).toBe("(refs: role <a@x.example>#0)");
   });
 });
 

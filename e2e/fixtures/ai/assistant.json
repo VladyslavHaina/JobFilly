@@ -411,6 +411,12 @@
           "days": null
         }
       ]
+    },
+    "* round 2": {
+      "reply": "Let me check what's open.",
+      "clarify": null,
+      "proposal": null,
+      "lookups": []
     }
   },
   "why didn't the singapore role get a draft?": {
@@ -428,6 +434,12 @@
           "days": null
         }
       ]
+    },
+    "* round 2": {
+      "reply": "Let me look at that role.",
+      "clarify": null,
+      "proposal": null,
+      "lookups": []
     }
   },
   "how many interviews did i have in the last 30 days?": {
@@ -445,6 +457,12 @@
           "days": 30
         }
       ]
+    },
+    "* round 2": {
+      "reply": "Let me count them in your pipeline.",
+      "clarify": null,
+      "proposal": null,
+      "lookups": []
     }
   },
   "show me the text of the kiezwerk email": {
@@ -460,7 +478,14 @@
           "position": null,
           "stage": null,
           "days": null
-        },
+        }
+      ]
+    },
+    "* round 2": {
+      "reply": "Let me look for that email.",
+      "clarify": null,
+      "proposal": null,
+      "lookups": [
         {
           "tool": "message_text",
           "words": null,
@@ -485,7 +510,14 @@
           "position": null,
           "stage": null,
           "days": null
-        },
+        }
+      ]
+    },
+    "* round 2": {
+      "reply": "Let me read that email.",
+      "clarify": null,
+      "proposal": null,
+      "lookups": [
         {
           "tool": "message_text",
           "words": null,
@@ -510,7 +542,14 @@
           "position": null,
           "stage": null,
           "days": null
-        },
+        }
+      ]
+    },
+    "* round 2": {
+      "reply": "Ich sehe mir die Absage an.",
+      "clarify": null,
+      "proposal": null,
+      "lookups": [
         {
           "tool": "message_text",
           "words": null,
@@ -537,6 +576,12 @@
           "days": null
         }
       ]
+    },
+    "* round 2": {
+      "reply": "Vou ver essa vaga.",
+      "clarify": null,
+      "proposal": null,
+      "lookups": []
     }
   },
   "which profile is the isarblick role in münchen assigned to, and why?": {
@@ -552,7 +597,14 @@
           "position": null,
           "stage": null,
           "days": null
-        },
+        }
+      ]
+    },
+    "* round 2": {
+      "reply": "Let me look at that role.",
+      "clarify": null,
+      "proposal": null,
+      "lookups": [
         {
           "tool": "role",
           "words": null,
@@ -579,6 +631,12 @@
           "days": null
         }
       ]
+    },
+    "* round 2": {
+      "reply": "Let me check your pipeline.",
+      "clarify": null,
+      "proposal": null,
+      "lookups": []
     }
   },
   "qual é o salário mínimo no meu perfil germany permanent?": {
@@ -596,6 +654,12 @@
           "days": null
         }
       ]
+    },
+    "* round 2": {
+      "reply": "Vou ver o seu perfil.",
+      "clarify": null,
+      "proposal": null,
+      "lookups": []
     }
   }
 }

@@ -1,5 +1,6 @@
 import { matchesWords, quotedLines, replyEligibility, roleRef } from "@jobfilly/core";
 import {
+  getInboxMessage,
   getMessageMailbox,
   getMessageRef,
   getStoredMessages,
@@ -20,6 +21,7 @@ import {
   type Pipeline,
   type PipelineItem,
   type Profile,
+  type RoleRef,
 } from "@jobfilly/schema";
 import { loadPipeline } from "../applications/load";
 import type { AppDeps } from "../deps";
@@ -37,8 +39,10 @@ import { loadWorkspaceProfiles, type WorkspaceProfiles } from "../pipeline/assig
 //   in its line, and a message's text comes only as "| " lines under a line saying it is quoted
 //   from the mail (F8.4), so nothing in a mail reads as a line the app wrote.
 // - Each result lists the refs it is about; only those can become an answer's links (F8.2).
+// - A question's lookups run in rounds (./service): each role line names its Message-ID and
+//   position, so a later round can read that role or its message, which take an exact one.
 
-/** At most this many lookups are run for one question; the rest are left out. */
+/** At most this many lookups are run in one round of a question; the rest are left out. */
 const MAX_LOOKUPS = 5;
 /** At most this many roles or pipeline items are listed in one result. */
 const MAX_ITEMS = 25;
@@ -46,7 +50,10 @@ const MAX_ITEMS = 25;
 const MAX_TEXT = 4000;
 const DAY = 24 * 60 * 60 * 1000;
 
-/** What the lookups of one question read, each loaded once and only when a lookup needs it. */
+/**
+ * What the lookups of one question read, over all its rounds, each loaded once and only when a
+ * lookup needs it.
+ */
 class View {
   private cache = new Map<string, Promise<unknown>>();
 
@@ -70,6 +77,15 @@ class View {
   pipeline = () => this.once("pipeline", () => loadPipeline(this.deps, this.ws));
   drafts = () =>
     this.once("drafts", async () => (this.full ? listDrafts(this.deps.db, this.ws) : []));
+  /** The profile each role of one message is assigned to, with why (F1.3), by position. */
+  assigned = (messageId: string) =>
+    this.once(`assigned ${messageId}`, async () => {
+      const message = await getInboxMessage(this.deps.db, this.ws, messageId);
+      // Its roles come in position order, from 0.
+      return new Map(
+        (message?.roles ?? []).map((r, i) => [r.evaluation?.position ?? i, r.profile]),
+      );
+    });
 }
 
 const json = JSON.stringify;
@@ -95,9 +111,19 @@ function roleName(title: string | null, company: string | null): string {
   return `${json(title ?? "Untitled role")}${company ? ` at ${json(company)}` : ""}`;
 }
 
-/** roleName from a role's facts, an agency's client or name standing in for the company. */
-const factsName = (facts: RoleState["facts"]) =>
-  roleName(facts.title, facts.company ?? facts.agency?.client ?? facts.agency?.name ?? null);
+/**
+ * roleName from a role's facts, an agency's client standing in for the company, and the agency
+ * that sent it when there is one: "Senior Backend Engineer" at "Möwe Mobility" via the agency
+ * "Elbe Talent Partners".
+ */
+function factsName(facts: RoleState["facts"]): string {
+  const agency = facts.agency?.name ? ` via the agency ${json(facts.agency.name)}` : "";
+  return `${roleName(facts.title, facts.company ?? facts.agency?.client ?? null)}${agency}`;
+}
+
+/** A role's ref with the Message-ID and position the role and message_text lookups take. */
+const refWords = (role: RoleRef) =>
+  `${roleRef(role)} (messageId ${json(role.messageId)}, position ${role.position})`;
 
 /** The pipeline item a role is in, if any. */
 function itemOf(pipeline: Pipeline, state: { messageId: string; position: number }) {
@@ -142,6 +168,23 @@ function draftLine(
   return `No draft: ${json(heldBy.map((h) => h.reason).join("; "))}`;
 }
 
+/**
+ * With several profiles, the one the role is assigned to and why, as the role's profile section
+ * shows it ("München role → 'Germany permanent'"); with one, nothing.
+ */
+async function assignmentLines(
+  view: View,
+  profiles: WorkspaceProfiles,
+  profile: Profile | null,
+  state: RoleState,
+): Promise<string[]> {
+  if (profiles.confirmed.length <= 1 || !profile) return [];
+  const assigned = (await view.assigned(state.messageId)).get(state.position);
+  const why = assigned?.reason ? `, because ${json(assigned.reason)}` : "";
+  const byYou = assigned?.source === "you" ? " (set by you)" : "";
+  return [`Profile ${json(assigned?.name ?? profile.name)}${byYou}${why}`];
+}
+
 /** One role in full: facts, profile, fit with every verdict, rules, stage, decisions, draft. */
 async function roleResult(
   view: View,
@@ -159,7 +202,8 @@ async function roleResult(
     d.waiting.some((w) => w.messageId === state.messageId && w.position === state.position),
   );
   const lines = [
-    `Role ${ref}: ${factsName(facts)}${profileWords(profiles, profile)}`,
+    `Role ${refWords(state)}: ${factsName(facts)}`,
+    ...(await assignmentLines(view, profiles, profile, state)),
     `Facts: ${json({
       places: facts.places,
       workMode: facts.workMode,
@@ -170,7 +214,7 @@ async function roleResult(
       seniority: facts.seniority,
       languages: facts.languages,
     })}`,
-    `Received ${day(state.receivedAt.toISOString())} from ${json(state.from.address)}`,
+    `Received ${day(state.receivedAt.toISOString())} from ${json(state.from.address)}${state.category ? `, sorted as ${state.category}` : ""}`,
   ];
   const match = evaluation?.match;
   if (!evaluation) lines.push("Not evaluated yet");
@@ -230,14 +274,14 @@ async function waiting(view: View) {
   for (const d of toReview) {
     const ref = roleRef(d);
     const state = roles.find((r) => r.messageId === d.messageId && r.position === d.position);
-    lines.push(`Draft ${ref} for ${state ? factsName(state.facts) : "a role"}`);
+    lines.push(`Draft ${refWords(d)} for ${state ? factsName(state.facts) : "a role"}`);
     sources.push({ kind: "draft", ref });
   }
   return { lines, sources };
 }
 
 async function findRoles(view: View, words: string | null) {
-  const found = (await view.roles()).filter((s) => matchesWords(s.facts, words));
+  const found = (await view.roles()).filter((s) => matchesWords(s.facts, words, s.from));
   return rolesResult(view, found, words ? `match ${json(words)}` : "in all");
 }
 
@@ -277,7 +321,7 @@ async function pipeline(view: View, lookup: AssistantLookup) {
     );
     const profile = state ? profileOf(profiles, state) : null;
     return [
-      `Role ${roleRef(i.role)}: ${roleName(i.title, i.company)}${profileWords(profiles, profile)}`,
+      `Role ${refWords(i.role)}: ${roleName(i.title, i.company)}${profileWords(profiles, profile)}`,
       `stage ${i.stage} since ${day(i.since)}${i.stageSource === "you" ? " (set by you)" : ""}`,
       `next step ${json(i.nextStep)}`,
       ...(i.noReply ? [`no reply for ${NO_REPLY_FLAG_DAYS} days or more`] : []),
@@ -376,19 +420,38 @@ export function usedFullAccess(scope: MemberScope, results: readonly AnswerToolR
   return scope === "everything" && results.some((r) => tools.includes(r.lookup.tool));
 }
 
+/** The lookups that find roles and give the Message-IDs `role` and `message_text` take. */
+const SEARCHES: readonly AssistantLookup["tool"][] = ["find_roles", "waiting", "pipeline"];
+
+/** True when a round's results hold refs a search found: something a later round can read. */
+export const foundRefs = (results: readonly AnswerToolResult[]) =>
+  results.some((r) => SEARCHES.includes(r.lookup.tool) && r.sources.length > 0);
+
 /**
- * Runs a question's lookups with the member's access (`scope`), at most MAX_LOOKUPS, each once:
- * the results answer.v1 answers from.
+ * The lookups of one question, run with the member's access (`scope`) in rounds over one view:
+ * each round runs at most MAX_LOOKUPS lookups not run in an earlier round, each once, and gives
+ * their results, which answer.v1 answers from.
  */
-export async function runLookups(
+export function questionLookups(deps: AppDeps, ws: string, scope: MemberScope) {
+  const view = new View(deps, ws, scope);
+  const done = new Set<string>();
+  return async (lookups: readonly AssistantLookup[]): Promise<AnswerToolResult[]> => {
+    const fresh = [...new Map(lookups.map((l) => [json(l), l])).entries()]
+      .filter(([key]) => !done.has(key))
+      .slice(0, MAX_LOOKUPS);
+    const results: AnswerToolResult[] = [];
+    for (const [key, lookup] of fresh) {
+      done.add(key);
+      results.push({ lookup, ...(await run(view, lookup)) });
+    }
+    return results;
+  };
+}
+
+/** One round of lookups on its own: questionLookups' first. */
+export const runLookups = (
   deps: AppDeps,
   ws: string,
   scope: MemberScope,
   lookups: readonly AssistantLookup[],
-): Promise<AnswerToolResult[]> {
-  const view = new View(deps, ws, scope);
-  const distinct = [...new Map(lookups.map((l) => [json(l), l])).values()].slice(0, MAX_LOOKUPS);
-  const results: AnswerToolResult[] = [];
-  for (const lookup of distinct) results.push({ lookup, ...(await run(view, lookup)) });
-  return results;
-}
+) => questionLookups(deps, ws, scope)(lookups);
