@@ -1,4 +1,4 @@
-import { AssistantSendSchema, IdSchema, ProposalEditSchema } from "@jobfilly/schema";
+import { AssistantSendSchema, IdSchema, ProposalEditSchema, scopeOf } from "@jobfilly/schema";
 import { Hono } from "hono";
 import { z } from "zod";
 import { requireRole, validJson, validParam, type WorkspaceEnv } from "../access";
@@ -15,19 +15,29 @@ import type { AppDeps } from "../deps";
 // Apply and Discard. Viewers can chat but can't apply (F8.8): sending and discarding take a
 // viewer, editing and applying an editor. Mounted once at /api/workspaces/:workspaceId/assistant.
 // Each member sees and acts on their own thread only; another member's proposal is a 404.
+// MVP 3: the module is open to a member who sees the job pipeline only; the questions they ask are
+// answered with lookups run with that access (D14), and an answer's links follow it.
 
 const ProposalParamsSchema = z.object({ proposalId: IdSchema });
 
 export function assistantRoutes(deps: AppDeps) {
   return new Hono<WorkspaceEnv>()
     .get("/", requireRole("viewer"), async (c) =>
-      c.json(await assistantState(deps, c.get("workspaceId"), c.get("user"))),
+      c.json(
+        await assistantState(
+          deps,
+          c.get("workspaceId"),
+          c.get("user"),
+          scopeOf(c.get("membership")),
+        ),
+      ),
     )
     .post("/", requireRole("viewer"), validJson(AssistantSendSchema), async (c) => {
       const result = await sendMessage(
         deps,
         c.get("workspaceId"),
         c.get("user"),
+        scopeOf(c.get("membership")),
         c.req.valid("json"),
         c.get("log"),
       );

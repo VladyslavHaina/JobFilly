@@ -15,6 +15,7 @@ import {
 } from "@jobfilly/db";
 import type { Change, Profile, Rule } from "@jobfilly/schema";
 import type { AppDeps } from "../deps";
+import { loadWorkspaceProfiles } from "../pipeline/assign";
 
 // The impact preview of a proposal (F8.2, F8.5) on this workspace's current roles: every role's
 // facts, sender verdict, live draft and draft history (listRoleStates), the chosen CV's skills,
@@ -25,14 +26,21 @@ import type { AppDeps } from "../deps";
 // match stage picks it. A role without one (its target roles or skills changed and the
 // re-evaluation hasn't asked the model yet) is previewed with no answer, its title "not compared
 // yet": never with an older answer the pipeline would no longer use.
+//
+// With several profiles (MVP 3, F1.3) a proposal changes one, so only that profile's roles are
+// previewed: those last evaluated with it; one evaluated before MVP 3, or not yet, counts for the
+// first profile that is on (profileOfRole's default). With one profile that is every role.
 
 /** Where a stored answer is looked up: its role, the CV the model saw and its input hash. */
 const answerKey = (role: string, cvId: string | null, inputHash: string) =>
   JSON.stringify([role, cvId, inputHash]);
 
-/** The workspace's roles as the preview reads them, scored against `profile`. */
+/** The profile's roles as the preview reads them, scored against `profile`. */
 async function previewRoles(deps: AppDeps, ws: string, profile: Profile): Promise<PreviewRole[]> {
-  const states = await listRoleStates(deps.db, ws);
+  const firstOn = (await loadWorkspaceProfiles(deps, ws)).on[0]?.id ?? null;
+  const states = (await listRoleStates(deps.db, ws)).filter(
+    (s) => (s.profileId ?? firstOn) === profile.id,
+  );
   if (states.length === 0) return [];
   const skillsOf = new Map((await listCvs(deps.db, ws)).map((cv) => [cv.id, cv.skills]));
   const stored = await listStoredMatchAnswers(deps.db, ws, [
