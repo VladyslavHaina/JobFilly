@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import {
   type Category,
   type Envelope,
@@ -9,6 +10,7 @@ import {
   type StageOneResult,
   type StageOneVerdict,
   type StoredMessage,
+  syntheticMessageId,
 } from "@jobfilly/schema";
 import {
   and,
@@ -126,6 +128,56 @@ function ofMailbox(mailboxId: string | undefined): SQL | undefined {
 }
 
 /**
+ * The Message-ID a message reusing another sender's id is stored under (TBD-440): a synthetic one
+ * from the id and its own From address, so a re-sync gives it the same id again.
+ */
+function reusedMessageId(e: Envelope): string {
+  const digest = createHash("sha256")
+    .update(`reused.v1\0${e.messageId}\0${e.from.address.toLowerCase()}\0`)
+    .digest("hex")
+    .slice(0, 32);
+  return syntheticMessageId(e.folder, digest);
+}
+
+/**
+ * One Message-ID, one sender (TBD-440): an envelope whose Message-ID is stored with another From
+ * address (case aside) is another message that reuses the id, and gets an id of its own
+ * (reusedMessageId), so it never takes over the stored message's row: its location, analysis,
+ * drafts and sender check. The same id with the same From is the same message, moved, re-indexed
+ * or in a second mailbox (F1.3, TBD-446 D3), and keeps its id. Of an id not stored yet but seen
+ * with several senders at once, the copy that arrived first (the lowest UID) keeps it. The sync
+ * passes what it reads through here before matching it by Message-ID; saveEnvelopes does too.
+ */
+export async function distinctMessageIds<T extends Envelope>(
+  db: Database,
+  workspaceId: string,
+  envelopes: readonly T[],
+): Promise<T[]> {
+  const ids = [...new Set(envelopes.map((e) => e.messageId))];
+  const owner = new Map<string, string>();
+  for (let i = 0; i < ids.length; i += CHUNK) {
+    const rows = await db
+      .select({ messageId: messages.messageId, fromAddress: messages.fromAddress })
+      .from(messages)
+      .where(
+        and(
+          eq(messages.workspaceId, workspaceId),
+          inArray(messages.messageId, ids.slice(i, i + CHUNK)),
+        ),
+      );
+    for (const row of rows) owner.set(row.messageId, row.fromAddress.toLowerCase());
+  }
+  for (const e of [...envelopes].sort((a, b) => a.uid - b.uid)) {
+    if (!owner.has(e.messageId)) owner.set(e.messageId, e.from.address.toLowerCase());
+  }
+  return envelopes.map((e) =>
+    owner.get(e.messageId) === e.from.address.toLowerCase()
+      ? e
+      : { ...e, messageId: reusedMessageId(e) },
+  );
+}
+
+/**
  * Saves envelopes with their stage-one verdicts. A new row starts in the state its verdict gives
  * it; an existing row (same Message-ID) gets its headers and verdict refreshed and keeps its
  * category, analysis and roles. The scan and the sync (a UIDVALIDITY re-index too, F1.3) save
@@ -141,6 +193,9 @@ function ofMailbox(mailboxId: string | undefined): SQL | undefined {
  * stored for another mailbox stays that mailbox's message, location and all (the first mailbox
  * to store it keeps it); a row without a mailbox (stored before MVP 3, or by a caller that names
  * none) takes this one.
+ *
+ * A Message-ID stored with another From address is another message's (distinctMessageIds): the
+ * envelope is stored under an id of its own, and the stored row is never updated by it.
  */
 export async function saveEnvelopes(
   db: Database,
@@ -149,8 +204,14 @@ export async function saveEnvelopes(
   options: { mailboxId?: string } = {},
 ): Promise<void> {
   const mailboxId = options.mailboxId ?? null;
+  const envelopes = await distinctMessageIds(
+    db,
+    workspaceId,
+    items.map((item) => item.envelope),
+  );
   const byId = new Map<string, StageOneResult>();
-  for (const item of items) {
+  for (const [n, given] of items.entries()) {
+    const item = { ...given, envelope: envelopes[n] ?? given.envelope };
     const seen = byId.get(item.envelope.messageId);
     if (!seen || item.envelope.uid > seen.envelope.uid) byId.set(item.envelope.messageId, item);
   }
@@ -172,7 +233,8 @@ export async function saveEnvelopes(
       )
       .onConflictDoUpdate({
         target: [messages.workspaceId, messages.messageId],
-        setWhere: sql`${messages.mailboxId} is null or ${messages.mailboxId} = excluded.mailbox_id`,
+        setWhere: sql`(${messages.mailboxId} is null or ${messages.mailboxId} = excluded.mailbox_id)
+          and lower(${messages.fromAddress}) = lower(excluded.from_address)`,
         set: {
           mailboxId: sql`coalesce(${messages.mailboxId}, excluded.mailbox_id)`,
           folder: sql`excluded.folder`,
@@ -227,6 +289,8 @@ export async function saveEnvelopes(
  * MVP 1's synthetic id (by UIDVALIDITY and UID) can't be matched, and comes back once as new.
  * MVP 3 (F3.1): with `mailboxId`, only that mailbox's messages (and those without a mailbox)
  * are matched; another mailbox's copy of a Message-ID keeps its own location.
+ * A Message-ID stored with another From address is another message's (distinctMessageIds): it is
+ * matched under its own id, and the stored row keeps its location.
  */
 export async function reindexMessages(
   db: Database,
@@ -236,7 +300,7 @@ export async function reindexMessages(
 ): Promise<Set<string>> {
   // One location per Message-ID: of two copies in the folder, the newest (highest UID) wins.
   const byId = new Map<string, Envelope>();
-  for (const e of envelopes) {
+  for (const e of await distinctMessageIds(db, workspaceId, envelopes)) {
     const seen = byId.get(e.messageId);
     if (!seen || e.uid > seen.uid) byId.set(e.messageId, e);
   }
@@ -247,6 +311,7 @@ export async function reindexMessages(
     const locations = JSON.stringify(
       chunk.map((e) => ({
         message_id: e.messageId,
+        from_address: e.from.address,
         folder: e.folder,
         folder_path: e.folderPath,
         uid_validity: e.uidValidity,
@@ -263,12 +328,13 @@ export async function reindexMessages(
         updatedAt: sql`now()`,
       })
       .from(
-        sql`jsonb_to_recordset(${locations}::jsonb) as v(message_id text, folder text, folder_path text, uid_validity bigint, uid bigint)`,
+        sql`jsonb_to_recordset(${locations}::jsonb) as v(message_id text, from_address text, folder text, folder_path text, uid_validity bigint, uid bigint)`,
       )
       .where(
         and(
           eq(messages.workspaceId, workspaceId),
           sql`${messages.messageId} = v.message_id`,
+          sql`lower(${messages.fromAddress}) = lower(v.from_address)`,
           ofMailbox(options.mailboxId),
         ),
       )

@@ -1,5 +1,6 @@
 import {
   type Envelope,
+  isSyntheticMessageId,
   type JobFacts,
   MESSAGE_GONE_SIGNAL,
   type StageOneVerdict,
@@ -22,6 +23,7 @@ import {
 import {
   countNotAnalyzed,
   countScanAnalysis,
+  distinctMessageIds,
   getRoles,
   getStoredMessages,
   listJobMailLanguages,
@@ -174,7 +176,10 @@ describe("saveEnvelopes", () => {
 
   it("stores two envelopes with one Message-ID in one batch once, where the newest is (F1.3)", async () => {
     const id = "<inbox.0123456789abcdef0123456789abcdef@jobfilly.invalid>";
-    const copies = [7, 3, 5].map((uid) => at(envelope(uid, { messageId: id }), "likely_job"));
+    // Copies of one message: one id and one sender (another sender is another message, TBD-440).
+    const copies = [7, 3, 5].map((uid) =>
+      at(envelope(uid, { messageId: id, from: envelope(1).from }), "likely_job"),
+    );
     await saveEnvelopes(conn.db, ws, copies);
     const stored = await getStoredMessages(conn.db, ws, [id]);
     expect(stored.map((m) => m.envelope.uid)).toEqual([7]);
@@ -212,6 +217,142 @@ describe("saveEnvelopes", () => {
       sql`select search_text from messages`,
     );
     expect(row?.search_text).toBe("ana pérez ana@agency.example senior backend role");
+  });
+});
+
+describe("a Message-ID reused by another sender (TBD-440)", () => {
+  const checkedAt = new Date("2026-10-15T10:00:00Z");
+  const original = envelope(1);
+  const spoof = envelope(50, {
+    messageId: original.messageId,
+    from: { address: "someone@elsewhere.example", name: "Someone" },
+    subject: "Re: your application",
+  });
+  const rows = () =>
+    queryRows<{ message_id: string; from_address: string; uid: number }>(
+      conn.db,
+      sql`select message_id, from_address, uid from messages where workspace_id = ${ws}
+          order by uid`,
+    );
+
+  /** The original, stored and analysed, with a sender check made while it was gone. */
+  async function storeOriginal() {
+    await saveEnvelopes(conn.db, ws, [at(original, "likely_job")]);
+    await saveAnalysis(conn.db, ws, {
+      messageId: original.messageId,
+      scanId: null,
+      category: "interview",
+      roles: [role("Backend")],
+    });
+    await saveSenderCheck(
+      conn.db,
+      ws,
+      original.messageId,
+      {
+        verdict: "caution",
+        complete: false,
+        reasons: [{ signal: MESSAGE_GONE_SIGNAL, reason: "gone" }],
+        mark: null,
+      },
+      checkedAt,
+    );
+  }
+
+  async function expectOriginalUntouched() {
+    const [row] = await getStoredMessages(conn.db, ws, [original.messageId]);
+    expect(row).toMatchObject({ category: "interview", analysisStatus: "done" });
+    expect(row?.envelope).toEqual(original);
+    expect(await getRoles(conn.db, ws, original.messageId)).toEqual([role("Backend")]);
+    expect(await getSenderChecks(conn.db, ws, [original.messageId])).toMatchObject([
+      { verdict: "caution", stale: false },
+    ]);
+  }
+
+  it("stores the new message as a second row and leaves the stored one as it was", async () => {
+    await storeOriginal();
+    await saveEnvelopes(conn.db, ws, [at(spoof, "likely_job")]);
+
+    await expectOriginalUntouched();
+    const [first, second] = await rows();
+    expect(first).toEqual({
+      message_id: original.messageId,
+      from_address: original.from.address,
+      uid: 1,
+    });
+    expect(second).toMatchObject({ from_address: "someone@elsewhere.example", uid: 50 });
+    expect(second?.message_id).not.toBe(original.messageId);
+    expect(isSyntheticMessageId(second?.message_id ?? "")).toBe(true);
+    const [stored] = await getStoredMessages(conn.db, ws, [second?.message_id ?? ""]);
+    expect(stored).toMatchObject({
+      envelope: { subject: "Re: your application", uid: 50 },
+      category: null,
+      analysisStatus: "pending",
+    });
+  });
+
+  it("is told apart in a batch too, and by reindexMessages, which never moves the stored one", async () => {
+    await storeOriginal();
+    const rebuilt = { ...spoof, uidValidity: 1800000000, uid: 7 };
+    expect(await reindexMessages(conn.db, ws, [rebuilt])).toEqual(new Set());
+    await expectOriginalUntouched();
+
+    // Both in one batch, neither stored yet: the one that arrived first keeps the id.
+    await saveEnvelopes(conn.db, other, [at(spoof, "likely_job"), at(original, "likely_job")]);
+    const both = await queryRows<{ message_id: string; from_address: string }>(
+      conn.db,
+      sql`select message_id, from_address from messages where workspace_id = ${other}
+          order by uid`,
+    );
+    expect(both).toHaveLength(2);
+    expect(both[0]).toEqual({
+      message_id: original.messageId,
+      from_address: original.from.address,
+    });
+  });
+
+  it("still moves the same message (same id, same From in any case) to its new location", async () => {
+    await storeOriginal();
+    const moved = {
+      ...original,
+      uidValidity: 1800000000,
+      uid: 99,
+      from: { ...original.from, address: original.from.address.toUpperCase() },
+    };
+    await saveEnvelopes(conn.db, ws, [at(moved, "likely_job")]);
+    expect(await rows()).toEqual([
+      { message_id: original.messageId, from_address: moved.from.address, uid: 99 },
+    ]);
+    const [row] = await getStoredMessages(conn.db, ws, [original.messageId]);
+    expect(row).toMatchObject({ category: "interview", envelope: { uid: 99 } });
+    // The message is there again, so the message_gone check goes stale, as before.
+    expect(await getSenderChecks(conn.db, ws, [original.messageId])).toMatchObject([
+      { stale: true },
+    ]);
+
+    const again = { ...moved, uid: 120 };
+    expect(await reindexMessages(conn.db, ws, [again])).toEqual(new Set([original.messageId]));
+    expect((await rows()).map((r) => r.uid)).toEqual([120]);
+  });
+
+  it("gives the new message the same id on every re-sync, and moves only its own row", async () => {
+    await storeOriginal();
+    await saveEnvelopes(conn.db, ws, [at(spoof, "likely_job")]);
+    const [, first] = await rows();
+    const id = first?.message_id ?? "";
+
+    // Seen again after a UIDVALIDITY reset: re-indexed under its own id, then saved again.
+    const rebuilt = { ...spoof, uidValidity: 1800000000, uid: 60 };
+    expect(await distinctMessageIds(conn.db, ws, [rebuilt])).toEqual([
+      { ...rebuilt, messageId: id },
+    ]);
+    expect(await reindexMessages(conn.db, ws, [rebuilt])).toEqual(new Set([id]));
+    await saveEnvelopes(conn.db, ws, [at({ ...rebuilt, uid: 61 }, "likely_job")]);
+
+    expect(await rows()).toEqual([
+      { message_id: original.messageId, from_address: original.from.address, uid: 1 },
+      { message_id: id, from_address: "someone@elsewhere.example", uid: 61 },
+    ]);
+    await expectOriginalUntouched();
   });
 });
 

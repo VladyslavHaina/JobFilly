@@ -2,6 +2,7 @@ import type { AiClient } from "@jobfilly/ai";
 import { loadJobPlatforms, stageOne } from "@jobfilly/core";
 import {
   countSyncAnalysisFailures,
+  distinctMessageIds,
   getAiSettings,
   getLatestScan,
   getMailboxConnection,
@@ -322,10 +323,13 @@ export async function syncMailbox(
 
     // Stored messages move to their UIDs now; the rest is new. After a known cursor that is
     // every one of them; reading the whole folder, only what arrived within the scan's window.
-    const known = await reindexMessages(db, workspaceId, result.messages, { mailboxId });
+    // A message reusing a stored Message-ID with another sender goes by an id of its own
+    // (TBD-440), here as in the database.
+    const read = await distinctMessageIds(db, workspaceId, result.messages);
+    const known = await reindexMessages(db, workspaceId, read, { mailboxId });
     const wholeFolder = cursor.uidValidity === null || result.changed;
     const windowStart = Date.parse(firstScan.startedAt) - SCAN_WINDOW_DAYS * DAY;
-    const unknown = result.messages.filter((e) => !known.has(e.messageId));
+    const unknown = read.filter((e) => !known.has(e.messageId));
     const fresh = wholeFolder
       ? unknown.filter((e) => Date.parse(e.receivedAt) >= windowStart)
       : unknown;
