@@ -57,6 +57,9 @@ async function drafted(id: string) {
 describe("the Drafts list (F6.7)", () => {
   it("shows each draft's status and the failed reason", async () => {
     const saved = await drafted(BERLIN);
+    // The list is newest change first; the test clock stands still, so the second draft is made
+    // a second later, or the two would tie on every timestamp.
+    h.deps.clock.advance(1000);
     await h.deliver(DATA);
     h.mailbox.failNext("saveDraft");
     h.ai.answers.draft[key(DATA)] = draftAnswer();
