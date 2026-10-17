@@ -71,6 +71,18 @@ describe("Members (F6.1, F6.3)", () => {
     expect(screen.getByLabelText("Sees")).toHaveProperty("value", "everything");
   });
 
+  it("reads each member's name, (you) and Owner apart", async () => {
+    fakeApi({
+      "GET /api/auth/session": session,
+      "GET /api/workspaces/:id/members": members(),
+      "GET /api/workspaces/:id/invites": { items: [] },
+    });
+    renderInWorkspace(<MembersPage />);
+    const me = (await screen.findByText("(you)")).closest("p");
+    expect(me?.textContent).toBe("Maria Santos (you), Owner");
+    expect(screen.getByText("Tom Okafor").closest("p")?.textContent).toBe("Tom Okafor");
+  });
+
   it("the owner hands the workspace to an admin after confirming", async () => {
     const seen = fakeApi({
       "GET /api/auth/session": session,
