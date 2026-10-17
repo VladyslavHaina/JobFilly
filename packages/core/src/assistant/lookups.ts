@@ -1,4 +1,4 @@
-import type { AnswerSource, AnswerToolResult, JobFacts, RoleRef } from "@jobfilly/schema";
+import type { Address, AnswerSource, AnswerToolResult, JobFacts, RoleRef } from "@jobfilly/schema";
 
 // The pure parts of the assistant's read-only lookups (MVP 3, F8.2–F8.4): how a role is named in
 // a lookup result and an answer's refs, which roles a few words find, how mail text is quoted as
@@ -17,8 +17,11 @@ export function parseRoleRef(ref: string): RoleRef | null {
   return { messageId: ref.slice(0, hash), position: Number(position) };
 }
 
-/** Everything of a role's facts a search can find it by: title, company, agency and places. */
-function searchText(facts: JobFacts): string {
+/**
+ * Everything a search can find a role by: its title, company, agency and places, and the sender
+ * of its mail (name and address), so "the HireWave email" finds a role that names no company.
+ */
+function searchText(facts: JobFacts, from: Address | null): string {
   return [
     facts.title,
     facts.company,
@@ -26,6 +29,8 @@ function searchText(facts: JobFacts): string {
     facts.agency?.client,
     facts.remoteScope,
     ...facts.places.flatMap((p) => [p.city, p.country]),
+    from?.name,
+    from?.address,
   ]
     .filter((s): s is string => typeof s === "string" && s !== "")
     .join(" ")
@@ -33,13 +38,17 @@ function searchText(facts: JobFacts): string {
 }
 
 /**
- * Whether a role's facts hold every one of the words (in any case, anywhere in its title,
- * company, agency or places). No words finds every role.
+ * Whether a role holds every one of the words (in any case, anywhere in its title, company,
+ * agency or places, or its mail's sender). No words finds every role.
  */
-export function matchesWords(facts: JobFacts, words: string | null): boolean {
+export function matchesWords(
+  facts: JobFacts,
+  words: string | null,
+  from: Address | null = null,
+): boolean {
   const wanted = (words ?? "").toLocaleLowerCase().split(/\s+/).filter(Boolean);
   if (wanted.length === 0) return true;
-  const text = searchText(facts);
+  const text = searchText(facts, from);
   return wanted.every((w) => text.includes(w));
 }
 
@@ -55,6 +64,19 @@ const LINE_BREAK = new RegExp(`\\r\\n|[\\r\\n${SEPARATORS}]`);
 export function quotedLines(text: string, max: number): string[] {
   const cut = text.length > max ? `${text.slice(0, max)} […]` : text;
   return cut.split(LINE_BREAK).map((line) => `| ${line}`);
+}
+
+/** A "(refs: …)" note, as the earlier turns sent to the model end with (and a model may copy). */
+const REFS_NOTE = /[ \t]*\n?[ \t]*\(refs?:[^)]*\)/gi;
+
+/**
+ * An answer's text without the "(refs: …)" notes a model sometimes copies from the earlier turns
+ * it is shown: an answer's refs are its links, never part of its words. Text that is only such a
+ * note is kept as it is.
+ */
+export function withoutRefsNotes(text: string): string {
+  const plain = text.replace(REFS_NOTE, "").trim();
+  return plain === "" ? text : plain;
 }
 
 const sourceKey = (s: AnswerSource) => `${s.kind} ${s.ref}`;
