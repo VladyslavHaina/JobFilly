@@ -2,14 +2,16 @@ import {
   EMPTY_SCAN_COUNTS,
   type Scan,
   type ScanCounts,
+  type ScanFocus,
   type ScanKind,
   type StopCause,
   type StopReason,
 } from "@jobfilly/schema";
-import { and, desc, eq, ne } from "drizzle-orm";
+import { and, asc, desc, eq, ne } from "drizzle-orm";
 import type { Database } from "../client";
-import { scans } from "../tables";
+import { mailboxes, scans } from "../tables";
 import { enqueueJob } from "./jobs";
+import type { StoredMailbox } from "./mailboxes";
 
 // Scan runs. At most one is queued or running per workspace (a partial unique index). Once a
 // scan is stopped nothing moves it again, so a cancel can't be overwritten by a late progress
@@ -35,6 +37,8 @@ function toScan(row: ScanRow): Scan {
     startedBy: row.startedBy,
     startedAt: row.startedAt.toISOString(),
     stoppedAt: row.stoppedAt?.toISOString() ?? null,
+    hint: row.hint,
+    focus: row.focus,
   };
 }
 
@@ -46,7 +50,14 @@ function toScan(row: ScanRow): Scan {
 export async function createScan(
   db: Database,
   workspaceId: string,
-  input: { kind: ScanKind; startedBy: string; at?: Date; enqueue?: boolean },
+  input: {
+    kind: ScanKind;
+    startedBy: string;
+    at?: Date;
+    enqueue?: boolean;
+    /** A re-run's hint as typed (MVP 3, F1.1). */
+    hint?: string | null;
+  },
 ): Promise<{ ok: true; scan: Scan } | { ok: false; reason: "running" }> {
   const at = input.at ?? new Date();
   return db.transaction(async (tx) => {
@@ -59,6 +70,7 @@ export async function createScan(
         counts: EMPTY_SCAN_COUNTS,
         startedBy: input.startedBy,
         startedAt: at,
+        hint: input.hint ?? null,
       })
       .onConflictDoNothing()
       .returning();
@@ -149,4 +161,43 @@ export async function stopScan(
     )
     .returning({ id: scans.id });
   return rows.length > 0;
+}
+
+/** Stores what focus.v1 read from a re-run's hint (MVP 3, F1.1). */
+export async function saveScanFocus(
+  db: Database,
+  workspaceId: string,
+  scanId: string,
+  focus: ScanFocus,
+): Promise<void> {
+  await db
+    .update(scans)
+    .set({ focus })
+    .where(and(eq(scans.workspaceId, workspaceId), eq(scans.id, scanId)));
+}
+
+/**
+ * Every mailbox of the workspace with its sealed secret, oldest first (MVP 3, F3.1): a scan reads
+ * them all. The first is where mail stored without a mailbox lives.
+ */
+export async function listScanMailboxes(
+  db: Database,
+  workspaceId: string,
+): Promise<StoredMailbox[]> {
+  return db
+    .select({
+      mailboxId: mailboxes.id,
+      address: mailboxes.address,
+      host: mailboxes.host,
+      port: mailboxes.port,
+      tlsMode: mailboxes.tlsMode,
+      username: mailboxes.username,
+      secretCiphertext: mailboxes.secretCiphertext,
+      sentFolderPath: mailboxes.sentFolderPath,
+      status: mailboxes.status,
+      authKind: mailboxes.authKind,
+    })
+    .from(mailboxes)
+    .where(eq(mailboxes.workspaceId, workspaceId))
+    .orderBy(asc(mailboxes.createdAt), asc(mailboxes.id));
 }
