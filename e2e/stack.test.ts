@@ -520,6 +520,80 @@ describe("e2e/specs/mvp-2", () => {
   });
 });
 
+describe("e2e/specs/mvp-3", () => {
+  // MVP 3's scenarios start from the state MVP 2's leave behind and from each other's: S1's
+  // profile is the one S2 and S3 work with, S4's mailbox the one S12 disconnects, S6's manual
+  // stage one of S9's interviews. So they run after every MVP 2 spec, in the scenarios' order,
+  // and none skips.
+  const SPECS = join(E2E, "specs", "mvp-3");
+  const entries = readdirSync(SPECS);
+  const source = (name: string) => readFileSync(join(SPECS, name), "utf8");
+  const spec = (scenario: number) =>
+    entries.find((name) => Number(SCENARIO_SPEC.exec(name)?.[2]) === scenario) ?? "";
+
+  it("codifies every scenario of docs/mvp/MVP-3.md as a spec of its own, but the regression", () => {
+    // The regression scenario is MVP 1's and MVP 2's own specs, which run first on the stack.
+    const doc = readRepo("docs/mvp/MVP-3.md");
+    const rows = [...doc.matchAll(/^\| S(\d+) \| \*\*([^*]+)\*\*/gm)];
+    expect(rows.filter((m) => m[2] === "Regression")).toHaveLength(1);
+    const scenarios = rows.filter((m) => m[2] !== "Regression").map((m) => Number(m[1]));
+    expect(scenarios.length).toBeGreaterThan(0);
+    const codified = codifiedScenarios(entries);
+    expect(scenarios.filter((n) => !codified.includes(n)).map((n) => `S${n}`)).toEqual([]);
+    expect(codified.filter((n) => !scenarios.includes(n)).map((n) => `S${n}`)).toEqual([]);
+    expect(new Set(codified).size).toBe(codified.length);
+  });
+
+  it("holds only scenario specs named NN-sN-<slug>, NN the scenario, and nothing that skips", () => {
+    for (const name of entries) {
+      const [, order, scenario] = SCENARIO_SPEC.exec(name) ?? [];
+      expect(scenario, `${name} is named NN-sN-<slug>.spec.ts`).toBeDefined();
+      expect(Number(order), name).toBe(Number(scenario));
+      expect(source(name).match(/\.(skip|fixme|only)\(/g), name).toBeNull();
+    }
+  });
+
+  it("runs after every MVP 2 spec, in the scenarios' order", () => {
+    // Playwright runs files in path order on one worker (playwright.config.ts).
+    const dirs = byName(readdirSync(join(E2E, "specs")).filter((name) => /^mvp-\d+$/.test(name)));
+    expect(dirs.indexOf("mvp-2")).toBeGreaterThanOrEqual(0);
+    expect(dirs.indexOf("mvp-2")).toBeLessThan(dirs.indexOf("mvp-3"));
+    const scenarios = byName(entries).map((name) => Number(SCENARIO_SPEC.exec(name)?.[2]));
+    expect(scenarios).toEqual([...scenarios].sort((a, b) => a - b));
+  });
+
+  it("types no address but the start URL: Google's consent page is reached by clicking", () => {
+    const typed = entries.filter((name) => typedAddresses(source(name)).length > 0);
+    expect(typed).toEqual([]);
+  });
+
+  it("takes the stack, log and sign-in helpers from specs/shared.ts instead of copying them", () => {
+    for (const name of entries) {
+      expect(
+        SHARED_HELPERS.filter((copy) => source(name).includes(copy)),
+        name,
+      ).toEqual([]);
+    }
+  });
+
+  it("delivers mail with the seed steps the scenarios list, and restarts through the S10 script", () => {
+    // docs/mvp/MVP-3.md: `seed deliver` the Germany batch (S1) and the pipeline threads (S6);
+    // S10's restarts are e2e/scripts/rolling-restart.ts, never docker commands in the spec.
+    const delivered = Object.fromEntries(
+      entries.map((name) => [
+        name,
+        [...source(name).matchAll(/\bseed\(\["deliver", "([^"]+)"\]\)/g)].map((m) => m[1]),
+      ]),
+    );
+    expect(Object.fromEntries(Object.entries(delivered).filter(([, ids]) => ids.length))).toEqual({
+      [spec(1)]: ["S1"],
+      [spec(6)]: ["S6"],
+    });
+    expect(source(spec(10))).toContain('"scripts", "rolling-restart.ts"');
+    for (const name of entries) expect(source(name), name).not.toMatch(/\bcompose\(\[/);
+  });
+});
+
 describe("e2e/specs locators", () => {
   // Playwright matches a role's name as a case-insensitive substring unless it is exact. MVP 1's
   // run once stopped at S2 because { name: "AI" } also found the Settings tab "Mailbox"
