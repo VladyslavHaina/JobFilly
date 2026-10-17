@@ -30,6 +30,7 @@ describe("registerAccount", () => {
         ownerId: result.user.id,
         role: "admin",
         isOwner: true,
+        scope: "everything",
       },
     ]);
     const members = await listMembers(conn.db, result.workspaceId);

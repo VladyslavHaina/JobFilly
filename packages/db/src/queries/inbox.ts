@@ -8,14 +8,16 @@ import {
   type MessageDetail,
   type MessageList,
   type MessageListItem,
+  type MessageMailbox,
   type MessageRef,
   type NoFitWhy,
+  type RoleProfile,
   type ScoredFit,
   type SenderVerdict,
 } from "@jobfilly/schema";
 import { and, asc, count, eq, inArray, isNull, ne, not, or, type SQL, sql } from "drizzle-orm";
 import type { Database } from "../client";
-import { messages, roleCvChoices, roles } from "../tables";
+import { messages, profiles, roleCvChoices, roleEvaluations, roles } from "../tables";
 import { getEvaluations, getSenderChecks } from "./evaluations";
 
 // The job inbox (F5): the list with filters, search and paging, one message's detail, where its
@@ -36,6 +38,10 @@ import { getEvaluations, getSenderChecks } from "./evaluations";
 // reason. Such a message is left out of the list unless the Hidden filter asks for exactly those
 // (F3.4). A job message whose roles have no score says why instead: one is still to be
 // (re-)scored, or all were evaluated and none could be scored.
+//
+// From MVP 3 each row names its mailbox (F3.1) and each role of the detail its profile (F1.3);
+// the list filters by mailbox, and for a member who sees the job pipeline only (F6.2) it lists
+// job mail alone.
 
 export interface InboxListQuery {
   /** Only this category (not_job included, which shows non-job mail on its own). */
@@ -48,6 +54,13 @@ export interface InboxListQuery {
   page?: number;
   /** Only messages whose roles are all hidden by a rule (the Hidden filter); else none of them. */
   hidden?: boolean;
+  /** MVP 3 (F3.1): only this mailbox's messages. */
+  mailboxId?: string;
+  /**
+   * MVP 3 (F6.2): job mail only, for a member who sees the pipeline only: no non-job mail, nothing
+   * the model couldn't sort, and no count of what that leaves out.
+   */
+  jobMailOnly?: boolean;
 }
 
 // In a select list drizzle writes the columns of a query's single table without the table's name,
@@ -94,6 +107,9 @@ const listColumns = {
     where d.workspace_id = ${outerWorkspaceId} and d.message_id = ${outerMessageId}
       and d.status <> 'discarded'
     order by d.updated_at desc limit 1)`,
+  mailbox: sql<MessageMailbox | null>`(
+    select json_build_object('id', b.id, 'address', b.address) from mailboxes b
+    where b.workspace_id = ${outerWorkspaceId} and b.id = "messages"."mailbox_id")`,
 };
 
 /** Every role of the message is evaluated and hidden by a rule (it has at least one). */
@@ -121,6 +137,7 @@ interface ListRow {
   sender: MessageListItem["sender"];
   hiddenReason: string | null;
   draft: MessageListItem["draft"];
+  mailbox: MessageMailbox | string | null;
   allHidden?: boolean;
 }
 
@@ -148,6 +165,7 @@ function toListItem(row: ListRow): MessageListItem {
     sender: asJson(row.sender),
     hidden: row.allHidden && row.hiddenReason !== null ? { reason: row.hiddenReason } : null,
     draft: asJson(row.draft),
+    mailbox: asJson(row.mailbox),
   };
 }
 
@@ -177,12 +195,16 @@ export async function listInbox(
   if (query.category) shown = eq(messages.category, query.category);
   else if (query.showNonJob) shown = or(jobMail, couldNotAnalyze, nonJob);
   else shown = or(jobMail, couldNotAnalyze);
+  if (query.jobMailOnly) shown = and(shown, jobMail);
   const hiddenFilter = query.hidden ? allHidden : not(allHidden);
+  const mailbox = query.mailboxId ? eq(messages.mailboxId, query.mailboxId) : undefined;
 
   const rows = await db
     .select({ ...listColumns, allHidden: sql<boolean>`${allHidden}` })
     .from(messages)
-    .where(and(eq(messages.workspaceId, workspaceId), notOwnReply, shown, search, hiddenFilter))
+    .where(
+      and(eq(messages.workspaceId, workspaceId), notOwnReply, shown, search, hiddenFilter, mailbox),
+    )
     .orderBy(sql`${messages.date} desc nulls last`, sql`${messages.messageId} desc`)
     .limit(MESSAGE_PAGE_SIZE + 1)
     .offset((page - 1) * MESSAGE_PAGE_SIZE);
@@ -190,11 +212,11 @@ export async function listInbox(
   const [hidden] = await db
     .select({ n: count() })
     .from(messages)
-    .where(and(eq(messages.workspaceId, workspaceId), notOwnReply, nonJob, search));
+    .where(and(eq(messages.workspaceId, workspaceId), notOwnReply, nonJob, search, mailbox));
 
   return {
     items: rows.slice(0, MESSAGE_PAGE_SIZE).map(toListItem),
-    nonJobCount: hidden?.n ?? 0,
+    nonJobCount: query.jobMailOnly ? 0 : (hidden?.n ?? 0),
     page,
     nextPage: rows.length > MESSAGE_PAGE_SIZE ? page + 1 : null,
   };
@@ -234,6 +256,7 @@ export async function getInboxMessage(
     ).map((o) => [o.position, o.cvId]),
   );
   const [check] = await getSenderChecks(db, workspaceId, [messageId]);
+  const assigned = await roleProfiles(db, workspaceId, messageId);
   return {
     ...toListItem(row),
     roles: facts.map((f) => {
@@ -243,6 +266,7 @@ export async function getInboxMessage(
         ...f.facts,
         evaluation,
         cvChoice: cvChoiceOf(evaluation?.cvChoice ?? null, overrides.get(f.position)),
+        profile: assigned.get(f.position) ?? null,
       };
     }),
     ownReply: row.stageOne === "own_reply",
@@ -257,6 +281,44 @@ export async function getInboxMessage(
   };
 }
 
+/** The profile each evaluated role of the message was evaluated with (F1.3), by position. */
+async function roleProfiles(
+  db: Database,
+  workspaceId: string,
+  messageId: string,
+): Promise<Map<number, RoleProfile>> {
+  const rows = await db
+    .select({
+      position: roleEvaluations.position,
+      profileId: roleEvaluations.profileId,
+      reason: roleEvaluations.profileReason,
+      source: roleEvaluations.profileSource,
+      name: profiles.name,
+    })
+    .from(roleEvaluations)
+    .innerJoin(
+      profiles,
+      and(
+        eq(profiles.workspaceId, roleEvaluations.workspaceId),
+        eq(profiles.id, roleEvaluations.profileId),
+      ),
+    )
+    .where(
+      and(eq(roleEvaluations.workspaceId, workspaceId), eq(roleEvaluations.messageId, messageId)),
+    );
+  return new Map(
+    rows.map((r) => [
+      r.position,
+      {
+        profileId: r.profileId as string,
+        name: r.name,
+        reason: r.reason ?? "",
+        source: r.source ?? "auto",
+      },
+    ]),
+  );
+}
+
 /** An editor's override wins over the evaluated (automatic) choice until it is re-evaluated. */
 function cvChoiceOf(evaluated: CvChoice | null, override: string | undefined): CvChoice | null {
   if (override === undefined) return evaluated;
@@ -265,7 +327,7 @@ function cvChoiceOf(evaluated: CvChoice | null, override: string | undefined): C
 }
 
 /**
- * Where the message lives in the mailbox (folder path, UIDVALIDITY, UID), to fetch its body on
+ * Where the message lives in its mailbox (folder path, UIDVALIDITY, UID), to fetch its body on
  * demand; null for an unknown Message-ID. The body itself is never stored.
  */
 export async function getMessageRef(
@@ -282,6 +344,23 @@ export async function getMessageRef(
     .from(messages)
     .where(and(eq(messages.workspaceId, workspaceId), eq(messages.messageId, messageId)));
   return row ?? null;
+}
+
+/**
+ * The mailbox a message lives in (MVP 3, F3.1): its id, or null for mail stored without one
+ * (before MVP 3), which reads as the workspace's first mailbox; undefined for an unknown
+ * Message-ID.
+ */
+export async function getMessageMailbox(
+  db: Database,
+  workspaceId: string,
+  messageId: string,
+): Promise<string | null | undefined> {
+  const [row] = await db
+    .select({ mailboxId: messages.mailboxId })
+    .from(messages)
+    .where(and(eq(messages.workspaceId, workspaceId), eq(messages.messageId, messageId)));
+  return row ? row.mailboxId : undefined;
 }
 
 /**

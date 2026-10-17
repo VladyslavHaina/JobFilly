@@ -135,6 +135,8 @@ describe("listInbox (F5.1)", () => {
       sender: null,
       hidden: null,
       draft: null,
+      // Saved without naming a mailbox (MVP 3, F3.1).
+      mailbox: null,
     });
     // A message the model failed on is listed, to say "Couldn't analyze".
     expect(list.items[1]).toMatchObject({ category: null, analysisStatus: "failed" });

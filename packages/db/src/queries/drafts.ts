@@ -39,6 +39,8 @@ export interface StoredDraft extends Draft {
    * after the CV was deleted (F2.5) takes the file from the copy.
    */
   attachmentName: string | null;
+  /** Who asked for it (Draft a reply); null for one the app made on its own (MVP 3, F9.1). */
+  createdBy: string | null;
 }
 
 function toDraft(row: DraftRow): StoredDraft {
@@ -74,6 +76,7 @@ function toDraft(row: DraftRow): StoredDraft {
     draftMessageId: row.draftMessageId,
     contentHash: row.contentHash,
     attachmentName: row.attachmentName,
+    createdBy: row.createdBy,
   };
 }
 
@@ -86,6 +89,7 @@ export function publicDraft(draft: StoredDraft): Draft {
     draftMessageId: _d,
     contentHash: _c,
     attachmentName: _n,
+    createdBy: _b,
     ...view
   } = draft;
   return view;

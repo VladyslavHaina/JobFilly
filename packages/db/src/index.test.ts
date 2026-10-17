@@ -48,10 +48,10 @@ describe("room on a loaded machine", () => {
 });
 
 describe("migrations", () => {
-  it("applies every migration (MVP 1, MVP 2, the CV preferred flag) once, then nothing", async () => {
+  it("applies every migration (MVP 1, MVP 2, the CV preferred flag, MVP 3) once, then nothing", async () => {
     conn = await openTestDatabase({ migrated: false });
     expect(await conn.migrationState()).toBe("missing");
-    expect(await conn.migrate()).toEqual({ applied: 3 });
+    expect(await conn.migrate()).toEqual({ applied: 4 });
     expect(await conn.migrate()).toEqual({ applied: 0 });
     expect(await conn.migrationState()).toBe("current");
   });
@@ -68,6 +68,7 @@ describe("migrations", () => {
           where t.table_schema = 'public' order by t.table_name`,
     );
     expect(rows.map((r) => r.table_name)).toEqual([
+      "activity_log",
       "ai_settings",
       "ai_usage",
       "assistant_messages",
@@ -87,16 +88,20 @@ describe("migrations", () => {
       "match_ai_answers",
       "memberships",
       "messages",
+      "oauth_states",
       "profile_cvs",
       "profile_history",
       "profiles",
       "role_cv_choices",
       "role_evaluations",
+      "role_profile_choices",
+      "role_stages",
       "roles",
       "rules",
       "scans",
       "sender_checks",
       "sender_marks",
+      "sends",
       "sessions",
       "stage_failures",
       "users",
@@ -137,15 +142,50 @@ describe("migrations", () => {
 
 const MIGRATIONS = fileURLToPath(new URL("../migrations", import.meta.url));
 
-/** A migrations folder holding only MVP 1's migration, as a deployment before MVP 2 had. */
-function mvp1Folder(): string {
-  const dir = mkdtempSync(join(tmpdir(), "jobfilly-mvp1-"));
+/**
+ * A migrations folder holding only the first `count` migrations, as a deployment of an earlier
+ * release had: 1 for MVP 1, 3 for MVP 2 (with the CV preferred flag).
+ */
+function earlierFolder(count: number): string {
+  const dir = mkdtempSync(join(tmpdir(), "jobfilly-earlier-"));
   mkdirSync(join(dir, "meta"));
-  copyFileSync(join(MIGRATIONS, "0000_mvp1.sql"), join(dir, "0000_mvp1.sql"));
   const journal = JSON.parse(readFileSync(join(MIGRATIONS, "meta", "_journal.json"), "utf8"));
-  journal.entries = journal.entries.slice(0, 1);
+  journal.entries = journal.entries.slice(0, count);
+  for (const entry of journal.entries as { tag: string }[]) {
+    copyFileSync(join(MIGRATIONS, `${entry.tag}.sql`), join(dir, `${entry.tag}.sql`));
+  }
   writeFileSync(join(dir, "meta", "_journal.json"), JSON.stringify(journal));
   return dir;
+}
+
+/** Migrates the database as an earlier release's deployment had it (see earlierFolder). */
+async function migrateEarlier(db: DatabaseConnection["db"], count: number): Promise<void> {
+  const folder = earlierFolder(count);
+  try {
+    await migrate(db as unknown as PgliteDatabase, { migrationsFolder: folder });
+  } finally {
+    rmSync(folder, { recursive: true });
+  }
+}
+
+/**
+ * A user with a workspace, written in SQL so it fits the tables of an earlier release (the
+ * current queries write columns those don't have yet).
+ */
+async function seedEarlierWorkspace(db: DatabaseConnection["db"]) {
+  const [user] = await queryRows<{ id: string }>(
+    db,
+    sql`insert into users (name, email, password_hash) values ('Maria', 'maria@inbox.example', 'h')
+        returning id`,
+  );
+  const [workspace] = await queryRows<{ id: string }>(
+    db,
+    sql`insert into workspaces (name, owner_id) values ('w', ${user?.id}) returning id`,
+  );
+  await db.execute(
+    sql`insert into memberships (workspace_id, user_id, role) values (${workspace?.id}, ${user?.id}, 'admin')`,
+  );
+  return { ws: workspace?.id as string, userId: user?.id as string };
 }
 
 async function seedWorkspace(db: DatabaseConnection["db"], email = "maria@inbox.example") {
@@ -238,19 +278,14 @@ async function seedProfileAndCv(db: DatabaseConnection["db"], ws: string, userId
 describe("the MVP 2 migration", () => {
   it("gives saved AI settings a model for each new task, from their extract model", async () => {
     conn = await openTestDatabase({ migrated: false });
-    const folder = mvp1Folder();
-    try {
-      await migrate(conn.db as unknown as PgliteDatabase, { migrationsFolder: folder });
-    } finally {
-      rmSync(folder, { recursive: true });
-    }
-    const { ws } = await seedWorkspace(conn.db);
+    await migrateEarlier(conn.db, 1);
+    const { ws } = await seedEarlierWorkspace(conn.db);
     await conn.db.execute(
       sql`insert into ai_settings (workspace_id, provider, models) values (${ws}, 'anthropic',
         ${JSON.stringify({ classify: "small", extract: "big", prefs: "big", intake: "big" })}::jsonb)`,
     );
-    // MVP 2's migration, and the CV preferred flag's after it.
-    expect(await conn.migrate()).toEqual({ applied: 2 });
+    // MVP 2's migration, the CV preferred flag's and MVP 3's after it.
+    expect(await conn.migrate()).toEqual({ applied: 3 });
     const [row] = await queryRows<{ models: Record<string, string> }>(
       conn.db,
       sql`select models from ai_settings where workspace_id = ${ws}`,
@@ -419,5 +454,86 @@ describe("openDatabase", () => {
   it("fails to ping a database that can't be reached", async () => {
     conn = openDatabase("postgres://jobfilly:x@127.0.0.1:1/jobfilly");
     await expect(conn.ping()).rejects.toThrow();
+  });
+});
+
+describe("the MVP 3 migration", () => {
+  it("files every stored message under the workspace's one mailbox and keeps scopes at everything", async () => {
+    conn = await openTestDatabase({ migrated: false });
+    await migrateEarlier(conn.db, 3);
+    const { ws, userId } = await seedEarlierWorkspace(conn.db);
+    const [mailbox] = await queryRows<{ id: string }>(
+      conn.db,
+      sql`insert into mailboxes (workspace_id, address, host, port, tls_mode, username, secret_ciphertext)
+          values (${ws}, 'maria@inbox.example', 'imap.inbox.example', 993, 'tls', 'maria', 'v1.sealed')
+          returning id`,
+    );
+    await conn.db.execute(
+      sql`insert into messages (workspace_id, message_id, folder, folder_path, uid_validity, uid,
+            from_address, to_addresses, cc_addresses, reply_to, "references", date, subject,
+            snippet, stage_one)
+          values (${ws}, '<m1@agency.example>', 'inbox', 'INBOX', 1, 1, 'r@agency.example',
+            '[]', '[]', '[]', '[]', now(), 's', '', 'likely_job')`,
+    );
+    expect(await conn.migrate()).toEqual({ applied: 1 });
+    const [message] = await queryRows<{ mailbox_id: string | null }>(
+      conn.db,
+      sql`select mailbox_id from messages where workspace_id = ${ws}`,
+    );
+    expect(message?.mailbox_id).toBe(mailbox?.id);
+    const [membership] = await queryRows<{ scope: string }>(
+      conn.db,
+      sql`select scope from memberships where workspace_id = ${ws} and user_id = ${userId}`,
+    );
+    expect(membership?.scope).toBe("everything");
+    // A second mailbox at another address is allowed now; the same address twice is not.
+    await conn.db.execute(
+      sql`insert into mailboxes (workspace_id, address, host, port, tls_mode, username, secret_ciphertext)
+          values (${ws}, 'maria.home@post.example', 'imap.post.example', 993, 'tls', 'm', 'v1.sealed')`,
+    );
+    await expect(
+      conn.db.execute(
+        sql`insert into mailboxes (workspace_id, address, host, port, tls_mode, username, secret_ciphertext)
+            values (${ws}, 'maria.home@post.example', 'imap.post.example', 993, 'tls', 'm', 'v1.sealed')`,
+      ),
+    ).rejects.toThrow();
+  });
+
+  it("deletes a mailbox's messages with it, and keeps a deleted user's scans", async () => {
+    conn = await openTestDatabase();
+    const { ws, userId } = await seedWorkspace(conn.db);
+    const [mailbox] = await queryRows<{ id: string }>(
+      conn.db,
+      sql`insert into mailboxes (workspace_id, address, host, port, tls_mode, username, secret_ciphertext)
+          values (${ws}, 'maria@inbox.example', 'imap.inbox.example', 993, 'tls', 'maria', 'v1.sealed')
+          returning id`,
+    );
+    await seedJobMessage(conn.db, ws, "<m1@agency.example>");
+    await conn.db.execute(
+      sql`update messages set mailbox_id = ${mailbox?.id} where workspace_id = ${ws}`,
+    );
+    await conn.db.execute(
+      sql`insert into scans (workspace_id, kind, counts, started_by, started_at)
+          values (${ws}, 'rerun', '{}', ${userId}, now())`,
+    );
+    await conn.db.execute(sql`delete from mailboxes where id = ${mailbox?.id}`);
+    const [left] = await queryRows<{ messages: number; roles: number }>(
+      conn.db,
+      sql`select (select count(*)::int from messages) as messages,
+                 (select count(*)::int from roles) as roles`,
+    );
+    expect(left).toEqual({ messages: 0, roles: 0 });
+    // The workspace is someone else's: deleting the user keeps the scan, without its starter.
+    const [other] = await queryRows<{ id: string }>(
+      conn.db,
+      sql`insert into users (name, email, password_hash) values ('O', 'o@x.example', 'h') returning id`,
+    );
+    await conn.db.execute(sql`update workspaces set owner_id = ${other?.id} where id = ${ws}`);
+    await conn.db.execute(sql`delete from users where id = ${userId}`);
+    const [scan] = await queryRows<{ started_by: string | null }>(
+      conn.db,
+      sql`select started_by from scans where workspace_id = ${ws}`,
+    );
+    expect(scan).toEqual({ started_by: null });
   });
 });

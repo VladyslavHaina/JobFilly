@@ -308,6 +308,8 @@ export interface MessageInputRow {
    * couldn't tell.
    */
   language: string | null;
+  /** MVP 3 (F3.1): the mailbox it lives in; null reads as the workspace's first mailbox. */
+  mailboxId: string | null;
 }
 
 /** The stage inputs of these messages (any order; unknown ids are left out). */
@@ -349,6 +351,7 @@ export async function loadMessageInputs(
     references: m.references,
     facts: byMessage.get(m.messageId) ?? [],
     language: m.language,
+    mailboxId: m.mailboxId,
   }));
 }
 

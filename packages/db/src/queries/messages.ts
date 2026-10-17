@@ -10,7 +10,20 @@ import {
   type StageOneVerdict,
   type StoredMessage,
 } from "@jobfilly/schema";
-import { and, asc, count, desc, eq, inArray, isNotNull, ne, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  inArray,
+  isNotNull,
+  isNull,
+  ne,
+  or,
+  type SQL,
+  sql,
+} from "drizzle-orm";
 import type { Database } from "../client";
 import { messages, roles, senderChecks } from "../tables";
 
@@ -106,6 +119,12 @@ function toStored(row: MessageRow): StoredMessage {
 
 const CHUNK = 200;
 
+/** The messages of one mailbox and those stored without one (before MVP 3); every one without. */
+function ofMailbox(mailboxId: string | undefined): SQL | undefined {
+  if (mailboxId === undefined) return undefined;
+  return or(eq(messages.mailboxId, mailboxId), isNull(messages.mailboxId));
+}
+
 /**
  * Saves envelopes with their stage-one verdicts. A new row starts in the state its verdict gives
  * it; an existing row (same Message-ID) gets its headers and verdict refreshed and keeps its
@@ -117,12 +136,19 @@ const CHUNK = 200;
  * One row per Message-ID: two envelopes with the same id (two copies of one message, or two
  * messages without a Message-ID whose synthetic ids agree because they say the same) are one
  * message, stored once where the newest copy (the highest UID) is, as reindexMessages keeps it.
+ *
+ * MVP 3 (F3.1): `mailboxId` names the mailbox the envelopes come from. A Message-ID already
+ * stored for another mailbox stays that mailbox's message, location and all (the first mailbox
+ * to store it keeps it); a row without a mailbox (stored before MVP 3, or by a caller that names
+ * none) takes this one.
  */
 export async function saveEnvelopes(
   db: Database,
   workspaceId: string,
   items: readonly StageOneResult[],
+  options: { mailboxId?: string } = {},
 ): Promise<void> {
+  const mailboxId = options.mailboxId ?? null;
   const byId = new Map<string, StageOneResult>();
   for (const item of items) {
     const seen = byId.get(item.envelope.messageId);
@@ -141,11 +167,14 @@ export async function saveEnvelopes(
           stageOne: verdict,
           stageOneReason: reason,
           ...initialAnalysis(verdict),
+          mailboxId,
         })),
       )
       .onConflictDoUpdate({
         target: [messages.workspaceId, messages.messageId],
+        setWhere: sql`${messages.mailboxId} is null or ${messages.mailboxId} = excluded.mailbox_id`,
         set: {
+          mailboxId: sql`coalesce(${messages.mailboxId}, excluded.mailbox_id)`,
           folder: sql`excluded.folder`,
           folderPath: sql`excluded.folder_path`,
           uidValidity: sql`excluded.uid_validity`,
@@ -196,11 +225,14 @@ export async function saveEnvelopes(
  * Message-ID header has a synthetic id from what it says (packages/mail), not from its UID, so a
  * rebuilt folder gives it the same id and it is matched like any other. Only a row stored with
  * MVP 1's synthetic id (by UIDVALIDITY and UID) can't be matched, and comes back once as new.
+ * MVP 3 (F3.1): with `mailboxId`, only that mailbox's messages (and those without a mailbox)
+ * are matched; another mailbox's copy of a Message-ID keeps its own location.
  */
 export async function reindexMessages(
   db: Database,
   workspaceId: string,
   envelopes: readonly Envelope[],
+  options: { mailboxId?: string } = {},
 ): Promise<Set<string>> {
   // One location per Message-ID: of two copies in the folder, the newest (highest UID) wins.
   const byId = new Map<string, Envelope>();
@@ -233,7 +265,13 @@ export async function reindexMessages(
       .from(
         sql`jsonb_to_recordset(${locations}::jsonb) as v(message_id text, folder text, folder_path text, uid_validity bigint, uid bigint)`,
       )
-      .where(and(eq(messages.workspaceId, workspaceId), sql`${messages.messageId} = v.message_id`))
+      .where(
+        and(
+          eq(messages.workspaceId, workspaceId),
+          sql`${messages.messageId} = v.message_id`,
+          ofMailbox(options.mailboxId),
+        ),
+      )
       .returning({ messageId: messages.messageId });
     for (const row of updated) found.add(row.messageId);
     if (updated.length === 0) continue;
@@ -259,13 +297,20 @@ export async function reindexMessages(
  * Where the stored messages of a folder end (the first sync's start, F1.1): the UIDVALIDITY of
  * the folder's newest stored message and the highest UID stored under it; null when none is.
  * What the first scan stored is then not read again, and nothing older than its window is read.
+ * MVP 3 (F3.1): with `mailboxId`, of that mailbox's messages (and those without a mailbox), so a
+ * mailbox connected later starts with no cursor of its own.
  */
 export async function newestStoredUid(
   db: Database,
   workspaceId: string,
   folderPath: string,
+  options: { mailboxId?: string } = {},
 ): Promise<{ uidValidity: number; uid: number } | null> {
-  const inFolder = and(eq(messages.workspaceId, workspaceId), eq(messages.folderPath, folderPath));
+  const inFolder = and(
+    eq(messages.workspaceId, workspaceId),
+    eq(messages.folderPath, folderPath),
+    ofMailbox(options.mailboxId),
+  );
   const [newest] = await db
     .select({ uidValidity: messages.uidValidity })
     .from(messages)

@@ -37,22 +37,25 @@ const mailbox = {
 };
 
 describe("mailboxes", () => {
-  it("stores one mailbox per workspace and refuses a second", async () => {
+  // MVP 3 replaces MVP 1's one mailbox per workspace (F2.5) with one per address (F3.1).
+  it("stores several mailboxes per workspace, one per address, the oldest first", async () => {
     const first = await createMailbox(conn.db, a, mailbox);
     expect(first.ok).toBe(true);
-    expect(await createMailbox(conn.db, a, { ...mailbox, address: "other@inbox.example" })).toEqual(
-      {
-        ok: false,
-        reason: "exists",
-      },
-    );
+    expect(await createMailbox(conn.db, a, mailbox)).toEqual({ ok: false, reason: "exists" });
+    const second = await createMailbox(conn.db, a, { ...mailbox, address: "other@inbox.example" });
+    expect(second.ok).toBe(true);
     expect((await createMailbox(conn.db, b, mailbox)).ok).toBe(true);
-    if (!first.ok) throw new Error("expected ok");
+    if (!first.ok || !second.ok) throw new Error("expected ok");
     expect(await getMailboxConnection(conn.db, a)).toEqual({
       mailboxId: first.mailboxId,
       ...mailbox,
       status: "connected",
+      authKind: "password",
     });
+    expect((await getMailboxConnection(conn.db, a, second.mailboxId))?.address).toBe(
+      "other@inbox.example",
+    );
+    expect(await getMailboxConnection(conn.db, b, second.mailboxId)).toBeNull();
   });
 
   it("deletes the mailbox with its sealed secret, only within its workspace", async () => {

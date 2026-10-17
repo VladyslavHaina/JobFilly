@@ -1,8 +1,12 @@
 import type {
+  ActivityKind,
+  ActivityRefs,
   Address,
   AiModels,
   AiProviderId,
   AnalysisStatus,
+  AnswerSource,
+  ApplicationStage,
   Category,
   CategorySource,
   Change,
@@ -21,10 +25,12 @@ import type {
   IntakeExtrasStatus,
   JobFacts,
   JobStatus,
+  MailboxAuth,
   MailboxStatus,
   MailFolder,
   Match,
   MatchAiOutput,
+  MemberScope,
   MxLookupResult,
   Preferences,
   ProfileEntry,
@@ -34,16 +40,19 @@ import type {
   ProfileValue,
   RdapLookupResult,
   Role,
+  RoleProfileSource,
   RuleAction,
   RuleEffect,
   RuleSource,
   ScanCounts,
+  ScanFocus,
   ScanKind,
   ScanStatus,
   SenderMark,
   SenderMarkScope,
   SenderReason,
   SenderVerdict,
+  SendStatus,
   StageOneVerdict,
   StopCause,
   StopReason,
@@ -74,7 +83,8 @@ import {
 // Every table. Every workspace-owned row carries workspace_id, and the queries in ./queries only
 // ever read or write it with a workspace id. Slices add no tables: a column a slice needs is
 // added here, in a new migration, by the foundation. MVP 1's tables come first, then MVP 2's
-// (migration 0001_mvp2).
+// (migration 0001_mvp2), then MVP 3's (migration 0003_mvp3; its columns on earlier tables are
+// marked MVP 3 where they are).
 //
 // A reference from one workspace-owned row to another includes workspace_id: a composite foreign
 // key to the target's (workspace_id, id) or (workspace_id, message_id), so the database itself
@@ -130,6 +140,7 @@ const workspaceId = () =>
     .references(() => workspaces.id, { onDelete: "cascade" });
 
 const ROLES = ["viewer", "editor", "admin"] as const satisfies readonly Role[];
+const SCOPES = ["everything", "pipeline"] as const satisfies readonly MemberScope[];
 
 export const memberships = pgTable(
   "memberships",
@@ -139,12 +150,15 @@ export const memberships = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     role: text("role").$type<Role>().notNull(),
+    /** MVP 3 (F6.1): what the member sees. */
+    scope: text("scope").$type<MemberScope>().notNull().default("everything"),
     createdAt: createdAt(),
   },
   (t) => [
     primaryKey({ columns: [t.workspaceId, t.userId] }),
     index("memberships_user_idx").on(t.userId),
     check("memberships_role_check", oneOf("role", ROLES)),
+    check("memberships_scope_check", oneOf("scope", SCOPES)),
   ],
 );
 
@@ -156,6 +170,8 @@ export const invites = pgTable(
     /** Stored lower case. */
     email: text("email").notNull(),
     role: text("role").$type<Role>().notNull(),
+    /** MVP 3 (F6.1): what the member will see. */
+    scope: text("scope").$type<MemberScope>().notNull().default("everything"),
     /** SHA-256 of the token in the copyable link. */
     tokenHash: text("token_hash").notNull().unique(),
     invitedBy: uuid("invited_by")
@@ -171,30 +187,57 @@ export const invites = pgTable(
     index("invites_workspace_idx").on(t.workspaceId),
     index("invites_email_idx").on(t.email),
     check("invites_role_check", oneOf("role", ROLES)),
+    check("invites_scope_check", oneOf("scope", SCOPES)),
   ],
 );
+
+const TLS_MODES = ["tls", "starttls", "none"] as const satisfies readonly TlsMode[];
+const MAILBOX_STATUSES = [
+  "connected",
+  "failing",
+  "reconnect_needed",
+] as const satisfies readonly MailboxStatus[];
 
 export const mailboxes = pgTable(
   "mailboxes",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    /** Unique: one mailbox per workspace in MVP 1 (F2.5). */
-    workspaceId: workspaceId().unique(),
+    /** Several per workspace from MVP 3 (F3.1); one per address. */
+    workspaceId: workspaceId(),
     address: text("address").notNull(),
     host: text("host").notNull(),
     port: integer("port").notNull(),
     tlsMode: text("tls_mode").$type<TlsMode>().notNull(),
     username: text("username").notNull(),
-    /** The password sealed with AES-256-GCM (apps/server secrets.ts). */
+    /**
+     * Sealed with AES-256-GCM (apps/server secrets.ts): the password, or for a Google mailbox
+     * (MVP 3) its OAuthTokens as JSON.
+     */
     secretCiphertext: text("secret_ciphertext").notNull(),
     sentFolderPath: text("sent_folder_path"),
     status: text("status").$type<MailboxStatus>().notNull().default("connected"),
+    /** MVP 3 (F3): how it signs in to IMAP and SMTP. */
+    authKind: text("auth_kind").$type<MailboxAuth>().notNull().default("password"),
+    /** MVP 3 (F4): its SMTP server; all null until set. */
+    smtpHost: text("smtp_host"),
+    smtpPort: integer("smtp_port"),
+    smtpTlsMode: text("smtp_tls_mode").$type<TlsMode>(),
+    smtpUsername: text("smtp_username"),
+    /** The SMTP password sealed; null uses the mailbox's own secret (or its OAuth token). */
+    smtpSecretCiphertext: text("smtp_secret_ciphertext"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  () => [
-    check("mailboxes_tls_mode_check", oneOf("tls_mode", ["tls", "starttls", "none"])),
-    check("mailboxes_status_check", oneOf("status", ["connected", "failing"])),
+  (t) => [
+    unique("mailboxes_workspace_id_key").on(t.workspaceId, t.id),
+    unique("mailboxes_workspace_address_key").on(t.workspaceId, t.address),
+    check("mailboxes_tls_mode_check", oneOf("tls_mode", TLS_MODES)),
+    check("mailboxes_status_check", oneOf("status", MAILBOX_STATUSES)),
+    check("mailboxes_auth_kind_check", oneOf("auth_kind", ["password", "google"])),
+    check(
+      "mailboxes_smtp_tls_mode_check",
+      sql`smtp_tls_mode is null or ${oneOf("smtp_tls_mode", TLS_MODES)}`,
+    ),
   ],
 );
 
@@ -220,15 +263,17 @@ export const scans = pgTable(
     kind: text("kind").$type<ScanKind>().notNull(),
     status: text("status").$type<ScanStatus>().notNull().default("queued"),
     stopReason: text("stop_reason").$type<StopReason>(),
+    /** MVP 3 (F1.1): a re-run's hint as typed, and what focus.v1 read from it. */
+    hint: text("hint"),
+    focus: jsonb("focus").$type<ScanFocus>(),
     /** What a failed run ran into (mailbox, ai or internal); null for every other stop. */
     stopCause: text("stop_cause").$type<StopCause>(),
     counts: jsonb("counts").$type<ScanCounts>().notNull(),
     calls: integer("calls").notNull().default(0),
     inputTokens: integer("input_tokens").notNull().default(0),
     outputTokens: integer("output_tokens").notNull().default(0),
-    startedBy: uuid("started_by")
-      .notNull()
-      .references(() => users.id),
+    /** Null once that account is gone (MVP 3, F7.3). */
+    startedBy: uuid("started_by").references(() => users.id, { onDelete: "set null" }),
     startedAt: at("started_at").notNull(),
     stoppedAt: at("stopped_at"),
   },
@@ -238,7 +283,7 @@ export const scans = pgTable(
     uniqueIndex("scans_one_active_idx")
       .on(t.workspaceId)
       .where(sql`status in ('queued', 'running')`),
-    check("scans_kind_check", oneOf("kind", ["first", "analyze_rest"])),
+    check("scans_kind_check", oneOf("kind", ["first", "analyze_rest", "rerun"])),
     check("scans_status_check", oneOf("status", SCAN_STATUSES)),
     check("scans_stop_cause_check", sql`stop_cause is null or ${oneOf("stop_cause", STOP_CAUSES)}`),
   ],
@@ -305,6 +350,13 @@ export const messages = pgTable(
      * failing, or no AI set up): after a few the sync no longer holds its cursor for it.
      */
     syncAnalysisFailures: integer("sync_analysis_failures").notNull().default(0),
+    /**
+     * MVP 3 (F3.1): the mailbox it came from. Disconnecting the mailbox deletes its messages and
+     * with them everything tied to them (F7.4). Null for mail of a mailbox disconnected before
+     * MVP 3, which reads as the workspace's first mailbox. A Message-ID seen in a second mailbox
+     * stays the first one's message.
+     */
+    mailboxId: uuid("mailbox_id"),
     searchText: text("search_text").generatedAlwaysAs(
       sql`lower(coalesce(from_name, '') || ' ' || from_address || ' ' || subject)`,
     ),
@@ -313,6 +365,12 @@ export const messages = pgTable(
   },
   (t) => [
     unique("messages_workspace_message_id_key").on(t.workspaceId, t.messageId),
+    foreignKey({
+      name: "messages_mailbox_fk",
+      columns: [t.workspaceId, t.mailboxId],
+      foreignColumns: [mailboxes.workspaceId, mailboxes.id],
+    }).onDelete("cascade"),
+    index("messages_workspace_mailbox_idx").on(t.workspaceId, t.mailboxId),
     index("messages_workspace_category_date_idx").on(t.workspaceId, t.category, t.date.desc()),
     index("messages_workspace_date_idx").on(t.workspaceId, t.date.desc()),
     index("messages_search_text_trgm_idx").using("gin", t.searchText.op("gin_trgm_ops")),
@@ -406,6 +464,8 @@ export const profiles = pgTable(
     name: text("name").notNull(),
     entries: jsonb("entries").$type<ProfileEntry[]>().notNull(),
     confirmedAt: at("confirmed_at"),
+    /** MVP 3 (F1.2): whether roles are assigned to it; at least one stays on. */
+    enabled: boolean("enabled").notNull().default(true),
     createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -438,6 +498,8 @@ export const jobs = pgTable(
      * under a live lease (claimJob).
      */
     dedupeKey: text("dedupe_key"),
+    /** MVP 3 (F4.2): not claimed before this time (a send's Undo delay); null is now. */
+    runAt: at("run_at"),
     createdAt: at("created_at").notNull(),
     updatedAt: at("updated_at").notNull(),
   },
@@ -610,6 +672,10 @@ export const roleEvaluations = pgTable(
     cvId: uuid("cv_id"),
     cvReason: text("cv_reason").notNull(),
     cvSource: text("cv_source").$type<"auto" | "you">().notNull().default("auto"),
+    /** MVP 3 (F1.3): the profile the role was evaluated with, why, and who chose it. */
+    profileId: uuid("profile_id"),
+    profileReason: text("profile_reason"),
+    profileSource: text("profile_source").$type<RoleProfileSource>(),
     stale: boolean("stale").notNull().default(false),
     /** When it was last marked stale; null while current. */
     staleSince: at("stale_since"),
@@ -630,6 +696,16 @@ export const roleEvaluations = pgTable(
     }).onDelete("set null"),
     index("role_evaluations_cv_idx").on(t.cvId),
     check("role_evaluations_cv_source_check", oneOf("cv_source", ["auto", "you"])),
+    // A profile's evaluations go with it; the roles are then evaluated again.
+    foreignKey({
+      name: "role_evaluations_profile_fk",
+      columns: [t.workspaceId, t.profileId],
+      foreignColumns: [profiles.workspaceId, profiles.id],
+    }).onDelete("cascade"),
+    check(
+      "role_evaluations_profile_source_check",
+      sql`profile_source is null or ${oneOf("profile_source", ["auto", "you"])}`,
+    ),
   ],
 );
 
@@ -767,7 +843,14 @@ export const domainLookups = pgTable(
   ],
 );
 
-const DRAFT_STATUSES_SQL = ["saving", "in_mailbox", "edited", "discarded", "failed"] as const;
+const DRAFT_STATUSES_SQL = [
+  "saving",
+  "in_mailbox",
+  "edited",
+  "discarded",
+  "failed",
+  "sent",
+] as const satisfies readonly DraftStatus[];
 
 /**
  * Reply drafts (F6). The row holds the reply text only; the quote of the original is added when
@@ -816,6 +899,7 @@ export const drafts = pgTable(
       .on(t.workspaceId, t.messageId, t.position)
       .where(sql`status <> 'discarded'`),
     index("drafts_workspace_status_idx").on(t.workspaceId, t.status),
+    unique("drafts_workspace_id_key").on(t.workspaceId, t.id),
     foreignKey({
       name: "drafts_message_fk",
       columns: [t.workspaceId, t.messageId],
@@ -922,6 +1006,8 @@ export const assistantMessages = pgTable(
     text: text("text").notNull(),
     clarify: jsonb("clarify").$type<{ question: string; choices: string[] }>(),
     proposalId: uuid("proposal_id"),
+    /** MVP 3 (F8.1): what an answer used, as refs the lookups returned. */
+    sources: jsonb("sources").$type<AnswerSource[]>(),
     createdAt: at("created_at").notNull(),
   },
   (t) => [
@@ -1043,5 +1129,185 @@ export const mailboxSync = pgTable(
       "mailbox_sync_last_error_reason_check",
       sql`last_error_reason is null or ${oneOf("last_error_reason", SYNC_FAILURE_REASONS)}`,
     ),
+  ],
+);
+
+// --- MVP 3 (migration 0003_mvp3) ---------------------------------------------------------------
+
+/**
+ * A Google sign-in waiting for its callback (F3.2): the state's SHA-256 (the state itself is only
+ * in the browser's redirect), the PKCE verifier sealed, who started it and, for a reconnect, the
+ * mailbox. One use; it expires after a few minutes.
+ */
+export const oauthStates = pgTable(
+  "oauth_states",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: workspaceId(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    provider: text("provider").$type<"google">().notNull(),
+    stateHash: text("state_hash").notNull().unique(),
+    verifierCiphertext: text("verifier_ciphertext").notNull(),
+    mailboxId: uuid("mailbox_id"),
+    createdAt: at("created_at").notNull(),
+    expiresAt: at("expires_at").notNull(),
+  },
+  (t) => [
+    foreignKey({
+      name: "oauth_states_mailbox_fk",
+      columns: [t.workspaceId, t.mailboxId],
+      foreignColumns: [mailboxes.workspaceId, mailboxes.id],
+    }).onDelete("cascade"),
+    check("oauth_states_provider_check", oneOf("provider", ["google"])),
+  ],
+);
+
+/** An editor's profile for one role (F1.3); no row means the automatic assignment. */
+export const roleProfileChoices = pgTable(
+  "role_profile_choices",
+  {
+    workspaceId: workspaceId(),
+    messageId: text("message_id").notNull(),
+    position: integer("position").notNull(),
+    profileId: uuid("profile_id").notNull(),
+    chosenBy: uuid("chosen_by").references(() => users.id, { onDelete: "set null" }),
+    chosenAt: at("chosen_at").notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.workspaceId, t.messageId, t.position] }),
+    foreignKey({
+      name: "role_profile_choices_role_fk",
+      columns: [t.workspaceId, t.messageId, t.position],
+      foreignColumns: [roles.workspaceId, roles.messageId, roles.position],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "role_profile_choices_profile_fk",
+      columns: [t.workspaceId, t.profileId],
+      foreignColumns: [profiles.workspaceId, profiles.id],
+    }).onDelete("cascade"),
+  ],
+);
+
+const SEND_STATUSES = [
+  "scheduled",
+  "cancelled",
+  "sending",
+  "sent",
+  "failed",
+] as const satisfies readonly SendStatus[];
+
+/**
+ * One confirmed send (F4): the draft and the exact content confirmed (its content hash), when it
+ * goes (send_at, the Undo delay), and what became of it. At most one waits or runs per draft.
+ */
+export const sends = pgTable(
+  "sends",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: workspaceId(),
+    draftId: uuid("draft_id").notNull(),
+    messageId: text("message_id").notNull(),
+    position: integer("position").notNull(),
+    mailboxId: uuid("mailbox_id"),
+    contentHash: text("content_hash").notNull(),
+    status: text("status").$type<SendStatus>().notNull().default("scheduled"),
+    sendAt: at("send_at").notNull(),
+    /** The sent message's own Message-ID, chosen before it is sent, so a retry sends it once. */
+    outgoingMessageId: text("outgoing_message_id"),
+    sentAt: at("sent_at"),
+    failureReason: text("failure_reason"),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: at("created_at").notNull(),
+    updatedAt: at("updated_at").notNull(),
+  },
+  (t) => [
+    foreignKey({
+      name: "sends_draft_fk",
+      columns: [t.workspaceId, t.draftId],
+      foreignColumns: [drafts.workspaceId, drafts.id],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "sends_message_fk",
+      columns: [t.workspaceId, t.messageId],
+      foreignColumns: [messages.workspaceId, messages.messageId],
+    }).onDelete("cascade"),
+    uniqueIndex("sends_one_pending_idx")
+      .on(t.draftId)
+      .where(sql`status in ('scheduled', 'sending')`),
+    index("sends_workspace_draft_idx").on(t.workspaceId, t.draftId),
+    check("sends_status_check", oneOf("status", SEND_STATUSES)),
+  ],
+);
+
+const APPLICATION_STAGES_SQL = [
+  "new",
+  "replied",
+  "applied",
+  "interview",
+  "assessment",
+  "offer",
+  "rejected",
+  "closed",
+] as const satisfies readonly ApplicationStage[];
+
+/** A stage an editor set by hand (F5.1); it wins over the stage derived from the mail. */
+export const roleStages = pgTable(
+  "role_stages",
+  {
+    workspaceId: workspaceId(),
+    messageId: text("message_id").notNull(),
+    position: integer("position").notNull(),
+    stage: text("stage").$type<ApplicationStage>().notNull(),
+    setBy: uuid("set_by").references(() => users.id, { onDelete: "set null" }),
+    setAt: at("set_at").notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.workspaceId, t.messageId, t.position] }),
+    foreignKey({
+      name: "role_stages_role_fk",
+      columns: [t.workspaceId, t.messageId, t.position],
+      foreignColumns: [roles.workspaceId, roles.messageId, roles.position],
+    }).onDelete("cascade"),
+    check("role_stages_stage_check", oneOf("stage", APPLICATION_STAGES_SQL)),
+  ],
+);
+
+const ACTIVITY_KINDS_SQL = [
+  "draft.saved",
+  "mail.sent",
+  "member.invited",
+  "member.role_changed",
+  "member.scope_changed",
+  "member.removed",
+  "member.left",
+  "workspace.ownership_transferred",
+  "export.downloaded",
+  "mailbox.disconnected",
+  "account.deleted",
+] as const satisfies readonly ActivityKind[];
+
+/**
+ * The activity log (F9): outward and sharing actions. Ids only, never a name or an address: an
+ * actor or target whose account is gone becomes null ("Deleted user", F7.3).
+ */
+export const activityLog = pgTable(
+  "activity_log",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: workspaceId(),
+    at: at("at").notNull().defaultNow(),
+    kind: text("kind").$type<ActivityKind>().notNull(),
+    /** user, or system for what the app did on its own (an automatic draft). */
+    actorKind: text("actor_kind").$type<"user" | "system">().notNull(),
+    actorId: uuid("actor_id").references(() => users.id, { onDelete: "set null" }),
+    targetUserId: uuid("target_user_id").references(() => users.id, { onDelete: "set null" }),
+    refs: jsonb("refs").$type<ActivityRefs>().notNull().default({}),
+  },
+  (t) => [
+    index("activity_log_workspace_at_idx").on(t.workspaceId, t.at.desc()),
+    check("activity_log_kind_check", oneOf("kind", ACTIVITY_KINDS_SQL)),
+    check("activity_log_actor_kind_check", oneOf("actor_kind", ["user", "system"])),
   ],
 );

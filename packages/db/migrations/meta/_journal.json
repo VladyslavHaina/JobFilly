@@ -22,6 +22,13 @@
       "when": 1792174982586,
       "tag": "0002_cv_preferred",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792209015363,
+      "tag": "0003_mvp3",
+      "breakpoints": true
     }
   ]
 }

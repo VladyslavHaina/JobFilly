@@ -14,24 +14,30 @@
 export { type Database, type DatabaseConnection, openDatabase } from "./client";
 export type { Notifier, Unlisten } from "./notify";
 export * from "./queries/accounts";
+export * from "./queries/activity";
 export * from "./queries/ai-settings";
+export * from "./queries/applications";
+export * from "./queries/assignments";
 export * from "./queries/assistant";
 export * from "./queries/cvs";
 export * from "./queries/decisions";
 export * from "./queries/draft-claims";
 export * from "./queries/drafts";
 export * from "./queries/evaluations";
+export * from "./queries/export";
 export * from "./queries/inbox";
 export * from "./queries/invites";
 export * from "./queries/jobs";
 export * from "./queries/mailboxes";
 export * from "./queries/match";
 export * from "./queries/messages";
+export * from "./queries/oauth";
 export * from "./queries/profile-changes";
 export * from "./queries/profiles";
 export * from "./queries/rules";
 export * from "./queries/scans";
 export * from "./queries/senders";
+export * from "./queries/sends";
 export * from "./queries/sessions";
 export {
   type BackOff,

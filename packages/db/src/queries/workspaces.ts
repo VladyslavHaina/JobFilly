@@ -52,6 +52,7 @@ export async function listWorkspacesForUser(
       name: workspaces.name,
       ownerId: workspaces.ownerId,
       role: memberships.role,
+      scope: memberships.scope,
     })
     .from(memberships)
     .innerJoin(workspaces, eq(workspaces.id, memberships.workspaceId))
@@ -72,6 +73,7 @@ export async function getMembership(
       name: workspaces.name,
       ownerId: workspaces.ownerId,
       role: memberships.role,
+      scope: memberships.scope,
     })
     .from(memberships)
     .innerJoin(workspaces, eq(workspaces.id, memberships.workspaceId))
@@ -86,6 +88,7 @@ export async function listMembers(db: Database, workspaceId: string): Promise<Me
       name: users.name,
       email: users.email,
       role: memberships.role,
+      scope: memberships.scope,
       ownerId: workspaces.ownerId,
     })
     .from(memberships)

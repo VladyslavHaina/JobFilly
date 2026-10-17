@@ -204,6 +204,7 @@ const toProfile = (row: ProfileRow): Profile => ({
   name: row.name,
   entries: row.entries,
   confirmedAt: row.confirmedAt?.toISOString() ?? null,
+  enabled: row.enabled,
 });
 
 /** The workspace's profiles, oldest first. */

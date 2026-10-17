@@ -129,6 +129,7 @@ export function mailboxRoutes(deps: AppDeps) {
         ...stored,
         mailboxId: created.mailboxId,
         status: "connected",
+        authKind: "password",
       });
       return c.json(body, 201);
     })
