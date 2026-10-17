@@ -70,7 +70,7 @@ describe.skipIf(!hasHelm)("the Helm chart", () => {
     expect(container.image).toMatch(/^jobfilly:\S+$/);
     expect(container.volumeMounts).toContainEqual({ name: "tmp", mountPath: "/tmp" });
     expect(pod.volumes).toContainEqual({ name: "tmp", emptyDir: {} });
-    expect(container.resources.requests).toEqual({ cpu: "100m", memory: "256Mi" });
+    expect(container.resources.requests).toEqual({ cpu: "50m", memory: "192Mi" });
 
     expect(one(ms, "PodDisruptionBudget").spec.minAvailable).toBe(1);
     expect(one(ms, "ConfigMap").data).toMatchObject({

@@ -273,5 +273,8 @@ Built only once MVP 3 has a sign-off row.
 - **H3** PostgreSQL is external by default (`DATABASE_URL`); a bundled database for trying it out
   can be switched on.
 - **H4** `helm lint` and `helm template` are clean.
-- **H5** Installed on the owner's local cluster with the test services in a separate namespace, the
-  full MVP 1–3 suite passes against the Ingress. A `helm upgrade` may cause brief downtime.
+- **H5** Installed on the owner's local cluster with the test services in a separate namespace, a
+  smoke run through the Ingress passes: register, connect the test mailbox, set the fake AI, the
+  first scan fills the inbox with job mail, a reply draft lands in the mailbox's Drafts; the probes
+  are healthy and a deleted pod comes back. The full MVP 1–3 suite stays on the Docker test stack,
+  where it controls the containers. A `helm upgrade` may cause brief downtime.

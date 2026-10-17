@@ -52,11 +52,11 @@ secret:
 # JOBFILLY_SECRET_KEY and, optionally, JOBFILLY_GOOGLE_CLIENT_ID and JOBFILLY_GOOGLE_CLIENT_SECRET.
 existingSecret: ""
 
-# Placeholders until the soak run (MVP 3, F10.3) records the observed use; it sets the final values.
+# From the MVP 3 soak (F10.3/F10.4): 115–140 MiB and about 1% of a core per replica, 15% at peak.
 resources:
   requests:
-    cpu: 100m
-    memory: 256Mi
+    cpu: 50m
+    memory: 192Mi
   limits:
     memory: 512Mi
 

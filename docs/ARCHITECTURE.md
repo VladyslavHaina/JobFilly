@@ -583,8 +583,7 @@ dependencies, so it renders offline.
 - A Deployment of 2 replicas: liveness on `/api/health/live`, readiness on `/api/health/ready`,
   the container port from `port` (`PORT`, 8787), the image's `node` user (uid 1000), a read-only
   root filesystem with an `emptyDir` on `/tmp`, `terminationGracePeriodSeconds` 30, and
-  `resources` as placeholders (requests 100m CPU and 256Mi, limit 512Mi) until the soak sets
-  them. A Service, an optional Ingress (`ingress.enabled`, `className`, `host`,
+  `resources` from the soak (requests 50m CPU and 192Mi, limit 512Mi). A Service, an optional Ingress (`ingress.enabled`, `className`, `host`,
   `tls.secretName`), and a PodDisruptionBudget (`minAvailable: 1`) only when `replicaCount` is 2
   or more. An optional Istio `DestinationRule` (`istio.destinationRule.enabled`, off) hashes on
   the `jf_session` cookie; the app doesn't need it.

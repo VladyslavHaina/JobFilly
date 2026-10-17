@@ -5765,3 +5765,16 @@ These make sign-off possible; without them the build goes on and records an open
 - **Refs:** MVP-3 F3.3, S4, S5
 - **Status:** accepted
 
+## TBD-454 · The Helm chart is proven by an install and a smoke run
+- **Kind:** decision
+- **Where:** Helm chart · H5 (owner change, 2026-10-17)
+- **Context:** H5 asked for the full MVP 1–3 suite against the Ingress. About a quarter of the specs control Docker containers directly (kill or pause a replica, stop Postgres, pause the mail server); on Kubernetes each would need rewriting for kubectl, while the same behaviour is already proven on the Docker test stack.
+- **Options:**
+  1. The full suite on Kubernetes
+  2. Install and a smoke run through the Ingress
+  3. Lint and template only
+- **Chosen:** Option 2, by the owner. docs/mvp/MVP-3.md H5 now describes the smoke run; the chart's resources come from the soak (requests 50m CPU and 192Mi, limit 512Mi).
+- **If you decide otherwise:** Port the container-controlling spec steps to kubectl and run e2e/specs against the Ingress.
+- **Refs:** MVP-3 H1–H5, TBD-452
+- **Status:** accepted
+
