@@ -253,6 +253,31 @@ describe("connected mailboxes (MVP 3 F3.1, F7.4; replacing F2.5's one)", () => {
     expect(seen.find((r) => r.method === "DELETE")?.path).toBe(`${base}/${mailbox.id}`);
   });
 
+  it("doesn't ask for a disconnected mailbox's removal summary again", async () => {
+    let items = [mailbox];
+    const seen = fakeApi({
+      [`GET ${base}`]: () => ({ items }),
+      [`GET ${base}/presets`]: { items: presets },
+      // Once the mailbox is gone its summary is a 404, as on the server.
+      [`GET ${base}/:id/removal`]: () =>
+        items.length ? removal : json({ error: "not_found" }, 404),
+      [`DELETE ${base}/:id`]: () => {
+        items = [];
+        return new Response(null, { status: 204 });
+      },
+    });
+    const user = userEvent.setup();
+    renderInWorkspace(<MailboxForm workspaceId={ws.id} mode="settings" />);
+    await user.click(
+      await screen.findByRole("button", { name: "Disconnect maria.santos@inbox.example" }),
+    );
+    await screen.findByText("Disconnect maria.santos@inbox.example?");
+    await user.click(screen.getByRole("button", { name: "Disconnect and delete its data" }));
+    expect(await screen.findByLabelText("Mail provider")).toBeTruthy();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(seen.filter((r) => r.path.endsWith("/removal"))).toHaveLength(1);
+  });
+
   it("keeps the mailbox when the user changes their mind", async () => {
     const seen = api({}, [mailbox]);
     const user = userEvent.setup();

@@ -43,15 +43,21 @@ const errorText = (error: unknown) =>
 
 const mailboxKey = (workspaceId: string) =>
   [...queryKeys.area(workspaceId, "workspace"), "mailboxes"] as const;
+/** The last part of a mailbox's removal summary key. */
+const REMOVAL = "removal";
 
 /**
  * After a connect or disconnect: this form's mailboxes and the mailbox status (F1.4) in the inbox
  * header and Settings › Mailbox, which reads the same list under the "mailbox" area, and the
- * inbox, whose mail a disconnect removes.
+ * inbox, whose mail a disconnect removes. Not a mailbox's removal summary: after a disconnect
+ * that mailbox is gone (a refetch would 404), and the summary is fetched afresh on every open.
  */
 function refreshMailboxes(client: QueryClient, workspaceId: string) {
   return Promise.all([
-    client.invalidateQueries({ queryKey: mailboxKey(workspaceId) }),
+    client.invalidateQueries({
+      queryKey: mailboxKey(workspaceId),
+      predicate: (query) => query.queryKey.at(-1) !== REMOVAL,
+    }),
     client.invalidateQueries({ queryKey: queryKeys.area(workspaceId, "mailbox") }),
     client.invalidateQueries({ queryKey: queryKeys.area(workspaceId, "messages") }),
   ]);
@@ -121,7 +127,7 @@ function DisconnectConfirmation(props: { mailbox: MailboxPublic; onKeep: () => v
   const client = useQueryClient();
   const path = `${apiPaths.workspace(workspaceId)}/mailboxes/${props.mailbox.id}`;
   const summary = useQuery({
-    queryKey: [...mailboxKey(workspaceId), props.mailbox.id, "removal"],
+    queryKey: [...mailboxKey(workspaceId), props.mailbox.id, REMOVAL],
     queryFn: () => api(`${path}/removal`, MailboxRemovalSummarySchema),
     staleTime: 0,
   });
