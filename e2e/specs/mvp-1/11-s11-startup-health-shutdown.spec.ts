@@ -21,15 +21,17 @@ import {
 // S11 of docs/mvp/MVP-1.md: startup, health and shutdown (F7.1, F7.2, F7.4, F7.5), a shell
 // scenario on the test stack's compose project. The slow request is a Settings › AI Test that the
 // fake AI holds for FAKE_AI_SLOW_TEST_MS (TBD-33: the stateless fake-ai is started again with
-// 15000, and with 0 at the end). The proxy picks a replica per request, so app-a is paused while
-// the browser's Test request and its live-update stream open: the proxy takes it out and sends
-// them to app-b. (They can't be routed to app-b's direct port instead: that is another origin to
-// the browser, which then leaves the session cookie off fetch and EventSource requests.) app-a
-// is unpaused before app-b goes down, and the stream reconnects through the proxy. Whatever
-// happens, the cleanup leaves Postgres, both replicas and a quick fake AI up and ready, the state
-// MVP 2's specs start from.
+// 15000, and with 0 at the end). The proxy picks a replica per request, so every other replica
+// (app-a, and app-c from MVP 3) is paused while the browser's Test request and its live-update
+// stream open: the proxy takes them out and sends both to app-b. (They can't be routed to app-b's
+// direct port instead: that is another origin to the browser, which then leaves the session
+// cookie off fetch and EventSource requests.) They are unpaused before app-b goes down, and the
+// stream reconnects through the proxy. Whatever happens, the cleanup leaves Postgres, every
+// replica and a quick fake AI up and ready, the state MVP 2's specs start from.
 
 const SLOW_TEST_MS = "15000";
+/** The replicas paused so that the proxy sends the slow request and the stream to app-b. */
+const NOT_B = REPLICAS.filter((replica) => replica !== "app-b");
 
 const waitReady = (port: number) =>
   expect.poll(() => ready(port), { timeout: 180_000, intervals: [1_000] }).toBe(200);
@@ -50,7 +52,7 @@ async function restartFakeAi(slowTestMs: string) {
 test("S11: startup, health and shutdown", async ({ page }) => {
   test.setTimeout(15 * 60_000);
   let slowFakeAi = false;
-  let appAPaused = false;
+  let othersPaused = false;
 
   await withCleanup(
     async () => {
@@ -64,7 +66,7 @@ test("S11: startup, health and shutdown", async ({ page }) => {
         expect(`${run.stdout}${run.stderr}`).toContain("DATABASE_URL is required");
       });
 
-      await test.step("both replicas: a non-root user, a read-only root, the configured port", async () => {
+      await test.step("every replica: a non-root user, a read-only root, the configured port", async () => {
         for (const replica of REPLICAS) {
           const id = compose(["ps", "--quiet", replica]).trim();
           expect(id, `${replica} runs`).not.toBe("");
@@ -91,8 +93,7 @@ test("S11: startup, health and shutdown", async ({ page }) => {
           .poll(() => ready(DIRECT_PORTS["app-a"]), { timeout: 60_000, intervals: [1_000] })
           .toBe(503);
         compose(["start", "postgres"]);
-        await waitReady(DIRECT_PORTS["app-a"]);
-        await waitReady(DIRECT_PORTS["app-b"]);
+        for (const replica of REPLICAS) await waitReady(DIRECT_PORTS[replica]);
       });
 
       await test.step("SIGTERM on app-b with a slow request and a live stream open on it", async () => {
@@ -101,10 +102,10 @@ test("S11: startup, health and shutdown", async ({ page }) => {
         const mark = serviceLog("app-b").length;
 
         const beforePause = proxyMark();
-        compose(["pause", "app-a"]);
-        appAPaused = true;
-        // Until the proxy has taken app-a out, a page load can still send a request there to hang.
-        await waitProxyDrops("app-a", beforePause);
+        compose(["pause", ...NOT_B]);
+        othersPaused = true;
+        // Until the proxy has taken them out, a page load can still send a request there to hang.
+        for (const replica of NOT_B) await waitProxyDrops(replica, beforePause);
         await signIn(page, "maria");
         await openSettingsTab(page, "AI");
 
@@ -112,10 +113,10 @@ test("S11: startup, health and shutdown", async ({ page }) => {
         await page.getByRole("button", { name: "Test", exact: true }).click();
         await sent;
         await expect(page.getByText("Waiting for the AI to answer…")).toBeVisible();
-        // The proxy has app-a again for the stream to reconnect to.
-        compose(["unpause", "app-a"]);
-        appAPaused = false;
-        await waitProxyRoutesTo("app-a");
+        // The proxy has the others again for the stream to reconnect to.
+        compose(["unpause", ...NOT_B]);
+        othersPaused = false;
+        for (const replica of NOT_B) await waitProxyRoutesTo(replica);
         // Still in flight: app-b goes down with the slow request open on it.
         await expect(page.getByText("Waiting for the AI to answer…")).toBeVisible();
         const reconnected = page.waitForResponse(
@@ -152,7 +153,7 @@ test("S11: startup, health and shutdown", async ({ page }) => {
       });
     },
     async () => {
-      if (appAPaused) compose(["unpause", "app-a"]);
+      if (othersPaused) compose(["unpause", ...NOT_B]);
       compose(["start", "postgres", ...REPLICAS]);
       if (slowFakeAi) await restartFakeAi("0");
       for (const replica of REPLICAS) await waitReady(DIRECT_PORTS[replica]);

@@ -7,7 +7,8 @@
 #   docker compose -p <project> -f docker/compose.e2e.yaml run --rm seed load maria
 # Every password and key in here is a test value for this loopback-only stack, never a real one.
 
-# The app, as two interchangeable replicas built from the production image.
+# The app, as three interchangeable replicas built from the production image (app-c from MVP 3,
+# F10.1).
 x-app: &app
   build:
     context: ..
@@ -71,6 +72,7 @@ services:
       - "127.0.0.1:8080:8080"
       - "127.0.0.1:8081:8081"
       - "127.0.0.1:8082:8082"
+      - "127.0.0.1:8083:8083"
       # MVP 3: the fake Google authorisation server's consent page, for the browser.
       - "127.0.0.1:8084:8084"
     volumes:
@@ -78,6 +80,7 @@ services:
     depends_on:
       - app-a
       - app-b
+      - app-c
       - oauth
 
   app-a:
@@ -87,6 +90,10 @@ services:
   app-b:
     <<: *app
     hostname: app-b
+
+  app-c:
+    <<: *app
+    hostname: app-c
 
   postgres:
     image: postgres:17

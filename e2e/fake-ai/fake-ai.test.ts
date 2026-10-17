@@ -443,6 +443,52 @@ describe("answers the fake AI has none for", () => {
   });
 });
 
+// The reply the app sent in MVP 3 S5 is in the Sent folder under a Message-ID it made up at
+// runtime, and the re-run in S10 reads it: no fixture can name it.
+describe("mail the app wrote itself, by its <uuid@domain> Message-ID", () => {
+  const sent = "<30ed63bd-5c1a-4f0e-9b7d-2a6c8e41f9d3@inbox.example>";
+  const offer = MARIA_KEY_MESSAGES.offer;
+
+  it("is read for preferences as stating none", () => {
+    expect(contentOf("prefs.v1", [sent])).toEqual({
+      items: [{ messageId: sent, preferences: {} }],
+    });
+  });
+
+  it("is classified not_job, next to fixture mail answered as before", () => {
+    expect(contentOf("classify.v1", [offer, sent])).toEqual({
+      items: [
+        { messageId: offer, category: "offer" },
+        { messageId: sent, category: "not_job" },
+      ],
+    });
+  });
+
+  const lines: Record<string, unknown>[] = [];
+  const log = (line: Record<string, unknown>) => lines.push(line);
+  it.each([
+    ["extract.v1", [sent]],
+    ["intake.v1", [sent]],
+    // Any other shape is a missing fixture, as before.
+    ["prefs.v1", ["<unknown@nowhere.example>"]],
+    ["classify.v1", ["<30ed63bd@inbox.example>"]],
+  ])("still gets HTTP 500 for any other task or shape (%s %j)", (taskId, ids) => {
+    lines.length = 0;
+    const reply = respond(promptFor(taskId, ids), { store, log });
+    expect(reply.status).toBe(500);
+    expect(lines[0]).toMatchObject({ event: "fake_ai.no_answer", taskId, messageIds: ids });
+  });
+
+  it("still gets HTTP 500 for match.v1 and draft.v1", () => {
+    for (const [taskId, keys] of [
+      ["match.v1", { "Message-ID": sent, Role: "0" }],
+      ["draft.v1", { "Message-ID": sent, Role: "0", Attempt: "1" }],
+    ] as const) {
+      expect(respond(keyedPrompt(taskId, keys, "mail"), { store, log: noLog }).status).toBe(500);
+    }
+  });
+});
+
 describe("the fake AI's assistant answers", () => {
   const requests = readJson<AssistantRequest[]>(join(fixturesDir(), ASSISTANT_REQUESTS_PATH));
 

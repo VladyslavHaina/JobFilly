@@ -56,6 +56,7 @@ describe("docker/compose.e2e.yaml", () => {
       [
         "app-a",
         "app-b",
+        "app-c",
         "dns",
         "fake-ai",
         "imap",
@@ -68,11 +69,12 @@ describe("docker/compose.e2e.yaml", () => {
     );
   });
 
-  it("publishes only the proxy, on loopback, at :8080, the direct ports :8081 and :8082, and the fake OAuth server's :8084", () => {
+  it("publishes only the proxy, on loopback, at :8080, the direct ports :8081 to :8083, and the fake OAuth server's :8084", () => {
     expect(services.proxy?.ports).toEqual([
       "127.0.0.1:8080:8080",
       "127.0.0.1:8081:8081",
       "127.0.0.1:8082:8082",
+      "127.0.0.1:8083:8083",
       "127.0.0.1:8084:8084",
     ]);
     expect(services.proxy?.image).toMatch(/^haproxy:/);
@@ -84,7 +86,8 @@ describe("docker/compose.e2e.yaml", () => {
     }
   });
 
-  describe.each(["app-a", "app-b"])("%s", (name) => {
+  // Three replicas from MVP 3 (F10.1).
+  describe.each(["app-a", "app-b", "app-c"])("%s", (name) => {
     const app = services[name] ?? {};
 
     it("is a replica of the production image, named by its hostname", () => {
@@ -153,10 +156,16 @@ describe("docker/compose.e2e.yaml", () => {
     });
   });
 
-  it("gives both replicas the same configuration", () => {
+  it("gives every replica the same configuration", () => {
     const { hostname: _a, ...a } = services["app-a"] ?? {};
     const { hostname: _b, ...b } = services["app-b"] ?? {};
+    const { hostname: _c, ...c } = services["app-c"] ?? {};
     expect(a).toEqual(b);
+    expect(a).toEqual(c);
+  });
+
+  it("starts the proxy after every replica and the fake OAuth server", () => {
+    expect(services.proxy?.depends_on).toEqual(["app-a", "app-b", "app-c", "oauth"]);
   });
 
   it("checks the database's health and keeps its data in a volume that down removes", () => {
@@ -709,7 +718,7 @@ describe("docker/proxy/haproxy.cfg", () => {
     return sections.get(`backend ${name}`) ?? [];
   };
 
-  it("balances :8080 round-robin over both replicas, checking /api/health/ready", () => {
+  it("balances :8080 round-robin over every replica, checking /api/health/ready", () => {
     const backend = backendOf("bind :8080");
     expect(backend).toContain("balance roundrobin");
     expect(backend).toContain("option httpchk");
@@ -720,6 +729,7 @@ describe("docker/proxy/haproxy.cfg", () => {
     expect(backend.filter((l) => l.startsWith("server "))).toEqual([
       `server app-a app-a:${port} check inter 1s fall 2 rise 1`,
       `server app-b app-b:${port} check inter 1s fall 2 rise 1`,
+      `server app-c app-c:${port} check inter 1s fall 2 rise 1`,
     ]);
   });
 
@@ -731,9 +741,10 @@ describe("docker/proxy/haproxy.cfg", () => {
     }
   });
 
-  it("exposes app-a on :8081 and app-b on :8082 directly, passing their own answers through", () => {
+  it("exposes app-a on :8081, app-b on :8082 and app-c on :8083 directly, passing their own answers through", () => {
     expect(backendOf("bind :8081")).toEqual([`server app-a app-a:${port}`]);
     expect(backendOf("bind :8082")).toEqual([`server app-b app-b:${port}`]);
+    expect(backendOf("bind :8083")).toEqual([`server app-c app-c:${port}`]);
   });
 
   it("passes :8084 to the fake OAuth server, for the browser's sign-in (MVP 3)", () => {
@@ -926,11 +937,12 @@ describe("stack up", () => {
       "http://127.0.0.1:8080/api/health/ready",
       "http://127.0.0.1:8081/api/health/ready",
       "http://127.0.0.1:8082/api/health/ready",
+      "http://127.0.0.1:8083/api/health/ready",
     ]);
     expect(f.elapsed()).toBe(3_000);
     expect(f.out).toContain(`Test stack is up: ${PROJECT}`);
     expect(f.out).toContain(
-      `  Logs:  docker compose -p ${PROJECT} -f docker/compose.e2e.yaml logs -f --no-log-prefix app-a app-b`,
+      `  Logs:  docker compose -p ${PROJECT} -f docker/compose.e2e.yaml logs -f --no-log-prefix app-a app-b app-c`,
     );
     expect(f.project()).toBe(PROJECT);
   });

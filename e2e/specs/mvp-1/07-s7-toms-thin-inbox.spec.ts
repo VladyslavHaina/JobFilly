@@ -14,6 +14,9 @@ import { AI_KEY, FAKE_AI_URL, INTAKE_LABELS, openSettingsTab, signIn } from "../
 // S7 of docs/mvp/MVP-1.md: Tom's thin inbox (F2.5, F4.4, F6.6), in his own workspace. The two
 // answers he fills in are his own words (docs/mvp/MVP-1.md › Personas): no mail of his says them.
 // The test stack's imap service speaks plain-text IMAP on 3143 (docker/compose.e2e.yaml).
+// MVP 3 replaces MVP 1's one-mailbox limit (docs/mvp/MVP-3.md › Replaces from earlier MVPs, S13),
+// so this spec no longer checks that a second mailbox can't be added; Tom still connects,
+// disconnects and connects again.
 
 const FILLED: { key: CoreKey; value: string }[] = [
   { key: "target_roles", value: "Band 6 nurse" },
@@ -34,12 +37,12 @@ async function fillMailbox(page: Page) {
   await expect(page.getByText("Connected: Inbox, Sent")).toBeVisible();
 }
 
-/** The connected mailbox, with no way to add another one (one per workspace until MVP 3). */
-async function expectOneMailbox(page: Page) {
-  await expect(page.getByRole("heading", { name: "Connected mailbox", exact: true })).toBeVisible();
-  await expect(page.getByText(PERSONA_ADDRESSES.tom)).toBeVisible();
-  await expect(page.getByText("A workspace has one mailbox.", { exact: false })).toBeVisible();
-  await expect(page.getByLabel("Mail provider")).toHaveCount(0);
+/** Tom's mailbox card in Settings › Mailbox: its heading and his address. */
+function tomsMailbox(page: Page) {
+  return page
+    .locator("section")
+    .filter({ has: page.getByRole("heading", { name: "Connected mailbox", exact: true }) })
+    .filter({ hasText: PERSONA_ADDRESSES.tom });
 }
 
 test("S7: Tom's thin inbox", async ({ page }) => {
@@ -60,17 +63,21 @@ test("S7: Tom's thin inbox", async ({ page }) => {
     ).toBeVisible();
   });
 
-  await test.step("disconnects it and connects it again; never a second one", async () => {
+  await test.step("disconnects it and connects it again", async () => {
     await openSettingsTab(page, "Mailbox");
-    await expectOneMailbox(page);
-    await page.getByRole("button", { name: "Disconnect", exact: true }).click();
-    await page
-      .getByRole("button", { name: "Disconnect and delete the stored password", exact: true })
-      .click();
+    const card = tomsMailbox(page);
+    await expect(card).toHaveCount(1);
+    // Disconnect, then its confirmation ("Disconnect and delete its data", which may name the
+    // address): one button starting "Disconnect" at a time.
+    const disconnect = card.getByRole("button", { name: /^Disconnect/ });
+    await disconnect.click();
+    await expect(card.getByRole("button", { name: "Keep it", exact: true })).toBeVisible();
+    await disconnect.click();
+    await expect(card).toHaveCount(0);
     await expect(page.getByLabel("Mail provider")).toBeVisible();
     await fillMailbox(page);
     await page.getByRole("button", { name: "Save", exact: true }).click();
-    await expectOneMailbox(page);
+    await expect(card).toHaveCount(1);
   });
 
   await test.step("sets up the AI in his own workspace", async () => {
