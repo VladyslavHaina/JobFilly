@@ -1,5 +1,5 @@
 import { type MailboxSyncStatus, NEVER_SYNCED, type SyncFailureReason } from "@jobfilly/schema";
-import { and, eq, exists, gt, inArray, sql } from "drizzle-orm";
+import { and, eq, exists, gt, inArray, ne, sql } from "drizzle-orm";
 import type { Database } from "../client";
 import { mailboxes, mailboxSync, messages, scans } from "../tables";
 
@@ -134,10 +134,17 @@ export async function recordSyncFailure(
         target: [mailboxSync.mailboxId, mailboxSync.folderPath],
         set: { ...values, failingSince: sql`coalesce(${mailboxSync.failingSince}, ${input.at})` },
       });
+    // A mailbox waiting to be signed in to again (MVP 3, F3.2) keeps saying so.
     await tx
       .update(mailboxes)
       .set({ status: "failing" })
-      .where(and(eq(mailboxes.workspaceId, workspaceId), eq(mailboxes.id, mailboxId)));
+      .where(
+        and(
+          eq(mailboxes.workspaceId, workspaceId),
+          eq(mailboxes.id, mailboxId),
+          ne(mailboxes.status, "reconnect_needed"),
+        ),
+      );
     return true;
   });
 }
@@ -244,7 +251,7 @@ export interface MailboxToSync {
 }
 
 /**
- * The scheduler's listing across workspaces: every connected mailbox whose workspace's first
+ * The scheduler's listing across workspaces: every mailbox whose workspace's first
  * scan has stopped (the sync never runs before, F1), with the back-off of `folderPath`. The
  * scheduler only enqueues the mail.sync jobs; each job then works through the workspace-scoped
  * functions.
@@ -265,17 +272,21 @@ export async function listMailboxesToSync(
       and(eq(mailboxSync.mailboxId, mailboxes.id), eq(mailboxSync.folderPath, folderPath)),
     )
     .where(
-      exists(
-        db
-          .select({ one: sql`1` })
-          .from(scans)
-          .where(
-            and(
-              eq(scans.workspaceId, mailboxes.workspaceId),
-              eq(scans.kind, "first"),
-              eq(scans.status, "stopped"),
+      and(
+        // MVP 3 (F3.2): not one whose sign-in Google refused, until the user signs in again.
+        ne(mailboxes.status, "reconnect_needed"),
+        exists(
+          db
+            .select({ one: sql`1` })
+            .from(scans)
+            .where(
+              and(
+                eq(scans.workspaceId, mailboxes.workspaceId),
+                eq(scans.kind, "first"),
+                eq(scans.status, "stopped"),
+              ),
             ),
-          ),
+        ),
       ),
     );
   return rows.map((r) => ({ ...r, nextAttemptAt: r.nextAttemptAt ?? null }));
