@@ -83,7 +83,31 @@ export type LogEvent =
   | "draft.attachment_lost"
   // Operational: a cv.read job threw, why with failureFields. Before the read was saved the CV is
   // marked failed; after it (step reevaluate) its re-evaluation is asked for once more.
-  | "cv.read_failed";
+  | "cv.read_failed"
+  // MVP 3 (MVP-3.md › Log events; scan.started carries kind: rerun)
+  | "profile.assigned"
+  | "profile.updated"
+  | "mailbox.oauth_connected"
+  | "mailbox.reconnect_needed"
+  | "send.confirmed"
+  | "send.undone"
+  | "send.completed"
+  | "pipeline.stage_changed"
+  | "member.scope_changed"
+  | "member.role_changed"
+  | "member.removed"
+  | "workspace.ownership_transferred"
+  | "export.completed"
+  | "workspace.deleted"
+  | "account.deleted"
+  | "assistant.answered"
+  // Operational (MVP 3): a send that failed (why with failureFields), a mailbox disconnected
+  // (F7.4), a member who left (F6.3), and an OAuth callback refused (a wrong or used state,
+  // F3.2), with a reason code only.
+  | "send.failed"
+  | "mailbox.disconnected"
+  | "member.left"
+  | "oauth.callback_refused";
 
 export type LogFields = Record<string, unknown>;
 
@@ -148,6 +172,16 @@ const SECRET_KEYS = new Set([
   "description",
   "before",
   "after",
+  // MVP 3: OAuth tokens and the PKCE verifier (F3.2), a re-run's hint (F1.1) and the words the
+  // assistant looks for (F8).
+  "accesstoken",
+  "refreshtoken",
+  "idtoken",
+  "clientsecret",
+  "verifier",
+  "codeverifier",
+  "hint",
+  "words",
 ]);
 
 export const REDACTED = "[redacted]";

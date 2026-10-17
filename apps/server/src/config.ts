@@ -1,4 +1,5 @@
 import { hostname } from "node:os";
+import type { TlsMode } from "@jobfilly/schema";
 import { z } from "zod";
 
 // All configuration comes from the environment (ARCHITECTURE › Configuration) and is checked at
@@ -30,6 +31,33 @@ const positiveInt = (name: string, fallback: number) =>
         return z.NEVER;
       }
       return n;
+    });
+
+const optionalUrl = (name: string, fallback: string) =>
+  z.url({ error: `${name} must be a URL` }).default(fallback);
+
+/**
+ * A mail server as a URL (MVP 3, D5 of the plan): imaps:// or smtps:// for TLS, imap:// or
+ * smtp:// for plain text (the test stack's mail server; the mail client refuses it unless
+ * JOBFILLY_ALLOW_INSECURE_MAIL is set), with the port.
+ */
+const mailServerUrl = (name: string, scheme: "imap" | "smtp", fallback: string) =>
+  z
+    .string()
+    .default(fallback)
+    .transform((v, ctx) => {
+      const m = new RegExp(`^(${scheme}s?)://([^/:?#]+):(\\d{1,5})/?$`).exec(v.trim());
+      const [, prefix, host, rawPort] = m ?? [];
+      const port = Number(rawPort);
+      if (!host || port < 1 || port > 65535) {
+        ctx.addIssue({
+          code: "custom",
+          message: `${name} must look like ${scheme}s://host:port (or ${scheme}://host:port for plain text)`,
+        });
+        return z.NEVER;
+      }
+      const tlsMode: TlsMode = prefix === `${scheme}s` ? "tls" : "none";
+      return { host, port, tlsMode };
     });
 
 const EnvSchema = z.object({
@@ -85,7 +113,47 @@ const EnvSchema = z.object({
     .url({ error: "JOBFILLY_RDAP_URL must be a URL" })
     .default("https://rdap.org"),
   JOBFILLY_ALLOW_INSECURE_MAIL: flag("JOBFILLY_ALLOW_INSECURE_MAIL"),
+  // MVP 3 (F3.2): Sign in with Google, offered only with a client id and secret. The endpoints
+  // and mail servers are Google's unless overridden (the test stack points them at its fakes).
+  JOBFILLY_GOOGLE_CLIENT_ID: z.string().trim().min(1).optional(),
+  JOBFILLY_GOOGLE_CLIENT_SECRET: z.string().trim().min(1).optional(),
+  JOBFILLY_GOOGLE_AUTHORIZE_URL: optionalUrl(
+    "JOBFILLY_GOOGLE_AUTHORIZE_URL",
+    "https://accounts.google.com/o/oauth2/v2/auth",
+  ),
+  JOBFILLY_GOOGLE_TOKEN_URL: optionalUrl(
+    "JOBFILLY_GOOGLE_TOKEN_URL",
+    "https://oauth2.googleapis.com/token",
+  ),
+  JOBFILLY_GOOGLE_IMAP_HOST: mailServerUrl(
+    "JOBFILLY_GOOGLE_IMAP_HOST",
+    "imap",
+    "imaps://imap.gmail.com:993",
+  ),
+  JOBFILLY_GOOGLE_SMTP_HOST: mailServerUrl(
+    "JOBFILLY_GOOGLE_SMTP_HOST",
+    "smtp",
+    "smtps://smtp.gmail.com:465",
+  ),
 });
+
+/** A mail server the app connects to: host, port and TLS. */
+export interface MailServer {
+  host: string;
+  port: number;
+  tlsMode: TlsMode;
+}
+
+/** Google sign-in (MVP 3, F3.2): the OAuth client and where Google's endpoints and servers are. */
+export interface GoogleConfig {
+  clientId: string;
+  /** Never logged, never returned by the API. */
+  clientSecret: string;
+  authorizeUrl: string;
+  tokenUrl: string;
+  imap: MailServer;
+  smtp: MailServer;
+}
 
 export interface Config {
   databaseUrl: string;
@@ -103,6 +171,8 @@ export interface Config {
   syncIntervalSeconds: number;
   rdapUrl: string;
   allowInsecureMail: boolean;
+  /** MVP 3: Sign in with Google, or null when the server has no client settings. */
+  google: GoogleConfig | null;
   /** This replica's name in logs and job leases: the hostname. */
   instance: string;
 }
@@ -123,6 +193,26 @@ export function loadConfig(
     return { ok: false, message: parsed.error.issues[0]?.message ?? "invalid configuration" };
   }
   const e = parsed.data;
+  if (
+    (e.JOBFILLY_GOOGLE_CLIENT_ID === undefined) !==
+    (e.JOBFILLY_GOOGLE_CLIENT_SECRET === undefined)
+  ) {
+    return {
+      ok: false,
+      message: "JOBFILLY_GOOGLE_CLIENT_ID and JOBFILLY_GOOGLE_CLIENT_SECRET are set together",
+    };
+  }
+  const google: GoogleConfig | null =
+    e.JOBFILLY_GOOGLE_CLIENT_ID && e.JOBFILLY_GOOGLE_CLIENT_SECRET
+      ? {
+          clientId: e.JOBFILLY_GOOGLE_CLIENT_ID,
+          clientSecret: e.JOBFILLY_GOOGLE_CLIENT_SECRET,
+          authorizeUrl: e.JOBFILLY_GOOGLE_AUTHORIZE_URL,
+          tokenUrl: e.JOBFILLY_GOOGLE_TOKEN_URL,
+          imap: e.JOBFILLY_GOOGLE_IMAP_HOST,
+          smtp: e.JOBFILLY_GOOGLE_SMTP_HOST,
+        }
+      : null;
   return {
     ok: true,
     config: {
@@ -138,6 +228,7 @@ export function loadConfig(
       syncIntervalSeconds: e.JOBFILLY_SYNC_INTERVAL_SECONDS,
       rdapUrl: e.JOBFILLY_RDAP_URL,
       allowInsecureMail: e.JOBFILLY_ALLOW_INSECURE_MAIL,
+      google,
       instance,
     },
   };

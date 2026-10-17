@@ -9,5 +9,7 @@ export { docxWithText, pdfWithText } from "./cv-files";
 export * from "./deps";
 export * from "./http";
 export * from "./mailbox";
+export * from "./oauth";
 export * from "./pipeline";
 export * from "./seed";
+export * from "./smtp";

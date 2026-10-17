@@ -13,22 +13,31 @@ import {
 import { requireUser, sessionMiddleware } from "./auth/session";
 import type { AppDeps } from "./deps";
 import { eventsRoutes } from "./live";
+import { accountRoutes } from "./routes/account";
+import { activityRoutes } from "./routes/activity";
 import { aiRoutes } from "./routes/ai";
+import { assignmentRoutes } from "./routes/assignments";
 import { assistantRoutes } from "./routes/assistant";
 import { authRoutes } from "./routes/auth";
 import { cvsRoutes } from "./routes/cvs";
 import { decisionsRoutes } from "./routes/decisions";
 import { draftsRoutes } from "./routes/drafts";
+import { exportRoutes } from "./routes/export";
 import { healthRoutes } from "./routes/health";
 import { historyRoutes } from "./routes/history";
 import { intakeRoutes } from "./routes/intake";
 import { invitesRoutes } from "./routes/invites";
 import { mailboxRoutes } from "./routes/mailboxes";
 import { messageRoutes } from "./routes/messages";
+import { oauthPublicRoutes, oauthRoutes } from "./routes/oauth";
+import { pipelineRoutes } from "./routes/pipeline";
 import { profileRoutes } from "./routes/profiles";
 import { rulesRoutes } from "./routes/rules";
 import { scanRoutes } from "./routes/scans";
+import { sendRoutes } from "./routes/send";
 import { sendersRoutes } from "./routes/senders";
+import { smtpRoutes } from "./routes/smtp";
+import { workspaceRoutes } from "./routes/workspace";
 import { membersRoutes, workspaceInvitesRoutes, workspacesRoutes } from "./routes/workspaces";
 
 /** A workspace route module: mounted once at /api/workspaces/:workspaceId/<name>. */
@@ -80,6 +89,10 @@ export function createApp(deps: AppDeps) {
   app.route("/api/auth", authRoutes(deps));
   app.route("/api/invites", invitesRoutes(deps));
   app.route("/api/workspaces", workspacesRoutes(deps));
+  // MVP 3: the signed-in user's account (F7.3), and Google sign-in's callback and providers
+  // (F3.2), whose URL can't name a workspace.
+  app.route("/api/account", accountRoutes(deps));
+  app.route("/api/oauth", oauthPublicRoutes(deps));
 
   const workspace = app.basePath("/api/workspaces/:workspaceId");
   workspace.use("/*", requireUser, workspaceMember(deps));
@@ -124,6 +137,17 @@ export function createApp(deps: AppDeps) {
   mount("decisions", decisionsRoutes, open);
   // Open, with the member's access applied inside: no message text for such a member (F8.3).
   mount("assistant", assistantRoutes, open);
+  // MVP 3. Each module is registered here ahead of the slice that builds it (its plan).
+  mount("messages", assignmentRoutes, open);
+  mount("mailboxes", smtpRoutes, open);
+  mount("oauth", oauthRoutes, open);
+  mount("pipeline", pipelineRoutes, open);
+  mount("activity", activityRoutes, open);
+  // Mail content, or all of it: closed to a member who sees the pipeline only.
+  mount("drafts", sendRoutes);
+  mount("export", exportRoutes);
+  // DELETE /api/workspaces/:workspaceId itself (F7.2).
+  mount("", workspaceRoutes, open);
 
   app.all("/api/*", (c) => c.json({ error: "not_found" }, 404));
   return app;

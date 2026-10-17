@@ -4,7 +4,15 @@ import { openTestDatabase } from "@jobfilly/db/testing";
 import type { MailClient } from "@jobfilly/mail";
 import type { AiModels } from "@jobfilly/schema";
 import type { Config } from "../config";
-import { type AiPort, type AppDeps, createDeps, type DomainPort, type MailPort } from "../deps";
+import {
+  type AiPort,
+  type AppDeps,
+  createDeps,
+  type DomainPort,
+  type MailPort,
+  type OAuthPort,
+  type SmtpPort,
+} from "../deps";
 import type { JobRegistry } from "../jobs/queue";
 import { createLogger, type LogEvent } from "../log";
 import { type MovableClock, movableClock } from "./clock";
@@ -34,6 +42,7 @@ function testConfig(overrides: Partial<Config> = {}): Config {
     syncIntervalSeconds: 120,
     rdapUrl: "https://rdap.test",
     allowInsecureMail: false,
+    google: null,
     instance: "test-instance",
     ...overrides,
   };
@@ -151,6 +160,9 @@ export function createFakeDomains(defaults: { registeredAt?: string } = {}): Fak
 const unsetMailPort: MailPort = { connect: refuse("mail") };
 /** An AI port that fails until a test replaces deps.ai. */
 const unsetAiPort: AiPort = { client: refuse("ai") };
+/** SMTP and Google's token endpoint fail until a test sets them (createFakeSmtp, createFakeOAuth). */
+const unsetSmtpPort: SmtpPort = { send: refuse("smtp"), test: refuse("smtp") };
+const unsetOAuthPort: OAuthPort = { exchange: refuse("oauth"), refresh: refuse("oauth") };
 
 export interface TestDepsOptions {
   /** Where the clock starts (default 2026-10-01T10:00:00Z). */
@@ -159,6 +171,8 @@ export interface TestDepsOptions {
   mail?: MailPort;
   ai?: AiPort;
   domains?: FakeDomainPort;
+  smtp?: SmtpPort;
+  oauth?: OAuthPort;
   /** The job types the queue runs (default: the app's registry). */
   registry?: JobRegistry;
   /** Lease length for the queue (default 30 s). */
@@ -189,6 +203,8 @@ export async function createTestDeps(options: TestDepsOptions = {}): Promise<Tes
     mail: options.mail ?? unsetMailPort,
     ai: options.ai ?? unsetAiPort,
     domains,
+    smtp: options.smtp ?? unsetSmtpPort,
+    oauth: options.oauth ?? unsetOAuthPort,
     registry: options.registry,
     queue: { pollMs: 20, stopGraceMs: 1000, leaseMs: options.leaseMs },
     backgroundStopGraceMs: 1000,

@@ -119,3 +119,62 @@ describe("starting the server without configuration", () => {
     });
   }, 120_000);
 });
+
+describe("Sign in with Google (MVP 3, F3.2)", () => {
+  const google = {
+    ...valid,
+    JOBFILLY_GOOGLE_CLIENT_ID: "client-id.apps.example",
+    JOBFILLY_GOOGLE_CLIENT_SECRET: "E2E-SECRET-google-client",
+  };
+
+  it("is off without client settings", () => {
+    const result = loadConfig(valid, "app-a");
+    if (!result.ok) throw new Error(result.message);
+    expect(result.config.google).toBeNull();
+  });
+
+  it("uses Google's endpoints and mail servers unless they are overridden", () => {
+    const result = loadConfig(google, "app-a");
+    if (!result.ok) throw new Error(result.message);
+    expect(result.config.google).toEqual({
+      clientId: "client-id.apps.example",
+      clientSecret: "E2E-SECRET-google-client",
+      authorizeUrl: "https://accounts.google.com/o/oauth2/v2/auth",
+      tokenUrl: "https://oauth2.googleapis.com/token",
+      imap: { host: "imap.gmail.com", port: 993, tlsMode: "tls" },
+      smtp: { host: "smtp.gmail.com", port: 465, tlsMode: "tls" },
+    });
+  });
+
+  it("takes the test stack's fake endpoints and plain-text mail servers", () => {
+    const result = loadConfig(
+      {
+        ...google,
+        JOBFILLY_GOOGLE_AUTHORIZE_URL: "http://127.0.0.1:8084/authorize",
+        JOBFILLY_GOOGLE_TOKEN_URL: "http://oauth:8080/token",
+        JOBFILLY_GOOGLE_IMAP_HOST: "imap://imap:3143",
+        JOBFILLY_GOOGLE_SMTP_HOST: "smtp://imap:3025",
+      },
+      "app-a",
+    );
+    if (!result.ok) throw new Error(result.message);
+    expect(result.config.google).toMatchObject({
+      authorizeUrl: "http://127.0.0.1:8084/authorize",
+      tokenUrl: "http://oauth:8080/token",
+      imap: { host: "imap", port: 3143, tlsMode: "none" },
+      smtp: { host: "imap", port: 3025, tlsMode: "none" },
+    });
+  });
+
+  it("needs the client id and secret together, and mail servers as URLs", () => {
+    expect(message({ ...valid, JOBFILLY_GOOGLE_CLIENT_ID: "id" })).toBe(
+      "JOBFILLY_GOOGLE_CLIENT_ID and JOBFILLY_GOOGLE_CLIENT_SECRET are set together",
+    );
+    expect(message({ ...google, JOBFILLY_GOOGLE_IMAP_HOST: "imap.gmail.com" })).toBe(
+      "JOBFILLY_GOOGLE_IMAP_HOST must look like imaps://host:port (or imap://host:port for plain text)",
+    );
+    expect(message({ ...google, JOBFILLY_GOOGLE_SMTP_HOST: "imaps://smtp.gmail.com:465" })).toMatch(
+      /^JOBFILLY_GOOGLE_SMTP_HOST must look like smtps:/,
+    );
+  });
+});

@@ -8,7 +8,6 @@ import type { MailClient } from "@jobfilly/mail";
 import {
   MailboxListSchema,
   MailboxPublicSchema,
-  type MailConnection,
   type MailLogin,
   MailPresetListSchema,
   type MailTestResult,

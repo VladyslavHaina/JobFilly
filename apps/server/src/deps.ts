@@ -2,8 +2,23 @@ import type { AiClient } from "@jobfilly/ai";
 import { createAiClient } from "@jobfilly/ai";
 import { aggregateIntake } from "@jobfilly/core";
 import type { Database, DatabaseConnection } from "@jobfilly/db";
-import { createMailClient, type MailClient, type MailClientOptions } from "@jobfilly/mail";
-import type { AiClientSettings, MailLogin, Readiness } from "@jobfilly/schema";
+import {
+  createMailClient,
+  type MailClient,
+  type MailClientOptions,
+  type SmtpOptions,
+  sendSmtp,
+  testSmtp,
+} from "@jobfilly/mail";
+import type {
+  AiClientSettings,
+  MailLogin,
+  OAuthTokens,
+  Readiness,
+  SmtpEnvelope,
+  SmtpLogin,
+  SmtpTestResult,
+} from "@jobfilly/schema";
 import { type Clock, systemClock } from "./clock";
 import type { Config } from "./config";
 import {
@@ -15,6 +30,7 @@ import {
 import { jobRegistry } from "./jobs/registry";
 import { createLiveHub, type LiveHub } from "./live";
 import type { Logger } from "./log";
+import { googleOAuthPort } from "./oauth/google";
 import { createDomainPort } from "./senders/lookup";
 
 // What every route and job handler gets: the database, configuration, clock, logger, live
@@ -28,6 +44,30 @@ export interface MailPort {
 
 export interface AiPort {
   client(settings: AiClientSettings): AiClient;
+}
+
+/**
+ * SMTP (MVP 3, F4): sends one confirmed message, its exact bytes, and the Test button's sign-in.
+ * packages/mail's smtp module is the real one; only the send job sends.
+ */
+export interface SmtpPort {
+  send(
+    login: SmtpLogin,
+    envelope: SmtpEnvelope,
+    raw: Uint8Array,
+    options: SmtpOptions,
+  ): Promise<{ accepted: string[] }>;
+  test(login: SmtpLogin, options: SmtpOptions): Promise<SmtpTestResult>;
+}
+
+/**
+ * Google's token endpoint (MVP 3, F3.2): exchanges an authorization code and its PKCE verifier
+ * for tokens with the account's address, and refreshes an access token; refresh throws
+ * OAuthRefusedError (oauth/google.ts) when Google refuses the refresh token.
+ */
+export interface OAuthPort {
+  exchange(input: { code: string; verifier: string; redirectUri: string }): Promise<OAuthTokens>;
+  refresh(refreshToken: string): Promise<{ accessToken: string; expiresAt: string }>;
 }
 
 /**
@@ -128,6 +168,9 @@ export interface AppDeps {
   mail: MailPort;
   ai: AiPort;
   domains: DomainPort;
+  /** MVP 3: sending (F4) and Google's token endpoint (F3.2). */
+  smtp: SmtpPort;
+  oauth: OAuthPort;
   intake: { aggregate: typeof aggregateIntake };
   health: Health;
 }
@@ -166,6 +209,8 @@ const mailPort: MailPort = {
   connect: (conn, options) => createMailClient(conn, options),
 };
 
+const smtpPort: SmtpPort = { send: sendSmtp, test: testSmtp };
+
 /** The AI port; invalid model output is reported as a redacted warning (ai.output_invalid). */
 function aiPort(log: Logger): AiPort {
   return {
@@ -181,6 +226,8 @@ export interface DepsInput {
   mail?: MailPort;
   ai?: AiPort;
   domains?: DomainPort;
+  smtp?: SmtpPort;
+  oauth?: OAuthPort;
   registry?: JobRegistry;
   queue?: Omit<JobQueueOptions, "owner">;
   /** How long shutdown waits for aborted background work (default 5 s, as for jobs). */
@@ -201,6 +248,8 @@ export function createDeps(input: DepsInput): AppDeps {
     mail: input.mail ?? mailPort,
     ai: input.ai ?? aiPort(input.log),
     domains: input.domains ?? createDomainPort(input.config),
+    smtp: input.smtp ?? smtpPort,
+    oauth: input.oauth ?? googleOAuthPort(input.config.google),
     intake: { aggregate: aggregateIntake },
     health: createHealth(input.connection),
   };
