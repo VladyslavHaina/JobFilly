@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { IsoDateTimeSchema, TextSchema } from "./common";
+import { SendSchema } from "./send";
 
 // Reply drafts (F6). A draft row holds only the reply text; the quote of the original is added
 // when the MIME message is built, so the database never stores a mail body. At most one live
@@ -60,6 +61,12 @@ export const DraftSchema = z.object({
   /** True for a draft the app made on its own, false for Draft a reply. */
   auto: z.boolean(),
   updatedAt: IsoDateTimeSchema,
+  /**
+   * MVP 3 (F4): the draft's latest send — waiting out its Undo delay, sending, sent, undone or
+   * failed with why — null when it was never sent. Optional, so a page reading a draft from a
+   * replica before MVP 3 still reads it.
+   */
+  send: SendSchema.nullable().optional(),
 });
 export type Draft = z.infer<typeof DraftSchema>;
 
