@@ -1,4 +1,9 @@
-import { CORE_PROFILE_KEYS, POLICY_KEYS } from "@jobfilly/schema";
+import {
+  APPLICATION_STAGES,
+  ASSISTANT_TOOLS,
+  CORE_PROFILE_KEYS,
+  POLICY_KEYS,
+} from "@jobfilly/schema";
 import { describe, expect, it } from "vitest";
 import { assistantPrompt } from "./assistant";
 
@@ -85,6 +90,19 @@ describe("assistant.v1's instruction", () => {
     for (const where of ["Drafts page", "Members page", "under Settings", "CVs page"]) {
       expect(system).toContain(where);
     }
+  });
+
+  it("asks for read-only lookups for a question, naming every tool and stage (MVP 3, F8.2)", () => {
+    expect(system).toContain("set `lookups` to the read-only lookups whose results answer it");
+    expect(system).toContain("never answer such a question from memory");
+    expect(system).toContain("For any other message set `lookups` to [].");
+    for (const tool of ASSISTANT_TOOLS) expect(system).toContain(`\`${tool}\`: `);
+    for (const stage of APPLICATION_STAGES) expect(system).toContain(stage);
+  });
+
+  it("proposes for the profile shown, and reads a profile's name as the answer to which one", () => {
+    expect(system).toContain("those of the profile a change would go to");
+    expect(system).toContain("propose that request's changes");
   });
 
   it("keeps the instruction out of the user message", () => {

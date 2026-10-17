@@ -1,4 +1,5 @@
 import {
+  type AssistantLink,
   type AssistantMessage,
   AssistantStateSchema,
   type AssistantThread,
@@ -6,15 +7,19 @@ import {
 } from "@jobfilly/schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, type KeyboardEvent, useEffect, useId, useRef, useState } from "react";
+import { Link } from "react-router";
 import { api } from "../../api";
 import { Alert, Button, Loading, Textarea, useEscapeLayer } from "../../components";
+import { paths } from "../../paths";
 import { ProposalCard } from "./ProposalCard";
 import { assistantApi, assistantKey, errorText } from "./queries";
 
 // The assistant (F8.1): a button on every page opens a panel with the member's conversation. The
 // user writes in any language and the reply comes back in theirs; while the model thinks, the
 // message shows with a "Thinking…" state (F8.9). A clarifying question offers its answers as
-// buttons (F8.6), and a request to change preferences comes back as a proposal card.
+// buttons (F8.6), and a request to change preferences comes back as a proposal card. MVP 3: a
+// question is answered, with links under the answer to the roles, messages, decisions and drafts
+// it used (F8.1).
 
 function Bubble({ message }: { message: Pick<AssistantMessage, "role" | "text"> }) {
   const mine = message.role === "user";
@@ -27,6 +32,38 @@ function Bubble({ message }: { message: Pick<AssistantMessage, "role" | "text"> 
       <span className="sr-only">{mine ? "You: " : "Assistant: "}</span>
       {message.text}
     </p>
+  );
+}
+
+/** Where a link under an answer goes: the role's or message's page, the decisions or drafts. */
+function linkTarget(workspaceId: string, link: AssistantLink): string {
+  if (link.kind === "decision") return paths.decisions(workspaceId);
+  if (link.kind === "draft") return paths.drafts(workspaceId);
+  return link.messageId ? paths.message(workspaceId, link.messageId) : paths.inbox(workspaceId);
+}
+
+const LINK_KIND: Record<AssistantLink["kind"], string> = {
+  role: "Role",
+  message: "Message",
+  decision: "Decision",
+  draft: "Draft",
+};
+
+/** The roles, messages, decisions and drafts an answer used (MVP 3, F8.1). */
+function Links({ workspaceId, links }: { workspaceId: string; links: AssistantLink[] }) {
+  return (
+    <ul aria-label="Used in this answer" className="flex flex-col gap-1 self-start text-sm">
+      {links.map((link) => (
+        <li key={`${link.kind} ${link.messageId ?? ""} ${link.position ?? ""} ${link.label}`}>
+          <Link
+            to={linkTarget(workspaceId, link)}
+            className="text-indigo-700 underline hover:text-indigo-900"
+          >
+            {link.kind === "draft" ? link.label : `${LINK_KIND[link.kind]}: ${link.label}`}
+          </Link>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -49,6 +86,8 @@ function Thread({
         <p className="text-sm text-stone-600">
           Tell me how to treat your job mail, in any language: "Ignore jobs on Asian time zones",
           "Don't reply to agencies". I propose the change, and nothing changes until you apply it.
+          Or ask about your job search: "What's waiting on me?", "How many interviews did I have
+          this month?"
         </p>
       )}
       {messages.map((m) => {
@@ -58,6 +97,7 @@ function Thread({
         return (
           <div key={m.id} className="flex flex-col gap-2">
             <Bubble message={m} />
+            {m.links && m.links.length > 0 && <Links workspaceId={workspaceId} links={m.links} />}
             {m.clarify && (
               <fieldset className="flex flex-col gap-2 self-start">
                 <legend className="text-sm font-medium text-stone-800">{m.clarify.question}</legend>

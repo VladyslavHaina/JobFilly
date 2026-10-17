@@ -2,12 +2,12 @@ import {
   type ChangeError,
   changeLines,
   editedSummary,
+  knownSources,
   rewordEdited,
   rewordProposed,
 } from "@jobfilly/core";
 import {
   createThread,
-  type Database,
   decideProposal,
   getAiSettings,
   getLatestThread,
@@ -20,19 +20,26 @@ import {
   listThreadMessages,
   listThreadProposals,
   nextTurn,
+  type StoredAssistantMessage,
   type StoredProposal,
   saveTurn,
   updateOpenProposal,
 } from "@jobfilly/db";
 import {
+  type AiError,
+  type AnswerSource,
+  type AssistantAnswer,
   type AssistantClarify,
   AssistantOutputSchema,
   type AssistantSend,
   type AssistantState,
   type AssistantTurn,
   type Change,
+  type MemberScope,
   type Profile,
   type Proposal,
+  type Rule,
+  type TaskId,
   type User,
 } from "@jobfilly/schema";
 import { aiClientFor } from "../ai-usage";
@@ -40,15 +47,23 @@ import type { AppDeps } from "../deps";
 import type { Logger } from "../log";
 import { applyAndReevaluate } from "../profile/changes";
 import { openAiKey } from "../secrets";
+import { linksOf, resolveLinks } from "./links";
+import { runLookups } from "./lookups";
 import { previewChanges } from "./preview";
 import { fail, inTransaction, NOT_FOUND_FAILURE, type Result, refuse } from "./result";
 
 // The assistant (F8): one member's conversation, the proposals it makes and what the member does
-// with them. The model can only propose (assistant.v1): a proposal is a list of Changes to the
+// with them. The model can only propose (assistant.v1): a proposal is a list of Changes to one
 // profile's rules and entries, stored with its impact preview, and nothing changes until an
 // editor applies it through the profile change service (source assistant, with the words that
 // led to it), or edits it first. Anything the model answers outside rules and profile entries is
 // refused, never stored as a proposal.
+//
+// MVP 3 (F8): a question is answered instead. assistant.v1 asks for read-only lookups, the server
+// runs them with the member's access (./lookups) and answer.v1 answers from their results only,
+// with the refs it used; only refs the lookups returned are kept, and they become the answer's
+// links when the thread is read (./links). A question's turn never holds a proposal, so nothing a
+// mail says can become a change (F8.4).
 //
 // Messages, replies, summaries and requests are stored for the history and never logged (F8.10):
 // the log lines carry ids and counts only.
@@ -64,9 +79,69 @@ const OUTSIDE =
 const NO_PROFILE =
   "Your profile isn't confirmed yet: confirm it on the Intake page, then I can propose changes to it.";
 
-/** The workspace's confirmed profile (one per workspace in MVP 2), or null. */
-async function confirmedProfile(db: Database, ws: string): Promise<Profile | null> {
-  return (await listProfiles(db, ws)).find((p) => p.confirmedAt !== null) ?? null;
+const SEVERAL_PROFILES = "You have more than one profile.";
+const WHICH_PROFILE = "Which profile is this change for?";
+
+/**
+ * The profile a request is about (MVP 3, F1.2): the one the message names, else the one an
+ * earlier message of the thread named, else the one the thread's latest proposal changed, else
+ * the only one. With several and none of these, it is ambiguous: the first that is on stands in
+ * for the model, and a proposal is not made but asked about (WHICH_PROFILE).
+ */
+async function targetProfile(
+  deps: AppDeps,
+  ws: string,
+  text: string,
+  earlier: readonly StoredAssistantMessage[],
+  proposals: readonly StoredProposal[],
+): Promise<{ profile: Profile | null; ambiguous: boolean; confirmed: Profile[] }> {
+  const confirmed = (await listProfiles(deps.db, ws)).filter((p) => p.confirmedAt !== null);
+  const found = (profile: Profile | undefined | null) => ({
+    profile: profile ?? null,
+    ambiguous: false,
+    confirmed,
+  });
+  if (confirmed.length <= 1) return found(confirmed[0]);
+  const named = (words: string) =>
+    confirmed
+      .filter((p) => words.toLocaleLowerCase().includes(p.name.toLocaleLowerCase()))
+      .sort((a, b) => b.name.length - a.name.length)[0];
+  const said = [
+    text,
+    ...earlier
+      .filter((m) => m.role === "user")
+      .map((m) => m.text)
+      .reverse(),
+  ];
+  for (const words of said) {
+    const profile = named(words);
+    if (profile) return found(profile);
+  }
+  const last = confirmed.find((p) => p.id === proposals.at(-1)?.profileId);
+  if (last) return found(last);
+  const first = confirmed.find((p) => p.enabled !== false) ?? confirmed[0];
+  return { profile: first ?? null, ambiguous: true, confirmed };
+}
+
+/**
+ * An earlier turn as the model reads it: an answer with the refs it used, so a follow-up ("show
+ * me that message") can name them.
+ */
+function historyItem(m: StoredAssistantMessage) {
+  const refs = m.sources.map((s) => `${s.kind} ${s.ref}`).join(", ");
+  return { role: m.role, text: refs ? `${m.text}\n(refs: ${refs})` : m.text };
+}
+
+/** Why the model gave no answer, logged in codes packages/ai prepared; never any words. */
+function aiFailed(log: Logger, task: TaskId, error: AiError): Result<never> {
+  const { kind, httpStatus, providerErrorType } = error;
+  log.warn("assistant.failed", {
+    task,
+    reason: kind,
+    ...(httpStatus !== undefined ? { httpStatus } : {}),
+    ...(providerErrorType !== undefined ? { providerErrorType } : {}),
+  });
+  return fail(502, "ai_failed", "The assistant couldn't answer. Try again.");
 }
 
 function errorWords(error: ChangeError): string {
@@ -89,11 +164,15 @@ function toProposal(stored: StoredProposal): Proposal {
   };
 }
 
-/** The member's latest thread with its messages and proposals (GET /assistant). */
+/**
+ * The member's latest thread with its messages and proposals (GET /assistant), each answer with
+ * the links the member may follow now (`scope`, D14).
+ */
 export async function assistantState(
   deps: AppDeps,
   ws: string,
   user: User,
+  scope: MemberScope,
 ): Promise<AssistantState> {
   const thread = await getLatestThread(deps.db, ws, user.id);
   if (!thread) return { thread: null };
@@ -101,6 +180,12 @@ export async function assistantState(
     listThreadMessages(deps.db, ws, thread.id),
     listThreadProposals(deps.db, ws, thread.id),
   ]);
+  const links = await resolveLinks(
+    deps,
+    ws,
+    scope,
+    messages.flatMap((m) => m.sources),
+  );
   return {
     thread: {
       id: thread.id,
@@ -111,22 +196,83 @@ export async function assistantState(
         clarify: m.clarify,
         proposalId: m.proposalId,
         at: m.at.toISOString(),
+        ...(m.role === "assistant" ? { links: linksOf(m.sources, links) } : {}),
       })),
       proposals: proposals.map(toProposal),
     },
   };
 }
 
+type Target = Awaited<ReturnType<typeof targetProfile>>;
+type Preview = Extract<Awaited<ReturnType<typeof previewChanges>>, { ok: true }>;
+
+/** What a turn stores: the reply, and a question, a proposal with its preview, or sources. */
+interface Outcome {
+  text: string;
+  clarify: AssistantClarify | null;
+  proposal: { summary: string; changes: Change[]; profile: Profile; preview: Preview } | null;
+  sources: AnswerSource[];
+  /** The lookups a question was answered from, by tool; [] for any other turn. */
+  lookups: string[];
+}
+
 /**
- * Sends one message (POST /assistant): asks assistant.v1 with the profile, its rules, the
+ * A request to change preferences (F8.2): the model's proposal for the target profile, kept only
+ * when it is a list of rule and entry changes that apply to it, and asked about when it isn't
+ * clear which profile the user means.
+ */
+async function proposalOutcome(
+  deps: AppDeps,
+  ws: string,
+  user: User,
+  answer: AssistantAnswer,
+  target: Target,
+  rules: Rule[],
+): Promise<Outcome> {
+  const none = { proposal: null, sources: [], lookups: [] };
+  let text = answer.reply;
+  const clarify: AssistantClarify | null = answer.clarify;
+  // packages/ai lets through a proposal with changes outside rules and entries (a mailbox, a
+  // member…): it is refused here, alone, and the reply says so.
+  const inScope = PROPOSAL.safeParse(clarify ? null : answer.proposal);
+  if (!inScope.success) return { ...none, text: `${text}\n\n${OUTSIDE}`, clarify };
+  if (!inScope.data || inScope.data.changes.length === 0) return { ...none, text, clarify };
+  const { profile } = target;
+  if (!profile) return { ...none, text: `${text}\n\n${NO_PROFILE}`, clarify };
+  if (target.ambiguous) {
+    return {
+      ...none,
+      text: SEVERAL_PROFILES,
+      clarify: { question: WHICH_PROFILE, choices: target.confirmed.map((p) => p.name) },
+    };
+  }
+  const changes = rewordProposed(inScope.data.changes, rules);
+  const preview = await previewChanges(deps, ws, { profile, rules, changes, userId: user.id });
+  if (!preview.ok) {
+    return { ...none, text: `${text}\n\n${OUTSIDE} ${errorWords(preview.error)}`, clarify };
+  }
+  if (target.confirmed.length > 1) text = `${text}\n\nThis is for your profile "${profile.name}".`;
+  return {
+    ...none,
+    text,
+    clarify,
+    proposal: { summary: inScope.data.summary, changes, profile, preview },
+  };
+}
+
+/**
+ * Sends one message (POST /assistant): asks assistant.v1 with the target profile, its rules, the
  * earlier turns and the languages of the workspace's job mail, then stores the turn and, for a
- * request to change preferences, a proposal with its impact preview. An unclear request gets the model's clarifying question and no proposal.
- * Nothing is stored when the model gives no answer.
+ * request to change preferences, a proposal with its impact preview. An unclear request gets the
+ * model's clarifying question and no proposal. A question is answered from the lookups the model
+ * asked for, run with the member's access (`scope`), by answer.v1. Nothing is stored when the
+ * model gives no answer.
  */
 export async function sendMessage(
   deps: AppDeps,
   ws: string,
   user: User,
+  scope: MemberScope,
   input: AssistantSend,
   log: Logger,
 ): Promise<Result<AssistantTurn>> {
@@ -135,15 +281,17 @@ export async function sendMessage(
   const settings = await getAiSettings(deps.db, ws);
   if (!settings) return fail(409, "no_ai", "Set up an AI provider under Settings › AI first.");
 
-  const profile = await confirmedProfile(deps.db, ws);
+  const [earlier, proposals] = thread
+    ? await Promise.all([
+        listThreadMessages(deps.db, ws, thread.id),
+        listThreadProposals(deps.db, ws, thread.id),
+      ])
+    : [[], []];
+  const target = await targetProfile(deps, ws, input.text, earlier, proposals);
+  const { profile } = target;
   const rules = profile ? await listRules(deps.db, ws, profile.id) : [];
   const turn = thread ? await nextTurn(deps.db, ws, thread.id) : 1;
-  const history = thread
-    ? (await listThreadMessages(deps.db, ws, thread.id)).map((m) => ({
-        role: m.role,
-        text: m.text,
-      }))
-    : [];
+  const history = earlier.map(historyItem);
   const client = aiClientFor(deps, ws, {
     provider: settings.provider,
     baseUrl: settings.baseUrl,
@@ -159,75 +307,63 @@ export async function sendMessage(
     // So a rule on free text gets its phrases in each language the mail is written in.
     mailLanguages: await listJobMailLanguages(deps.db, ws),
   });
-  if (!result.ok) {
-    // Why, in codes packages/ai prepared for the logs; never the message or the provider's words.
-    const { kind, httpStatus, providerErrorType } = result.error;
-    log.warn("assistant.failed", {
-      task: "assistant.v1",
-      reason: kind,
-      ...(httpStatus !== undefined ? { httpStatus } : {}),
-      ...(providerErrorType !== undefined ? { providerErrorType } : {}),
-    });
-    return fail(502, "ai_failed", "The assistant couldn't answer. Try again.");
-  }
+  if (!result.ok) return aiFailed(log, "assistant.v1", result.error);
 
-  let text = result.data.reply;
-  const clarify: AssistantClarify | null = result.data.clarify;
-  // packages/ai lets through a proposal with changes outside rules and entries (a mailbox, a
-  // member…): it is refused here, alone, and the reply says so.
-  const inScope = PROPOSAL.safeParse(clarify ? null : result.data.proposal);
-  let proposal: { summary: string; changes: Change[] } | null = inScope.data
-    ? { ...inScope.data, changes: rewordProposed(inScope.data.changes, rules) }
-    : null;
-  if (!inScope.success) text = `${text}\n\n${OUTSIDE}`;
-  if (proposal && proposal.changes.length === 0) proposal = null;
-  if (proposal && !profile) {
-    text = `${text}\n\n${NO_PROFILE}`;
-    proposal = null;
+  let outcome: Outcome;
+  if (result.data.lookups.length > 0) {
+    // A question (F8.1): answered from the lookups' results only, never with a proposal.
+    const results = await runLookups(deps, ws, scope, result.data.lookups);
+    const answer = await client.answer({ turn, text: input.text, history, results });
+    if (!answer.ok) return aiFailed(log, "answer.v1", answer.error);
+    outcome = {
+      text: answer.data.text,
+      clarify: null,
+      proposal: null,
+      sources: knownSources(answer.data.sources, results),
+      lookups: results.map((r) => r.lookup.tool),
+    };
+  } else {
+    outcome = await proposalOutcome(deps, ws, user, result.data, target, rules);
   }
-  const preview =
-    proposal && profile
-      ? await previewChanges(deps, ws, {
-          profile,
-          rules,
-          changes: proposal.changes,
-          userId: user.id,
-        })
-      : null;
-  if (preview && !preview.ok) {
-    text = `${text}\n\n${OUTSIDE} ${errorWords(preview.error)}`;
-    proposal = null;
-  }
+  const { text, clarify, proposal, sources } = outcome;
 
   const at = deps.clock.now();
   const saved = await deps.db.transaction(async (tx) => {
     const threadId = thread?.id ?? (await createThread(tx, ws, user.id, at)).id;
-    const stored =
-      proposal && profile && preview?.ok
-        ? await insertProposal(tx, ws, {
-            threadId,
-            profileId: profile.id,
-            request: input.text,
-            summary: proposal.summary,
-            changes: proposal.changes,
-            before: preview.before,
-            after: preview.after,
-            impact: preview.impact,
-            at,
-          })
-        : null;
+    const stored = proposal
+      ? await insertProposal(tx, ws, {
+          threadId,
+          profileId: proposal.profile.id,
+          request: input.text,
+          summary: proposal.summary,
+          changes: proposal.changes,
+          before: proposal.preview.before,
+          after: proposal.preview.after,
+          impact: proposal.preview.impact,
+          at,
+        })
+      : null;
     await saveTurn(tx, ws, threadId, {
       turn,
       text: input.text,
       reply: text,
       clarify,
       proposalId: stored?.id ?? null,
+      sources,
       at,
     });
     return { threadId, proposalId: stored?.id ?? null };
   });
 
   log.info("assistant.message", { threadId: saved.threadId });
+  if (outcome.lookups.length > 0) {
+    // The tools and how many refs the answer kept: never the question, the answer or a ref.
+    log.info("assistant.answered", {
+      threadId: saved.threadId,
+      lookups: outcome.lookups,
+      sources: sources.length,
+    });
+  }
   let card: Proposal | null = null;
   if (saved.proposalId && proposal) {
     log.info("assistant.proposal_created", {
