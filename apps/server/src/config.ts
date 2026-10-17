@@ -138,7 +138,7 @@ const EnvSchema = z.object({
 });
 
 /** A mail server the app connects to: host, port and TLS. */
-export interface MailServer {
+interface MailServer {
   host: string;
   port: number;
   tlsMode: TlsMode;
