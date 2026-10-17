@@ -140,7 +140,8 @@ describe("the export (F7.1)", () => {
     expect(all).not.toContain(AI_KEY);
     expect(deps.rawLogs.join("\n")).not.toContain(IMAP_PASSWORD);
 
-    // The export is logged and in the activity log, which the next export holds.
+    // The export is logged and in the activity log, which it holds itself: it is recorded as it
+    // starts.
     expect(deps.logs.find((l) => l.event === "export.completed")).toMatchObject({
       workspaceId: maria.workspaceId,
       userId: maria.id,
@@ -148,10 +149,26 @@ describe("the export (F7.1)", () => {
     expect((await activityRows(deps.db, maria.workspaceId)).map((r) => r.kind)).toEqual([
       "export.downloaded",
     ]);
-    const again = await download(mariaApi);
-    expect(json(again["activity.json"])).toMatchObject([
+    expect(json(files["activity.json"])).toMatchObject([
       { kind: "export.downloaded", actor: { userId: maria.id, name: "Maria Santos" } },
     ]);
+  });
+
+  it("is in the activity log before its first byte, even if it is never read to the end", async () => {
+    const res = await mariaApi.get(exportPath());
+    expect(res.status).toBe(200);
+    expect(await activityRows(deps.db, maria.workspaceId)).toEqual([
+      {
+        kind: "export.downloaded",
+        actorKind: "user",
+        actorId: maria.id,
+        targetUserId: null,
+        refs: {},
+      },
+    ]);
+    expect(deps.logs.map((l) => l.event)).not.toContain("export.completed");
+    await res.body?.cancel();
+    expect(deps.logs.map((l) => l.event)).not.toContain("export.completed");
   });
 
   it("holds the whole pipeline, the derived stages and those set by hand", async () => {

@@ -78,7 +78,7 @@ function describe(row: StoredActivity, target: string): string {
     case "workspace.ownership_transferred":
       return `Handed the workspace over to ${target}`;
     case "export.downloaded":
-      return "Downloaded the workspace's data";
+      return "Started a download of the workspace's data";
     case "mailbox.connected":
       return "Connected a mailbox";
     case "mailbox.smtp_changed":

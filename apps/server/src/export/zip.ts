@@ -66,7 +66,8 @@ async function* partRows(
 
 /**
  * The export of the workspace as a stream of ZIP bytes. `onDone` runs once the last byte has been
- * produced (to record and log the export); an error ends the stream with it.
+ * produced (to log the export; the route records it before the stream starts); an error ends the
+ * stream with it.
  */
 export function exportZip(
   deps: AppDeps,

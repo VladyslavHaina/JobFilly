@@ -9,23 +9,24 @@ import { exportZip } from "../export/zip";
 // pipeline only (it holds drafts and every message's metadata, D25).
 
 export function exportRoutes(deps: AppDeps) {
-  return new Hono<WorkspaceEnv>().get("/", requireRole("admin"), (c) => {
+  return new Hono<WorkspaceEnv>().get("/", requireRole("admin"), async (c) => {
     const membership = c.get("membership");
-    const userId = c.get("user").id;
     const log = c.get("log");
     const day = deps.clock.now().toISOString().slice(0, 10);
+    // Recorded as it starts, before the first byte: an export cut short still read everything it
+    // sent, so it is in the log however it ends. export.completed is logged once the last byte is.
+    await recordActivity(
+      deps.db,
+      membership.id,
+      {
+        kind: "export.downloaded",
+        actor: { kind: "user", userId: c.get("user").id },
+        targetUserId: null,
+        refs: {},
+      },
+      deps.clock.now(),
+    );
     const stream = exportZip(deps, { id: membership.id, name: membership.name }, async () => {
-      await recordActivity(
-        deps.db,
-        membership.id,
-        {
-          kind: "export.downloaded",
-          actor: { kind: "user", userId },
-          targetUserId: null,
-          refs: {},
-        },
-        deps.clock.now(),
-      );
       log.info("export.completed");
     });
     return c.body(stream, 200, {
