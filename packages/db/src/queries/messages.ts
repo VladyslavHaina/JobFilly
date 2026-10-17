@@ -25,7 +25,7 @@ import {
   sql,
 } from "drizzle-orm";
 import type { Database } from "../client";
-import { messages, roles, senderChecks } from "../tables";
+import { messages, roleProfileChoices, roleStages, roles, senderChecks } from "../tables";
 
 // Message metadata, snippets and extracted facts (never bodies). A message is named by its RFC
 // Message-ID, unique per workspace, so saving the same envelopes again (a resumed scan) is
@@ -434,6 +434,12 @@ export async function countScanAnalysis(
 /**
  * Stores the model's analysis of one message: its category (unless a person corrected it, which
  * is kept for good) and its roles, which replace any earlier ones. False for an unknown message.
+ *
+ * What an editor chose for a role by hand and is stored with the role (its stage, F5.1, and its
+ * profile, F1.3) is carried over to the new role at the same position, in the same transaction,
+ * so a re-analysis (a re-run of setup, F1.1) keeps it; a position the new analysis no longer has
+ * takes its choices with it. The CV choice and the decisions are stored with the message, so they
+ * stay as they are.
  */
 export async function saveAnalysis(
   db: Database,
@@ -458,6 +464,13 @@ export async function saveAnalysis(
       .where(and(eq(messages.workspaceId, workspaceId), eq(messages.messageId, input.messageId)))
       .returning({ id: messages.id });
     if (updated.length === 0) return false;
+    const ofMessage = <T extends typeof roleStages | typeof roleProfileChoices>(t: T) =>
+      and(eq(t.workspaceId, workspaceId), eq(t.messageId, input.messageId));
+    const kept = (row: { position: number }) => row.position < input.roles.length;
+    const stages = (await tx.select().from(roleStages).where(ofMessage(roleStages))).filter(kept);
+    const profileChoices = (
+      await tx.select().from(roleProfileChoices).where(ofMessage(roleProfileChoices))
+    ).filter(kept);
     await tx
       .delete(roles)
       .where(and(eq(roles.workspaceId, workspaceId), eq(roles.messageId, input.messageId)));
@@ -471,6 +484,8 @@ export async function saveAnalysis(
         })),
       );
     }
+    if (stages.length > 0) await tx.insert(roleStages).values(stages);
+    if (profileChoices.length > 0) await tx.insert(roleProfileChoices).values(profileChoices);
     return true;
   });
 }
