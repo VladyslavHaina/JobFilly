@@ -2,6 +2,7 @@ import {
   type Category,
   type Envelope,
   type IntakeInput,
+  JOB_CATEGORIES,
   type JobFacts,
   MESSAGE_GONE_SIGNAL,
   type Preferences,
@@ -460,6 +461,32 @@ export async function savePreferences(
     .where(and(eq(messages.workspaceId, workspaceId), eq(messages.messageId, input.messageId)))
     .returning({ id: messages.id });
   return rows.length > 0;
+}
+
+/**
+ * The languages (ISO 639-1) the sender stage detected in the workspace's job mail, most frequent
+ * first (ties by code), at most `limit`: what assistant.v1 writes a rule's phrases in.
+ */
+export async function listJobMailLanguages(
+  db: Database,
+  workspaceId: string,
+  limit = 8,
+): Promise<string[]> {
+  const n = count();
+  const rows = await db
+    .select({ language: messages.language, n })
+    .from(messages)
+    .where(
+      and(
+        eq(messages.workspaceId, workspaceId),
+        inArray(messages.category, [...JOB_CATEGORIES]),
+        isNotNull(messages.language),
+      ),
+    )
+    .groupBy(messages.language)
+    .orderBy(desc(n), asc(messages.language))
+    .limit(limit);
+  return rows.flatMap((r) => (r.language === null ? [] : [r.language]));
 }
 
 /** The roles of one message, in their order. */

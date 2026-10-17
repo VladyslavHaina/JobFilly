@@ -10,12 +10,19 @@ import { type DatabaseConnection, queryRows } from "../client";
 import { openTestDatabase } from "../testing";
 import { registerAccount } from "./accounts";
 import { claimDraft, getDraftClaim } from "./draft-claims";
-import { getEvaluations, getSenderChecks, saveEvaluation, saveSenderCheck } from "./evaluations";
+import {
+  getEvaluations,
+  getSenderChecks,
+  saveEvaluation,
+  saveMessageLanguage,
+  saveSenderCheck,
+} from "./evaluations";
 import {
   countNotAnalyzed,
   countScanAnalysis,
   getRoles,
   getStoredMessages,
+  listJobMailLanguages,
   listPendingCandidates,
   listPendingOwnReplies,
   loadIntakeInput,
@@ -425,6 +432,45 @@ describe("loadIntakeInput", () => {
       roles: [],
     });
     expect(await loadIntakeInput(conn.db, other)).toEqual({ replies: [], jobs: [] });
+  });
+});
+
+describe("listJobMailLanguages", () => {
+  /** A message of this category whose body the sender stage read as this language. */
+  async function seed(n: number, category: string | null, language: string | null, w = ws) {
+    const e = envelope(n);
+    await saveEnvelopes(conn.db, w, [at(e, "likely_job")]);
+    if (category) {
+      await saveAnalysis(conn.db, w, {
+        messageId: e.messageId,
+        scanId: null,
+        category: category as "offer",
+        roles: [],
+      });
+    }
+    await saveMessageLanguage(conn.db, w, e.messageId, language);
+  }
+
+  it("lists the job mail's languages, most frequent first, ties by code", async () => {
+    await seed(1, "recruiter_outreach", "nl");
+    await seed(2, "job_alert", "de");
+    await seed(3, "offer", "de");
+    await seed(4, "interview", "pt");
+    await seed(5, "recruiter_outreach", "en");
+    await seed(6, "rejection", "de");
+    await seed(7, "recruiter_outreach", "en");
+    await seed(8, "recruiter_outreach", null);
+    expect(await listJobMailLanguages(conn.db, ws)).toEqual(["de", "en", "nl", "pt"]);
+    expect(await listJobMailLanguages(conn.db, ws, 2)).toEqual(["de", "en"]);
+  });
+
+  it("leaves out mail that isn't job mail or isn't analysed, and other workspaces", async () => {
+    await seed(1, "recruiter_outreach", "en");
+    await seed(2, "not_job", "fr");
+    await seed(3, null, "it");
+    await seed(4, "offer", "es", other);
+    expect(await listJobMailLanguages(conn.db, ws)).toEqual(["en"]);
+    expect(await listJobMailLanguages(conn.db, other)).toEqual(["es"]);
   });
 });
 
