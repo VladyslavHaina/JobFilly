@@ -37,12 +37,11 @@ async function fillMailbox(page: Page) {
   await expect(page.getByText("Connected: Inbox, Sent")).toBeVisible();
 }
 
-/** Tom's mailbox card in Settings › Mailbox: its heading and his address. */
+/** Tom's mailbox card in Settings › Mailbox: the card headed by his address. */
 function tomsMailbox(page: Page) {
   return page
     .locator("section")
-    .filter({ has: page.getByRole("heading", { name: "Connected mailbox", exact: true }) })
-    .filter({ hasText: PERSONA_ADDRESSES.tom });
+    .filter({ has: page.getByRole("heading", { name: PERSONA_ADDRESSES.tom, exact: true }) });
 }
 
 test("S7: Tom's thin inbox", async ({ page }) => {
