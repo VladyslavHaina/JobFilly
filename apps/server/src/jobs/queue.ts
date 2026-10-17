@@ -274,12 +274,13 @@ export function createJobQueue(
 
 /**
  * Adds a job, with a dedupe key when given: while one with the key waits, this is a no-op
- * (`enqueued` false). Pass a transaction as `db` to enqueue together with other writes.
+ * (`enqueued` false). With `runAt` no worker claims it before then (MVP 3: a send's Undo delay,
+ * F4.2). Pass a transaction as `db` to enqueue together with other writes.
  */
 export function enqueue(
   deps: Pick<AppDeps, "db" | "clock">,
   workspaceId: string,
-  job: { type: string; payload: unknown; dedupeKey?: string },
+  job: { type: string; payload: unknown; dedupeKey?: string; runAt?: Date },
   db: AppDeps["db"] = deps.db,
 ): Promise<{ id: string; enqueued: boolean }> {
   return enqueueJob(db, workspaceId, { ...job, now: deps.clock.now() });
