@@ -7,7 +7,15 @@ import {
   listRules,
   markUndone,
 } from "@jobfilly/db";
-import type { ProfileHistoryEntry, ProfileHistoryItem, User } from "@jobfilly/schema";
+import {
+  type ChangeLine,
+  type ProfileHistoryEntry,
+  ProfileHistoryEntrySchema,
+  type ProfileHistoryItem,
+  type ProfileSnapshot,
+  ProfileSnapshotSchema,
+  type User,
+} from "@jobfilly/schema";
 import type { AppDeps } from "../deps";
 import type { Logger } from "../log";
 import { applyAndReevaluate } from "../profile/changes";
@@ -21,11 +29,38 @@ import { fail, inTransaction, NOT_FOUND_FAILURE, type Result, refuse } from "./r
 // The entry is marked undone in the same transaction, so it is undone once. Like Apply, Undo writes no draft: those already in the
 // mailbox stay, and the re-evaluation never recreates one a role had.
 
+const NO_SNAPSHOT: ProfileSnapshot = { entries: [], rules: [] };
+
+/** The line of an entry that can't be read, in place of its before and after. */
+const UNREADABLE: ChangeLine = {
+  target: "entry",
+  label: "This change",
+  before: "can't be shown",
+  after: "can't be shown",
+};
+
+/**
+ * A history entry as the API lists it. A row the schema refuses (an older one: MVP 3's first
+ * hand-made rules stored blank words in their change) never breaks the list: its changes are left
+ * out, and its before and after too when they don't read, with one generic line instead. Undo
+ * still works from the stored row.
+ */
 function toItem(entry: ProfileHistoryEntry, names: Map<string, string>): ProfileHistoryItem {
+  const byName = entry.by ? (names.get(entry.by) ?? null) : null;
+  const parsed = ProfileHistoryEntrySchema.safeParse(entry);
+  if (parsed.success) {
+    return { ...entry, byName, lines: changeLines(entry.before, entry.after) };
+  }
+  const before = ProfileSnapshotSchema.safeParse(entry.before);
+  const after = ProfileSnapshotSchema.safeParse(entry.after);
+  const snapshots = before.success && after.success;
   return {
     ...entry,
-    byName: entry.by ? (names.get(entry.by) ?? null) : null,
-    lines: changeLines(entry.before, entry.after),
+    byName,
+    changes: [],
+    before: snapshots ? before.data : NO_SNAPSHOT,
+    after: snapshots ? after.data : NO_SNAPSHOT,
+    lines: snapshots ? changeLines(before.data, after.data) : [UNREADABLE],
   };
 }
 

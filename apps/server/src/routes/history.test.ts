@@ -1,4 +1,10 @@
-import { createConfirmedProfile, getHistory, listProfiles, listRules } from "@jobfilly/db";
+import {
+  applyProfileChanges,
+  createConfirmedProfile,
+  getHistory,
+  listProfiles,
+  listRules,
+} from "@jobfilly/db";
 import {
   type Change,
   type Profile,
@@ -6,6 +12,7 @@ import {
   ProfileHistoryItemSchema,
   ProfileHistoryListSchema,
   type RuleDraft,
+  RuleSchema,
 } from "@jobfilly/schema";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../app";
@@ -170,6 +177,83 @@ describe("the profile history", () => {
         },
       ],
     });
+  });
+
+  it("lists a rule made by hand without words by the words of its conditions (B1)", async () => {
+    const rules = `/api/workspaces/${ws.workspaceId}/profiles/${profile.id}/rules`;
+    const made = await maria.post(rules, { when: asiaRule.when, then: "hide" });
+    expect(made.status).toBe(201);
+    const rule = RuleSchema.parse(await made.json());
+    deps.clock.advance(1_000);
+    const later = [
+      { fact: "timeZones", op: "within", value: { from: "UTC+06:00", to: "UTC+14:00" } },
+    ];
+    const edited = await maria.patch(`${rules}/${rule.id}`, {
+      description: rule.description,
+      when: later,
+    });
+    const changed = RuleSchema.parse(await edited.json());
+    expect(changed.description).not.toBe(rule.description);
+
+    const [edit, add] = await list(tom);
+    // Each change holds the words the rule was stored with: never blank, never the old range's.
+    expect(add?.changes).toMatchObject([{ op: "add", rule: { description: rule.description } }]);
+    expect(rule.description.trim()).not.toBe("");
+    expect(edit?.changes).toMatchObject([
+      { op: "update", ruleId: rule.id, rule: { description: changed.description } },
+    ]);
+  });
+
+  it("lists an older entry the schema refuses, so the rest of the list still reads", async () => {
+    const good = await change(
+      [{ op: "remove", target: "entry", key: "places", value: null }],
+      "you",
+      null,
+    );
+    // Rows written before the fix above: a change with blank words…
+    const blank = await change(
+      [{ op: "add", target: "rule", rule: { ...asiaRule, description: "" } }],
+      "you",
+      null,
+    );
+    // …and one whose before and after can't be read at all.
+    deps.clock.advance(60_000);
+    const broken = await applyProfileChanges(deps.db, ws.workspaceId, profile.id, [], {
+      source: "you",
+      userId: ws.owner.id,
+      request: null,
+      at: deps.clock.now(),
+      apply: (state) => ({
+        ok: true,
+        entries: state.profile.entries,
+        rules: state.rules,
+        before: { entries: [{ key: "not a key", value: null }], rules: [] } as never,
+        after: { entries: [], rules: [] },
+      }),
+    });
+    if (!broken?.ok || !broken.entry) throw new Error("expected a history entry");
+
+    const items = await list(tom);
+    expect(items.map((i) => i.id)).toEqual([broken.entry.id, blank.id, good.id]);
+    expect(items[0]).toMatchObject({
+      changes: [],
+      lines: [{ label: "This change", before: "can't be shown", after: "can't be shown" }],
+    });
+    // The blank words' entry keeps its lines, worded from the stored rule.
+    expect(items[1]).toMatchObject({
+      changes: [],
+      lines: [
+        {
+          target: "rule",
+          before: null,
+          after: "Hide roles whose hours are within UTC+5 to UTC+14",
+        },
+      ],
+    });
+    expect(items[2]?.lines).toMatchObject([{ before: "Amsterdam, NL (hybrid)", after: null }]);
+    // And Undo still works from the stored row.
+    expect((await maria.post(`${historyUrl()}/${blank.id}/undo`)).status).toBe(200);
+    expect(await listRules(deps.db, ws.workspaceId, profile.id)).toEqual([]);
   });
 
   it("answers 404 for a profile that isn't the workspace's, and to outsiders", async () => {

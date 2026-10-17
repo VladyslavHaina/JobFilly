@@ -1,10 +1,13 @@
+import { rewordEdited, rewordProposed } from "@jobfilly/core";
 import { getRule, listProfiles, listRules } from "@jobfilly/db";
 import {
   type Change,
   IdSchema,
   type Profile,
+  type Rule,
   type RuleChangeResult,
   RuleCreateSchema,
+  type RuleDraft,
   type RuleList,
   RulePatchSchema,
 } from "@jobfilly/schema";
@@ -25,6 +28,27 @@ import { changedRoles } from "../profile/impact";
 
 const ProfileParamsSchema = z.object({ profileId: IdSchema });
 const RuleParamsSchema = z.object({ profileId: IdSchema, ruleId: IdSchema });
+
+/**
+ * The words a rule made or changed by hand is stored with, in the history's change as in the
+ * rule itself: the words given; else the plain words of its conditions and action, as a proposal's
+ * rules get when first stored (rewordProposed); and new conditions or a new action under the old
+ * words get new words too (rewordEdited). Never blank, which RuleDraftSchema refuses when the
+ * history is read.
+ */
+function withWords(draft: RuleDraft, current: Rule | null): RuleDraft {
+  if (draft.description.trim() === "") {
+    const [add] = rewordProposed([{ op: "add", target: "rule", rule: draft }], []);
+    return add?.target === "rule" && add.op === "add" ? add.rule : draft;
+  }
+  if (!current) return draft;
+  const ruleId = current.id;
+  const [update] = rewordEdited(
+    [{ op: "update", target: "rule", ruleId, rule: current }],
+    [{ op: "update", target: "rule", ruleId, rule: draft }],
+  );
+  return update?.target === "rule" && update.op === "update" ? update.rule : draft;
+}
 
 export function rulesRoutes(deps: AppDeps) {
   const profileOf = async (workspaceId: string, profileId: string) =>
@@ -86,11 +110,10 @@ export function rulesRoutes(deps: AppDeps) {
           (await listRules(deps.db, workspaceId, profile.id)).map((r) => r.id),
         );
         const { description, ...rule } = c.req.valid("json");
-        // Blank words are stored as the words of its conditions (packages/core describeRule).
         const add: Change = {
           op: "add",
           target: "rule",
-          rule: { ...rule, description: description ?? "" },
+          rule: withWords({ ...rule, description: description ?? "" }, null),
         };
         return change(c, profile, add, (rules) => rules.find((r) => !before.has(r.id)), 201);
       },
@@ -111,12 +134,15 @@ export function rulesRoutes(deps: AppDeps) {
           op: "update",
           target: "rule",
           ruleId,
-          rule: {
-            description: patch.description ?? rule.description,
-            when: patch.when ?? rule.when,
-            then: patch.then ?? rule.then,
-            enabled: patch.enabled ?? rule.enabled,
-          },
+          rule: withWords(
+            {
+              description: patch.description ?? rule.description,
+              when: patch.when ?? rule.when,
+              then: patch.then ?? rule.then,
+              enabled: patch.enabled ?? rule.enabled,
+            },
+            rule,
+          ),
         };
         return change(c, profile, update, (rules) => rules.find((r) => r.id === ruleId), 200);
       },
