@@ -1,8 +1,9 @@
-import type {
-  MailTestFailureReason,
-  SmtpEnvelope,
-  SmtpLogin,
-  SmtpTestResult,
+import {
+  type MailTestFailureReason,
+  type SmtpEnvelope,
+  type SmtpLogin,
+  SmtpLoginSchema,
+  type SmtpTestResult,
 } from "@jobfilly/schema";
 import { createTransport } from "nodemailer";
 
@@ -20,7 +21,7 @@ export interface SmtpOptions {
 }
 
 /** Why the SMTP server can't be used, in plain words; never the server's own words. */
-export const SMTP_FAILURE_MESSAGES: Record<MailTestFailureReason, string> = {
+const SMTP_FAILURE_MESSAGES: Record<MailTestFailureReason, string> = {
   wrong_password:
     "The SMTP server didn't accept the user name or password. Some providers need an app password.",
   unreachable: "The SMTP server can't be reached. Check the server name and the port.",
@@ -41,38 +42,62 @@ export class SmtpError extends Error {
   }
 }
 
-const TIMEOUTS = { connectionTimeout: 15_000, greetingTimeout: 10_000, socketTimeout: 30_000 };
+/** Every wait is bounded: name lookup, connecting, the greeting and each reply. */
+export const SMTP_TIMEOUTS_MS = {
+  dnsTimeout: 10_000,
+  connectionTimeout: 15_000,
+  greetingTimeout: 10_000,
+  socketTimeout: 30_000,
+} as const;
 
-function transportFor(login: SmtpLogin, options: SmtpOptions) {
-  if (login.tlsMode === "none" && !options.allowInsecure) throw new SmtpError("insecure_refused");
-  return createTransport({
-    host: login.host,
-    port: login.port,
-    secure: login.tlsMode === "tls",
-    requireTLS: login.tlsMode === "starttls",
-    ignoreTLS: login.tlsMode === "none",
+/**
+ * The transport's options, with the same policy as IMAP: the login is checked where it enters
+ * (SmtpLoginSchema: a host name or IP address only, a port 1–65535), plain text is refused unless
+ * JOBFILLY_ALLOW_INSECURE_MAIL allows it, and the connection goes to that one host and port —
+ * no pool, proxy, well-known service or other host — with bounded timeouts and no logger.
+ */
+export function smtpTransportOptions(login: SmtpLogin, options: SmtpOptions) {
+  const checked = SmtpLoginSchema.safeParse(login);
+  if (!checked.success) throw new SmtpError("unreachable", "EBADHOST");
+  const valid = checked.data;
+  if (valid.tlsMode === "none" && !options.allowInsecure) throw new SmtpError("insecure_refused");
+  return {
+    host: valid.host,
+    port: valid.port,
+    secure: valid.tlsMode === "tls",
+    requireTLS: valid.tlsMode === "starttls",
+    ignoreTLS: valid.tlsMode === "none",
     auth:
-      "accessToken" in login
-        ? { type: "OAuth2", user: login.username, accessToken: login.accessToken }
-        : { user: login.username, pass: login.password },
-    ...TIMEOUTS,
+      "accessToken" in valid
+        ? { type: "OAuth2" as const, user: valid.username, accessToken: valid.accessToken }
+        : { user: valid.username, pass: valid.password },
+    ...SMTP_TIMEOUTS_MS,
+    pool: false as const,
     logger: false,
     debug: false,
     disableFileAccess: true,
     disableUrlAccess: true,
-  });
+  };
 }
 
-const TLS_CODE = /^(ETLS|ERR_SSL|ERR_TLS|EPROTO|CERT_|DEPTH_ZERO|SELF_SIGNED|UNABLE_TO_)/;
+const transportFor = (login: SmtpLogin, options: SmtpOptions) =>
+  createTransport(smtpTransportOptions(login, options));
 
-/** The reason for an SMTP failure, from nodemailer's error codes (never its message text). */
+const TLS_CODE = /^(ETLS|ERR_SSL|ERR_TLS|EPROTO|CERT_|DEPTH_ZERO|SELF_SIGNED|UNABLE_TO_)/;
+/** What a code looks like when it is nodemailer's or Node's own (EAUTH, ECONNREFUSED, …). */
+const OWN_CODE = /^[A-Z][A-Z0-9_]{1,39}$/;
+
+/**
+ * The reason for an SMTP failure, from the error's code only: nothing the server said (its
+ * banner, reply or error text) reaches the user or the logs.
+ */
 function asSmtpError(error: unknown): SmtpError {
   if (error instanceof SmtpError) return error;
   const e = (typeof error === "object" && error !== null ? error : {}) as {
     code?: unknown;
     responseCode?: unknown;
   };
-  const code = typeof e.code === "string" ? e.code : undefined;
+  const code = typeof e.code === "string" && OWN_CODE.test(e.code) ? e.code : undefined;
   if (code === "EAUTH" || e.responseCode === 535) return new SmtpError("wrong_password", code);
   if (code && TLS_CODE.test(code)) return new SmtpError("tls", code);
   return new SmtpError("unreachable", code);

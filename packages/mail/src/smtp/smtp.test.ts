@@ -1,7 +1,14 @@
 import { createServer, type Server, type Socket } from "node:net";
 import type { OriginalMessage, SmtpLogin } from "@jobfilly/schema";
 import { afterEach, describe, expect, it } from "vitest";
-import { composeOutgoing, SmtpError, sendSmtp, testSmtp } from "./index";
+import {
+  composeOutgoing,
+  SMTP_TIMEOUTS_MS,
+  SmtpError,
+  sendSmtp,
+  smtpTransportOptions,
+  testSmtp,
+} from "./index";
 
 // SMTP sending (MVP 3, F4): the real nodemailer transport driven against a scripted SMTP
 // responder on node:net (plain text, a random local port), just enough of RFC 5321 for one
@@ -10,6 +17,8 @@ import { composeOutgoing, SmtpError, sendSmtp, testSmtp } from "./index";
 
 const PASSWORD = "E2E-SECRET-maria-smtp";
 const TOKEN = "E2E-SECRET-oauth-access";
+/** What the server says in its banner and its refusals: never shown or logged. */
+const SERVER_WORDS = "SERVER-SAYS-visit-evil.example";
 
 interface Received {
   commands: string[];
@@ -39,7 +48,7 @@ async function smtpServer(options: { password?: string } = {}): Promise<{
     let inData = false;
     let data = "";
     const say = (line: string) => socket.write(`${line}\r\n`);
-    say("220 smtp.test ESMTP");
+    say(`220 smtp.test ESMTP ${SERVER_WORDS}`);
     socket.on("data", (chunk) => {
       buffer += chunk.toString("utf8");
       for (;;) {
@@ -75,7 +84,7 @@ async function smtpServer(options: { password?: string } = {}): Promise<{
               mechanism === "PLAIN"
                 ? decoded.split("\0")[2] === password
                 : decoded.includes(`auth=Bearer ${TOKEN}`);
-            say(ok ? "235 2.7.0 Accepted" : "535 5.7.8 Authentication failed");
+            say(ok ? "235 2.7.0 Accepted" : `535 5.7.8 ${SERVER_WORDS}`);
             break;
           }
           case "MAIL":
@@ -195,16 +204,54 @@ describe("sendSmtp (F4.4)", () => {
     expect(received.data).toHaveLength(1);
   });
 
-  it("says why it couldn't send, never with the password", async () => {
+  it("says why it couldn't send in fixed words: never the password or the server's own", async () => {
     const { port, received } = await smtpServer({ password: "another" });
     const message = await outgoing();
     const failure = await sendSmtp(login(port), message.envelope, message.raw, insecure).catch(
       (e: unknown) => e,
     );
     expect(failure).toBeInstanceOf(SmtpError);
-    expect(failure).toMatchObject({ reason: "wrong_password" });
-    expect(String((failure as Error).message)).not.toContain(PASSWORD);
+    expect(failure).toMatchObject({ reason: "wrong_password", code: "EAUTH" });
+    // Everything the error carries: its message, code and any other field.
+    const carried = JSON.stringify({ ...(failure as object), message: (failure as Error).message });
+    expect(carried).not.toContain(PASSWORD);
+    expect(carried).not.toContain(SERVER_WORDS);
     expect(received.data).toEqual([]);
+  });
+
+  it("connects to a plain host name or IP address only, never to a URL", async () => {
+    const { port, received } = await smtpServer();
+    const message = await outgoing();
+    for (const host of ["smtp://127.0.0.1", "127.0.0.1:25", "user@127.0.0.1", "127.0.0.1/x"]) {
+      await expect(
+        sendSmtp({ ...login(port), host }, message.envelope, message.raw, insecure),
+      ).rejects.toMatchObject({ reason: "unreachable", code: "EBADHOST" });
+      expect(await testSmtp({ ...login(port), host }, insecure)).toMatchObject({ ok: false });
+    }
+    await expect(
+      sendSmtp({ ...login(port), port: 70000 }, message.envelope, message.raw, insecure),
+    ).rejects.toMatchObject({ code: "EBADHOST" });
+    expect(received.commands).toEqual([]);
+  });
+
+  it("goes to that one host and port, with bounded timeouts and nothing else", () => {
+    const options = smtpTransportOptions(
+      { host: "smtp.inbox.example", port: 587, tlsMode: "starttls", username: "m", password: "p" },
+      { allowInsecure: false },
+    );
+    expect(options).toMatchObject({
+      host: "smtp.inbox.example",
+      port: 587,
+      secure: false,
+      requireTLS: true,
+      ignoreTLS: false,
+      pool: false,
+      logger: false,
+      ...SMTP_TIMEOUTS_MS,
+    });
+    expect(options).not.toHaveProperty("proxy");
+    expect(options).not.toHaveProperty("service");
+    for (const ms of Object.values(SMTP_TIMEOUTS_MS)) expect(ms).toBeLessThanOrEqual(30_000);
   });
 
   it("refuses plain-text SMTP unless the server allows it", async () => {
