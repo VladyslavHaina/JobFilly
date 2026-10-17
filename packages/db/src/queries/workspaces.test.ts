@@ -11,6 +11,8 @@ import {
   listWorkspacesForUser,
   removeMember,
   setMemberRole,
+  setMemberScope,
+  transferOwnership,
 } from "./workspaces";
 
 let conn: DatabaseConnection;
@@ -97,5 +99,34 @@ describe("more workspaces", () => {
       "Maria's workspace",
       "Job hunt",
     ]);
+  });
+});
+
+describe("handing over ownership (MVP 3, F6.3)", () => {
+  it("only the owner hands the workspace to an admin, who then sees everything", async () => {
+    const ws = maria.workspaceId;
+    expect(await transferOwnership(conn.db, ws, maria.userId, tom.userId)).toBe("not_admin");
+    expect(await setMemberRole(conn.db, ws, tom.userId, "admin")).toBe("ok");
+    expect(await setMemberScope(conn.db, ws, tom.userId, "pipeline")).toBe("ok");
+    expect(await transferOwnership(conn.db, ws, tom.userId, maria.userId)).toBe("not_owner");
+    expect(await transferOwnership(conn.db, ws, maria.userId, maria.userId)).toBe("not_admin");
+    expect(await transferOwnership(conn.db, tom.workspaceId, maria.userId, tom.userId)).toBe(
+      "not_owner",
+    );
+
+    expect(await transferOwnership(conn.db, ws, maria.userId, tom.userId)).toBe("ok");
+    expect(await getMembership(conn.db, ws, tom.userId)).toMatchObject({
+      role: "admin",
+      isOwner: true,
+      scope: "everything",
+    });
+    expect(await getMembership(conn.db, ws, maria.userId)).toMatchObject({
+      role: "admin",
+      isOwner: false,
+    });
+    // Now Maria can be removed, and Tom can't.
+    expect(await removeMember(conn.db, ws, tom.userId)).toBe("owner");
+    expect(await transferOwnership(conn.db, ws, tom.userId, maria.userId)).toBe("ok");
+    expect((await getMembership(conn.db, ws, maria.userId))?.isOwner).toBe(true);
   });
 });
