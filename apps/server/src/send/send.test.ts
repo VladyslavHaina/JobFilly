@@ -359,6 +359,43 @@ describe("Settings › Sending", () => {
     expect(h.deps.rawLogs.join("\n")).not.toContain(SMTP_PASSWORD);
   });
 
+  it("logs mailbox.smtp_saved with the mailbox id only", async () => {
+    await withSmtp();
+    expect(events("mailbox.smtp_saved")).toHaveLength(1);
+    const [line] = events("mailbox.smtp_saved");
+    expect(line).toMatchObject({ level: "info", mailboxId });
+    const logged = JSON.stringify(line);
+    for (const value of [SMTP.host, SMTP.username, SMTP_PASSWORD]) {
+      expect(logged).not.toContain(value);
+    }
+  });
+
+  it("logs a failed Test's mail error code, never in the answer, never a host", async () => {
+    await withSmtp();
+    const message = "Couldn't reach the mail server";
+    h.deps.smtp = {
+      ...smtp.port,
+      test: async () => ({ ok: false, reason: "unreachable", message, code: "ECONNREFUSED" }),
+    };
+    const res = await maria.post(`${ws}/mailboxes/${mailboxId}/smtp/test`, SMTP);
+    const body = await res.text();
+    expect(JSON.parse(body)).toEqual({ ok: false, reason: "unreachable", message });
+    expect(body).not.toContain("ECONNREFUSED");
+    expect(events("mailbox.test_failed")).toMatchObject([
+      { level: "warn", protocol: "smtp", reason: "unreachable", mailCode: "ECONNREFUSED" },
+    ]);
+    // A code that isn't code-shaped is logged as other, never as it came.
+    h.deps.smtp = {
+      ...smtp.port,
+      test: async () => ({ ok: false, reason: "unreachable", message, code: "connect smtp.x" }),
+    };
+    const other = await maria.post(`${ws}/mailboxes/${mailboxId}/smtp/test`, SMTP);
+    expect(await other.json()).toEqual({ ok: false, reason: "unreachable", message });
+    expect(events("mailbox.test_failed")[1]).toMatchObject({ mailCode: "other" });
+    const raw = h.deps.rawLogs.join("\n");
+    for (const value of [SMTP.host, "smtp.x", SMTP_PASSWORD]) expect(raw).not.toContain(value);
+  });
+
   it("uses a stored password only with the host it was given for", async () => {
     const put = (body: Record<string, unknown>) =>
       maria.put(`${ws}/mailboxes/${mailboxId}/smtp`, { ...SMTP, ...body });

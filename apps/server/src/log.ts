@@ -22,6 +22,8 @@ export type LogEvent =
   | "workspace.invite_accepted"
   | "workspace.role_changed"
   | "mailbox.connected"
+  // A failed IMAP or SMTP test: its reason and, when it has one, the mail error code (mailCode,
+  // such as ENOTFOUND or ECONNREFUSED; testFailedFields), never a host or a credential.
   | "mailbox.test_failed"
   | "ai.settings_saved"
   | "ai.test_failed"
@@ -102,10 +104,11 @@ export type LogEvent =
   | "account.deleted"
   | "assistant.answered"
   // Operational (MVP 3): a send that failed (why with failureFields), a mailbox disconnected
-  // (F7.4), a member who left (F6.3), and an OAuth callback refused (a wrong or used state,
-  // F3.2), with a reason code only.
+  // (F7.4), a mailbox's SMTP settings saved (its mailboxId only), a member who left (F6.3), and
+  // an OAuth callback refused (a wrong or used state, F3.2), with a reason code only.
   | "send.failed"
   | "mailbox.disconnected"
+  | "mailbox.smtp_saved"
   | "member.left"
   | "oauth.callback_refused";
 

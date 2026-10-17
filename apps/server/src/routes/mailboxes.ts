@@ -49,6 +49,27 @@ const INSECURE: MailTestResult = {
   message: FAILURE_MESSAGES.insecure_refused,
 };
 
+/** The shape of a known mail error code (@jobfilly/mail allow-lists them): no dots, no spaces. */
+const MAIL_CODE = /^[A-Za-z][A-Za-z0-9_]{1,39}$/;
+
+/**
+ * mailbox.test_failed's fields for a failed IMAP or SMTP test: the reason and the mail error code
+ * (mailCode, as a scan's mail_error logs it). @jobfilly/mail passes on only codes from its
+ * allow-lists; anything else, or none, is logged as "other", so the line never holds error text,
+ * a host, an address or a credential. A plain-text login refused before connecting has no code.
+ */
+export function testFailedFields(result: { reason: string; code?: string }) {
+  if (result.reason === "insecure_refused") return { reason: result.reason };
+  const mailCode = result.code && MAIL_CODE.test(result.code) ? result.code : "other";
+  return { reason: result.reason, mailCode };
+}
+
+/** A test's result as the API answers it: the error code is for the log only. */
+export function withoutCode<T extends { ok: boolean; code?: string }>(result: T): T {
+  const { code: _code, ...shown } = result;
+  return shown as T;
+}
+
 const EXISTS = {
   error: "exists",
   message: "This mailbox is already connected to the workspace.",
@@ -91,8 +112,8 @@ export function mailboxRoutes(deps: AppDeps) {
         await client.close().catch(() => undefined);
       }
     }
-    if (!result.ok) log.warn("mailbox.test_failed", { reason: result.reason });
-    return result;
+    if (!result.ok) log.warn("mailbox.test_failed", testFailedFields(result));
+    return withoutCode(result);
   }
 
   return new Hono<WorkspaceEnv>()

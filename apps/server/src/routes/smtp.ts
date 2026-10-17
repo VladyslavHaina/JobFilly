@@ -25,6 +25,7 @@ import {
 import type { AppDeps } from "../deps";
 import { open, seal } from "../secrets";
 import { googleSmtp, providerSavesSentCopy } from "../send/outgoing";
+import { testFailedFields, withoutCode } from "./mailboxes";
 
 // A mailbox's SMTP settings (MVP 3, F4): GET /:mailboxId/smtp reads them (never a password),
 // PUT /:mailboxId/smtp saves them (SmtpSettingsInputSchema, the password sealed), POST
@@ -108,6 +109,7 @@ export function smtpRoutes(deps: AppDeps) {
           secretCiphertext,
           now: deps.clock.now(),
         });
+        c.get("log").info("mailbox.smtp_saved", { mailboxId: found.mailbox.mailboxId });
         await recordActivity(
           deps.db,
           ws,
@@ -158,9 +160,9 @@ export function smtpRoutes(deps: AppDeps) {
         if (!result.ok) {
           deps.log
             .child({ workspaceId: ws })
-            .warn("mailbox.test_failed", { protocol: "smtp", reason: result.reason });
+            .warn("mailbox.test_failed", { protocol: "smtp", ...testFailedFields(result) });
         }
-        return c.json(result);
+        return c.json(withoutCode(result));
       },
     );
 }

@@ -323,11 +323,11 @@ describe("the callback", () => {
     ]);
 
     deps.oauth = oauth.port;
-    imapResult = { ok: false, reason: "wrong_password", message: "x" };
+    imapResult = { ok: false, reason: "wrong_password", message: "x", code: "AUTHFAILED" };
     res = await callback(admin, { code: "c", state: (await started()).get("state") ?? "" });
     expect(res.headers.get("location")).toMatch(/\?oauth=failed$/);
     expect(logged("mailbox.test_failed")).toEqual([
-      expect.objectContaining({ level: "warn", reason: "wrong_password" }),
+      expect.objectContaining({ level: "warn", reason: "wrong_password", mailCode: "AUTHFAILED" }),
     ]);
     expect(await listMailboxes(deps.db, workspaceId)).toEqual([]);
   });

@@ -257,6 +257,38 @@ describe("test connection (F2.1)", () => {
     expect(deps.rawLogs.join("\n")).not.toContain("inbox.example");
   });
 
+  it("logs the mail error code as mailCode, and answers with the fixed words only", async () => {
+    const message = "Couldn't reach the mail server";
+    mail.result = { ok: false, reason: "unreachable", message, code: "ENOTFOUND" };
+    const res = await admin.post(`${url}/test`, form);
+    const body = await res.text();
+    expect(JSON.parse(body)).toEqual({ ok: false, reason: "unreachable", message });
+    expect(body).not.toContain("ENOTFOUND");
+    expect(deps.logs.find((l) => l.event === "mailbox.test_failed")).toMatchObject({
+      reason: "unreachable",
+      mailCode: "ENOTFOUND",
+    });
+    expect(deps.rawLogs.join("\n")).not.toContain("inbox.example");
+  });
+
+  it("logs mailCode other for a code that isn't a known one, and no error text", async () => {
+    mail.result = {
+      ok: false,
+      reason: "unreachable",
+      message: "Couldn't reach the mail server",
+      code: "getaddrinfo ENOTFOUND imap.inbox.example",
+    };
+    const res = await admin.post(`${url}/test`, form);
+    const body = await res.text();
+    expect(body).not.toContain("getaddrinfo");
+    expect(body).not.toContain("code");
+    expect(deps.logs.find((l) => l.event === "mailbox.test_failed")).toMatchObject({
+      mailCode: "other",
+    });
+    expect(deps.rawLogs.join("\n")).not.toContain("getaddrinfo");
+    expect(deps.rawLogs.join("\n")).not.toContain("inbox.example");
+  });
+
   it("answers 400 with the first problem when a field is missing", async () => {
     const res = await admin.post(`${url}/test`, { ...form, host: "" });
     expect(res.status).toBe(400);
