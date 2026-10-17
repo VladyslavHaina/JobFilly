@@ -1,19 +1,7 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
-  // Workflow scripts are run by Claude Code, not imported by the app.
-  "ignore": [".claude/**"],
   // e2e/helm.test.ts runs helm when it is on PATH and skips otherwise; it isn't a dependency.
   "ignoreBinaries": ["helm"],
-  // ignoreDependencies: dependencies installed ahead of the code that first uses them. Remove an
-  // entry in the change that starts importing it. At every MVP sign-off this list may only hold
-  // dependencies a later MVP needs. During MVP 2's build the slices edit this file only to add
-  // their own e2e entry points (below); the integrator removes unpdf, mammoth (cvs-senders) and
-  // nodemailer (mailbox) when it merges the slice that first imports each.
-  // `@public` JSDoc tags work the same way for exports: they mark contract exports added ahead of
-  // the slices that import them (apps/server/src/pipeline/stages.ts, e2e/fixtures/format.ts,
-  // apps/web/src/hooks/index.ts). The integrator removes each tag when it merges the slice that
-  // first imports that export, and deletes any export still unused; no `@public` tag may remain
-  // at sign-off.
   "workspaces": {
     ".": {},
     "apps/server": {},
@@ -27,7 +15,7 @@
     // runs `node e2e/rdap/main.ts`), the fixture generator, the Playwright config and specs.
     // CoreDNS runs from e2e/dns/Corefile, so the dns service has no entry point here. A change
     // that adds another entry point adds it here in the same change, so this list names only
-    // files that exist (TBD-226, superseding TBD-206's "slices never edit knip.jsonc").
+    // files that exist.
     "e2e": {
       "entry": [
         "stack.ts",
