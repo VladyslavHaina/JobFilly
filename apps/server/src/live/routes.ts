@@ -1,4 +1,5 @@
 import { getMembership } from "@jobfilly/db";
+import { type LiveEvent, scopeOf } from "@jobfilly/schema";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import type { WorkspaceEnv } from "../access/env";
@@ -6,6 +7,16 @@ import { requireRole } from "../access/membership";
 import { liveSession, sessionTokenHash } from "../auth/session";
 import type { AppDeps } from "../deps";
 import type { StreamOwner } from "./hub";
+
+/**
+ * The event as a member who sees the job pipeline only gets it (MVP 3, F6.2): nothing about
+ * drafts or sending, and no Message-IDs (they may be non-job mail's). Null: not sent at all.
+ */
+function eventForPipeline(event: LiveEvent): LiveEvent | null {
+  if (event.type === "drafts.updated" || event.type === "sends.updated") return null;
+  if (event.type === "messages.updated") return { type: "messages.updated", data: {} };
+  return event;
+}
 
 /** A comment line every so often keeps proxies from closing an idle stream. */
 const HEARTBEAT_MS = 15_000;
@@ -25,6 +36,8 @@ export function eventsRoutes(deps: AppDeps, options: { heartbeatMs?: number } = 
       userId: c.get("user").id,
       sessionId: c.get("sessionId"),
     };
+    // A change of scope closes the stream (LiveHub.revoke), so the scope it opened with holds.
+    const pipelineOnly = scopeOf(c.get("membership")) !== "everything";
     const tokenHash = sessionTokenHash(c);
     const log = c.get("log");
 
@@ -48,8 +61,9 @@ export function eventsRoutes(deps: AppDeps, options: { heartbeatMs?: number } = 
       };
       const unsubscribe = deps.live.subscribe(
         owner,
-        (event) => {
-          if (done) return;
+        (received) => {
+          const event = pipelineOnly ? eventForPipeline(received) : received;
+          if (done || !event) return;
           void stream
             .writeSSE({ event: event.type, data: JSON.stringify(event.data) })
             .catch(close);

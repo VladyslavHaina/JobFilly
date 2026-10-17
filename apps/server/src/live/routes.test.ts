@@ -1,4 +1,4 @@
-import { addMember, deleteSession, findSession, removeMember } from "@jobfilly/db";
+import { addMember, deleteSession, findSession, removeMember, setMemberScope } from "@jobfilly/db";
 import type { LiveEvent } from "@jobfilly/schema";
 import { Hono } from "hono";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -114,6 +114,37 @@ describe("GET /events (SSE)", () => {
     const text = await readUntil(reader, "workspace.updated");
     expect(text).not.toContain("intake.updated");
     await reader.cancel();
+  });
+});
+
+describe("a member who sees the job pipeline only (MVP 3, F6.2)", () => {
+  it("gets no draft or send events and no Message-IDs, while others get them all", async () => {
+    const tom = await seedUser(deps);
+    await addMember(deps.db, maria.workspaceId, tom.id, "editor");
+    await setMemberScope(deps.db, maria.workspaceId, tom.id, "pipeline");
+    const app = createApp(deps);
+    const tomStream = await openStream(await signedIn(app, deps, tom), maria.workspaceId);
+    const mariaStream = await openStream(await signedIn(app, deps, maria), maria.workspaceId);
+    const draftId = "6f1c2f4e-8d3a-4b5c-9e7f-0a1b2c3d4e5f";
+    await deps.live.publish(maria.workspaceId, secret);
+    await deps.live.publish(maria.workspaceId, {
+      type: "drafts.updated",
+      data: { messageIds: ["<offer-42@hr.example>"] },
+    });
+    await deps.live.publish(maria.workspaceId, { type: "sends.updated", data: { draftId } });
+    await deps.live.publish(maria.workspaceId, { type: "workspace.updated", data: {} });
+
+    const tomSaw = await readUntil(tomStream, "workspace.updated");
+    expect(tomSaw).toContain("event: messages.updated\ndata: {}\n");
+    for (const hidden of ["offer-42", "drafts.updated", "sends.updated", draftId]) {
+      expect(tomSaw).not.toContain(hidden);
+    }
+    const mariaSaw = await readUntil(mariaStream, "workspace.updated");
+    for (const seen of ["offer-42", "event: drafts.updated", "event: sends.updated", draftId]) {
+      expect(mariaSaw).toContain(seen);
+    }
+    await tomStream.cancel();
+    await mariaStream.cancel();
   });
 });
 

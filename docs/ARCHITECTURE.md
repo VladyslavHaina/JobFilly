@@ -62,7 +62,8 @@ Rules:
   unless it is mounted with `pipeline: true`, so a new module is closed by default; and
   `requireJobMail` answers 404 for every route about one message (`/messages/:messageId/*`,
   `/senders/messages/:messageId/*`, reads and writes alike) unless it is job mail. Open: members,
-  invites, events, mailboxes, ai, scans, messages (the list job mail only, no draft status, never
+  invites, events (without `drafts.updated` and `sends.updated`, and `messages.updated` without
+  its Message-IDs), mailboxes, ai, scans, messages (the list job mail only, no draft status, never
   a body), intake, profiles, rules, history, cvs, senders, decisions, the assistant (its lookups
   apply the scope, F8.3), pipeline, oauth, activity, the workspace's own DELETE. Closed: drafts
   and sending, export; and, inside open modules, whatever decides where mail comes from or goes
