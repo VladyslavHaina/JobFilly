@@ -13,3 +13,13 @@ export interface Account {
 export const ACCOUNTS: Readonly<Record<Persona, Account>> = Object.fromEntries(
   PERSONAS.map((p) => [p, { user: PERSONA_ADDRESSES[p], password: `E2E-SECRET-${p}-imap` }]),
 ) as Record<Persona, Account>;
+
+/**
+ * MVP 3: Maria's other test mailboxes (F3.1): her personal address, which accepts SMTP too, and
+ * her Gmail test account, signed in with Google against the fake authorisation server (e2e/oauth),
+ * whose access token is this password. Loading mail into them is the fixtures slice's.
+ */
+export const EXTRA_ACCOUNTS = {
+  "maria-home": { user: "maria.home@post.example", password: "E2E-SECRET-maria-home-imap" },
+  "maria-gmail": { user: "maria.gmail@gmail.example", password: "E2E-SECRET-maria-gmail-imap" },
+} as const satisfies Record<string, Account>;

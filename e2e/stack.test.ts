@@ -15,7 +15,7 @@ import {
   readJson,
 } from "./fixtures/format.ts";
 import { readDomains } from "./rdap/domains.ts";
-import { ACCOUNTS } from "./seed/accounts.ts";
+import { ACCOUNTS, EXTRA_ACCOUNTS } from "./seed/accounts.ts";
 import {
   COMPOSE_FILE,
   type Command,
@@ -53,15 +53,27 @@ const services = compose.services;
 describe("docker/compose.e2e.yaml", () => {
   it("has the services of the test stack", () => {
     expect(Object.keys(services).sort()).toEqual(
-      ["app-a", "app-b", "dns", "fake-ai", "imap", "postgres", "proxy", "rdap", "seed"].sort(),
+      [
+        "app-a",
+        "app-b",
+        "dns",
+        "fake-ai",
+        "imap",
+        "oauth",
+        "postgres",
+        "proxy",
+        "rdap",
+        "seed",
+      ].sort(),
     );
   });
 
-  it("publishes only the proxy, on loopback, at :8080 and the direct ports :8081 and :8082", () => {
+  it("publishes only the proxy, on loopback, at :8080, the direct ports :8081 and :8082, and the fake OAuth server's :8084", () => {
     expect(services.proxy?.ports).toEqual([
       "127.0.0.1:8080:8080",
       "127.0.0.1:8081:8081",
       "127.0.0.1:8082:8082",
+      "127.0.0.1:8084:8084",
     ]);
     expect(services.proxy?.image).toMatch(/^haproxy:/);
     expect(services.proxy?.volumes).toEqual([
@@ -107,12 +119,27 @@ describe("docker/compose.e2e.yaml", () => {
       expect(key.toString("base64")).toBe(env.JOBFILLY_SECRET_KEY);
     });
 
-    it("starts once the database is healthy and the DNS and RDAP services have started", () => {
+    it("starts once the database is healthy and the DNS, RDAP and OAuth services have started", () => {
       expect(app.depends_on).toEqual({
         postgres: { condition: "service_healthy" },
         dns: { condition: "service_started" },
         rdap: { condition: "service_started" },
+        oauth: { condition: "service_started" },
       });
+    });
+
+    it("signs in with Google against the fake authorisation server (MVP 3, F3.3)", () => {
+      const env = app.environment;
+      expect(env.JOBFILLY_GOOGLE_CLIENT_ID).toBe(services.oauth?.environment.OAUTH_CLIENT_ID);
+      expect(env.JOBFILLY_GOOGLE_CLIENT_SECRET).toBe(
+        services.oauth?.environment.OAUTH_CLIENT_SECRET,
+      );
+      expect(env.JOBFILLY_GOOGLE_CLIENT_SECRET).toMatch(/^E2E-SECRET-/);
+      // The browser goes through the proxy, the app straight to the service.
+      expect(env.JOBFILLY_GOOGLE_AUTHORIZE_URL).toBe("http://127.0.0.1:8084/authorize");
+      expect(env.JOBFILLY_GOOGLE_TOKEN_URL).toBe("http://oauth:8080/token");
+      expect(env.JOBFILLY_GOOGLE_IMAP_HOST).toBe("imap://imap:3143");
+      expect(env.JOBFILLY_GOOGLE_SMTP_HOST).toBe("smtp://imap:3025");
     });
 
     it("syncs every 15 seconds and reads domain ages from the fake RDAP service (MVP 2)", () => {
@@ -165,8 +192,8 @@ describe("docker/compose.e2e.yaml", () => {
         const at = (rest ?? "").lastIndexOf("@");
         return { user: `${local}@${rest?.slice(at + 1)}`, password: rest?.slice(0, at) };
       });
-    // One account per persona, the one the seed logs in with.
-    expect(users).toEqual(PERSONAS.map((p) => ACCOUNTS[p]));
+    // One account per persona, the one the seed logs in with, then Maria's other mailboxes.
+    expect(users).toEqual([...PERSONAS.map((p) => ACCOUNTS[p]), ...Object.values(EXTRA_ACCOUNTS)]);
     for (const u of users ?? []) expect(u.password).toMatch(/^E2E-SECRET-/);
   });
 
@@ -245,6 +272,19 @@ describe("the rdap service (MVP 2)", () => {
   });
 });
 
+describe("the oauth service (MVP 3)", () => {
+  it("starts the fake Google authorisation server for Maria's Gmail test account, unpublished", () => {
+    const oauth = services.oauth ?? {};
+    expect(oauth.command).toEqual(["node", "e2e/oauth/main.ts"]);
+    expect(oauth.build).toEqual({ context: "..", dockerfile: "docker/e2e.Dockerfile" });
+    expect(oauth.read_only).toBe(true);
+    expect(oauth.ports).toBeUndefined();
+    // The access token it hands out is that account's mail password, for XOAUTH2.
+    expect(oauth.environment.OAUTH_EMAIL).toBe(EXTRA_ACCOUNTS["maria-gmail"].user);
+    expect(oauth.environment.OAUTH_ACCESS_TOKEN).toBe(EXTRA_ACCOUNTS["maria-gmail"].password);
+  });
+});
+
 describe("the e2e image's entry points and fixtures", () => {
   // The e2e image runs from /repo with e2e/ at /repo/e2e, as in the repository (e2e.Dockerfile),
   // so the paths compose gives seed and fake-ai resolve against the repository root.
@@ -254,6 +294,7 @@ describe("the e2e image's entry points and fixtures", () => {
     ["seed", services.seed?.entrypoint],
     ["fake-ai", services["fake-ai"]?.command],
     ["rdap", services.rdap?.command],
+    ["oauth", services.oauth?.command],
   ];
 
   it("runs from /repo with e2e/ copied to /repo/e2e", () => {
@@ -693,6 +734,12 @@ describe("docker/proxy/haproxy.cfg", () => {
   it("exposes app-a on :8081 and app-b on :8082 directly, passing their own answers through", () => {
     expect(backendOf("bind :8081")).toEqual([`server app-a app-a:${port}`]);
     expect(backendOf("bind :8082")).toEqual([`server app-b app-b:${port}`]);
+  });
+
+  it("passes :8084 to the fake OAuth server, for the browser's sign-in (MVP 3)", () => {
+    expect(backendOf("bind :8084")).toEqual([
+      `server oauth oauth:${services.oauth?.environment.PORT}`,
+    ]);
   });
 
   it("finds replicas through Docker's DNS, also after a restart, and starts without them", () => {

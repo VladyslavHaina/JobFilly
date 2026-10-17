@@ -30,6 +30,15 @@ x-app: &app
     # MVP 2: a sync every 15 seconds, and domain ages from the fake RDAP service.
     JOBFILLY_SYNC_INTERVAL_SECONDS: "15"
     JOBFILLY_RDAP_URL: http://rdap:8080
+    # MVP 3: Sign in with Google against the fake authorisation server (e2e/oauth). The browser
+    # reaches its consent page through the proxy, the app its token endpoint inside the stack;
+    # Gmail's IMAP and SMTP are the test mail server's plain-text ports.
+    JOBFILLY_GOOGLE_CLIENT_ID: jobfilly-e2e
+    JOBFILLY_GOOGLE_CLIENT_SECRET: E2E-SECRET-google-client
+    JOBFILLY_GOOGLE_AUTHORIZE_URL: http://127.0.0.1:8084/authorize
+    JOBFILLY_GOOGLE_TOKEN_URL: http://oauth:8080/token
+    JOBFILLY_GOOGLE_IMAP_HOST: imap://imap:3143
+    JOBFILLY_GOOGLE_SMTP_HOST: smtp://imap:3025
   # Docker's resolver answers the stack's service names and forwards every other name here, so
   # the sender check's MX lookups reach the fixture zone, never the internet.
   dns:
@@ -41,8 +50,11 @@ x-app: &app
       condition: service_started
     rdap:
       condition: service_started
+    oauth:
+      condition: service_started
 
-# The seed, the fake AI and the fake RDAP service: e2e/ only, never app code.
+# The seed, the fake AI, the fake RDAP service and the fake OAuth server: e2e/ only, never app
+# code.
 x-e2e-node: &e2e-node
   build:
     context: ..
@@ -59,11 +71,14 @@ services:
       - "127.0.0.1:8080:8080"
       - "127.0.0.1:8081:8081"
       - "127.0.0.1:8082:8082"
+      # MVP 3: the fake Google authorisation server's consent page, for the browser.
+      - "127.0.0.1:8084:8084"
     volumes:
       - ./proxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
     depends_on:
       - app-a
       - app-b
+      - oauth
 
   app-a:
     <<: *app
@@ -103,7 +118,7 @@ services:
         -Dgreenmail.users.login=email
         -Dgreenmail.api.hostname=0.0.0.0
         -Dgreenmail.api.port=8080
-        -Dgreenmail.users=maria.santos:E2E-SECRET-maria-imap@inbox.example,tom.okafor:E2E-SECRET-tom-imap@inbox.example
+        -Dgreenmail.users=maria.santos:E2E-SECRET-maria-imap@inbox.example,tom.okafor:E2E-SECRET-tom-imap@inbox.example,maria.home:E2E-SECRET-maria-home-imap@post.example,maria.gmail:E2E-SECRET-maria-gmail-imap@gmail.example
 
   # Run on demand only (`run --rm seed <command>`), so `up` doesn't start it.
   seed:
@@ -150,6 +165,19 @@ services:
     command: ["node", "e2e/rdap/main.ts"]
     environment:
       PORT: "8080"
+
+  # MVP 3 (F3.3): the fake Google authorisation server, Google only (TBD-441). A sign-in is for
+  # Maria's Gmail test account; the access token it issues is that account's password on the
+  # test mail server, so IMAP and SMTP with XOAUTH2 log in there.
+  oauth:
+    <<: *e2e-node
+    command: ["node", "e2e/oauth/main.ts"]
+    environment:
+      PORT: "8080"
+      OAUTH_CLIENT_ID: jobfilly-e2e
+      OAUTH_CLIENT_SECRET: E2E-SECRET-google-client
+      OAUTH_EMAIL: maria.gmail@gmail.example
+      OAUTH_ACCESS_TOKEN: E2E-SECRET-maria-gmail-imap
 
 networks:
   default:

@@ -18,5 +18,5 @@ FROM node:24-slim
 WORKDIR /repo
 COPY --from=deps /out ./e2e
 USER node
-# Each service sets its command: `node e2e/seed/main.ts …`, `node e2e/fake-ai/main.ts` or
-# `node e2e/rdap/main.ts`.
+# Each service sets its command: `node e2e/seed/main.ts …`, `node e2e/fake-ai/main.ts`,
+# `node e2e/rdap/main.ts` or (MVP 3) `node e2e/oauth/main.ts`.

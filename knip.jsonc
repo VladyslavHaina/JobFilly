@@ -32,6 +32,7 @@
         "fake-ai/main.ts",
         "seed/main.ts",
         "rdap/main.ts",
+        "oauth/main.ts",
         "fixtures/build/main.ts",
         "playwright.config.ts",
         "specs/**/*.spec.ts"
