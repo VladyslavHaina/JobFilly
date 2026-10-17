@@ -6,6 +6,7 @@ import {
   type JobFacts,
   type MailFolder,
   type RoleEvaluation,
+  type RoleProfileSource,
   type SenderCheck,
   type SenderVerdict,
 } from "@jobfilly/schema";
@@ -29,6 +30,13 @@ export interface RoleRef {
   position: number;
 }
 
+/** The profile a role was evaluated with and why (MVP 3, F1.3). */
+export interface RoleProfileRef {
+  profileId: string;
+  reason: string;
+  source: RoleProfileSource;
+}
+
 /** What markStale makes out of date: everything, some roles or messages, or one sender's mail. */
 export type StaleScope =
   | { all: true }
@@ -43,15 +51,21 @@ const isJobMessage = and(
   inArray(messages.category, [...JOB_CATEGORIES]),
 );
 
-/** Stores a role's evaluation as current (stale cleared). */
+/**
+ * Stores a role's evaluation as current (stale cleared), with the profile it was evaluated with
+ * (MVP 3, F1.3), or none (an evaluation made before MVP 3 reads as the first profile's).
+ */
 export async function saveEvaluation(
   db: Database,
   workspaceId: string,
   messageId: string,
-  evaluation: Omit<RoleEvaluation, "stale" | "evaluatedAt">,
+  evaluation: Omit<RoleEvaluation, "stale" | "evaluatedAt"> & { profile?: RoleProfileRef | null },
   at: Date,
 ): Promise<void> {
   const set = {
+    profileId: evaluation.profile?.profileId ?? null,
+    profileReason: evaluation.profile?.reason ?? null,
+    profileSource: evaluation.profile?.source ?? null,
     score: evaluation.match?.score ?? null,
     capped: evaluation.match?.capped ?? false,
     match: evaluation.match,
@@ -398,12 +412,15 @@ export function toRoleEvaluation(row: EvaluationRow): RoleEvaluation {
   };
 }
 
-/** The stored evaluations of these messages' roles. */
+/**
+ * The stored evaluations of these messages' roles, each with the profile it was evaluated with
+ * (null before MVP 3, which reads as the first profile).
+ */
 export async function getEvaluations(
   db: Database,
   workspaceId: string,
   messageIds: readonly string[],
-): Promise<(RoleEvaluation & { messageId: string })[]> {
+): Promise<(RoleEvaluation & { messageId: string; profileId: string | null })[]> {
   if (messageIds.length === 0) return [];
   const rows = await db
     .select()
@@ -415,7 +432,11 @@ export async function getEvaluations(
       ),
     )
     .orderBy(asc(roleEvaluations.messageId), asc(roleEvaluations.position));
-  return rows.map((row) => ({ messageId: row.messageId, ...toRoleEvaluation(row) }));
+  return rows.map((row) => ({
+    messageId: row.messageId,
+    profileId: row.profileId,
+    ...toRoleEvaluation(row),
+  }));
 }
 
 /** The stored sender checks of these messages, with whether each is stale. */
@@ -454,6 +475,8 @@ export interface RoleState extends RoleRef {
   from: Address;
   facts: JobFacts;
   evaluation: RoleEvaluation | null;
+  /** The profile its evaluation was made with (MVP 3, F1.3); null without one, or before MVP 3. */
+  profileId: string | null;
   sender: { verdict: SenderVerdict; complete: boolean } | null;
   /** The live (not discarded) draft's status. */
   draft: { status: string; failureKind: string | null } | null;
@@ -509,7 +532,8 @@ export async function listRoleStates(
       category: r.category,
       from: { address: r.fromAddress, name: r.fromName },
       facts: r.facts,
-      evaluation: evaluation ? (({ messageId: _m, ...e }) => e)(evaluation) : null,
+      evaluation: evaluation ? (({ messageId: _m, profileId: _p, ...e }) => e)(evaluation) : null,
+      profileId: evaluation?.profileId ?? null,
       sender: check ? { verdict: check.verdict, complete: check.complete } : null,
       draft: live.get(key) ?? null,
       draftHistory: history.get(key) ?? { hadDraft: false, dismissed: false },

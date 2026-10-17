@@ -26,6 +26,8 @@ export function useFormOpen(workspaceId: string): {
   pending: boolean;
   open: boolean;
   firstScan: FirstScan | null;
+  /** MVP 3 (F1.1): the latest scan is a re-run of setup, whose form waits for it. */
+  rerun?: boolean;
 } {
   const scan = useQuery({
     queryKey: [...queryKeys.area(workspaceId, "scan"), "current"],
@@ -38,6 +40,9 @@ export function useFormOpen(workspaceId: string): {
   if (!progress) return { pending: false, open: false, firstScan: "none" };
   if (progress.kind === "first" && progress.status !== "stopped") {
     return { pending: false, open: false, firstScan: "running" };
+  }
+  if (progress.kind === "rerun" && progress.status !== "stopped") {
+    return { pending: false, open: false, firstScan: null, rerun: true };
   }
   return { pending: false, open: true, firstScan: null };
 }

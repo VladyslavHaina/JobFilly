@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { CountryCodeSchema, IdSchema, IsoDateTimeSchema, TextSchema } from "./common";
+import { ScanFocusSchema } from "./focus";
 import { EnvelopeSchema } from "./mailbox";
 import { StageOneVerdictSchema } from "./messages";
 import { IntakeProposalSchema } from "./profile";
@@ -67,6 +68,12 @@ export const ScanSchema = z.object({
   startedBy: z.uuid().nullable(),
   startedAt: IsoDateTimeSchema,
   stoppedAt: IsoDateTimeSchema.nullable(),
+  /**
+   * MVP 3 (F1.1): a re-run's hint as typed, and what focus.v1 read from it (null until read, or
+   * without a hint). Never logged; the API doesn't send them with a scan's progress.
+   */
+  hint: z.string().nullable().optional(),
+  focus: ScanFocusSchema.nullable().optional(),
 });
 export type Scan = z.infer<typeof ScanSchema>;
 

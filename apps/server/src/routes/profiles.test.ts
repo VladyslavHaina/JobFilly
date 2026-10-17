@@ -10,6 +10,7 @@ import {
   type Envelope,
   IntakeFormSchema,
   type JobFacts,
+  ProfileHistoryListSchema,
   ProfileListSchema,
   ProfileSchema,
 } from "@jobfilly/schema";
@@ -197,6 +198,8 @@ describe("PATCH /profiles/:profileId", () => {
       },
       NOW,
     );
+    // After Confirm's own history row (MVP 3, F2.2), so the newest-first order is certain.
+    deps.clock.advance(1_000);
     const res = await editor.patch(profilesPath(`/${created.id}`), {
       entries: [
         { key: "contracts", value: ["unbefristet"] },
@@ -216,6 +219,8 @@ describe("PATCH /profiles/:profileId", () => {
         request: null,
         before: { entries: [{ key: "contracts" }, { key: "reply_threshold", value: null }] },
       },
+      // MVP 3 (F2.2): Confirm is in the history too, as the scan's change.
+      { source: "scan" },
     ]);
     const stale = await listToEvaluate(deps.db, ws.workspaceId);
     expect(stale.find((m) => m.messageId === jobId(3))?.roles).toMatchObject([{ state: "stale" }]);
@@ -239,6 +244,24 @@ describe("PATCH /profiles/:profileId", () => {
     expect(badValue.status).toBe(400);
     expect((await editor.patch(profilesPath(`/${created.id}`), { name: " " })).status).toBe(400);
     expect(await profiles(viewer)).toEqual([created]);
+  });
+});
+
+describe("the history of Confirm (MVP 3, F2.2)", () => {
+  it("records Confirm as the scan's change, with who and when, and Undo takes it out", async () => {
+    const created = await confirm();
+    const res = await viewer.get(profilesPath(`/${created.id}/history`));
+    expect(res.status).toBe(200);
+    const { items } = ProfileHistoryListSchema.parse(await res.json());
+    expect(items).toMatchObject([
+      { source: "scan", byName: "Eddie Editor", at: NOW.toISOString(), undoneAt: null },
+    ]);
+    expect(items[0]?.lines.map((l) => l.label)).toContain("Places you'd work onsite or hybrid");
+    const entry = items[0]?.id;
+    const undo = await editor.post(profilesPath(`/${created.id}/history/${entry}/undo`));
+    expect(undo.status).toBe(200);
+    const [profile] = await profiles(viewer);
+    expect(profile?.entries).toEqual([]);
   });
 });
 

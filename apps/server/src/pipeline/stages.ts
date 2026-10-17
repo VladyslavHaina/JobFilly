@@ -62,7 +62,11 @@ export class MessageGoneError extends Error {
 export interface StageContext {
   deps: AppDeps;
   ws: string;
-  /** The workspace's confirmed profile; null before the intake is confirmed. */
+  /**
+   * The profile the stage works with; null before the intake is confirmed. The cv-choice and match
+   * stages get the role's own (MVP 3, F1.3: assign.ts); the sender and reply stages the first
+   * profile that is on, and the reply stage each role's from its input.
+   */
   profile: Profile | null;
   /** The profile's rules, on and off (the engine skips those that are off). */
   rules: Rule[];
@@ -121,6 +125,11 @@ interface ReplyStageInput {
   sender: SenderCheck | null;
   /** The current evaluation of every role that has one, in position order. */
   evaluations: RoleEvaluation[];
+  /**
+   * MVP 3 (F1.3): the profile each evaluated role was evaluated with, by position; its policy,
+   * needs and answers decide the role's reply. A role missing here uses `ctx.profile`.
+   */
+  profiles?: Map<number, Profile>;
   /** Each role's draft history, by position. */
   draftHistory: Map<number, DraftHistory>;
   /** Whether the message is inside reply_window_days (F1.6). */

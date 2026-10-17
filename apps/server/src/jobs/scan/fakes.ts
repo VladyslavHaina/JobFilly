@@ -15,6 +15,7 @@ import {
   NOT_ENOUGH_EVIDENCE,
   type Preferences,
   type ProfileValue,
+  type ScanFocus,
   type TaskId,
   type Usage,
 } from "@jobfilly/schema";
@@ -39,7 +40,13 @@ export interface FakeMail {
   failing: { envelopes: boolean; bodies: boolean };
 }
 
-export function fakeMail(envelopes: readonly Envelope[]): FakeMail {
+/**
+ * One mailbox's envelopes, or (MVP 3, F3.1) each mailbox's by the user name it logs in with; then
+ * `bodies` records "<user name> <Message-ID>".
+ */
+export function fakeMail(
+  mail: readonly Envelope[] | Readonly<Record<string, readonly Envelope[]>>,
+): FakeMail {
   const fake: FakeMail = {
     connections: [],
     fetched: [],
@@ -49,6 +56,10 @@ export function fakeMail(envelopes: readonly Envelope[]): FakeMail {
     port: {
       connect(conn) {
         fake.connections.push(conn);
+        const several = !Array.isArray(mail);
+        const envelopes: readonly Envelope[] = several
+          ? ((mail as Record<string, readonly Envelope[]>)[conn.username] ?? [])
+          : (mail as readonly Envelope[]);
         const client: MailClient = fakeMailClient({
           async test() {
             return { ok: true, folders: ["INBOX", "Sent"], sentPath: "Sent" };
@@ -66,7 +77,7 @@ export function fakeMail(envelopes: readonly Envelope[]): FakeMail {
             const e = envelopes.find(
               (x) => x.folderPath === ref.folderPath && x.uid === ref.uid,
             ) as Envelope;
-            fake.bodies.push(e.messageId);
+            fake.bodies.push(several ? `${conn.username} ${e.messageId}` : e.messageId);
             return { text: `${e.snippet}\n\n${"More text. ".repeat(100)}${BODY_SENTINEL}` };
           },
           async close() {
@@ -87,6 +98,8 @@ export interface FakeAiAnswers {
   classify?: (messageId: string) => Answer<Category>;
   extract?: (messageId: string) => Answer<JobFacts[]>;
   prefs?: (messageId: string) => Answer<Preferences>;
+  /** MVP 3: focus.v1's answer for a re-run's hint. */
+  focus?: (hint: string) => Answer<ScanFocus>;
 }
 
 export interface FakeAi {
@@ -179,6 +192,19 @@ export function fakeAi(answers: FakeAiAnswers): FakeAi {
       if (!only) throw new Error("fake AI returned nothing");
       return only.ok
         ? { ok: true, data: { messageId: item.messageId, roles: only.data }, usage: r.usage }
+        : { ok: false, error: only.error, usage: r.usage };
+    },
+    async focus({ hint }, options) {
+      const r = await batch(
+        "focus.v1",
+        [{ messageId: hint } as AiMailItem],
+        options?.maxCalls ?? 2,
+        (h) => answers.focus?.(h),
+      );
+      const only = r.items[0];
+      if (!only) throw new Error("fake AI returned nothing");
+      return only.ok
+        ? { ok: true, data: only.data, usage: r.usage }
         : { ok: false, error: only.error, usage: r.usage };
     },
     async intake() {

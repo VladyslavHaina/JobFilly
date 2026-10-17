@@ -10,7 +10,6 @@ import {
   getAiSettings,
   getCv,
   getEvaluations,
-  listProfiles,
   liveDraftFor,
   loadMessageInputs,
   markDraftFailed,
@@ -32,11 +31,11 @@ import type {
   JobFacts,
   MailFolder,
   OriginalMessage,
-  Profile,
 } from "@jobfilly/schema";
 import { aiClientFor } from "../ai-usage";
 import type { AppDeps } from "../deps";
 import type { Logger } from "../log";
+import { profileOfRole } from "../pipeline/assign";
 import { type MailboxSession, mailboxSession } from "../pipeline/evaluate";
 import { openAiKey } from "../secrets";
 import {
@@ -101,10 +100,6 @@ interface Role {
 /** An ISO 639-1 code's primary part, lower-cased: "DE", "de-CH" and "de" are all "de". */
 const languageCode = (code: string) => code.trim().toLowerCase().split(/[-_]/)[0] ?? "";
 
-async function confirmedProfile(deps: AppDeps, ws: string): Promise<Profile | null> {
-  return (await listProfiles(deps.db, ws)).find((p) => p.confirmedAt !== null) ?? null;
-}
-
 /**
  * The answers given for this role alone, which the draft may use besides the profile: an item,
  * or a no that turned the question down (draftEntries).
@@ -139,7 +134,8 @@ async function writeReply(
   } catch {
     return { kind: "failed", failure: "ai", reason: "The AI provider isn't set up correctly" };
   }
-  const profile = await confirmedProfile(deps, ws);
+  // The profile the role was evaluated with (MVP 3, F1.3): its entries back the draft.
+  const profile = await profileOfRole(deps, ws, role);
   const [evaluation] = (await getEvaluations(deps.db, ws, [role.messageId])).filter(
     (e) => e.position === role.position,
   );

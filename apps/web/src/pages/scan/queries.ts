@@ -1,4 +1,4 @@
-import { type CurrentScan, CurrentScanSchema } from "@jobfilly/schema";
+import { type CurrentScan, CurrentScanSchema, type StartScanInput } from "@jobfilly/schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, api } from "../../api";
 import { queryKeys } from "../../hooks";
@@ -26,13 +26,23 @@ export function useCurrentScan(workspaceId: string) {
   });
 }
 
-/** Start the first scan, cancel a run, or analyze the rest (admins); each answers CurrentScan. */
+/** What an admin can do with scans: each answers CurrentScan. */
+type ScanAction =
+  | { kind: "start" }
+  | { kind: "analyze_rest" }
+  | { kind: "cancel"; scanId: string }
+  /** MVP 3 (F1.1): re-run setup, with an optional hint. */
+  | { kind: "rerun"; hint: string };
+
+/** Start the first scan, cancel a run, analyze the rest or re-run setup (admins). */
 export function useScanAction(workspaceId: string) {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: (
-      action: { kind: "start" } | { kind: "analyze_rest" } | { kind: "cancel"; scanId: string },
-    ) => {
+    mutationFn: (action: ScanAction) => {
+      if (action.kind === "rerun") {
+        const body: StartScanInput = { kind: "rerun", hint: action.hint.trim() || undefined };
+        return api(scansApi(workspaceId), CurrentScanSchema, { method: "POST", body });
+      }
       const path =
         action.kind === "start"
           ? scansApi(workspaceId)

@@ -1,16 +1,18 @@
 import type {
+  Change,
   ExtraQuestion,
   IntakeEdit,
   IntakeExtrasStatus,
   Profile,
   ProfileEntry,
   ProfileKey,
+  ProfileSnapshot,
   ProfileSource,
   ProfileValue,
 } from "@jobfilly/schema";
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, isNotNull, ne, sql } from "drizzle-orm";
 import type { Database } from "../client";
-import { intakeAnswers, intakeExtras, profiles, workspaces } from "../tables";
+import { intakeAnswers, intakeExtras, profileHistory, profiles, workspaces } from "../tables";
 
 // Profiles, the intake answers edited before Confirm and the cached extra questions (tables
 // profiles, intake_answers and intake_extras). Every function takes a workspace id.
@@ -218,14 +220,24 @@ export async function listProfiles(db: Database, workspaceId: string): Promise<P
 }
 
 /**
- * Saves the confirmed intake as the workspace's profile. MVP 1 has one profile per workspace, so
- * a second Confirm is refused ("exists"); the workspace row is locked while checking, so two
- * Confirms at once still make one profile.
+ * Saves the confirmed intake as a profile. MVP 1 has one profile per workspace, so a second
+ * Confirm is refused ("exists"); a re-run of setup (MVP 3, F1.1) passes `alongside` and makes a
+ * new profile next to the others, which stay as they are. The workspace row is locked while
+ * checking, so two Confirms at once still make one profile. With `history` (MVP 3, F2.2: the
+ * intake form's Confirm) it also writes the profile's first history row, source scan, whose
+ * `before` names every entry as missing, so Undo takes them out again.
  */
 export async function createConfirmedProfile(
   db: Database,
   workspaceId: string,
-  input: { name: string; entries: ProfileEntry[]; createdBy: string; at: Date },
+  input: {
+    name: string;
+    entries: ProfileEntry[];
+    createdBy: string;
+    at: Date;
+    alongside?: boolean;
+    history?: boolean;
+  },
 ): Promise<{ ok: true; profile: Profile } | { ok: false; reason: "exists" }> {
   return db.transaction(async (tx) => {
     await tx
@@ -233,12 +245,14 @@ export async function createConfirmedProfile(
       .from(workspaces)
       .where(eq(workspaces.id, workspaceId))
       .for("update");
-    const [existing] = await tx
-      .select({ id: profiles.id })
-      .from(profiles)
-      .where(eq(profiles.workspaceId, workspaceId))
-      .limit(1);
-    if (existing) return { ok: false as const, reason: "exists" as const };
+    if (!input.alongside) {
+      const [existing] = await tx
+        .select({ id: profiles.id })
+        .from(profiles)
+        .where(eq(profiles.workspaceId, workspaceId))
+        .limit(1);
+      if (existing) return { ok: false as const, reason: "exists" as const };
+    }
     const [row] = await tx
       .insert(profiles)
       .values({
@@ -252,8 +266,89 @@ export async function createConfirmedProfile(
       })
       .returning();
     if (!row) throw new Error("createConfirmedProfile: no row returned");
+    if (!input.history) return { ok: true as const, profile: toProfile(row) };
+    const before: ProfileSnapshot = {
+      entries: input.entries.map((e) => ({ key: e.key, value: null })),
+      rules: [],
+    };
+    const after: ProfileSnapshot = {
+      entries: input.entries.map((e) => ({ key: e.key, value: e.value, entry: e })),
+      rules: [],
+    };
+    const changes: Change[] = input.entries.map((e) => ({
+      op: "add",
+      target: "entry",
+      key: e.key,
+      value: e.value,
+    }));
+    await tx.insert(profileHistory).values({
+      workspaceId,
+      profileId: row.id,
+      at: input.at,
+      by: input.createdBy,
+      source: "scan",
+      request: null,
+      changes,
+      before,
+      after,
+    });
     return { ok: true as const, profile: toProfile(row) };
   });
+}
+
+/**
+ * Switches a profile on or off (MVP 3, F1.2) under the workspace's lock: at least one confirmed
+ * profile stays on, so switching off the last one is refused ("last_on"). Null when there is no
+ * such profile.
+ */
+export async function setProfileEnabled(
+  db: Database,
+  workspaceId: string,
+  profileId: string,
+  enabled: boolean,
+  at: Date,
+): Promise<{ ok: true; profile: Profile } | { ok: false; reason: "last_on" } | null> {
+  return db.transaction(async (tx) => {
+    await tx
+      .select({ id: workspaces.id })
+      .from(workspaces)
+      .where(eq(workspaces.id, workspaceId))
+      .for("update");
+    const where = and(eq(profiles.workspaceId, workspaceId), eq(profiles.id, profileId));
+    const [row] = await tx.select().from(profiles).where(where);
+    if (!row) return null;
+    if (!enabled) {
+      const [other] = await tx
+        .select({ id: profiles.id })
+        .from(profiles)
+        .where(
+          and(
+            eq(profiles.workspaceId, workspaceId),
+            ne(profiles.id, profileId),
+            eq(profiles.enabled, true),
+            isNotNull(profiles.confirmedAt),
+          ),
+        )
+        .limit(1);
+      if (!other) return { ok: false as const, reason: "last_on" as const };
+    }
+    const [updated] = await tx
+      .update(profiles)
+      .set({ enabled, updatedAt: at })
+      .where(where)
+      .returning();
+    if (!updated) throw new Error("setProfileEnabled: no row returned");
+    return { ok: true as const, profile: toProfile(updated) };
+  });
+}
+
+/**
+ * Clears the intake form's answers and its extra questions (MVP 3, D18): a re-run of setup starts
+ * a new form, whose extra questions are asked again for what it finds.
+ */
+export async function clearIntake(db: Database, workspaceId: string): Promise<void> {
+  await db.delete(intakeAnswers).where(eq(intakeAnswers.workspaceId, workspaceId));
+  await db.delete(intakeExtras).where(eq(intakeExtras.workspaceId, workspaceId));
 }
 
 /**
