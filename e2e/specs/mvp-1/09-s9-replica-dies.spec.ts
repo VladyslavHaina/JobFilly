@@ -8,6 +8,7 @@ import {
   ready,
   replicaNamed,
   signIn,
+  waitProxyRoutesTo,
   withCleanup,
   workspaceIdOf,
 } from "../shared.ts";
@@ -71,6 +72,8 @@ test("S9: a replica dies mid-run", async ({ page }) => {
       await test.step("the killed replica starts again, and Maria is still signed in", async () => {
         compose(["start", String(killed)]);
         await waitReady(DIRECT_PORTS[killed ?? "app-a"]);
+        // The reloads below spread over both replicas only once the proxy routes to it again.
+        await waitProxyRoutesTo(killed ?? "app-a");
         await page.reload();
         await expect(page.getByRole("heading", { name: "Job inbox", exact: true })).toBeVisible();
         // F1.3: page loads spread over both replicas never ask to sign in again.
@@ -96,6 +99,7 @@ test("S9: a replica dies mid-run", async ({ page }) => {
       compose(["start", killed]);
       await waitReady(DIRECT_PORTS[killed]);
       await waitReady(PROXY_PORT);
+      await waitProxyRoutesTo(killed);
     },
   );
 });

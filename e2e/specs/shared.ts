@@ -1,4 +1,5 @@
 import { execFile, execFileSync, spawn } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { createInterface } from "node:readline";
@@ -138,6 +139,89 @@ export async function ready(port: number): Promise<number | null> {
   } catch {
     return null;
   }
+}
+
+// The proxy (docker/proxy/haproxy.cfg) health-checks each replica every second and takes it out
+// after 2 failed checks, so for a moment after a replica stops answering the proxy still sends it
+// requests, and a few requests that happen to answer prove nothing. These helpers go by the
+// proxy's own log instead: its health-check verdicts ("Server replicas/app-a is DOWN, …") and its
+// request lines, which name the server that answered each one.
+
+/** The proxy's log as it wrote it. */
+const proxyLog = (): string[] =>
+  compose(["logs", "--no-color", "--no-log-prefix", "proxy"]).split("\n");
+
+/** Where the proxy's log is now, for waitProxyDrops. */
+export const proxyMark = (): number => proxyLog().length;
+
+/** Requests per round when checking where the proxy routes: enough to cover a round-robin. */
+const ROUTING_ROUND = 10;
+
+/**
+ * Sends ROUTING_ROUND requests through the proxy, one after another, and returns the replica the
+ * proxy's log says answered each with 200; undefined where none did.
+ */
+async function servedThroughProxy(): Promise<(Replica | undefined)[]> {
+  const tag = randomUUID();
+  const answered: boolean[] = [];
+  for (let i = 0; i < ROUTING_ROUND; i++) {
+    answered.push(
+      await fetch(`http://127.0.0.1:${PROXY_PORT}/api/health/ready?probe=${tag}-${i}`, {
+        // A replica that is paused but still in the round-robin never answers.
+        signal: AbortSignal.timeout(2_000),
+      }).then(
+        (r) => r.status === 200,
+        () => false,
+      ),
+    );
+  }
+  const serverOf = (log: string[], i: number): Replica | undefined => {
+    const line = log.find((l) => l.includes(`?probe=${tag}-${i} HTTP/`));
+    return replicaNamed(line?.match(/ balanced replicas\/(\S+) \S+ 200 /)?.[1]);
+  };
+  // The proxy logs a request once it has answered it: give its log a moment to catch up.
+  for (let tries = 0; ; tries++) {
+    const log = proxyLog();
+    const servers = answered.map((ok, i) => (ok ? serverOf(log, i) : undefined));
+    if (tries >= 10 || servers.every((s, i) => s || !answered[i])) return servers;
+    await new Promise((r) => setTimeout(r, 200));
+  }
+}
+
+/**
+ * Waits until the proxy has taken `replica` out of its round-robin: since `mark` (proxyMark(),
+ * taken before the replica was stopped or paused) its health checks have last called it DOWN,
+ * and then ROUTING_ROUND requests in a row all go to the other replicas and answer.
+ */
+export async function waitProxyDrops(replica: Replica, mark: number) {
+  const verdict = new RegExp(`Server replicas/${replica} (?:\\('${replica}'\\) )?is (UP|DOWN)`);
+  const lastVerdict = () =>
+    proxyLog()
+      .slice(mark)
+      .map((l) => l.match(verdict)?.[1])
+      .filter(Boolean)
+      .at(-1);
+  await expect.poll(lastVerdict, { timeout: 60_000, intervals: [1_000] }).toBe("DOWN");
+  await expect
+    .poll(async () => (await servedThroughProxy()).every((s) => s && s !== replica), {
+      timeout: 60_000,
+      intervals: [1_000],
+    })
+    .toBe(true);
+}
+
+/**
+ * Waits until the proxy routes requests to `replica` again: one of a round of requests through
+ * the proxy is answered by it. Its direct port answering isn't enough: the proxy adds it back
+ * only after its next health check passes.
+ */
+export async function waitProxyRoutesTo(replica: Replica) {
+  await expect
+    .poll(async () => (await servedThroughProxy()).includes(replica), {
+      timeout: 180_000,
+      intervals: [1_000],
+    })
+    .toBe(true);
 }
 
 /** Fills in and sends the sign-in form the page shows. */

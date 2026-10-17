@@ -29,6 +29,7 @@ import {
   seed,
   seedInBackground,
   signIn,
+  waitProxyRoutesTo,
   withCleanup,
   workspaceIdOf,
 } from "../shared.ts";
@@ -199,6 +200,7 @@ test("S11: resilience", async ({ page }) => {
         compose(["start", String(killed)]);
         await waitReady(DIRECT_PORTS[killed ?? "app-a"]);
         await waitReady(PROXY_PORT);
+        await waitProxyRoutesTo(killed ?? "app-a");
         killed = undefined;
       });
 
@@ -298,6 +300,7 @@ test("S11: resilience", async ({ page }) => {
       if (killed) compose(["start", killed]);
       for (const replica of REPLICAS) await waitReady(DIRECT_PORTS[replica]);
       await waitReady(PROXY_PORT);
+      for (const replica of REPLICAS) await waitProxyRoutesTo(replica);
     },
   );
 });

@@ -7,11 +7,14 @@ import {
   DIRECT_PORTS,
   openSettingsTab,
   PROXY_PORT,
+  proxyMark,
   REPLICAS,
   ROOT,
   ready,
   serviceLog,
   signIn,
+  waitProxyDrops,
+  waitProxyRoutesTo,
   withCleanup,
 } from "../shared.ts";
 
@@ -42,23 +45,6 @@ async function restartFakeAi(slowTestMs: string) {
       timeout: 60_000,
     })
     .toBe(true);
-}
-
-/**
- * True when the proxy answers several requests in a row at once: none goes to a paused app-a,
- * where it would hang.
- */
-async function proxySkipsPausedAppA(): Promise<boolean> {
-  for (let i = 0; i < 4; i++) {
-    const status = await fetch(`http://127.0.0.1:${PROXY_PORT}/api/health/ready`, {
-      signal: AbortSignal.timeout(2_000),
-    }).then(
-      (r) => r.status,
-      () => null,
-    );
-    if (status !== 200) return false;
-  }
-  return true;
 }
 
 test("S11: startup, health and shutdown", async ({ page }) => {
@@ -114,9 +100,11 @@ test("S11: startup, health and shutdown", async ({ page }) => {
         await restartFakeAi(SLOW_TEST_MS);
         const mark = serviceLog("app-b").length;
 
+        const beforePause = proxyMark();
         compose(["pause", "app-a"]);
         appAPaused = true;
-        await expect.poll(proxySkipsPausedAppA, { timeout: 60_000, intervals: [1_000] }).toBe(true);
+        // Until the proxy has taken app-a out, a page load can still send a request there to hang.
+        await waitProxyDrops("app-a", beforePause);
         await signIn(page, "maria");
         await openSettingsTab(page, "AI");
 
@@ -127,6 +115,9 @@ test("S11: startup, health and shutdown", async ({ page }) => {
         // The proxy has app-a again for the stream to reconnect to.
         compose(["unpause", "app-a"]);
         appAPaused = false;
+        await waitProxyRoutesTo("app-a");
+        // Still in flight: app-b goes down with the slow request open on it.
+        await expect(page.getByText("Waiting for the AI to answer…")).toBeVisible();
         const reconnected = page.waitForResponse(
           (r) => /\/api\/workspaces\/[^/]+\/events$/.test(new URL(r.url()).pathname) && r.ok(),
           { timeout: 90_000 },
@@ -157,6 +148,7 @@ test("S11: startup, health and shutdown", async ({ page }) => {
         compose(["start", "app-b"]);
         await waitReady(DIRECT_PORTS["app-b"]);
         await waitReady(PROXY_PORT);
+        await waitProxyRoutesTo("app-b");
       });
     },
     async () => {
@@ -165,6 +157,7 @@ test("S11: startup, health and shutdown", async ({ page }) => {
       if (slowFakeAi) await restartFakeAi("0");
       for (const replica of REPLICAS) await waitReady(DIRECT_PORTS[replica]);
       await waitReady(PROXY_PORT);
+      for (const replica of REPLICAS) await waitProxyRoutesTo(replica);
     },
   );
 });
