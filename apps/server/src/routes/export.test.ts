@@ -163,18 +163,25 @@ describe("the export (F7.1)", () => {
     for (let i = 0; i < 5000; i += 1000) {
       await saveEnvelopes(deps.db, maria.workspaceId, mail(1000, i));
     }
-    const res = await mariaApi.get(exportPath());
-    expect(res.status).toBe(200);
-    const body = res.body;
-    if (!body) throw new Error("no body");
-    const start = process.memoryUsage().rss;
-    let peak = start;
-    const chunks: Uint8Array[] = [];
-    for await (const chunk of body) {
-      chunks.push(chunk);
-      peak = Math.max(peak, process.memoryUsage().rss);
-    }
-    expect(peak - start).toBeLessThan(50 * 1024 * 1024);
+    /** Reads one export as the browser would, with how much the process's memory grew meanwhile. */
+    const stream = async () => {
+      const res = await mariaApi.get(exportPath());
+      expect(res.status).toBe(200);
+      if (!res.body) throw new Error("no body");
+      const start = process.memoryUsage().rss;
+      let peak = start;
+      const chunks: Uint8Array[] = [];
+      for await (const chunk of res.body) {
+        chunks.push(chunk);
+        peak = Math.max(peak, process.memoryUsage().rss);
+      }
+      return { chunks, growth: peak - start };
+    };
+    // The first export also grows the in-process test database's WebAssembly memory to its size
+    // for these reads (a real Postgres runs elsewhere); the second shows the export's own memory.
+    await stream();
+    const { chunks, growth } = await stream();
+    expect(growth).toBeLessThan(50 * 1024 * 1024);
     const zip = new Uint8Array(chunks.reduce((n, c) => n + c.length, 0));
     let at = 0;
     for (const c of chunks) {
