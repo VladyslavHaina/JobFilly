@@ -80,9 +80,11 @@ Rules:
 - Sessions: the cookie `jf_session` (HttpOnly, SameSite=Lax, Secure behind HTTPS) holds a random
   id of at least 128 bits; Postgres stores only its SHA-256 hash, with idle and absolute expiry.
   Any replica validates any session, so no sticky sessions are needed.
-- Access ends at once, live streams included: removing a member or ending a session (sign-out,
-  a new sign-in, expiry) closes that member's or session's open event streams on every replica
-  (see "Background work and live updates").
+- Access ends at once, live streams included: removing a member, changing their role or scope,
+  or ending a session (sign-out, a new sign-in, expiry) closes that member's or session's open
+  event streams on every replica (see "Background work and live updates"); each stream's
+  heartbeat also re-reads the session and the membership and closes when the role or scope is
+  no longer the one it opened with.
 - State-changing requests must come from the server's own origin (`Origin` check against
   `PUBLIC_URL`).
 

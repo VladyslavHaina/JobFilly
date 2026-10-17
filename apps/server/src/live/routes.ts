@@ -27,8 +27,10 @@ const HEARTBEAT_MS = 15_000;
 //
 // The stream belongs to the member's session (F1.4, F1.9). Removing the member or ending the
 // session closes it at once on every replica (LiveHub.revoke); and once when it opens and on
-// every heartbeat it re-checks that the session is still live and the membership still exists,
-// and closes if not, so nothing that ends without a notification keeps a stream open.
+// every heartbeat it re-checks that the session is still live and the membership still exists
+// with the role and scope it opened with, and closes if not, so nothing that ends or narrows
+// without a notification keeps a stream open. A member who sees the job pipeline only gets no
+// draft or send events and no Message-IDs (MVP 3, F6.2).
 export function eventsRoutes(deps: AppDeps, options: { heartbeatMs?: number } = {}) {
   return new Hono<WorkspaceEnv>().get("/", requireRole("viewer"), (c) => {
     const owner: StreamOwner = {
@@ -36,8 +38,11 @@ export function eventsRoutes(deps: AppDeps, options: { heartbeatMs?: number } = 
       userId: c.get("user").id,
       sessionId: c.get("sessionId"),
     };
-    // A change of scope closes the stream (LiveHub.revoke), so the scope it opened with holds.
-    const pipelineOnly = scopeOf(c.get("membership")) !== "everything";
+    // The stream keeps the role and scope it opened with: a change closes it (LiveHub.revoke on
+    // every replica, and the heartbeat's re-check as the safety net), and the browser reconnects
+    // under the new ones.
+    const opened = c.get("membership");
+    const pipelineOnly = scopeOf(opened) !== "everything";
     const tokenHash = sessionTokenHash(c);
     const log = c.get("log");
 
@@ -45,7 +50,8 @@ export function eventsRoutes(deps: AppDeps, options: { heartbeatMs?: number } = 
       if (!tokenHash) return false;
       const session = await liveSession(deps, tokenHash);
       if (session?.id !== owner.sessionId || session.user.id !== owner.userId) return false;
-      return (await getMembership(deps.db, owner.workspaceId, owner.userId)) !== null;
+      const now = await getMembership(deps.db, owner.workspaceId, owner.userId);
+      return now !== null && now.role === opened.role && scopeOf(now) === scopeOf(opened);
     };
 
     return streamSSE(c, async (stream) => {

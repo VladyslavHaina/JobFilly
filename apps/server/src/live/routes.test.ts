@@ -179,6 +179,22 @@ describe("a stream ends with the access it was opened with (F1.4, F1.9)", () => 
       expect((await tomApi.get(`/api/workspaces/${maria.workspaceId}/events`)).status).toBe(404);
     });
 
+    it(`closes a member's stream at once when an admin narrows their scope on ${where}`, async () => {
+      const app = createApp(deps);
+      const adminApp = where === "the same replica" ? app : await otherReplica();
+      const tomStream = await openStream(await signedIn(app, deps, tom), maria.workspaceId);
+      const admin = await signedIn(adminApp, deps, maria);
+      const res = await admin.patch(`/api/workspaces/${maria.workspaceId}/members/${tom.id}`, {
+        scope: "pipeline",
+      });
+      expect(res.status).toBe(200);
+      await deps.live.publish(maria.workspaceId, {
+        type: "drafts.updated",
+        data: { messageIds: ["<offer-42@hr.example>"] },
+      });
+      expect(await readToEnd(tomStream)).not.toContain("drafts.updated");
+    });
+
     it(`closes a signed-out session's stream at once, signed out on ${where}`, async () => {
       const app = createApp(deps);
       const signOutApp = where === "the same replica" ? app : await otherReplica();
@@ -307,6 +323,27 @@ describe("a stream ends with the access it was opened with (F1.4, F1.9)", () => 
         const stillOpen = new Promise<string>((r) => setTimeout(() => r("still open"), 3000));
         const ended = await Promise.race([readToEnd(reader).then(() => "ended"), stillOpen]);
         expect(ended).toBe("ended");
+        expect(deps.live.streams).toBe(0);
+      });
+    }
+
+    // A scope narrowed without a notification (or one that never reached this replica): the next
+    // heartbeat closes the stream, so no draft or send event reaches it afterwards.
+    for (const change of ["scope narrows", "role changes"] as const) {
+      it(`closes once the member's ${change}`, async () => {
+        const tomApi = await signedIn(createApp(deps), deps, tom);
+        const reader = await open(cookieOf(tomApi));
+        if (change === "scope narrows") {
+          await setMemberScope(deps.db, maria.workspaceId, tom.id, "pipeline");
+        } else {
+          await addMember(deps.db, maria.workspaceId, tom.id, "editor");
+        }
+        await new Promise((r) => setTimeout(r, 100));
+        await deps.live.publish(maria.workspaceId, {
+          type: "drafts.updated",
+          data: { messageIds: ["<offer-42@hr.example>"] },
+        });
+        expect(await readToEnd(reader)).not.toContain("drafts.updated");
         expect(deps.live.streams).toBe(0);
       });
     }
