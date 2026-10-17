@@ -143,7 +143,14 @@ describe("the provider registry", () => {
       profile: { targetRoles: [], skills: [] },
       cvSkills: [],
     });
-    await client.assistant({ turn: 1, text: "hi", history: [], entries: [], rules: [] });
+    await client.assistant({
+      turn: 1,
+      text: "hi",
+      history: [],
+      entries: [],
+      rules: [],
+      mailLanguages: [],
+    });
     const formats = bodies.map(
       (b) => (b as { text?: { format?: { strict?: boolean; name?: string } } }).text?.format,
     );

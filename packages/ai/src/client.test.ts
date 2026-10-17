@@ -471,6 +471,7 @@ describe("assistant.v1's proposals over HTTP (F8.7)", () => {
         history: [],
         entries: [],
         rules: [],
+        mailLanguages: [],
       });
     return { ask, events, requests: () => requests };
   }

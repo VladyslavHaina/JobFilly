@@ -1,5 +1,6 @@
 import {
   type AssistantTaskInput,
+  AssistantTaskInputSchema,
   CATEGORIES,
   CORE_PROFILE_KEYS,
   type CoreProfileKey,
@@ -69,7 +70,7 @@ function opSemantics(): string {
   const fixed = RULE_FACTS.filter((f) => !FREE_TEXT[f] && f !== "timeZones" && f !== "pay");
   return [
     `\`in\`, \`not_in\` and \`equals\` hold only when the fact's whole value, or a whole item of a list, is one of the words: use them for facts with a fixed set of values, ${either(fixed)}, with codes and values as the profile and this instruction write them.`,
-    `${either(free)} are free text as the mail words it, so \`in\` almost never holds for them: use \`contains\`, which holds when the text has any of the words as whole words, and give short phrases as a mail would write them (not inflected as in the user's message), in each language the user's mail may be in, as the profile and the message show.`,
+    `${either(free)} are free text as the mail words it, so \`in\` almost never holds for them: use \`contains\`, which holds when the text has any of the words as whole words, and give short phrases as a mail would write them (not inflected as in the user's message), in each of the languages of the user's job mail named below, and in the language of the user's message.`,
   ].join(" ");
 }
 
@@ -136,6 +137,18 @@ const INSTRUCTION = [
   "You can't send mail, invite people, change mailboxes or AI settings, or delete data. When asked to, set `clarify` and `proposal` to null and say you can't and where it is done: replies wait as drafts on the Drafts page and in the mailbox's Drafts folder, and are sent from the user's own mail app; people are invited on the Members page; the mailbox and the AI settings are under Settings; CVs are deleted on the CVs page.",
 ].join("\n");
 
+/** An ISO 639-1 code, so the system message never carries anything else. */
+const LANGUAGE_CODE = AssistantTaskInputSchema.shape.mailLanguages.element;
+
+/**
+ * The line after the instruction naming the job mail's languages (most frequent first), which
+ * the `contains` guidance refers to: the model can't see the mail, only the user's message.
+ */
+function mailLanguagesLine(codes: readonly string[]): string {
+  const valid = codes.filter((c) => LANGUAGE_CODE.safeParse(c).success);
+  return `Languages of the user's job mail: ${valid.length > 0 ? valid.join(", ") : "not known yet"}.`;
+}
+
 export function assistantPrompt(input: AssistantTaskInput): Prompt {
   const user = [
     `task: ${TASK_ID}`,
@@ -160,5 +173,6 @@ export function assistantPrompt(input: AssistantTaskInput): Prompt {
     "",
     "",
   ].join("\n");
-  return { system: systemMessage(TASK_ID, INSTRUCTION, BLOCKS_NOTE), user };
+  const instruction = `${INSTRUCTION}\n${mailLanguagesLine(input.mailLanguages)}`;
+  return { system: systemMessage(TASK_ID, instruction, BLOCKS_NOTE), user };
 }
