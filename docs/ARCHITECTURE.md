@@ -559,6 +559,17 @@ Every MVP keeps these true; the Helm chart after MVP 3 relies on them.
   database closes; the process exits 0. Orchestrators must allow at least 30 seconds
   (`stop_grace_period`, `terminationGracePeriodSeconds`).
 - Runs as a non-root user with a read-only root filesystem and listens on `$PORT`.
+- Brief downtime during a restart or an upgrade is acceptable (TBD-452): replicas restart one at a
+  time, sessions live in Postgres so nobody is signed out, and a job a replica held is picked up
+  again after its lease expires.
+
+**What a deployment needs (F10.4).** The environment above (`DATABASE_URL`, `JOBFILLY_SECRET_KEY`
+and `PUBLIC_URL` are required); one port, `$PORT` (8787 in the image); the two probes above; and
+nothing else. There is no separate migration step, since the app migrates at start. Observed in the
+20-minute soak (e2e/reports/mvp-3/20261017-121816-soak: three replicas, two workspaces, one new
+message a minute each, the API read every 5 s): memory 115–140 MiB per replica, steady within 8%;
+CPU about 1.3% of one core on average, 15% at peak; p95 API latency 10 ms; no job failed. The
+Helm chart's defaults follow from it: requests of 50m CPU and 192Mi memory, a 512Mi memory limit.
 
 ## Logs
 
