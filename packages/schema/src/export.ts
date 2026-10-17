@@ -38,8 +38,14 @@ export const ExportManifestSchema = z.object({
 });
 export type ExportManifest = z.infer<typeof ExportManifestSchema>;
 
-/** DELETE /api/workspaces/:workspaceId (F7.2): the workspace's name, typed in. */
-export const DeleteWorkspaceInputSchema = z.object({ name: z.string().min(1) });
+/**
+ * DELETE /api/workspaces/:workspaceId (F7.2): the workspace's name, typed in, and the owner's
+ * password, as deleting an account asks for it.
+ */
+export const DeleteWorkspaceInputSchema = z.object({
+  name: z.string().min(1),
+  password: z.string().min(1),
+});
 export type DeleteWorkspaceInput = z.infer<typeof DeleteWorkspaceInputSchema>;
 
 /**

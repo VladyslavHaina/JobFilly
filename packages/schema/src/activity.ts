@@ -3,8 +3,9 @@ import { IsoDateTimeSchema } from "./common";
 import { MemberScopeSchema, RoleSchema } from "./workspace";
 
 // The activity log (MVP 3, F9): the outward and sharing actions of a workspace — drafts saved to
-// the mailbox, mail sent, members invited, changed and removed, exports, deletions — with who,
-// when and what. Admins read it; it is part of the export and goes with the workspace. A row
+// the mailbox, mail sent, members invited, changed and removed, exports (recorded when one
+// starts), mailboxes connected and disconnected, SMTP and AI settings changed, deletions — with
+// who, when and what. Admins read it; it is part of the export and goes with the workspace. A row
 // holds ids, never a name or an address, so a deleted account leaves none behind: its actions
 // stay and show "Deleted user" (F7.3).
 
@@ -18,7 +19,10 @@ export const ACTIVITY_KINDS = [
   "member.left",
   "workspace.ownership_transferred",
   "export.downloaded",
+  "mailbox.connected",
+  "mailbox.smtp_changed",
   "mailbox.disconnected",
+  "ai.settings_changed",
   "account.deleted",
 ] as const;
 export const ActivityKindSchema = z.enum(ACTIVITY_KINDS);
@@ -30,7 +34,8 @@ export const DELETED_USER = "Deleted user";
 /**
  * What an action was about, by id only. Each kind uses the fields it needs: a draft and its role
  * (draft.saved, mail.sent), the member and their new role or scope (member.*), the invite
- * (member.invited), a mailbox (mailbox.disconnected).
+ * (member.invited), a mailbox (mailbox.connected, mailbox.smtp_changed, mailbox.disconnected).
+ * ai.settings_changed has none: never a host, a key or an address.
  */
 export const ActivityRefsSchema = z.object({
   draftId: z.uuid().optional(),

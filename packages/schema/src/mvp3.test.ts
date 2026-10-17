@@ -368,8 +368,9 @@ describe("your data and the activity log (F7, F9)", () => {
     expect(ExportManifestSchema.safeParse({ ...manifest, schemaVersion: 2 }).success).toBe(false);
   });
 
-  it("needs the workspace's name to delete it and lists what an account deletion takes", () => {
-    expect(DeleteWorkspaceInputSchema.safeParse({ name: "" }).success).toBe(false);
+  it("needs the workspace's name and the password to delete it, and lists what an account deletion takes", () => {
+    expect(DeleteWorkspaceInputSchema.safeParse({ name: "", password: "pw" }).success).toBe(false);
+    expect(DeleteWorkspaceInputSchema.safeParse({ name: "Maria's workspace" }).success).toBe(false);
     expect(
       AccountDeletionPreviewSchema.parse({
         owned: [{ workspaceId: ID, name: "Tom's workspace", members: [] }],
