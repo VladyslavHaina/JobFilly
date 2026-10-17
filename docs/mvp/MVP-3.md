@@ -261,7 +261,10 @@ Built only once MVP 3 has a sign-off row.
 - **H1** `deploy/helm/jobfilly` contains: a Deployment (2 replicas by default, liveness and
   readiness probes on the health endpoints, resources from the soak, non-root, read-only root
   filesystem with an `emptyDir` for `/tmp`, `terminationGracePeriodSeconds` of at least 30), a
-  Service, an optional Ingress, a ConfigMap (`PUBLIC_URL`, `LOG_LEVEL`, sync
+  Service, an optional Ingress, a PodDisruptionBudget (`minAvailable: 1`, rendered only when
+  replicas ≥ 2, so a single replica never blocks a node drain), an optional Istio
+  `DestinationRule` with sticky sessions on the session cookie (off by default; the app doesn't
+  need it, since any replica serves any request), a ConfigMap (`PUBLIC_URL`, `LOG_LEVEL`, sync
   interval) and a Secret (`DATABASE_URL`, `JOBFILLY_SECRET_KEY`, OAuth settings) — or the name of an
   existing Secret.
 - **H2** Migrations run when the app starts, under the advisory lock, so every install and upgrade

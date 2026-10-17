@@ -5747,7 +5747,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Options:**
   1. Keep the zero-downtime requirements (no failed requests during restarts, scans completing through restarts, upgrade during a scan, pre-upgrade migration hook, PodDisruptionBudget, a 2-hour soak)
   2. Simplify: restarts bring the app back with nobody signed out and nothing lost or done twice; brief downtime is fine
-- **Chosen:** Option 2, by the owner. docs/mvp/MVP-3.md: F10.1 (the app comes back, scans and syncs end, never stuck), F10.2 (the proxy routes only to ready replicas), F10.3 (20-minute soak, measured between minutes 5 and 10), S10, H1 (no PodDisruptionBudget), H2 (migrations at startup only), H5 (install and the full suite; an upgrade may cause brief downtime); docs/mvp/README.md's soak line.
+- **Chosen:** Option 2, by the owner. docs/mvp/MVP-3.md: F10.1 (the app comes back, scans and syncs end, never stuck), F10.2 (the proxy routes only to ready replicas), F10.3 (20-minute soak, measured between minutes 5 and 10), S10, H1 (a PodDisruptionBudget only when replicas ≥ 2, owner's follow-up; plus an optional Istio DestinationRule with sticky sessions, off by default), H2 (migrations at startup only), H5 (install and the full suite; an upgrade may cause brief downtime); docs/mvp/README.md's soak line.
 - **If you decide otherwise:** Restore the earlier F10, S10 and H1/H2/H5 text from git history.
 - **Refs:** MVP-3 F10, S10, H1–H5
 - **Status:** accepted
