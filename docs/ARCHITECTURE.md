@@ -596,5 +596,6 @@ Every MVP keeps these true; the Helm chart after MVP 3 relies on them.
   `OAUTH_CLIENT_SECRET`, `OAUTH_EMAIL`, `OAUTH_ACCESS_TOKEN`, which is that account's mail
   password, for XOAUTH2), reached by the browser through the proxy at `127.0.0.1:8084` and by the
   app at `http://oauth:8080`. The fake AI answers focus.v1 from `ai/focus.json` and answer.v1
-  from `ai/answer.json`. How
+  from `ai/answer.json`. From MVP 3 the stack runs a third replica, `app-c` (direct port
+  `:8083`), and `node e2e/scripts/rolling-restart.ts` runs S10's rolling restart. How
   each MVP is validated is described in [docs/mvp/README.md](mvp/README.md).

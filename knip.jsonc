@@ -34,6 +34,7 @@
         "rdap/main.ts",
         "oauth/main.ts",
         "fixtures/build/main.ts",
+        "scripts/rolling-restart.ts",
         "playwright.config.ts",
         "specs/**/*.spec.ts"
       ],
