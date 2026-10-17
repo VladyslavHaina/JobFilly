@@ -37,6 +37,19 @@ encrypts stored mail passwords and AI keys, so keep it) and `PUBLIC_URL` are req
 is listed in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#configuration-environment). `node
 dist/index.js migrate` applies the database migrations alone.
 
+On Kubernetes, build and push the image, then install the Helm chart (details in
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#deploying-with-helm)):
+
+```bash
+helm install jobfilly deploy/helm/jobfilly \
+  --set image.repository=<registry>/jobfilly \
+  --set secret.databaseUrl=postgres://user:password@host:5432/jobfilly \
+  --set secret.secretKey=$(openssl rand -base64 32)   # keep the key
+```
+
+To try it without a database of your own, replace `secret.databaseUrl` with
+`--set postgresql.enabled=true --set postgresql.auth.password=$(openssl rand -hex 24)`.
+
 ## Layout
 
 ```
@@ -45,5 +58,6 @@ apps/web        React UI
 packages/       schema, core, db, mail, ai
 e2e/            test stack: fixtures, fake AI, seeding, Playwright specs
 docker/         Dockerfile and compose files
+deploy/helm/    Helm chart
 docs/           north star, architecture, MVP plans
 ```
