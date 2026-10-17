@@ -5727,3 +5727,16 @@ These make sign-off possible; without them the build goes on and records an open
 - **If you decide otherwise:** Reopen D24 and remove requireFullAccess from those routes.
 - **Refs:** TBD-446 D24, docs/mvp/MVP-3.md F6
 - **Status:** accepted
+
+## TBD-451 · A profile's hide rule hides; it doesn't move the role
+- **Kind:** decision
+- **Where:** MVP 3 · Validation (S3, F1.3, F2.1)
+- **Context:** The profiles slice gave a profile's own hide rule a −10 penalty in profile assignment (TBD-447), so the walkthrough's UTC+5 hide rule moved the three Asia-Pacific roles to the other profile instead of hiding them; "It changes 3 roles" but Hidden stayed empty.
+- **Options:**
+  1. Keep the penalty (a rule steers roles between profiles)
+  2. Assign by fit alone; the assigned profile's rules then apply, so hide means hidden
+- **Chosen:** Option 2 (54af0e5), decided by the orchestrator on the owner's behalf: it is how S3 reads ("it hides …") and keeps assignment explainable. Re-run setup now reads only evidence that fits the whole hint (cee2e10), and one failing message no longer stops a scan (00ab4e4).
+- **If you decide otherwise:** Bring back a rules term in assignProfile (packages/core/src/assign/assign.ts).
+- **Refs:** MVP-3 F1.3, F2.1, S3; TBD-447 (profiles)
+- **Status:** accepted
+
