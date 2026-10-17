@@ -6,6 +6,7 @@ import {
   type AppEnv,
   originCheck,
   requireFullAccess,
+  requireJobMail,
   type WorkspaceEnv,
   workspaceMember,
 } from "./access";
@@ -82,34 +83,47 @@ export function createApp(deps: AppDeps) {
 
   const workspace = app.basePath("/api/workspaces/:workspaceId");
   workspace.use("/*", requireUser, workspaceMember(deps));
+  // A member who sees the job pipeline only (MVP 3, F6.1, F6.2) gets 404 from every route about a
+  // message that isn't job mail, reads and writes alike, whichever module serves it.
+  const jobMail = requireJobMail(deps);
+  workspace.use("/messages/:messageId", jobMail);
+  workspace.use("/messages/:messageId/*", jobMail);
+  workspace.use("/senders/messages/:messageId/*", jobMail);
   /**
-   * Mounts a route module. `mail: true` (MVP 3, F6.2): the whole module holds mail content (drafts,
-   * sending), so a member who sees the job pipeline only gets 404 there, before any handler runs.
+   * Mounts a route module. Such a member gets 404 from a whole module, before any handler runs,
+   * unless it is mounted with `pipeline: true`: so a new module is closed to them by default, and
+   * one that opens to them shows them only what F6.1 allows (no message bodies, drafts or
+   * non-job mail).
    */
-  const mount = (name: string, routes: WorkspaceRoutes, options: { mail?: boolean } = {}) => {
-    if (!options.mail) return workspace.route(`/${name}`, routes(deps));
+  const mount = (name: string, routes: WorkspaceRoutes, options: { pipeline?: boolean } = {}) => {
+    if (options.pipeline) return workspace.route(`/${name}`, routes(deps));
     const guarded = new Hono<WorkspaceEnv>();
     guarded.use("*", requireFullAccess());
     guarded.route("/", routes(deps));
     return workspace.route(`/${name}`, guarded);
   };
-  mount("members", membersRoutes);
-  mount("invites", workspaceInvitesRoutes);
-  mount("events", (d) => eventsRoutes(d));
-  mount("mailboxes", mailboxRoutes);
-  mount("ai", aiRoutes);
-  mount("scans", scanRoutes);
-  mount("messages", messageRoutes);
-  mount("intake", intakeRoutes);
-  mount("profiles", profileRoutes);
+  const open = { pipeline: true };
+  mount("members", membersRoutes, open);
+  mount("invites", workspaceInvitesRoutes, open);
+  mount("events", (d) => eventsRoutes(d), open);
+  mount("mailboxes", mailboxRoutes, open);
+  mount("ai", aiRoutes, open);
+  mount("scans", scanRoutes, open);
+  // Job mail only for such a member (the list filters it, requireJobMail guards the rest), never
+  // a body (the body route requires full access).
+  mount("messages", messageRoutes, open);
+  mount("intake", intakeRoutes, open);
+  mount("profiles", profileRoutes, open);
   // MVP 2. Rules and the history live under /profiles/:profileId next to the profile routes.
-  mount("profiles", rulesRoutes);
-  mount("profiles", historyRoutes);
-  mount("cvs", cvsRoutes);
-  mount("senders", sendersRoutes);
-  mount("drafts", draftsRoutes, { mail: true });
-  mount("decisions", decisionsRoutes);
-  mount("assistant", assistantRoutes);
+  mount("profiles", rulesRoutes, open);
+  mount("profiles", historyRoutes, open);
+  mount("cvs", cvsRoutes, open);
+  mount("senders", sendersRoutes, open);
+  // Mail content: closed to a member who sees the pipeline only.
+  mount("drafts", draftsRoutes);
+  mount("decisions", decisionsRoutes, open);
+  // Open, with the member's access applied inside: no message text for such a member (F8.3).
+  mount("assistant", assistantRoutes, open);
 
   app.all("/api/*", (c) => c.json({ error: "not_found" }, 404));
   return app;

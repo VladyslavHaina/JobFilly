@@ -1,4 +1,10 @@
-import { addMember, saveAnalysis, saveEnvelopes, setMemberScope } from "@jobfilly/db";
+import {
+  addMember,
+  saveAnalysis,
+  saveEnvelopes,
+  setMemberScope,
+  setSenderMark,
+} from "@jobfilly/db";
 import { type MessageDetail, MessageListSchema } from "@jobfilly/schema";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../app";
@@ -49,7 +55,11 @@ beforeEach(async () => {
     [JOB, "recruiter_outreach"],
     [OTHER, "not_job"],
   ] as const) {
-    const envelope = mailbox.deliver({ messageId, text: "BODYSENTINEL-scope" });
+    const from = {
+      address: messageId === JOB ? "jo@agency.example" : "news@shop.example",
+      name: null,
+    };
+    const envelope = mailbox.deliver({ messageId, from, text: "BODYSENTINEL-scope" });
     await saveEnvelopes(deps.db, maria.workspaceId, [
       { envelope, verdict: "likely_job", reason: null },
     ]);
@@ -60,6 +70,13 @@ beforeEach(async () => {
       roles: [],
     });
   }
+  await setSenderMark(deps.db, maria.workspaceId, {
+    scope: "domain",
+    value: "shop.example",
+    mark: "blocked",
+    userId: maria.id,
+    at: deps.clock.now(),
+  });
   const app = createApp(deps);
   tomClient = await signedIn(app, deps, tom);
   mariaClient = await signedIn(app, deps, maria);
@@ -115,5 +132,50 @@ describe("a member who sees the job pipeline only (F6.2)", () => {
 
   it("leaves the owner seeing everything", async () => {
     expect((await mariaClient.get(path(`/messages/${enc(JOB)}/body`))).status).toBe(200);
+  });
+});
+
+/**
+ * Every route a pipeline-only member must not use, with a request that a member who sees
+ * everything gets past the access checks with (an invalid body answers them 400, so the 404 is
+ * the scope's and not the handler's).
+ */
+const REFUSED: { method: "get" | "post" | "put" | "patch"; url: string; body?: unknown }[] = [
+  { method: "get", url: `/messages/${enc(JOB)}/body` },
+  { method: "get", url: `/messages/${enc(OTHER)}` },
+  { method: "get", url: `/messages/${enc(OTHER)}/body` },
+  { method: "put", url: `/messages/${enc(OTHER)}/category`, body: {} },
+  { method: "put", url: `/messages/${enc(OTHER)}/roles/0/cv`, body: {} },
+  { method: "get", url: `/senders/messages/${enc(OTHER)}/mark` },
+  { method: "get", url: "/drafts" },
+  { method: "post", url: "/drafts", body: {} },
+  { method: "patch", url: "/drafts/6f1c2f4e-8d3a-4b5c-9e7f-0a1b2c3d4e5f", body: {} },
+];
+
+const send = (client: TestClient, r: (typeof REFUSED)[number]) =>
+  r.method === "get" ? client.get(path(r.url)) : client[r.method](path(r.url), r.body);
+
+describe("every route closed to a pipeline-only member (F6.2)", () => {
+  it("is open to a member who sees everything", async () => {
+    for (const r of REFUSED) {
+      const res = await send(tomClient, r);
+      expect([r.method, r.url, res.status === 404]).toEqual([r.method, r.url, false]);
+    }
+  });
+
+  it("answers 404 to a member who sees the pipeline only, writes on non-job mail included", async () => {
+    await setMemberScope(deps.db, maria.workspaceId, tom.id, "pipeline");
+    for (const r of REFUSED) {
+      const res = await send(tomClient, r);
+      expect([r.method, r.url, res.status]).toEqual([r.method, r.url, 404]);
+    }
+  });
+
+  it("still lets them correct a job message's category", async () => {
+    await setMemberScope(deps.db, maria.workspaceId, tom.id, "pipeline");
+    const res = await tomClient.put(path(`/messages/${enc(JOB)}/category`), {
+      category: "interview",
+    });
+    expect(res.status).toBe(200);
   });
 });

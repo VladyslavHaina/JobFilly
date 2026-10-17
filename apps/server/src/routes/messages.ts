@@ -8,7 +8,6 @@ import {
 import {
   CategoryCorrectionSchema,
   CvChoiceOverrideSchema,
-  JOB_CATEGORIES,
   type MessageBody,
   type MessageDetail,
   type MessageList,
@@ -40,8 +39,9 @@ import { requestReevaluation } from "../profile/changes";
 // Mounted once at /api/workspaces/:workspaceId/messages; each handler applies its own role.
 //
 // MVP 3: the list filters by mailbox (F3.1), and the body comes from the message's own mailbox.
-// A member who sees the job pipeline only (F6.2) gets job mail alone, no draft status, and 404
-// for a non-job message's detail and for every body.
+// A member who sees the job pipeline only (F6.2) gets job mail alone and no draft status here;
+// app.ts answers them 404 for every route about a non-job message (requireJobMail) and this
+// module refuses every body (requireFullAccess).
 
 const NO_MAILBOX = {
   error: "no_mailbox",
@@ -60,9 +60,6 @@ const messageIdOf = (c: Context<WorkspaceEnv>) => c.req.param("messageId") ?? ""
 
 /** Whether the member sees the job pipeline only (MVP 3, F6.1). */
 const pipelineOnly = (c: Context<WorkspaceEnv>) => scopeOf(c.get("membership")) === "pipeline";
-
-const isJobMail = (detail: MessageDetail) =>
-  (JOB_CATEGORIES as readonly (string | null)[]).includes(detail.category);
 
 export function messageRoutes(deps: AppDeps) {
   return (
@@ -85,10 +82,8 @@ export function messageRoutes(deps: AppDeps) {
       .get("/:messageId", requireRole("viewer"), async (c) => {
         const detail = await getInboxMessage(deps.db, c.get("workspaceId"), messageIdOf(c));
         if (!detail) return c.json(NOT_FOUND, 404);
-        if (pipelineOnly(c)) {
-          if (!isJobMail(detail)) return c.json(NOT_FOUND, 404);
-          return c.json({ ...detail, draft: null } satisfies MessageDetail);
-        }
+        // Non-job mail never gets here for such a member (requireJobMail in app.ts).
+        if (pipelineOnly(c)) return c.json({ ...detail, draft: null } satisfies MessageDetail);
         return c.json(detail satisfies MessageDetail);
       })
       // The body is fetched from the mailbox each time it is asked for and never stored (F4.9):

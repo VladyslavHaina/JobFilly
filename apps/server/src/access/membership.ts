@@ -1,5 +1,5 @@
-import { getMembership } from "@jobfilly/db";
-import { IdSchema, type Role, roleAtLeast, scopeOf } from "@jobfilly/schema";
+import { getMembership, getStoredMessages } from "@jobfilly/db";
+import { IdSchema, JOB_CATEGORIES, type Role, roleAtLeast, scopeOf } from "@jobfilly/schema";
 import type { MiddlewareHandler } from "hono";
 import type { AppDeps } from "../deps";
 import type { WorkspaceEnv } from "./env";
@@ -39,6 +39,25 @@ export function requireFullAccess(): MiddlewareHandler<WorkspaceEnv> {
   return async (c, next) => {
     const membership = c.get("membership");
     if (!membership || scopeOf(membership) !== "everything") return c.json(NOT_FOUND, 404);
+    await next();
+  };
+}
+
+/**
+ * For a member who sees the job pipeline only (MVP 3, F6.2): 404 for any route about one message
+ * (the `messageId` path parameter) unless that message is job mail, reads and writes alike. app.ts
+ * puts it in front of every /messages/:messageId and /senders/messages/:messageId route.
+ */
+export function requireJobMail(deps: Pick<AppDeps, "db">): MiddlewareHandler<WorkspaceEnv> {
+  return async (c, next) => {
+    const membership = c.get("membership");
+    if (membership && scopeOf(membership) === "everything") return next();
+    const messageId = c.req.param("messageId");
+    const [message] = messageId
+      ? await getStoredMessages(deps.db, c.get("workspaceId"), [messageId])
+      : [];
+    const job = (JOB_CATEGORIES as readonly (string | null)[]).includes(message?.category ?? null);
+    if (!job) return c.json(NOT_FOUND, 404);
     await next();
   };
 }
