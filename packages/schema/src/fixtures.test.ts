@@ -63,6 +63,30 @@ describe("the e2e fixtures", () => {
     }
   });
 
+  // MVP 3: focus.v1's answers by hint, and answer.v1's by question and turn ("*": any turn).
+  it("answer every hint of ai/focus.json with focus.v1's output", () => {
+    const answers = Object.entries(readJson("ai/focus.json") as Record<string, unknown>);
+    expect(answers.length).toBeGreaterThan(0);
+    for (const [hint, answer] of answers) {
+      if (isInvalid(answer)) continue;
+      const result = TASK_OUTPUT_SCHEMAS["focus.v1"].safeParse(answer);
+      expect(result.error?.issues, hint).toBeUndefined();
+    }
+  });
+
+  it("answer every question of ai/answer.json with answer.v1's output", () => {
+    const answers = readJson("ai/answer.json") as Record<string, Record<string, unknown>>;
+    const turns = Object.entries(answers).flatMap(([question, byTurn]) =>
+      Object.entries(byTurn).map(([turn, answer]) => ({ where: `${question} @${turn}`, answer })),
+    );
+    expect(turns.length).toBeGreaterThan(0);
+    for (const { where, answer } of turns) {
+      if (isInvalid(answer)) continue;
+      const result = TASK_OUTPUT_SCHEMAS["answer.v1"].safeParse(answer);
+      expect(result.error?.issues, where).toBeUndefined();
+    }
+  });
+
   it("expect only Changes ChangeSchema accepts in assistant/requests.json", () => {
     // `expected` is null for a request that should only get a clarifying question.
     const requests = readJson("assistant/requests.json") as {
