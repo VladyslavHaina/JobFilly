@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  DraftStatusSchema,
+  jobDedupeKey,
+  MAIL_SEND_JOB,
   MAX_SCAN_HINT_LENGTH,
   MailboxPublicSchema,
   MailboxStatusSchema,
+  MailSendPayloadSchema,
   MessageListQuerySchema,
   OAuthCallbackQuerySchema,
   OAuthMailConnectionSchema,
@@ -13,6 +17,11 @@ import {
   RoleProfileSchema,
   ScanFocusSchema,
   ScanKindSchema,
+  SEND_DELAY_SECONDS,
+  SendConfirmSchema,
+  SendSchema,
+  SmtpLoginSchema,
+  SmtpSettingsInputSchema,
   StartScanInputSchema,
 } from "./index";
 
@@ -135,5 +144,46 @@ describe("several mailboxes and OAuth (F3)", () => {
         email: "not an address",
       }).success,
     ).toBe(false);
+  });
+});
+
+describe("sending with confirmation (F4)", () => {
+  it("waits ten seconds with Undo before anything leaves", () => {
+    expect(SEND_DELAY_SECONDS).toBe(10);
+  });
+
+  it("keeps the SMTP password write-only and optional", () => {
+    const settings = { host: "smtp.inbox.example", port: 465, tlsMode: "tls", username: "m" };
+    expect(SmtpSettingsInputSchema.parse(settings)).toEqual(settings);
+    expect(SmtpSettingsInputSchema.safeParse({ ...settings, port: 0 }).success).toBe(false);
+  });
+
+  it("signs in to SMTP with a password or an access token, never with neither", () => {
+    const base = { host: "smtp.gmail.com", port: 465, tlsMode: "tls", username: "m@gmail.example" };
+    expect(SmtpLoginSchema.safeParse({ ...base, accessToken: "t" }).success).toBe(true);
+    expect(SmtpLoginSchema.safeParse({ ...base, password: "p" }).success).toBe(true);
+    expect(SmtpLoginSchema.safeParse(base).success).toBe(false);
+  });
+
+  it("refuses a confirmation without a token", () => {
+    expect(SendConfirmSchema.safeParse({}).success).toBe(false);
+    expect(SendConfirmSchema.safeParse({ token: "" }).success).toBe(false);
+  });
+
+  it("knows a sent draft and the states of a send", () => {
+    expect(DraftStatusSchema.options).toContain("sent");
+    expect(SendSchema.shape.status.options).toEqual([
+      "scheduled",
+      "cancelled",
+      "sending",
+      "sent",
+      "failed",
+    ]);
+  });
+
+  it("queues one deduped mail.send job per send", () => {
+    expect(MAIL_SEND_JOB).toBe("mail.send");
+    expect(jobDedupeKey.send(ID)).toBe(`send:${ID}`);
+    expect(MailSendPayloadSchema.safeParse({ workspaceId: ID, sendId: ID }).success).toBe(true);
   });
 });

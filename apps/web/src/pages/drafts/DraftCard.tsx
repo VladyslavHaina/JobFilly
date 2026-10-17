@@ -15,6 +15,7 @@ const TONES = {
   edited: "info",
   discarded: "neutral",
   failed: "danger",
+  sent: "success",
 } as const;
 
 function DraftStatusBadge({ status }: { status: Draft["status"] }) {

@@ -20,6 +20,7 @@ export * from "./oauth";
 export * from "./profile";
 export * from "./rules";
 export * from "./scan";
+export * from "./send";
 export * from "./sender";
 export * from "./sync";
 export * from "./workspace";

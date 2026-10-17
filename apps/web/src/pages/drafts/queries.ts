@@ -72,4 +72,5 @@ export const STATUS_LABELS: Record<DraftStatus, string> = {
   edited: "Edited",
   discarded: "Discarded",
   failed: "Failed",
+  sent: "Sent",
 };

@@ -78,11 +78,20 @@ export const DraftCreatePayloadSchema = z.object({
 });
 export type DraftCreatePayload = z.infer<typeof DraftCreatePayloadSchema>;
 
-/** The dedupe key of each MVP 2 job, one place for every caller. */
+/**
+ * mail.send (MVP 3, F4.2): sends one confirmed message once its delay is over (the job's run_at);
+ * dedupe key `send:<sendId>`. A send cancelled by Undo before it runs does nothing.
+ */
+export const MAIL_SEND_JOB = "mail.send";
+export const MailSendPayloadSchema = z.object({ workspaceId: z.uuid(), sendId: z.uuid() });
+export type MailSendPayload = z.infer<typeof MailSendPayloadSchema>;
+
+/** The dedupe key of each job, one place for every caller. */
 export const jobDedupeKey = {
   sync: (mailboxId: string) => `sync:${mailboxId}`,
   reevaluate: (workspaceId: string) => `reevaluate:${workspaceId}`,
   cvRead: (cvId: string) => `cv:${cvId}`,
   draft: (workspaceId: string, messageId: string, position: number) =>
     `draft:${workspaceId}:${messageId}:${position}`,
+  send: (sendId: string) => `send:${sendId}`,
 };
