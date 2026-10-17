@@ -47,8 +47,8 @@ beforeEach(async () => {
 afterEach(() => deps.close());
 
 const workspace = (ws: string) => `/api/workspaces/${ws}`;
-const deleteWorkspace = (api: TestClient, ws: string, name: string) =>
-  api.request("DELETE", workspace(ws), { name });
+const deleteWorkspace = (api: TestClient, ws: string, name: string, password: string) =>
+  api.request("DELETE", workspace(ws), { name, password });
 
 describe("deleting a workspace (F7.2)", () => {
   it("needs its name typed in, and takes everything it holds", async () => {
@@ -60,12 +60,26 @@ describe("deleting a workspace (F7.2)", () => {
     await seedCv(deps, tom.workspaceId, { name: "Tom's CV" });
     await addMember(deps.db, tom.workspaceId, maria.id, "viewer");
 
-    const wrong = await deleteWorkspace(tomApi, tom.workspaceId, "tom okafor's workspace");
+    const name = "Tom Okafor's workspace";
+    const wrong = await deleteWorkspace(
+      tomApi,
+      tom.workspaceId,
+      "tom okafor's workspace",
+      tom.password,
+    );
     expect(wrong.status).toBe(400);
     expect(await wrong.json()).toMatchObject({ error: "name_mismatch" });
     expect((await tomApi.request("DELETE", workspace(tom.workspaceId), {})).status).toBe(400);
+    expect((await tomApi.request("DELETE", workspace(tom.workspaceId), { name })).status).toBe(400);
+    // As deleting an account: the owner's own password, else 403 and nothing goes.
+    for (const password of ["not-the-password", maria.password]) {
+      const refused = await deleteWorkspace(tomApi, tom.workspaceId, name, password);
+      expect(refused.status).toBe(403);
+      expect(await refused.json()).toMatchObject({ error: "wrong_password" });
+    }
+    expect(await listWorkspacesForUser(deps.db, tom.id)).toHaveLength(1);
 
-    const res = await deleteWorkspace(tomApi, tom.workspaceId, "Tom Okafor's workspace");
+    const res = await deleteWorkspace(tomApi, tom.workspaceId, name, tom.password);
     expect(res.status).toBe(204);
     expect(await listWorkspacesForUser(deps.db, tom.id)).toEqual([]);
     expect(await listWorkspacesForUser(deps.db, maria.id)).toHaveLength(1);
@@ -82,11 +96,12 @@ describe("deleting a workspace (F7.2)", () => {
   it("is the owner's alone: 403 to another admin, 404 to a non-member", async () => {
     await addMember(deps.db, maria.workspaceId, tom.id, "admin");
     const name = "Maria Santos's workspace";
-    expect((await deleteWorkspace(tomApi, maria.workspaceId, name)).status).toBe(403);
+    expect((await deleteWorkspace(tomApi, maria.workspaceId, name, tom.password)).status).toBe(403);
     await addMember(deps.db, maria.workspaceId, tom.id, "editor");
-    expect((await deleteWorkspace(tomApi, maria.workspaceId, name)).status).toBe(403);
+    expect((await deleteWorkspace(tomApi, maria.workspaceId, name, tom.password)).status).toBe(403);
     expect(
-      (await deleteWorkspace(mariaApi, tom.workspaceId, "Tom Okafor's workspace")).status,
+      (await deleteWorkspace(mariaApi, tom.workspaceId, "Tom Okafor's workspace", maria.password))
+        .status,
     ).toBe(404);
     expect(await listWorkspacesForUser(deps.db, maria.id)).toHaveLength(1);
   });

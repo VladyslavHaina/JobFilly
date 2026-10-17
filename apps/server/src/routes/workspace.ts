@@ -3,10 +3,11 @@ import { DeleteWorkspaceInputSchema } from "@jobfilly/schema";
 import { Hono } from "hono";
 import { NOT_FOUND, requireRole, validJson, type WorkspaceEnv } from "../access";
 import type { AppDeps } from "../deps";
-import { endAccess } from "./account";
+import { endAccess, isOwnPassword, WRONG_PASSWORD } from "./account";
 
 // Deleting a workspace (MVP 3, F7.2): DELETE /api/workspaces/:workspaceId with its name typed in
-// (DeleteWorkspaceInputSchema). Only its owner can. Everything it holds in Postgres goes,
+// and the owner's password, as deleting an account asks (DeleteWorkspaceInputSchema; a wrong one
+// answers 403). Only its owner can. Everything it holds in Postgres goes,
 // credentials, CV files and the activity log included; drafts and mail in the mailbox stay there.
 // Mounted on the workspace's own path, behind the membership check.
 
@@ -23,11 +24,15 @@ export function workspaceRoutes(deps: AppDeps) {
           403,
         );
       }
-      if (c.req.valid("json").name !== membership.name) {
+      const input = c.req.valid("json");
+      if (input.name !== membership.name) {
         return c.json(
           { error: "name_mismatch", message: "Type the workspace's name exactly as it is shown" },
           400,
         );
+      }
+      if (!(await isOwnPassword(deps, c.get("user"), input.password))) {
+        return c.json(WRONG_PASSWORD, 403);
       }
       const workspaceId = c.get("workspaceId");
       const deleted = await deleteWorkspace(deps.db, workspaceId);

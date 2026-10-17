@@ -24,6 +24,19 @@ export async function endAccess(
   }
 }
 
+export const WRONG_PASSWORD = { error: "wrong_password", message: "That isn't your password" };
+
+/** Whether `password` is the signed-in user's own (D27), in the same time whether or not. */
+export async function isOwnPassword(
+  deps: AppDeps,
+  user: { email: string },
+  password: string,
+): Promise<boolean> {
+  const stored = await findUserByEmail(deps.db, user.email);
+  const valid = await verifyPassword(password, stored?.passwordHash ?? UNKNOWN_USER_HASH);
+  return stored !== null && valid;
+}
+
 export function accountRoutes(deps: AppDeps) {
   return new Hono<SignedInEnv>()
     .use(requireUser)
@@ -34,13 +47,8 @@ export function accountRoutes(deps: AppDeps) {
     )
     .delete("/", validJson(DeleteAccountInputSchema), async (c) => {
       const user = c.get("user");
-      const stored = await findUserByEmail(deps.db, user.email);
-      const valid = await verifyPassword(
-        c.req.valid("json").password,
-        stored?.passwordHash ?? UNKNOWN_USER_HASH,
-      );
-      if (!stored || !valid) {
-        return c.json({ error: "wrong_password", message: "That isn't your password" }, 403);
+      if (!(await isOwnPassword(deps, user, c.req.valid("json").password))) {
+        return c.json(WRONG_PASSWORD, 403);
       }
       const deleted = await deleteAccount(deps.db, user, deps.clock.now());
       const log = c.get("log");
