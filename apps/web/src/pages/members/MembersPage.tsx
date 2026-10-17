@@ -4,14 +4,26 @@ import {
   InviteListSchema,
   type Member,
   MemberListSchema,
+  type MemberScope,
   type Role,
+  scopeOf,
 } from "@jobfilly/schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
+import { useNavigate } from "react-router";
 import { ApiError, api, apiVoid } from "../../api";
-import { Alert, Button, Card, Loading, PageHeader, SelectField, TextField } from "../../components";
+import {
+  Alert,
+  Button,
+  Card,
+  Dialog,
+  Loading,
+  PageHeader,
+  SelectField,
+  TextField,
+} from "../../components";
 import { queryKeys, useSession, useWorkspace } from "../../hooks";
-import { apiPaths } from "../../paths";
+import { apiPaths, paths } from "../../paths";
 
 const ROLES: { value: Role; label: string; help: string }[] = [
   { value: "viewer", label: "Viewer", help: "sees everything, changes nothing" },
@@ -20,36 +32,70 @@ const ROLES: { value: Role; label: string; help: string }[] = [
 ];
 const roleLabel = (role: Role) => ROLES.find((r) => r.value === role)?.label ?? role;
 
+/** What a member sees (MVP 3, F6.1). */
+const SCOPES: { value: MemberScope; label: string }[] = [
+  { value: "everything", label: "Everything" },
+  { value: "pipeline", label: "Job pipeline only" },
+];
+const SCOPE_HELP =
+  "Job pipeline only: roles, facts, matches, stages and the profile, but no message text, drafts or other mail.";
+const scopeLabel = (scope: MemberScope) => SCOPES.find((s) => s.value === scope)?.label ?? scope;
+
 const errorText = (error: unknown) =>
   error instanceof ApiError ? error.message : error ? "That didn't work. Try again." : null;
 
-function MemberRow({ member, canManage }: { member: Member; canManage: boolean }) {
-  const { workspaceId } = useWorkspace();
+function MemberRow({
+  member,
+  canManage,
+  iAmOwner,
+}: {
+  member: Member;
+  canManage: boolean;
+  iAmOwner: boolean;
+}) {
+  const { workspaceId, workspace, can } = useWorkspace();
   const { user } = useSession();
   const client = useQueryClient();
+  const navigate = useNavigate();
+  const [handingOver, setHandingOver] = useState(false);
+  const path = `${apiPaths.workspace(workspaceId)}/members/${member.userId}`;
+  const isMe = member.userId === user?.id;
   const refresh = () =>
-    client.invalidateQueries({ queryKey: queryKeys.area(workspaceId, "workspace") });
-  const changeRole = useMutation({
-    mutationFn: (role: Role) =>
-      api(`${apiPaths.workspace(workspaceId)}/members/${member.userId}`, MemberListSchema, {
-        method: "PATCH",
-        body: { role },
-      }),
+    Promise.all([
+      client.invalidateQueries({ queryKey: queryKeys.area(workspaceId, "workspace") }),
+      client.invalidateQueries({ queryKey: queryKeys.workspaces }),
+    ]);
+  const change = useMutation({
+    mutationFn: (body: { role?: Role; scope?: MemberScope }) =>
+      api(path, MemberListSchema, { method: "PATCH", body }),
     onSuccess: refresh,
   });
   const remove = useMutation({
-    mutationFn: () =>
-      apiVoid(`${apiPaths.workspace(workspaceId)}/members/${member.userId}`, { method: "DELETE" }),
-    onSuccess: refresh,
+    mutationFn: () => apiVoid(path, { method: "DELETE" }),
+    onSuccess: async () => {
+      if (!isMe) return refresh();
+      // Leaving: this workspace is no longer the user's to see.
+      await client.invalidateQueries({ queryKey: queryKeys.workspaces });
+      navigate(paths.home(), { replace: true });
+    },
   });
-  const editable = canManage && !member.isOwner;
-  const error = errorText(changeRole.error ?? remove.error);
+  const handOver = useMutation({
+    mutationFn: () =>
+      api(`${path}/ownership`, MemberListSchema, { method: "POST", body: { confirm: true } }),
+    onSuccess: async () => {
+      setHandingOver(false);
+      await refresh();
+    },
+  });
+  // Nobody changes their own role or what they see (the server refuses it too).
+  const editable = canManage && !member.isOwner && !isMe;
+  const error = errorText(change.error ?? remove.error ?? handOver.error);
   return (
     <li className="flex flex-wrap items-center gap-3 py-3">
       <div className="min-w-48 flex-1">
         <p className="text-sm font-medium text-stone-900">
           {member.name}
-          {member.userId === user?.id && <span className="ml-2 text-xs text-stone-500">(you)</span>}
+          {isMe && <span className="ml-2 text-xs text-stone-500">(you)</span>}
           {member.isOwner && (
             <span className="ml-2 rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-600">
               Owner
@@ -64,8 +110,8 @@ function MemberRow({ member, canManage }: { member: Member; canManage: boolean }
             label={`Role for ${member.name}`}
             className="[&>label]:sr-only"
             value={member.role}
-            disabled={changeRole.isPending}
-            onChange={(e) => changeRole.mutate(e.target.value as Role)}
+            disabled={change.isPending}
+            onChange={(e) => change.mutate({ role: e.target.value as Role })}
           >
             {ROLES.map((r) => (
               <option key={r.value} value={r.value}>
@@ -73,39 +119,92 @@ function MemberRow({ member, canManage }: { member: Member; canManage: boolean }
               </option>
             ))}
           </SelectField>
-          <Button
-            variant="danger"
-            aria-label={`Remove ${member.name}`}
-            busy={remove.isPending}
-            onClick={() => remove.mutate()}
+          <SelectField
+            label={`What ${member.name} sees`}
+            className="[&>label]:sr-only"
+            value={scopeOf(member)}
+            disabled={change.isPending}
+            onChange={(e) => change.mutate({ scope: e.target.value as MemberScope })}
           >
-            Remove
-          </Button>
+            {SCOPES.map((s) => (
+              <option
+                key={s.value}
+                value={s.value}
+                disabled={s.value === "everything" && !can.mail}
+              >
+                {s.label}
+              </option>
+            ))}
+          </SelectField>
+          {iAmOwner && member.role === "admin" && (
+            <Button variant="secondary" onClick={() => setHandingOver(true)}>
+              Make owner
+            </Button>
+          )}
+          {!isMe && (
+            <Button
+              variant="danger"
+              aria-label={`Remove ${member.name}`}
+              busy={remove.isPending}
+              onClick={() => remove.mutate()}
+            >
+              Remove
+            </Button>
+          )}
         </>
       ) : (
-        <span className="text-sm text-stone-700">{roleLabel(member.role)}</span>
+        <span className="text-sm text-stone-700">
+          {roleLabel(member.role)} · {scopeLabel(scopeOf(member))}
+        </span>
+      )}
+      {isMe && !member.isOwner && (
+        <Button variant="danger" busy={remove.isPending} onClick={() => remove.mutate()}>
+          Leave workspace
+        </Button>
       )}
       {error && (
         <div className="w-full">
           <Alert>{error}</Alert>
         </div>
       )}
+      <Dialog
+        title={`Hand ${workspace.name} over to ${member.name}?`}
+        open={handingOver}
+        onClose={() => setHandingOver(false)}
+        actions={
+          <>
+            <Button variant="secondary" onClick={() => setHandingOver(false)}>
+              Cancel
+            </Button>
+            <Button busy={handOver.isPending} onClick={() => handOver.mutate()}>
+              Make {member.name} the owner
+            </Button>
+          </>
+        }
+      >
+        <p>
+          {member.name} becomes the owner and always sees everything. You stay an admin, and they
+          can hand it back.
+        </p>
+      </Dialog>
     </li>
   );
 }
 
 function InviteForm() {
-  const { workspaceId } = useWorkspace();
+  const { workspaceId, can } = useWorkspace();
   const client = useQueryClient();
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<Role>("viewer");
+  // An admin who sees the pipeline only can grant only that.
+  const [scope, setScope] = useState<MemberScope>(can.mail ? "everything" : "pipeline");
   const [created, setCreated] = useState<CreatedInvite | null>(null);
   const [copied, setCopied] = useState(false);
   const invite = useMutation({
     mutationFn: () =>
       api(`${apiPaths.workspace(workspaceId)}/invites`, CreatedInviteSchema, {
         method: "POST",
-        body: { email, role },
+        body: { email, role, scope },
       }),
     onSuccess: (result) => {
       setCreated(result);
@@ -145,6 +244,17 @@ function InviteForm() {
             </option>
           ))}
         </SelectField>
+        <SelectField
+          label="Sees"
+          value={scope}
+          onChange={(e) => setScope(e.target.value as MemberScope)}
+        >
+          {SCOPES.map((s) => (
+            <option key={s.value} value={s.value} disabled={s.value === "everything" && !can.mail}>
+              {s.label}
+            </option>
+          ))}
+        </SelectField>
         <Button type="submit" busy={invite.isPending} disabled={!email.trim()}>
           Send invite
         </Button>
@@ -152,6 +262,7 @@ function InviteForm() {
       <p className="mt-2 text-xs text-stone-500">
         {ROLES.map((r) => `${r.label}: ${r.help}`).join(" · ")}
       </p>
+      <p className="mt-1 text-xs text-stone-500">{SCOPE_HELP}</p>
       {invite.error && (
         <div className="mt-4">
           <Alert>{errorText(invite.error)}</Alert>
@@ -207,7 +318,8 @@ function PendingInvites() {
             <div className="flex-1">
               <p className="text-sm text-stone-900">{i.email}</p>
               <p className="text-xs text-stone-500">
-                {roleLabel(i.role)} · expires {new Date(i.expiresAt).toLocaleDateString()}
+                {roleLabel(i.role)} · {scopeLabel(scopeOf(i))} · expires{" "}
+                {new Date(i.expiresAt).toLocaleDateString()}
               </p>
             </div>
             <Button
@@ -225,7 +337,11 @@ function PendingInvites() {
   );
 }
 
-/** Members & invites: everyone sees the members; admins manage them and invite (F1.6, F1.8). */
+/**
+ * Members & invites: everyone sees the members and can leave (but the owner); admins manage
+ * them, choose what each sees, and invite; the owner hands the workspace to another admin (F1.6,
+ * F1.8, MVP 3 F6.1, F6.3).
+ */
 export function MembersPage() {
   const { workspaceId, workspace, can } = useWorkspace();
   const members = useQuery({
@@ -237,7 +353,7 @@ export function MembersPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Members"
-        description={`Who can open ${workspace.name}, and what they can do.`}
+        description={`Who can open ${workspace.name}, and what they can do and see.`}
       />
       {can.admin && <InviteForm />}
       {can.admin && <PendingInvites />}
@@ -248,7 +364,12 @@ export function MembersPage() {
         ) : (
           <ul className="divide-y divide-stone-100">
             {members.data?.map((m) => (
-              <MemberRow key={m.userId} member={m} canManage={can.admin} />
+              <MemberRow
+                key={m.userId}
+                member={m}
+                canManage={can.admin}
+                iAmOwner={workspace.isOwner}
+              />
             ))}
           </ul>
         )}
