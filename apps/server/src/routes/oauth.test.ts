@@ -4,6 +4,7 @@ import {
   getMailboxConnection,
   listMailboxes,
   markMailboxReconnectNeeded,
+  setMemberScope,
   takeOAuthState,
 } from "@jobfilly/db";
 import {
@@ -147,6 +148,11 @@ describe("starting a sign-in", () => {
     }
     const outsider = await signedIn(app, deps, await seedUser(deps));
     expect((await outsider.post(start, {})).status).toBe(404);
+    // Open to an admin who sees the job pipeline only (F6.1): a mailbox isn't mail content.
+    const pipelineAdmin = await seedUser(deps);
+    await addMember(deps.db, workspaceId, pipelineAdmin.id, "admin");
+    await setMemberScope(deps.db, workspaceId, pipelineAdmin.id, "pipeline");
+    expect((await (await signedIn(app, deps, pipelineAdmin)).post(start, {})).status).toBe(200);
   });
 
   it("reconnects only a Google mailbox of the workspace, hinting its account", async () => {
