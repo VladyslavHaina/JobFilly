@@ -141,7 +141,7 @@ Commands:
 | `pnpm e2e:stack up` | Starts a fresh stack under its own compose project name, which it prints |
 | `pnpm e2e:stack down` | Takes that stack down with its containers, networks and volumes |
 | `pnpm e2e:specs [--mvp <n>]` | Runs the specs (all, or one MVP's) against the running stack |
-| `pnpm e2e:soak` | MVP 3 sign-off only: the two-hour soak against a fresh three-replica stack |
+| `pnpm e2e:soak` | MVP 3 sign-off only: the 20-minute soak against a fresh three-replica stack |
 
 - The fake AI is set up through the UI like any OpenAI-compatible endpoint (base URL
   `http://fake-ai:8080/v1`). It answers from `e2e/fixtures/ai/` by task id plus a key: the

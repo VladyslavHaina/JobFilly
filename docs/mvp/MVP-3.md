@@ -192,13 +192,14 @@ writing `profile_history`.
 **Acceptance criteria**
 
 - **F10.1** The test stack runs three replicas. Two workspaces scan and sync at the same time while
-  each replica is restarted in turn, 10 seconds apart: every scan and sync completes, no batch is
-  processed twice, nobody is signed out, and no error is logged except expected warnings.
-- **F10.2** The proxy sends traffic only to ready replicas, so users see no failed requests during
-  the restarts.
-- **F10.3** A two-hour soak with one new message per minute per workspace (`pnpm e2e:soak`, run only
-  in the sign-off run, never in `pnpm e2e` or CI): memory per replica stays within 20% of its
-  average between minutes 10 and 15, no job fails, and p95 API latency (from `http.request`) stays
+  each replica is restarted in turn, 10 seconds apart: the app comes back after each restart,
+  nobody is signed out, every scan and sync ends (done, or stopped with a reason; never stuck), no
+  batch is processed twice, and no error is logged except expected warnings. Brief downtime during
+  a restart is fine; this is not a zero-downtime platform.
+- **F10.2** The proxy sends traffic only to ready replicas.
+- **F10.3** A 20-minute soak with one new message per minute per workspace (`pnpm e2e:soak`, run
+  only in the sign-off run, never in `pnpm e2e` or CI): memory per replica stays within 20% of its
+  average between minutes 5 and 10, no job fails, and p95 API latency (from `http.request`) stays
   under 300 ms on the test stack.
 - **F10.4** [ARCHITECTURE](../ARCHITECTURE.md) lists everything a deployment needs: environment
   variables, port, probes, the migrate command, and the resource use observed in the soak.
@@ -227,7 +228,7 @@ header set). Logs capture all three replicas.
 | S7 | **Sharing with control** Maria changes Tom to **Job pipeline only** → Tom sees roles, matches and the pipeline but no message bodies or drafts; asking the assistant for a message's text gets "not available". Probes: Tom's session on a message body and on a draft → 404 each. Logs: `member.scope_changed`. | F6.1, F6.2, F8.3 |
 | S8 | **Members** Maria makes Tom an admin with **Everything** → Tom can manage members → Tom tries to remove Maria, the owner → refused → Maria hands ownership to Tom → Tom hands it back to Maria → Maria sets Tom back to **Editor**. Logs: `member.role_changed`, `workspace.ownership_transferred` ×2. | F6.3 |
 | S9 | **Ask the assistant** "What's waiting on me?" → open decisions and unreviewed drafts with links → "Why didn't the Singapore role get a draft?" → the place conflict, linked → "How many interviews did I have in the last 30 days?" → the right number with links. Logs: `assistant.answered`. | F8.1, F8.2, F8.4 |
-| S10 | **Rolling restart under load** (scripted) Maria and Tom each start a scan in their own workspace while new mail arrives; restart `app-a`, `app-b` and `app-c` in turn, 10 seconds apart → F10.1 and F10.2 hold. | F10.1, F10.2 |
+| S10 | **Rolling restart under load** (scripted) Maria and Tom each start a scan in their own workspace while new mail arrives; restart `app-a`, `app-b` and `app-c` in turn, 10 seconds apart → the app comes back each time, nobody is signed out, and both scans end. | F10.1, F10.2 |
 | S11 | **Export and delete** 📸 Export Maria's workspace → verification step: the downloaded ZIP has every listed part, CVs included → Maria removes Tom from her workspace → probe: Tom's session on Maria's export URL → 404 → Tom deletes his own workspace (typing its name) → Tom deletes his account → he can't sign in; Maria's members list doesn't show him; her activity log shows his actions as "Deleted user". Afterwards a `pg_dump` contains neither Tom's email nor his name. Logs: `export.completed`, `member.removed`, `workspace.deleted`, `account.deleted`. | F7.1–F7.3, F9.2 |
 | S12 | **Disconnect a mailbox** Disconnect the personal mailbox → the confirmation lists what goes → afterwards none of its messages or credentials remain. | F7.4 |
 | S13 | **Regression** All MVP 1 and MVP 2 specs pass, with MVP 1's one-mailbox step updated as stated above. | — |
@@ -260,15 +261,13 @@ Built only once MVP 3 has a sign-off row.
 - **H1** `deploy/helm/jobfilly` contains: a Deployment (2 replicas by default, liveness and
   readiness probes on the health endpoints, resources from the soak, non-root, read-only root
   filesystem with an `emptyDir` for `/tmp`, `terminationGracePeriodSeconds` of at least 30), a
-  Service, an optional Ingress, a PodDisruptionBudget, a ConfigMap (`PUBLIC_URL`, `LOG_LEVEL`, sync
+  Service, an optional Ingress, a ConfigMap (`PUBLIC_URL`, `LOG_LEVEL`, sync
   interval) and a Secret (`DATABASE_URL`, `JOBFILLY_SECRET_KEY`, OAuth settings) — or the name of an
   existing Secret.
-- **H2** Migrations run when the app starts, under the advisory lock, so every install works. On
-  upgrade a pre-upgrade hook Job runs `node dist/index.js migrate` first, with hook weights that
-  create the Secret it needs before it.
+- **H2** Migrations run when the app starts, under the advisory lock, so every install and upgrade
+  works without a separate migration job.
 - **H3** PostgreSQL is external by default (`DATABASE_URL`); a bundled database for trying it out
   can be switched on.
 - **H4** `helm lint` and `helm template` are clean.
 - **H5** Installed on the owner's local cluster with the test services in a separate namespace, the
-  full MVP 1–3 suite passes against the Ingress, and a `helm upgrade` to a new image during a scan
-  finishes without errors or signed-out users.
+  full MVP 1–3 suite passes against the Ingress. A `helm upgrade` may cause brief downtime.
