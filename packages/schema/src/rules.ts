@@ -115,6 +115,41 @@ export type Rule = z.infer<typeof RuleSchema>;
 export const RuleListSchema = z.object({ items: z.array(RuleSchema) });
 export type RuleList = z.infer<typeof RuleListSchema>;
 
-/** PATCH /profiles/:pid/rules/:ruleId: on or off (F3.5). Remove is DELETE with no body. */
-export const RuleToggleSchema = z.object({ enabled: z.boolean() });
-export type RuleToggle = z.infer<typeof RuleToggleSchema>;
+/**
+ * PATCH /profiles/:pid/rules/:ruleId: on or off (F3.5), and from MVP 3 (F2.1) its words, its
+ * conditions and its action by hand. Remove is DELETE with no body. New conditions or a new action
+ * under the old words get words built from them (packages/core describeRule).
+ */
+export const RulePatchSchema = z
+  .object({
+    description: TextSchema.trim().max(300).optional(),
+    when: z.array(ConditionSchema).min(1).optional(),
+    then: RuleActionSchema.optional(),
+    enabled: z.boolean().optional(),
+  })
+  .refine((p) => Object.values(p).some((v) => v !== undefined), "Say what to change");
+export type RulePatch = z.infer<typeof RulePatchSchema>;
+
+/**
+ * POST /profiles/:pid/rules (MVP 3, F2.1): a rule made by hand (source you). Without words, or
+ * with blank ones, it is stored with words built from its conditions and action.
+ */
+export const RuleCreateSchema = z.object({
+  description: TextSchema.trim().max(300).optional(),
+  when: z.array(ConditionSchema).min(1),
+  then: RuleActionSchema,
+  enabled: z.boolean().default(true),
+});
+export type RuleCreate = z.input<typeof RuleCreateSchema>;
+
+/**
+ * How many of the profile's current roles a change by hand changes (F2.3): hidden or shown, a
+ * score, a rule's effect or whether a reply would be drafted, counted at once from the stored
+ * evaluations without the model. The re-evaluation that follows updates them within a minute.
+ */
+export const ChangedRolesSchema = z.object({ changed: z.number().int().nonnegative() });
+export type ChangedRoles = z.infer<typeof ChangedRolesSchema>;
+
+/** POST and PATCH of a rule answer the rule with how many roles the change changed. */
+export const RuleChangeResultSchema = RuleSchema.extend(ChangedRolesSchema.shape);
+export type RuleChangeResult = z.infer<typeof RuleChangeResultSchema>;
