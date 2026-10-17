@@ -1,9 +1,8 @@
 # JobFilly — agent guide
 
 This is the single guide for every coding agent (`AGENTS.md` points here). Before changing
-anything, read [docs/NORTH_STAR.md](docs/NORTH_STAR.md) (what we're building),
-[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (how the pieces fit) and
-[docs/mvp/README.md](docs/mvp/README.md) (how the MVPs are built and validated).
+anything, read [README.md](README.md) (what JobFilly is) and
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (how the pieces fit).
 
 ## Commands
 
@@ -13,7 +12,7 @@ pnpm dev                             # server :8787 + UI :5173
 pnpm check                           # biome lint + typecheck + vitest — run before every commit
 pnpm unused                          # knip: unused files, exports and dependencies
 pnpm build                           # web UI and server bundles
-pnpm e2e                             # test stack + Playwright specs (from MVP 1 on)
+pnpm e2e                             # test stack + Playwright specs
 docker compose -f docker/compose.yaml up --build
 ```
 
@@ -45,18 +44,10 @@ Node 24+ (CI uses `.nvmrc`), pnpm 12. Format with `pnpm format` (Biome).
   database in tests is PGlite.
 - **Dependencies:** add them to the package that uses them, from the repo root. The 7-day
   `minimumReleaseAge` in `pnpm-workspace.yaml` stays; install scripts need an `allowBuilds` entry.
-- **Docs:** only `README.md`, this file, `AGENTS.md`, `TBD.md`, `docs/NORTH_STAR.md`,
-  `docs/ARCHITECTURE.md` and `docs/mvp/*.md`. Update ARCHITECTURE when you change a boundary. Don't
-  add other docs; explain details in code comments and tests.
+- **Docs:** only `README.md`, this file, `AGENTS.md` and `docs/ARCHITECTURE.md`. Update
+  ARCHITECTURE when you change a boundary. Don't add other docs; explain details in code comments
+  and tests.
 - **Commits:** Conventional Commits, `type(scope): subject`; the scope is the package or app name.
-
-## Building the MVPs
-
-The build runs unattended through the saved workflows in `.claude/workflows/`, following
-"How the build runs" in [docs/mvp/README.md](docs/mvp/README.md). It never stops to ask: important
-decisions and anything left unfinished go to [TBD.md](TBD.md) for the owner. Spec text is never
-edited by the build, a failing test is never deleted or skipped to get green, and every agent runs at
-high effort.
 
 ## Working in parallel
 
@@ -66,6 +57,5 @@ small commit first, so the other workstreams can build on it.
 
 ## Working with the owner
 
-In an interactive session, ask decisions as selectable options (AskUserQuestion), not as open
-questions to answer in writing. In an unattended run, never ask: record the decision in TBD.md and
-carry on.
+Ask decisions as selectable options (AskUserQuestion), not as open questions to answer in
+writing.

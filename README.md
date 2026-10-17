@@ -8,9 +8,7 @@ pulling out role details, checking senders, matching roles against your profile 
 explanation, and drafting replies. Nothing is sent until you press send for that message. A
 self-hosted server: several people can use it at once, each in their own workspace.
 
-> **Status:** early. The product direction is in [docs/NORTH_STAR.md](docs/NORTH_STAR.md), the
-> structure in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), the plan in
-> [docs/mvp/](docs/mvp/README.md).
+How the pieces fit is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Run it
 
@@ -59,5 +57,5 @@ packages/       schema, core, db, mail, ai
 e2e/            test stack: fixtures, fake AI, seeding, Playwright specs
 docker/         Dockerfile and compose files
 deploy/helm/    Helm chart
-docs/           north star, architecture, MVP plans
+docs/           architecture
 ```

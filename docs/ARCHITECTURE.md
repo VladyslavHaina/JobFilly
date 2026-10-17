@@ -309,7 +309,7 @@ Rules:
   ask_first rule, no open need, and a role that never had a draft and wasn't dismissed. Draft a
   reply (on_demand) is always eligible. The replies slice and the assistant's impact preview both
   use it. The reply stage then keeps at most one automatic draft per message (`capAutoDrafts` in
-  `packages/core/src/decisions`, TBD-221): the best-scoring role the policy lets through, ties to
+  `packages/core/src/decisions`): the best-scoring role the policy lets through, ties to
   the lowest position, and none once a role of the message had a draft; Draft a reply stays per
   role. The impact preview counts per role, without the cap.
 - Decision needs are carried on match verdicts (`MatchVerdict.need`) and rule effects; the reply
@@ -354,7 +354,7 @@ Rules:
   copy; discarding a failed draft deletes such a copy the same way. The contract: the IMAP client
   (`MailClient.saveDraft`, `replaceDraft`) gives the copy the caller's `draftMessageId` when it is
   set; the mailbox slice owns that client and its contract test
-  (`packages/mail/src/drafts.test.ts`, TBD-331), and the server's test double keeps it the same
+  (`packages/mail/src/drafts.test.ts`), and the server's test double keeps it the same
   way.
 - A run that lost its claim to another run of it deletes its own copy only by a ref that knows
   the copy's UID: both copies carry the kept Message-ID, so a ref with UIDVALIDITY 0 (a server
@@ -562,17 +562,16 @@ Every MVP keeps these true; the Helm chart after MVP 3 relies on them.
   database closes; the process exits 0. Orchestrators must allow at least 30 seconds
   (`stop_grace_period`, `terminationGracePeriodSeconds`).
 - Runs as a non-root user with a read-only root filesystem and listens on `$PORT`.
-- Brief downtime during a restart or an upgrade is acceptable (TBD-452): replicas restart one at a
+- Brief downtime during a restart or an upgrade is acceptable: replicas restart one at a
   time, sessions live in Postgres so nobody is signed out, and a job a replica held is picked up
   again after its lease expires.
 
 **What a deployment needs (F10.4).** The environment above (`DATABASE_URL`, `JOBFILLY_SECRET_KEY`
 and `PUBLIC_URL` are required); one port, `$PORT` (8787 in the image); the two probes above; and
 nothing else. There is no separate migration step, since the app migrates at start. Observed in the
-20-minute soak (e2e/reports/mvp-3/20261017-121816-soak: three replicas, two workspaces, one new
-message a minute each, the API read every 5 s): memory 115–140 MiB per replica, steady within 8%;
-CPU about 1.3% of one core on average, 15% at peak; p95 API latency 10 ms; no job failed. The
-Helm chart's defaults follow from it: requests of 50m CPU and 192Mi memory, a 512Mi memory limit.
+20-minute soak (`pnpm e2e:soak`: three replicas, two workspaces, one new message a minute each,
+the API read every 5 s): memory 115–140 MiB per replica, steady within 8%; CPU about 1.3% of one
+core on average, 15% at peak; p95 API latency 10 ms; no job failed. The Helm chart's defaults follow from it: requests of 50m CPU and 192Mi memory, a 512Mi memory limit.
 
 ## Deploying with Helm
 
@@ -648,5 +647,4 @@ dependencies, so it renders offline.
   password, for XOAUTH2), reached by the browser through the proxy at `127.0.0.1:8084` and by the
   app at `http://oauth:8080`. The fake AI answers focus.v1 from `ai/focus.json` and answer.v1
   from `ai/answer.json`. From MVP 3 the stack runs a third replica, `app-c` (direct port
-  `:8083`), and `node e2e/scripts/rolling-restart.ts` runs S10's rolling restart. How
-  each MVP is validated is described in [docs/mvp/README.md](mvp/README.md).
+  `:8083`), and `node e2e/scripts/rolling-restart.ts` runs S10's rolling restart.
