@@ -4,8 +4,8 @@ import type {
   DraftMailInput,
   DraftRef,
   Envelope,
-  MailConnection,
   MailFolder,
+  MailLogin,
   MessageRef,
   OriginalMessage,
 } from "@jobfilly/schema";
@@ -27,7 +27,8 @@ import type { MailPort } from "../deps";
 //   calls                     how often each operation ran, so a test can show no body was
 //                             fetched
 //
-// Nothing here sends mail: there is no send operation at all.
+// Nothing here sends mail. appendSent (MVP 3, F4.4) files a message the app sent in Sent, once
+// per Message-ID, as the real client does; the bytes are kept as its text.
 
 const FAKE_MAIL_OPS = [
   "connect",
@@ -41,6 +42,7 @@ const FAKE_MAIL_OPS = [
   "replaceDraft",
   "draftAttachment",
   "deleteDraft",
+  "appendSent",
 ] as const;
 type FakeMailOp = (typeof FAKE_MAIL_OPS)[number];
 
@@ -84,8 +86,8 @@ interface DeliverInput {
 
 export interface FakeMailbox {
   port: MailPort;
-  /** The connections opened, in order. */
-  connections: MailConnection[];
+  /** The connections opened, in order (with a password, or an OAuth access token). */
+  connections: MailLogin[];
   /** The mailbox address each connection was opened with (the drafts' From), in order. */
   addresses: string[];
   calls: Record<FakeMailOp, number>;
@@ -250,6 +252,37 @@ export function createFakeMailbox(
     async deleteDraft(ref) {
       enter("deleteDraft", broken);
       remove(ref);
+    },
+    async appendSent({ raw, messageId, date }) {
+      enter("appendSent", broken);
+      if (stored.sent.some((m) => m.envelope.messageId === messageId)) {
+        return { path: PATHS.sent, appended: false };
+      }
+      const f = folders.sent;
+      const uid = f.nextUid++;
+      const envelope: Envelope = {
+        messageId,
+        folder: "sent",
+        folderPath: f.path,
+        uidValidity: f.uidValidity,
+        uid,
+        date: date.toISOString(),
+        from: { address, name: null },
+        to: [],
+        cc: [],
+        replyTo: [],
+        inReplyTo: null,
+        references: [],
+        subject: "",
+        listId: null,
+        listUnsubscribe: null,
+        precedence: null,
+        autoSubmitted: null,
+        snippet: "",
+      };
+      const text = new TextDecoder().decode(raw);
+      stored.sent.push({ uid, envelope, receivedAt: envelope.date, text });
+      return { path: PATHS.sent, appended: true };
     },
     async close() {},
   });

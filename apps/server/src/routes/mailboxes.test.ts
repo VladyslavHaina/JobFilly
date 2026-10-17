@@ -9,6 +9,7 @@ import {
   MailboxListSchema,
   MailboxPublicSchema,
   type MailConnection,
+  type MailLogin,
   MailPresetListSchema,
   type MailTestResult,
   MailTestResultSchema,
@@ -47,7 +48,7 @@ const connected: MailTestResult = { ok: true, folders: ["INBOX", "Sent"], sentPa
 
 interface FakeMail {
   port: MailPort;
-  connects: { conn: MailConnection; allowInsecure: boolean; address: string }[];
+  connects: { conn: MailLogin; allowInsecure: boolean; address: string }[];
   closed: number;
   result: MailTestResult;
 }

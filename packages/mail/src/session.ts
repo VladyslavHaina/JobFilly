@@ -1,4 +1,4 @@
-import type { MailConnection } from "@jobfilly/schema";
+import type { MailLogin } from "@jobfilly/schema";
 import { ImapFlow } from "imapflow";
 import { usableDate } from "./dates";
 
@@ -54,7 +54,7 @@ export interface ImapSession {
   logout(): Promise<void>;
 }
 
-export type SessionFactory = (conn: MailConnection) => ImapSession;
+export type SessionFactory = (conn: MailLogin) => ImapSession;
 
 const SECONDS = 1000;
 
@@ -65,7 +65,11 @@ export const imapflowSession: SessionFactory = (conn) => {
     secure: conn.tlsMode === "tls",
     // STARTTLS is required when chosen, so a server (or anything in between) can't strip it.
     doSTARTTLS: conn.tlsMode === "starttls" ? true : conn.tlsMode === "none" ? false : undefined,
-    auth: { user: conn.username, pass: conn.password },
+    // A password, or (MVP 3, F3.2) an OAuth access token, which imapflow sends as XOAUTH2.
+    auth:
+      "accessToken" in conn
+        ? { user: conn.username, accessToken: conn.accessToken }
+        : { user: conn.username, pass: conn.password },
     // imapflow logs to the console by default, with the commands it sends; the app logs alone.
     logger: false,
     emitLogs: false,

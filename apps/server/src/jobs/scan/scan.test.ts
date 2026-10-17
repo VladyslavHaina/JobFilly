@@ -340,7 +340,7 @@ describe("the first scan (F4.1–F4.3)", { timeout: SLOW }, () => {
     expect(stored).not.toContain("More text.");
     expect(s.deps.rawLogs.join("\n")).not.toContain(BODY_SENTINEL);
     expect(s.deps.rawLogs.join("\n")).not.toMatch(/E2E-SECRET/);
-    expect(s.mail.connections[0]?.password).toBe("E2E-SECRET-imap");
+    expect(s.mail.connections[0]).toMatchObject({ password: "E2E-SECRET-imap" });
   });
 });
 

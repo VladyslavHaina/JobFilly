@@ -3,7 +3,7 @@ import { createAiClient } from "@jobfilly/ai";
 import { aggregateIntake } from "@jobfilly/core";
 import type { Database, DatabaseConnection } from "@jobfilly/db";
 import { createMailClient, type MailClient, type MailClientOptions } from "@jobfilly/mail";
-import type { AiClientSettings, MailConnection, Readiness } from "@jobfilly/schema";
+import type { AiClientSettings, MailLogin, Readiness } from "@jobfilly/schema";
 import { type Clock, systemClock } from "./clock";
 import type { Config } from "./config";
 import {
@@ -21,8 +21,9 @@ import { createDomainPort } from "./senders/lookup";
 // updates, the queue, and the ports to the mailbox, the AI provider and the domain lookups. Tests
 // replace the ports with fakes (src/testing), so no test needs a mailbox, a model or a network.
 
+/** The mailbox port: IMAP with a password or (MVP 3, F3.2) an OAuth access token. */
 export interface MailPort {
-  connect(conn: MailConnection, options: MailClientOptions): MailClient;
+  connect(conn: MailLogin, options: MailClientOptions): MailClient;
 }
 
 export interface AiPort {

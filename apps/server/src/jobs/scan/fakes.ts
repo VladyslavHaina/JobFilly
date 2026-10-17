@@ -11,7 +11,7 @@ import {
   type IntakeInput,
   type IntakeProposal,
   type JobFacts,
-  type MailConnection,
+  type MailLogin,
   NOT_ENOUGH_EVIDENCE,
   type Preferences,
   type ProfileValue,
@@ -31,7 +31,7 @@ export const BODY_SENTINEL = "BODYSENTINEL-scan";
 
 export interface FakeMail {
   port: MailPort;
-  connections: MailConnection[];
+  connections: MailLogin[];
   fetched: { folder: string; since: Date }[];
   bodies: string[];
   closed: number;

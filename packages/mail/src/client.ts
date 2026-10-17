@@ -8,8 +8,8 @@ import {
   type Envelope,
   type FetchSinceResult,
   FetchSinceResultSchema,
-  type MailConnection,
   type MailFolder,
+  type MailLogin,
   type MailTestFailureReason,
   type MailTestResult,
   type MessageRef,
@@ -136,6 +136,18 @@ export interface MailClient {
    * UIDVALIDITY changed; a draft already gone is not an error.
    */
   deleteDraft(ref: DraftRef): Promise<void>;
+  /**
+   * MVP 3 (F4.4): files a message the app sent (its exact bytes) in the Sent folder, read, unless
+   * one with its Message-ID is there already (the provider filed it, or an earlier attempt did),
+   * so it is there exactly once. The Sent folder's path and whether this call appended it; null
+   * when the server has no Sent folder. Throws MailUnavailableError when the server can't be
+   * reached or refuses the append.
+   */
+  appendSent(input: {
+    raw: Uint8Array;
+    messageId: string;
+    date: Date;
+  }): Promise<{ path: string; appended: boolean } | null>;
   close(): Promise<void>;
 }
 
@@ -183,7 +195,7 @@ function draftMessageId(from: Address): string {
 }
 
 export function mailClientWith(
-  conn: MailConnection,
+  conn: MailLogin,
   options: MailClientOptions,
   factory: SessionFactory,
 ): MailClient {
@@ -478,6 +490,23 @@ export function mailClientWith(
 
     deleteDraft: (ref) => available((s) => remove(s, ref)),
 
+    appendSent: (input) =>
+      available(async (s) => {
+        const { sent } = await folders(s);
+        if (!sent) return null;
+        const { uidValidity } = await s.open(sent);
+        const there = await findByMessageId(s, sent, uidValidity, input.messageId);
+        if (there.length > 0) return { path: sent, appended: false };
+        const appended = await s.append(sent, Buffer.from(input.raw), ["\\Seen"], input.date);
+        if (!appended) {
+          throw new MailUnavailableError(
+            "unreachable",
+            "The mail server refused to file the sent mail",
+          );
+        }
+        return { path: sent, appended: true };
+      }),
+
     async close() {
       const pending = connecting;
       connecting = null;
@@ -490,6 +519,6 @@ export function mailClientWith(
   };
 }
 
-export function createMailClient(conn: MailConnection, options: MailClientOptions): MailClient {
+export function createMailClient(conn: MailLogin, options: MailClientOptions): MailClient {
   return mailClientWith(conn, options, imapflowSession);
 }

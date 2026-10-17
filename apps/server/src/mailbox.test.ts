@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { getMailboxConnection } from "@jobfilly/db";
-import type { MailConnection } from "@jobfilly/schema";
+import type { MailConnection, MailLogin } from "@jobfilly/schema";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { MailPort } from "./deps";
 import { connectMailbox, connectStoredMailbox, MailboxSecretError } from "./mailbox";
@@ -25,7 +25,7 @@ const CONN: MailConnection = {
 
 let deps: TestDeps;
 let maria: SeededUser;
-let opened: { conn: MailConnection; allowInsecure: boolean }[];
+let opened: { conn: MailLogin; allowInsecure: boolean }[];
 
 beforeEach(async () => {
   deps = await createTestDeps({ config: { allowInsecureMail: true } });

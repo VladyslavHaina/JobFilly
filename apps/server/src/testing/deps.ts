@@ -90,6 +90,7 @@ export function fakeMailClient(methods: Partial<MailClient>): MailClient {
     replaceDraft: unused("replaceDraft"),
     draftAttachment: unused("draftAttachment"),
     deleteDraft: unused("deleteDraft"),
+    appendSent: unused("appendSent"),
     close: () => Promise.resolve(),
     ...methods,
   };
