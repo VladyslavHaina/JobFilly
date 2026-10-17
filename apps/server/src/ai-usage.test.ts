@@ -80,7 +80,14 @@ describe("aiClientFor", () => {
     expect((await client.match(match)).ok).toBe(true);
     await client.readCv({ contentHash: "a".repeat(64), fileName: "cv.pdf", text: "Go" });
     await client.draft({ attempt: 1, mail, position: 0, role, entries: [], cv: null });
-    await client.assistant({ turn: 1, text: "hide asia", history: [], entries: [], rules: [] });
+    await client.assistant({
+      turn: 1,
+      text: "hide asia",
+      history: [],
+      entries: [],
+      rules: [],
+      mailLanguages: [],
+    });
     // And the MVP 1 ones, which the sync uses too.
     await client.classify([mail]);
     await client.extract(mail);

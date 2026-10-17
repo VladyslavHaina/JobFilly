@@ -14,6 +14,7 @@ import {
   getProposal,
   getThread,
   insertProposal,
+  listJobMailLanguages,
   listProfiles,
   listRules,
   listThreadMessages,
@@ -117,9 +118,9 @@ export async function assistantState(
 }
 
 /**
- * Sends one message (POST /assistant): asks assistant.v1 with the profile, its rules and the
- * earlier turns, then stores the turn and, for a request to change preferences, a proposal with
- * its impact preview. An unclear request gets the model's clarifying question and no proposal.
+ * Sends one message (POST /assistant): asks assistant.v1 with the profile, its rules, the
+ * earlier turns and the languages of the workspace's job mail, then stores the turn and, for a
+ * request to change preferences, a proposal with its impact preview. An unclear request gets the model's clarifying question and no proposal.
  * Nothing is stored when the model gives no answer.
  */
 export async function sendMessage(
@@ -155,6 +156,8 @@ export async function sendMessage(
     history,
     entries: (profile?.entries ?? []).map((e) => ({ key: e.key, label: e.label, value: e.value })),
     rules,
+    // So a rule on free text gets its phrases in each language the mail is written in.
+    mailLanguages: await listJobMailLanguages(deps.db, ws),
   });
   if (!result.ok) {
     // Why, in codes packages/ai prepared for the logs; never the message or the provider's words.

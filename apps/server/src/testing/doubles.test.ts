@@ -251,7 +251,14 @@ describe("the fake AI", () => {
     expect((await client.draft({ ...draft, attempt: 2 })).ok).toBe(true);
     // Another role of the same message has its own answers.
     expect((await client.draft({ ...draft, position: 1, attempt: 2 })).ok).toBe(false);
-    const turn = { turn: 3, text: "hide asia", history: [], entries: [], rules: [] };
+    const turn = {
+      turn: 3,
+      text: "hide asia",
+      history: [],
+      entries: [],
+      rules: [],
+      mailLanguages: [],
+    };
     expect(await client.assistant(turn)).toMatchObject({ ok: true, data: { reply: "ok" } });
     expect(ai.calls).toMatchObject({ cv: 1, match: 2, draft: 3, assistant: 1 });
     expect(ai.log.map((l) => l.key)).toContain("<m@x>#0#2");

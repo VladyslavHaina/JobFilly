@@ -8,6 +8,7 @@ import {
   listRules,
   listThreadMessages,
   markDraftFailed,
+  saveMessageLanguage,
 } from "@jobfilly/db";
 import { markTestDraftInMailbox } from "@jobfilly/db/testing";
 import {
@@ -692,6 +693,45 @@ describe("history and Undo after Apply (F8.4)", () => {
     expect(await draftsOf()).toEqual(rowsBefore);
     expect(await draftOf(ROLES.sg1.id)).toBe("in_mailbox");
     expect((await maria.post(`${historyUrl}/${entryId}/undo`)).status).toBe(409);
+  });
+});
+
+describe("the languages of the job mail", () => {
+  it("gives assistant.v1 the job mail's languages, most frequent first", async () => {
+    const systems: string[] = [];
+    deps.ai = {
+      client: (settings) =>
+        createAiClient(settings, {
+          fetch: async (_url, init) => {
+            const body = JSON.parse(String(init?.body)) as { messages: { content: string }[] };
+            systems.push(body.messages[0]?.content ?? "");
+            const answer = { reply: "ok", clarify: null, proposal: null };
+            return Response.json({
+              id: "chatcmpl-1",
+              object: "chat.completion",
+              created: 1790000000,
+              model: TEST_AI_MODELS.assistant,
+              choices: [
+                {
+                  index: 0,
+                  message: { role: "assistant", content: JSON.stringify(answer) },
+                  finish_reason: "stop",
+                },
+              ],
+              usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+            });
+          },
+        }),
+    };
+    const languages = ["nl", "de", "pt", "de", null];
+    for (const [i, language] of languages.entries()) {
+      const messageId = `<lang-${i}@agency.example>`;
+      await seedJobMail(deps, ws.workspaceId, mailbox, { messageId, receivedAt: NOW });
+      await saveMessageLanguage(deps.db, ws.workspaceId, messageId, language);
+    }
+    await send(maria, "Zeig mir keine befristeten Stellen mehr");
+    expect(systems).toHaveLength(1);
+    expect(systems[0]).toContain("\nLanguages of the user's job mail: de, nl, pt.\n");
   });
 });
 
