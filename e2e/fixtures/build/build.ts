@@ -39,7 +39,7 @@ import {
 import { assistantAnswers, assistantRequests } from "./assistant.ts";
 import { CVS, type CvSource, checkedSkills, cvBytes, cvNamed, cvTags } from "./cvs.ts";
 import { DELIVERIES, type DeliverySource, deliverySpec } from "./deliveries.ts";
-import { domainsFile, zoneFiles } from "./domains.ts";
+import { corefile, domainsFile, zoneFiles } from "./domains.ts";
 import { buildEml, toHtml } from "./eml.ts";
 import { backendTitleFit, matchAnswer, nursingTitleFit, type PersonaJudge } from "./judge.ts";
 import { maria } from "./maria.ts";
@@ -358,11 +358,15 @@ function senderDomains(): string[] {
   return [...domains].sort();
 }
 
-/** The test stack's domain data, by path relative to e2e/: the RDAP data and the DNS zones. */
+/**
+ * The test stack's domain data, by path relative to e2e/: the RDAP data, the DNS zones and the
+ * Corefile that serves them.
+ */
 export function buildStackData(): Map<string, string> {
   const domains = senderDomains();
   const files = new Map<string, string>([["rdap/domains.json", toJson(domainsFile(domains))]]);
   for (const [path, content] of zoneFiles(domains)) files.set(`dns/${path}`, content);
+  for (const [path, content] of corefile(domains)) files.set(`dns/${path}`, content);
   return files;
 }
 

@@ -285,6 +285,7 @@ describe("testSmtp (Settings › Sending's Test)", () => {
     expect(await testSmtp(login(port), insecure)).toMatchObject({
       ok: false,
       reason: "unreachable",
+      code: expect.stringMatching(/^E[A-Z]+$/),
     });
     expect(await testSmtp(login(port), { allowInsecure: false })).toMatchObject({
       ok: false,

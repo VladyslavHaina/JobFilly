@@ -37,10 +37,18 @@ export const SmtpSettingsInputSchema = z.object({
 });
 export type SmtpSettingsInput = z.infer<typeof SmtpSettingsInputSchema>;
 
-/** POST /mailboxes/:mailboxId/smtp/test: the Test button. `message` never holds a secret. */
+/**
+ * POST /mailboxes/:mailboxId/smtp/test: the Test button. `message` never holds a secret. `code`
+ * is the failure's own error code, as in MailTestResultSchema: logged, never in the response.
+ */
 export const SmtpTestResultSchema = z.discriminatedUnion("ok", [
   z.object({ ok: z.literal(true) }),
-  z.object({ ok: z.literal(false), reason: MailTestFailureReasonSchema, message: z.string() }),
+  z.object({
+    ok: z.literal(false),
+    reason: MailTestFailureReasonSchema,
+    message: z.string(),
+    code: z.string().optional(),
+  }),
 ]);
 export type SmtpTestResult = z.infer<typeof SmtpTestResultSchema>;
 

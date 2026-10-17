@@ -13,8 +13,10 @@ import {
 import { findDomain, readDomains } from "../rdap/domains.ts";
 
 // The zone check: every sender domain in the fixtures (both mailboxes and the delivered mail)
-// has an MX record in the CoreDNS zone whose mail host resolves, and a registration in the fake
-// RDAP service's data, so the sender check never falls back to the internet or ends incomplete.
+// has an MX record in CoreDNS (the .example zone, or the Corefile's exact-name templates for
+// public domains) whose mail host resolves, and a registration in the fake RDAP service's data,
+// so the sender check never falls back to the internet or ends incomplete. Every other name under
+// a public domain (imap.gmail.com, smtp.gmail.com) falls through to the upstream resolver.
 
 const DNS = import.meta.dirname;
 const fixtures = fixturesDir();
@@ -64,12 +66,57 @@ function parseZone(text: string): { origin: string; records: ZoneRecord[] } {
   return { origin, records };
 }
 
+interface Template {
+  type: string;
+  matches: RegExp[];
+  answer: string;
+  fallthrough: boolean;
+}
+
+/** The Corefile's template blocks: the names they answer, the answer and whether they fall through. */
+function parseTemplates(text: string): Template[] {
+  const out: Template[] = [];
+  for (const block of text.matchAll(/^\s*template IN (\w+) \{\n([\s\S]*?)^\s*\}$/gm)) {
+    const body = block[2] as string;
+    out.push({
+      type: block[1] as string,
+      matches: [...body.matchAll(/^\s*match "([^"]+)"$/gm)].map((m) => new RegExp(m[1] as string)),
+      answer: /^\s*answer "([^"]+)"$/m.exec(body)?.[1] ?? "",
+      fallthrough: /^\s*fallthrough$/m.test(body),
+    });
+  }
+  return out;
+}
+
+/** The records a template answers: one per exact name its regexes match, as CoreDNS renders it. */
+function templateRecords(t: Template): ZoneRecord[] {
+  return t.matches.map((re) => {
+    const name = re.source
+      .replace(/^\^/, "")
+      .replace(/\[\.\]\$$/, "")
+      .replaceAll("[.]", ".");
+    const [, , , type, ...data] = t.answer.replaceAll("{{ .Name }}", `${name}.`).split(" ");
+    return { name, type: type as string, data: data.join(" ") };
+  });
+}
+
 const zonesDir = join(DNS, "zones");
 const zones = readdirSync(zonesDir)
   .sort()
   .map((file) => ({ file, ...parseZone(readFileSync(join(zonesDir, file), "utf8")) }));
-const records = zones.flatMap((z) => z.records);
+const corefileText = readFileSync(join(DNS, "Corefile"), "utf8");
+const templates = parseTemplates(corefileText);
+const records = [...zones.flatMap((z) => z.records), ...templates.flatMap(templateRecords)];
 const domains = senderDomains();
+
+/** Whether the stack's CoreDNS answers `name` itself (a zone or a template), not the upstream. */
+function answeredLocally(name: string, type: string): boolean {
+  const inZone = zones.some((z) => name === z.origin || name.endsWith(`.${z.origin}`));
+  const templated = templates.some(
+    (t) => t.type === type && t.matches.some((re) => re.test(`${name}.`)),
+  );
+  return inZone || templated;
+}
 
 describe("the CoreDNS zone", () => {
   it("names each zone file db.<origin>, with an SOA and an NS record whose server resolves", () => {
@@ -113,6 +160,34 @@ describe("the CoreDNS zone", () => {
     expect(domains.has("linkedin.com")).toBe(true);
     expect(zones.map((z) => z.origin)).toContain("example");
   });
+
+  it("owns only the reserved .example zone, never a public mail provider's whole domain", () => {
+    // A zone for gmail.com made imap.gmail.com and smtp.gmail.com NXDOMAIN inside the stack.
+    expect(zones.map((z) => z.origin)).toEqual(["example"]);
+    for (const domain of domains) {
+      if (domain.endsWith(".example")) continue;
+      expect(answeredLocally(domain, "MX"), domain).toBe(true);
+      for (const host of ["imap", "smtp", "www", "mail"]) {
+        for (const type of ["A", "AAAA", "MX"]) {
+          expect(answeredLocally(`${host}.${domain}`, type), `${type} ${host}.${domain}`).toBe(
+            false,
+          );
+        }
+      }
+      expect(answeredLocally(domain, "A"), `A ${domain}`).toBe(false);
+    }
+    expect(answeredLocally("imap.gmail.com", "A")).toBe(false);
+    expect(answeredLocally("smtp.gmail.com", "A")).toBe(false);
+    expect(answeredLocally("oauth2.googleapis.com", "A")).toBe(false);
+  });
+
+  it("answers public names by exact match and lets every other name fall through", () => {
+    expect(templates.map((t) => t.type).sort()).toEqual(["A", "MX"]);
+    for (const t of templates) {
+      expect(t.fallthrough, t.type).toBe(true);
+      for (const re of t.matches) expect(re.source).toMatch(/^\^.*\[\.\]\$$/);
+    }
+  });
 });
 
 describe("the fake RDAP data", () => {
@@ -132,7 +207,7 @@ describe("the fake RDAP data", () => {
 });
 
 describe("the Corefile", () => {
-  const corefile = readFileSync(join(DNS, "Corefile"), "utf8");
+  const corefile = corefileText;
 
   it("loads every zone file from /zones and forwards every other name", () => {
     expect(corefile).toMatch(/auto \{\s+directory \/zones\s+\}/);

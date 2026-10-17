@@ -33,7 +33,7 @@ import { MINUTE } from "../clock";
 import type { GoogleConfig } from "../config";
 import type { AppDeps } from "../deps";
 import { open, seal } from "../secrets";
-import { publishMailboxChange } from "./mailboxes";
+import { publishMailboxChange, testFailedFields } from "./mailboxes";
 
 // Sign in with Google (MVP 3, F3.2), Google only (TBD-441): the authorization-code flow with PKCE
 // (S256). POST /google/start (an admin of the workspace who sees everything) keeps a sign-in waiting for its callback:
@@ -210,7 +210,7 @@ export function oauthPublicRoutes(deps: AppDeps) {
       );
       const tested = await client.test().finally(() => client.close().catch(() => undefined));
       if (!tested.ok) {
-        log.warn("mailbox.test_failed", { reason: tested.reason });
+        log.warn("mailbox.test_failed", testFailedFields(tested));
         return back("failed");
       }
 

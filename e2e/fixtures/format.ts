@@ -49,7 +49,7 @@ import { fileURLToPath } from "node:url";
 //                                            delivered mail's ground truth by Message-ID
 // classify.json and extract.json answer the delivered mail too. The generator also writes the
 // domain fixtures outside this directory: e2e/rdap/domains.json (the fake RDAP service) and
-// e2e/dns/zones/db.<zone> (the CoreDNS zone), one entry for every sender domain.
+// e2e/dns/zones/db.example and e2e/dns/Corefile (CoreDNS), one entry for every sender domain.
 // The prompts' key lines are pinned in packages/ai/src/tasks and e2e/fixtures/wire/wire.test.ts.
 //
 // Dates are relative: each message is `minutesAgo` old. The .eml Date header holds

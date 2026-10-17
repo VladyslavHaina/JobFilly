@@ -90,10 +90,18 @@ export type MailTestFailureReason = z.infer<typeof MailTestFailureReasonSchema>;
  * The outcome of a connection test. On success `folders` lists the folder paths found and
  * `sentPath` is the folder the server marks as Sent (special use \Sent, else a folder named like
  * Sent), or null when there is none. `message` is plain words and never contains the password.
+ * `code` is the failure's own error code when it has a known one (ENOTFOUND, ECONNREFUSED,
+ * GREETING_TIMEOUT, …), never a host or the server's words: the server logs it as `mailCode` and
+ * leaves it out of its responses.
  */
 export const MailTestResultSchema = z.discriminatedUnion("ok", [
   z.object({ ok: z.literal(true), folders: z.array(z.string()), sentPath: z.string().nullable() }),
-  z.object({ ok: z.literal(false), reason: MailTestFailureReasonSchema, message: z.string() }),
+  z.object({
+    ok: z.literal(false),
+    reason: MailTestFailureReasonSchema,
+    message: z.string(),
+    code: z.string().optional(),
+  }),
 ]);
 export type MailTestResult = z.infer<typeof MailTestResultSchema>;
 

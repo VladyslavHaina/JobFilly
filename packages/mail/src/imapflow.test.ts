@@ -328,7 +328,7 @@ describe("the imapflow session", () => {
     });
     const result = await client.test();
     await client.close();
-    expect(result).toMatchObject({ ok: false, reason: "unreachable" });
+    expect(result).toMatchObject({ ok: false, reason: "unreachable", code: "ECONNREFUSED" });
   });
 });
 
