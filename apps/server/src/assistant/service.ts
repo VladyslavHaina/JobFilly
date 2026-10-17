@@ -50,7 +50,7 @@ import type { Logger } from "../log";
 import { applyAndReevaluate } from "../profile/changes";
 import { openAiKey } from "../secrets";
 import { linksOf, resolveLinks } from "./links";
-import { foundRefs, questionLookups, usedFullAccess } from "./lookups";
+import { foundRefs, missedIds, questionLookups, usedFullAccess } from "./lookups";
 import { previewChanges } from "./preview";
 import { fail, inTransaction, NOT_FOUND_FAILURE, type Result, refuse } from "./result";
 
@@ -64,7 +64,8 @@ import { fail, inTransaction, NOT_FOUND_FAILURE, type Result, refuse } from "./r
 // MVP 3 (F8): a question is answered instead. assistant.v1 asks for read-only lookups, the server
 // runs them with the member's access (./lookups), in up to MAX_LOOKUP_ROUNDS rounds: after a
 // round whose searches found refs, assistant.v1 is asked again with the results so far, so it can
-// read a role or message it just found. answer.v1 then answers from all the results only, with
+// read a role or message it just found; after a round where a `role` or `message_text` lookup's
+// Message-ID matched nothing, so it can search for it with find_roles. answer.v1 then answers from all the results only, with
 // the refs it used; only refs the lookups returned are kept, and they become the answer's links
 // when the thread is read (./links). A question's turn never holds a proposal, so nothing a mail
 // says can become a change (F8.4).
@@ -337,12 +338,14 @@ export async function sendMessage(
   if (result.data.lookups.length > 0) {
     // A question (F8.1): answered from the lookups' results only, never with a proposal. After
     // a round whose searches found refs, the model is asked again with the results so far, so it
-    // can read a role or a message it has just found (they take an exact Message-ID); at most
+    // can read a role or a message it has just found (they take its Message-ID); after a round
+    // where such a Message-ID matched nothing, so it can search for it. At most
     // MAX_LOOKUP_ROUNDS rounds. Only its lookups are read from those answers.
     const lookups = questionLookups(deps, ws, scope);
     const results = await lookups(result.data.lookups);
+    const followUp = (round: typeof results) => foundRefs(round) || missedIds(round);
     let rounds = 1;
-    let found = foundRefs(results);
+    let found = followUp(results);
     while (found && rounds < MAX_LOOKUP_ROUNDS) {
       const next = await client.assistant({ ...asked, round: rounds + 1, results: [...results] });
       if (!next.ok) return aiFailed(log, "assistant.v1", next.error);
@@ -350,7 +353,7 @@ export async function sendMessage(
       if (more.length === 0) break;
       results.push(...more);
       rounds += 1;
-      found = foundRefs(more);
+      found = followUp(more);
     }
     const answer = await client.answer({ turn, text: input.text, history, results });
     if (!answer.ok) return aiFailed(log, "answer.v1", answer.error);

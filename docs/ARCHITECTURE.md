@@ -435,11 +435,14 @@ Rules:
   them in `apps/server/src/assistant/lookups.ts` with the asking member's access (a pipeline-only
   member gets no message text and no draft data), in rounds over one view: at most
   `MAX_LOOKUP_ROUNDS` (3, packages/schema), each of at most five lookups not run before. `role`
-  and `message_text` take an exact Message-ID the model doesn't know at first, so after a round
-  whose searches (`find_roles`, `waiting`, `pipeline`) returned refs, assistant.v1 is asked again
-  with the results so far (a `Round: <n>` key line and the results as answer.v1's "lookup <n>"
-  blocks); every role line names its Message-ID and position, and an answer with no new lookups
-  ends the rounds. answer.v1 answers from all the results only (its text without a raw
+  and `message_text` take a Message-ID the model doesn't know at first, in any form the
+  conversation shows it (bare or in angle brackets, or a whole "<Message-ID>#<position>" ref,
+  whose position is the role's: `lookupId`, packages/core). So after a round whose searches
+  (`find_roles`, `waiting`, `pipeline`) returned refs, or where a `role` or `message_text`
+  Message-ID was not found (its result says to search with `find_roles`), assistant.v1 is asked
+  again with the results so far (a `Round: <n>` key line and the results as answer.v1's
+  "lookup <n>" blocks); every role line names its Message-ID and position, and an answer with no
+  new lookups ends the rounds. answer.v1 answers from all the results only (its text without a raw
   "(refs: …)" note: refs are links), and any proposal or clarifying question in that turn is
   dropped, so mail can never become a change. `assistant.answered` logs the tools, the rounds
   and the number of refs kept. Only refs a lookup returned are kept; they become links in

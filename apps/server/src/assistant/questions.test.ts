@@ -335,7 +335,40 @@ describe("the lookups (F8.2)", () => {
       { kind: "decision", ref: GROUP },
     ]);
     const [none] = await run("everything", lookup({ tool: "role", messageId: "<nope@x>" }));
-    expect(none).toMatchObject({ lines: ["No such role"], sources: [] });
+    expect(none).toMatchObject({
+      lines: [
+        'Not found: no role with the Message-ID "<nope@x>" at position 0. Never guess a Message-ID: search for it with find_roles, then use one its results give.',
+      ],
+      sources: [],
+    });
+  });
+
+  it("takes the Message-ID as the conversation shows it: a whole ref, bare, without brackets", async () => {
+    const bare = "berlin@agency.example";
+    const given = [`${ROLES.berlin}#0`, ROLES.berlin, bare, ` ${bare}#0 `];
+    const results = await run(
+      "everything",
+      ...given.map((messageId) => lookup({ tool: "role", messageId })),
+    );
+    expect(results).toHaveLength(given.length);
+    for (const result of results) {
+      expect(result.lines[0]).toBe(
+        `Role ${ROLES.berlin}#0 (messageId "${ROLES.berlin}", position 0): "Backend Engineer" at "Acme"`,
+      );
+      expect(result.sources[0]).toEqual({ kind: "role", ref: `${ROLES.berlin}#0` });
+    }
+    // The ref's position is the role's: the message has no second role.
+    const [second] = await run("everything", lookup({ tool: "role", messageId: `${bare}#1` }));
+    expect(second?.lines[0]).toMatch(/^Not found: no role .* at position 1\./);
+    // message_text too, its ref the stored Message-ID.
+    const [text] = await run(
+      "everything",
+      lookup({ tool: "message_text", messageId: "sg@merlion.example#0" }),
+    );
+    expect(text?.lines[0]).toMatch(/^Message <sg@merlion\.example>: /);
+    expect(text?.sources).toEqual([{ kind: "message", ref: ROLES.sg }]);
+    const [missing] = await run("everything", lookup({ tool: "message_text", messageId: "x@y" }));
+    expect(missing?.lines[0]).toMatch(/^Not found: no message .* search for it with find_roles/);
   });
 
   it("counts the pipeline by stage and over the last days", async () => {
@@ -675,6 +708,61 @@ describe("chained lookups: a later round reads what a search found (F8.2)", () =
     ai.answers.answer[text] = { text: "Remote EU, Berlin hybrid.", sources: [] };
     await send(maria, text);
     expect(rounds(text)).toHaveLength(1);
+  });
+
+  it("searches in the next round when a Message-ID was not found, then answers", async () => {
+    const text = "Why didn't the Singapore role get a draft?";
+    const miss = lookup({ tool: "role", messageId: "<maria-singapore@merlion.example>#0" });
+    const search = lookup({ tool: "find_roles", words: "Singapore" });
+    const ask = (...lookups: AssistantLookup[]) => ({
+      reply: "",
+      clarify: null,
+      proposal: null,
+      lookups,
+    });
+    ai.answers.assistant[text] = ask(miss);
+    ai.answers.assistant[`r2#${text}`] = ask(search);
+    ai.answers.answer[text] = {
+      text: "Its fit score is 40, below 70.",
+      sources: [{ kind: "role", ref: `${ROLES.sg}#0` }],
+    };
+    const turn = await send(maria, text);
+
+    // Round 2 is asked with the miss, which says to search; round 3 asks for nothing more.
+    const [, second, third] = rounds(text);
+    expect(second?.round).toBe(2);
+    expect(second?.results?.[0]?.lines[0]).toMatch(/^Not found: .*search for it with find_roles/);
+    expect(third?.round).toBe(3);
+    expect(answerInputs[0]?.results.map((r) => r.lookup)).toEqual([miss, search]);
+    expect(turn.reply).toBe("Its fit score is 40, below 70.");
+    expect(await lastLinks(maria)).toEqual([
+      expect.objectContaining({ kind: "role", messageId: ROLES.sg, position: 0 }),
+    ]);
+    expect(deps.logs.filter((l) => l.event === "assistant.answered")).toEqual([
+      expect.objectContaining({ lookups: ["role", "find_roles"], rounds: 2, sources: 1 }),
+    ]);
+  });
+
+  it(`runs at most ${MAX_LOOKUP_ROUNDS} rounds when every Message-ID is not found`, async () => {
+    const text = "Tell me about the role I mean";
+    const miss = (n: number) => lookup({ tool: "role", messageId: `<nope-${n}@x.example>` });
+    const ask = (...lookups: AssistantLookup[]) => ({
+      reply: "",
+      clarify: null,
+      proposal: null,
+      lookups,
+    });
+    ai.answers.assistant[text] = ask(miss(1));
+    ai.answers.assistant[`r2#${text}`] = ask(miss(2));
+    ai.answers.assistant[`r3#${text}`] = ask(miss(3));
+    ai.answers.assistant[`r4#${text}`] = ask(miss(4));
+    ai.answers.answer[text] = { text: "I couldn't find that role.", sources: [] };
+    await send(maria, text);
+    expect(rounds(text).map((i) => i.round)).toEqual([undefined, 2, 3]);
+    expect(answerInputs[0]?.results.map((r) => r.lookup)).toEqual([miss(1), miss(2), miss(3)]);
+    expect(deps.logs.filter((l) => l.event === "assistant.answered")).toEqual([
+      expect.objectContaining({ lookups: ["role", "role", "role"], rounds: 3 }),
+    ]);
   });
 
   it(`runs at most ${MAX_LOOKUP_ROUNDS} rounds, never a lookup twice`, async () => {

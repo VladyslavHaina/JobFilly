@@ -1,4 +1,11 @@
-import { matchesWords, quotedLines, replyEligibility, roleRef } from "@jobfilly/core";
+import {
+  lookupId,
+  matchesWords,
+  messageIdKey,
+  quotedLines,
+  replyEligibility,
+  roleRef,
+} from "@jobfilly/core";
 import {
   getInboxMessage,
   getMessageMailbox,
@@ -40,7 +47,10 @@ import { loadWorkspaceProfiles, type WorkspaceProfiles } from "../pipeline/assig
 //   from the mail (F8.4), so nothing in a mail reads as a line the app wrote.
 // - Each result lists the refs it is about; only those can become an answer's links (F8.2).
 // - A question's lookups run in rounds (./service): each role line names its Message-ID and
-//   position, so a later round can read that role or its message, which take an exact one.
+//   position, so a later round can read that role or its message. `role` and `message_text` take
+//   the Message-ID in any form the conversation shows the model (lookupId: with or without angle
+//   brackets, or a whole "<Message-ID>#<position>" ref); one that matches nothing answers "Not
+//   found", telling the model to search for it with find_roles in the next round.
 
 /** At most this many lookups are run in one round of a question; the rest are left out. */
 const MAX_LOOKUPS = 5;
@@ -285,11 +295,29 @@ async function findRoles(view: View, words: string | null) {
   return rolesResult(view, found, words ? `match ${json(words)}` : "in all");
 }
 
+/** How a `role` or `message_text` result that matched nothing starts (missedIds). */
+const NOT_FOUND = "Not found:";
+
+/** A `role` or `message_text` lookup whose Message-ID matched nothing: search for it instead. */
+const notFound = (what: string) => ({
+  lines: [
+    `${NOT_FOUND} ${what}. Never guess a Message-ID: search for it with find_roles, then use one its results give.`,
+  ],
+  sources: [],
+});
+
 async function role(view: View, lookup: AssistantLookup) {
+  const given = lookupId(lookup.messageId ?? "");
+  // A position in the ref ("<Message-ID>#1") is the role's, else the lookup's, else the first.
+  const position = given.position ?? lookup.position ?? 0;
   const state = (await view.roles()).find(
-    (s) => s.messageId === lookup.messageId && s.position === (lookup.position ?? 0),
+    (s) => messageIdKey(s.messageId) === given.key && s.position === position,
   );
-  if (!state) return { lines: ["No such role"], sources: [] };
+  if (!state) {
+    return notFound(
+      `no role with the Message-ID ${json(lookup.messageId)} at position ${position}`,
+    );
+  }
   return roleResult(view, state);
 }
 
@@ -337,11 +365,14 @@ async function pipeline(view: View, lookup: AssistantLookup) {
 }
 
 /** One message's text from the mailbox, quoted as untrusted (F8.4); never for pipeline only. */
-async function messageText(view: View, messageId: string | null) {
+async function messageText(view: View, given: string | null) {
   if (!view.full)
     return { lines: ["The message text is not available with your access"], sources: [] };
-  const [stored] = messageId ? await getStoredMessages(view.deps.db, view.ws, [messageId]) : [];
-  if (!messageId || !stored) return { lines: ["No such message"], sources: [] };
+  // Stored with its angle brackets, as the mail writes it; looked up with and without them.
+  const { key } = lookupId(given ?? "");
+  const [stored] = key ? await getStoredMessages(view.deps.db, view.ws, [`<${key}>`, key]) : [];
+  if (!stored) return notFound(`no message with the Message-ID ${json(given)}`);
+  const { messageId } = stored.envelope;
   const head = [
     `Message ${messageId}: subject ${json(stored.envelope.subject)} from ${json(stored.envelope.from.address)}, ${day(stored.envelope.date)}`,
   ];
@@ -426,6 +457,13 @@ const SEARCHES: readonly AssistantLookup["tool"][] = ["find_roles", "waiting", "
 /** True when a round's results hold refs a search found: something a later round can read. */
 export const foundRefs = (results: readonly AnswerToolResult[]) =>
   results.some((r) => SEARCHES.includes(r.lookup.tool) && r.sources.length > 0);
+
+/**
+ * True when a `role` or `message_text` lookup of the round matched nothing: its result tells the
+ * model to search for it with find_roles, which a later round can do.
+ */
+export const missedIds = (results: readonly AnswerToolResult[]) =>
+  results.some((r) => r.lines[0]?.startsWith(NOT_FOUND) === true);
 
 /**
  * The lookups of one question, run with the member's access (`scope`) in rounds over one view:
