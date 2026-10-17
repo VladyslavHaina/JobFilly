@@ -319,6 +319,36 @@ describe("connected mailboxes (MVP 3 F3.1, F7.4; replacing F2.5's one)", () => {
     expect(onConnected).toHaveBeenCalledOnce();
   });
 
+  it("lets an admin who sees the job pipeline only disconnect, but not connect (TBD-450)", async () => {
+    const seen = api({}, [{ ...mailbox, auth: "google", status: "reconnect_needed" }]);
+    renderInWorkspace(<MailboxForm workspaceId={ws.id} mode="settings" />, {
+      workspace: { scope: "pipeline" },
+    });
+    expect(await screen.findByRole("heading", { name: mailbox.address })).toBeTruthy();
+    expect(
+      screen.getByText("Only admins who see everything connect a mailbox or sign one in again."),
+    ).toBeTruthy();
+    expect(
+      screen.getAllByRole("button").map((b) => b.getAttribute("aria-label") ?? b.textContent),
+    ).toEqual([`Disconnect ${mailbox.address}`]);
+    expect(seen.some((r) => r.path.endsWith("/presets") || r.path.startsWith("/api/oauth"))).toBe(
+      false,
+    );
+  });
+
+  it("shows no connect form to a pipeline-only admin without a mailbox", async () => {
+    api();
+    renderInWorkspace(<MailboxForm workspaceId={ws.id} mode="settings" />, {
+      workspace: { scope: "pipeline" },
+    });
+    expect(
+      await screen.findByText(
+        "Only admins who see everything connect a mailbox or sign one in again.",
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByLabelText("Mail provider")).toBeNull();
+  });
+
   it("shows viewers the mailbox without Disconnect", async () => {
     api({}, [mailbox]);
     renderInWorkspace(<MailboxForm workspaceId={ws.id} mode="settings" />, { role: "viewer" });

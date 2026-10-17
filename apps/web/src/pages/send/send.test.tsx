@@ -330,4 +330,19 @@ describe("Settings › Sending", () => {
     expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
     expect(screen.getByText(/Sends through Google with your sign-in/)).toBeTruthy();
   });
+
+  it("is read-only, with a note, for an admin who sees the job pipeline only (TBD-450)", async () => {
+    fakeApi({
+      [`GET ${BASE}/mailboxes`]: { items: [MAILBOX] },
+      [`GET ${BASE}/mailboxes/presets`]: PRESETS,
+      [`GET ${BASE}/mailboxes/:id/smtp`]: { smtp: null, savesSentCopy: false },
+    });
+    renderInWorkspace(<SmtpSettings workspaceId={W} />, { workspace: { scope: "pipeline" } });
+    expect(
+      await screen.findByText("Only admins who see everything change how mail is sent."),
+    ).toBeTruthy();
+    expect(screen.getByLabelText("SMTP server")).toHaveProperty("disabled", true);
+    expect(screen.queryByRole("button", { name: "Test" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
+  });
 });

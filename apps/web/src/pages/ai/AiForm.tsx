@@ -99,6 +99,9 @@ function Form(props: {
   onSaved?: () => void;
 }) {
   const { workspaceId, can } = useWorkspace();
+  // The AI reads mail text: only admins who see everything change it; the server refuses anyone
+  // else (TBD-450).
+  const canChange = can.admin && can.mail;
   const client = useQueryClient();
   const [form, setForm] = useState<FormState>(() => initialState(props.saved));
   const [tested, setTested] = useState<AiTestResult | null>(null);
@@ -165,7 +168,7 @@ function Form(props: {
   return (
     <Card>
       <form onSubmit={submit} className="flex flex-col gap-4" aria-label="Pick your AI">
-        <fieldset disabled={!can.admin} className="flex flex-col gap-4">
+        <fieldset disabled={!canChange} className="flex flex-col gap-4">
           <SelectField
             label="AI provider"
             value={form.provider}
@@ -243,7 +246,10 @@ function Form(props: {
         {error && <Alert>{error}</Alert>}
         {saved && props.mode === "settings" && <Alert tone="success">Saved.</Alert>}
 
-        {info && can.admin && (
+        {can.admin && !can.mail && (
+          <p className="text-xs text-stone-500">Only admins who see everything change the AI.</p>
+        )}
+        {info && canChange && (
           <div className="flex flex-wrap gap-2">
             <Button
               variant="secondary"
