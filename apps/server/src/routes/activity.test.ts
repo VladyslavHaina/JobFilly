@@ -1,4 +1,5 @@
 import { addMember, recordActivity, saveAnalysis, saveEnvelopes } from "@jobfilly/db";
+import { activityRows } from "@jobfilly/db/testing";
 import { ActivityListSchema, DELETED_USER, type JobFacts } from "@jobfilly/schema";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../app";
@@ -8,6 +9,7 @@ import {
   type SeededUser,
   seedUser,
   signedIn,
+  TEST_AI_MODELS,
   type TestClient,
   type TestDeps,
 } from "../testing";
@@ -169,5 +171,60 @@ describe("the activity log (F9.1)", () => {
         "Invited someone as Viewer, seeing everything",
       ],
     ]);
+  });
+});
+
+describe("where the workspace's mail comes from and goes (security review)", () => {
+  it("records connecting a mailbox, its SMTP settings, the AI settings and disconnecting, by id only", async () => {
+    deps.mail = createFakeMailbox().port;
+    const ws = `/api/workspaces/${maria.workspaceId}`;
+    const connected = await mariaApi.post(`${ws}/mailboxes`, {
+      address: "maria.santos@inbox.example",
+      host: "imap.inbox.example",
+      port: 993,
+      tlsMode: "tls",
+      username: "maria",
+      password: "E2E-SECRET-maria-imap",
+    });
+    expect(connected.status).toBe(201);
+    const { id: mailboxId } = (await connected.json()) as { id: string };
+    deps.clock.advance(1000);
+    const smtp = await mariaApi.put(`${ws}/mailboxes/${mailboxId}/smtp`, {
+      host: "smtp.inbox.example",
+      port: 465,
+      tlsMode: "tls",
+      username: "maria",
+      password: "E2E-SECRET-smtp",
+    });
+    expect(smtp.status).toBe(200);
+    deps.clock.advance(1000);
+    const ai = await mariaApi.put(`${ws}/ai`, {
+      provider: "openai-compatible",
+      baseUrl: "http://fake-ai:8080/v1",
+      models: TEST_AI_MODELS,
+      apiKey: "E2E-SECRET-ai-key",
+      budgetPerRun: 120,
+    });
+    expect(ai.status).toBe(200);
+    deps.clock.advance(1000);
+    expect((await mariaApi.delete(`${ws}/mailboxes/${mailboxId}`)).status).toBe(204);
+
+    const actor = { actorKind: "user", actorId: maria.id, targetUserId: null };
+    expect(await activityRows(deps.db, maria.workspaceId)).toEqual([
+      { kind: "mailbox.connected", ...actor, refs: { mailboxId } },
+      { kind: "mailbox.smtp_changed", ...actor, refs: { mailboxId } },
+      { kind: "ai.settings_changed", ...actor, refs: {} },
+      { kind: "mailbox.disconnected", ...actor, refs: { mailboxId } },
+    ]);
+    const { items } = await read(mariaApi);
+    expect(items.map((i) => i.what)).toEqual([
+      "Disconnected a mailbox",
+      "Changed the AI provider settings",
+      "Changed a mailbox's sending settings",
+      "Connected a mailbox",
+    ]);
+    // Never a host, an address or a key.
+    const text = JSON.stringify(items);
+    for (const leak of ["inbox.example", "fake-ai", "E2E-SECRET"]) expect(text).not.toContain(leak);
   });
 });

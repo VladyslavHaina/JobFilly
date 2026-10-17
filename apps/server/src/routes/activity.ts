@@ -79,8 +79,14 @@ function describe(row: StoredActivity, target: string): string {
       return `Handed the workspace over to ${target}`;
     case "export.downloaded":
       return "Downloaded the workspace's data";
+    case "mailbox.connected":
+      return "Connected a mailbox";
+    case "mailbox.smtp_changed":
+      return "Changed a mailbox's sending settings";
     case "mailbox.disconnected":
       return "Disconnected a mailbox";
+    case "ai.settings_changed":
+      return "Changed the AI provider settings";
     case "account.deleted":
       return "Deleted their account";
   }

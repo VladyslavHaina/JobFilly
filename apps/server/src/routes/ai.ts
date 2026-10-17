@@ -1,5 +1,11 @@
 import { AI_PROVIDERS, aiProvider, aiReadBy } from "@jobfilly/ai";
-import { getAiSettings, type StoredAiSettings, saveAiSettings, usagePerDay } from "@jobfilly/db";
+import {
+  getAiSettings,
+  recordActivity,
+  type StoredAiSettings,
+  saveAiSettings,
+  usagePerDay,
+} from "@jobfilly/db";
 import {
   type AiClientSettings,
   type AiProviderList,
@@ -134,6 +140,18 @@ export function aiRoutes(deps: AppDeps) {
         };
         await saveAiSettings(deps.db, c.get("workspaceId"), saved);
         c.get("log").info("ai.settings_saved", { provider: input.provider });
+        // No refs: never the provider's host or key in the log.
+        await recordActivity(
+          deps.db,
+          c.get("workspaceId"),
+          {
+            kind: "ai.settings_changed",
+            actor: { kind: "user", userId: c.get("user").id },
+            targetUserId: null,
+            refs: {},
+          },
+          deps.clock.now(),
+        );
         const body: AiSettingsResponse = {
           settings: toPublic(saved, input.apiKey ?? keptKey),
         };

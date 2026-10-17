@@ -3,6 +3,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 import { getMailboxConnection, listMailboxes } from "@jobfilly/db";
+import { activityRows } from "@jobfilly/db/testing";
 import { type MailLogin, OAuthStartSchema } from "@jobfilly/schema";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../app";
@@ -205,6 +206,16 @@ describe("Sign in with Google through the app, against the fake authorisation se
       expect.objectContaining({ username: EMAIL, accessToken: ACCESS_TOKEN }),
     ]);
     expect(deps.logs.filter((l) => l.event === "mailbox.oauth_connected")).toHaveLength(1);
+    // In the activity log too, by id only (security review).
+    expect(await activityRows(deps.db, maria.workspaceId)).toEqual([
+      {
+        kind: "mailbox.connected",
+        actorKind: "user",
+        actorId: maria.id,
+        targetUserId: null,
+        refs: { mailboxId: mailbox?.mailboxId },
+      },
+    ]);
 
     // The access token expires; Google has revoked the refresh token meanwhile.
     await revokeAll();

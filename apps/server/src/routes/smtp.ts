@@ -1,4 +1,9 @@
-import { getMailboxConnection, getMailboxSmtp, saveMailboxSmtp } from "@jobfilly/db";
+import {
+  getMailboxConnection,
+  getMailboxSmtp,
+  recordActivity,
+  saveMailboxSmtp,
+} from "@jobfilly/db";
 import { SmtpError } from "@jobfilly/mail";
 import {
   MailboxParamsSchema,
@@ -103,6 +108,17 @@ export function smtpRoutes(deps: AppDeps) {
           secretCiphertext,
           now: deps.clock.now(),
         });
+        await recordActivity(
+          deps.db,
+          ws,
+          {
+            kind: "mailbox.smtp_changed",
+            actor: { kind: "user", userId: c.get("user").id },
+            targetUserId: null,
+            refs: { mailboxId: found.mailbox.mailboxId },
+          },
+          deps.clock.now(),
+        );
         await deps.live.publish(ws, { type: "mailbox.updated", data: {} });
         const smtp = { ...settings, secretCiphertext };
         const view: SmtpSettingsView = {

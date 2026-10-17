@@ -4,6 +4,7 @@ import {
   getMailboxRemovalSummary,
   getMailboxSyncStatus,
   listMailboxes,
+  recordActivity,
   type StoredMailbox,
 } from "@jobfilly/db";
 import { FAILURE_MESSAGES, MAIL_PRESETS } from "@jobfilly/mail";
@@ -146,6 +147,17 @@ export function mailboxRoutes(deps: AppDeps) {
         const created = await createMailbox(deps.db, workspaceId, stored);
         if (!created.ok) return c.json(EXISTS, 409);
         c.get("log").info("mailbox.connected", { mailboxId: created.mailboxId });
+        await recordActivity(
+          deps.db,
+          workspaceId,
+          {
+            kind: "mailbox.connected",
+            actor: { kind: "user", userId: c.get("user").id },
+            targetUserId: null,
+            refs: { mailboxId: created.mailboxId },
+          },
+          deps.clock.now(),
+        );
         await publishMailboxChange(deps, workspaceId);
         const body: MailboxPublic = toPublic({
           ...stored,
@@ -185,6 +197,17 @@ export function mailboxRoutes(deps: AppDeps) {
         drafts: removed.drafts,
         decisions: removed.decisions,
       });
+      await recordActivity(
+        deps.db,
+        workspaceId,
+        {
+          kind: "mailbox.disconnected",
+          actor: { kind: "user", userId: c.get("user").id },
+          targetUserId: null,
+          refs: { mailboxId },
+        },
+        deps.clock.now(),
+      );
       await publishMailboxChange(deps, workspaceId);
       // Its mail went with it: the inbox, the drafts and the decision inbox show it at once.
       if (removed.messages > 0) {

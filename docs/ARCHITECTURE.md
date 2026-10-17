@@ -127,7 +127,10 @@ Rules:
   set by hand); `memberships.scope` and `invites.scope`; `activity_log`; `assistant_messages.sources`;
   `scans.started_by` set null when its account goes. The activity log holds ids, never a name or
   an address (actor and target user ids set null when the account goes: "Deleted user"), written
-  through `recordActivity` wherever an outward or sharing action happens.
+  through `recordActivity` wherever an outward or sharing action happens (`ACTIVITY_KINDS`):
+  drafts saved and mail sent, member changes, an export when it starts, a mailbox connected (by
+  password or Google) or disconnected, a mailbox's SMTP settings or the AI settings saved
+  (mailbox id only, never a host, key or address), and an account deleted.
 - A reference from one workspace-owned row to another includes `workspace_id`: `cvs`,
   `profiles` and `assistant_threads` have a unique `(workspace_id, id)`, and every foreign key to
   them is composite, as those to `messages` and `roles` are. The database itself refuses a link,

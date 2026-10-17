@@ -5,6 +5,7 @@ import {
   getMailboxConnection,
   getMembership,
   reconnectMailbox,
+  recordActivity,
   saveOAuthState,
   takeOAuthState,
 } from "@jobfilly/db";
@@ -238,6 +239,17 @@ export function oauthPublicRoutes(deps: AppDeps) {
         });
         if (!created.ok) return back("exists");
         mailboxId = created.mailboxId;
+        await recordActivity(
+          deps.db,
+          workspaceId,
+          {
+            kind: "mailbox.connected",
+            actor: { kind: "user", userId: user.id },
+            targetUserId: null,
+            refs: { mailboxId },
+          },
+          deps.clock.now(),
+        );
       }
       log.info("mailbox.oauth_connected", {
         mailboxId,
