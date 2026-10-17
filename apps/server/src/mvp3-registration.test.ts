@@ -54,6 +54,8 @@ interface Route {
   role: "viewer" | "editor" | "admin";
   /** Open to a member who sees the job pipeline only. */
   pipeline: boolean;
+  /** Built by its slice: it no longer answers 501. */
+  built?: boolean;
 }
 
 const ws = () => `/api/workspaces/${maria.workspaceId}`;
@@ -66,9 +68,9 @@ const ROUTES = (): Route[] => [
   { method: "put", path: `${ws()}/mailboxes/${DRAFT}/smtp`, role: "admin", pipeline: true },
   { method: "post", path: `${ws()}/mailboxes/${DRAFT}/smtp/test`, role: "admin", pipeline: true },
   { method: "post", path: `${ws()}/oauth/google/start`, role: "admin", pipeline: true },
-  { method: "get", path: `${ws()}/export`, role: "admin", pipeline: false },
-  { method: "get", path: `${ws()}/activity`, role: "admin", pipeline: true },
-  { method: "delete", path: ws(), role: "admin", pipeline: true },
+  { method: "get", path: `${ws()}/export`, role: "admin", pipeline: false, built: true },
+  { method: "get", path: `${ws()}/activity`, role: "admin", pipeline: true, built: true },
+  { method: "delete", path: ws(), role: "admin", pipeline: true, built: true },
 ];
 
 const call = (client: TestClient | undefined, r: { method: Method; path: string }) => {
@@ -98,6 +100,10 @@ describe("the MVP 3 workspace routes", () => {
         r.role === "viewer" ? 501 : 403,
       ]);
       const res = await call(clients.maria, r);
+      if (r.built) {
+        expect([r.method, r.path, res.status]).not.toEqual([r.method, r.path, 501]);
+        continue;
+      }
       expect([r.method, r.path, res.status]).toEqual([r.method, r.path, 501]);
       expect(await res.json()).toMatchObject({ error: "not_implemented" });
     }
@@ -107,6 +113,10 @@ describe("the MVP 3 workspace routes", () => {
     await setMemberScope(deps.db, maria.workspaceId, tom.id, "pipeline");
     for (const r of ROUTES()) {
       const status = (await call(clients.tom, r)).status;
+      if (r.built) {
+        expect([r.method, r.path, status === 404]).toEqual([r.method, r.path, !r.pipeline]);
+        continue;
+      }
       expect([r.method, r.path, status]).toEqual([r.method, r.path, r.pipeline ? 501 : 404]);
     }
   });
@@ -128,9 +138,11 @@ describe("the MVP 3 routes outside a workspace", () => {
     const app = createApp(deps);
     for (const path of ["/api/account/deletion", "/api/oauth/providers"]) {
       expect((await app.request(path)).status).toBe(401);
-      expect((await clients.maria?.get(path))?.status).toBe(501);
     }
-    expect((await clients.maria?.delete("/api/account"))?.status).toBe(501);
+    expect((await clients.maria?.get("/api/oauth/providers"))?.status).toBe(501);
+    // Built (workspace-admin): what deleting the account takes; deleting it needs the password.
+    expect((await clients.maria?.get("/api/account/deletion"))?.status).toBe(200);
+    expect((await clients.maria?.delete("/api/account"))?.status).toBe(400);
     expect((await clients.maria?.get("/api/oauth/google/callback?state=s"))?.status).toBe(501);
   });
 });
