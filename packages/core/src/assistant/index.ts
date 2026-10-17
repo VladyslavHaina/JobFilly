@@ -2,7 +2,9 @@
 // history lines in plain words, and (MVP 3) the pure parts of its read-only lookups.
 export {
   knownSources,
+  lookupId,
   matchesWords,
+  messageIdKey,
   parseRoleRef,
   quotedLines,
   roleRef,

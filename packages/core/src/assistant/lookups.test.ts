@@ -2,7 +2,9 @@ import type { AnswerToolResult, JobFacts } from "@jobfilly/schema";
 import { describe, expect, it } from "vitest";
 import {
   knownSources,
+  lookupId,
   matchesWords,
+  messageIdKey,
   parseRoleRef,
   quotedLines,
   roleRef,
@@ -44,6 +46,28 @@ describe("role refs", () => {
       expect(parseRoleRef(ref)).toBeNull();
     },
   );
+});
+
+describe("lookupId: a Message-ID in any form the conversation shows the model", () => {
+  it.each([
+    ["<a@x.example>", null],
+    ["a@x.example", null],
+    ["  <a@x.example> ", null],
+    ["<a@x.example>#0", 0],
+    ["a@x.example#3", 3],
+    [" <a@x.example>#12 ", 12],
+  ])("reads %j as a@x.example, position %s", (given, position) => {
+    expect(lookupId(given)).toEqual({ key: "a@x.example", position });
+  });
+
+  it("keeps a # inside the angle brackets as part of the Message-ID", () => {
+    expect(lookupId("<a#1@x.example>")).toEqual({ key: "a#1@x.example", position: null });
+    expect(lookupId("<a#1@x.example>#2")).toEqual({ key: "a#1@x.example", position: 2 });
+  });
+
+  it("compares stored Message-IDs by the same key", () => {
+    expect(messageIdKey("<a@x.example>")).toBe(lookupId("a@x.example#0").key);
+  });
 });
 
 describe("matchesWords", () => {

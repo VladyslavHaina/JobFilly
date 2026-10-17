@@ -18,6 +18,31 @@ export function parseRoleRef(ref: string): RoleRef | null {
 }
 
 /**
+ * A Message-ID as the lookups compare it: trimmed and without its angle brackets, which models
+ * often drop (or add), as packages/ai compares them in the model's answers.
+ */
+export const messageIdKey = (messageId: string): string =>
+  messageId
+    .trim()
+    .replace(/^<(.*)>$/, "$1")
+    .trim();
+
+/**
+ * The Message-ID a `role` or `message_text` lookup was given, in any form the conversation shows
+ * the model: bare or in angle brackets, with spaces around, or as a whole role ref
+ * ("<Message-ID>#<position>", as results and an earlier answer's refs name a role). Its key
+ * (messageIdKey) and the position a "#<n>" suffix names, else null.
+ */
+export function lookupId(given: string): { key: string; position: number | null } {
+  const trimmed = given.trim();
+  const ref = /^(.*)#(\d{1,6})$/.exec(trimmed);
+  return {
+    key: messageIdKey(ref?.[1] ?? trimmed),
+    position: ref?.[2] === undefined ? null : Number(ref[2]),
+  };
+}
+
+/**
  * Everything a search can find a role by: its title, company, agency and places, and the sender
  * of its mail (name and address), so "the HireWave email" finds a role that names no company.
  */
