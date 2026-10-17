@@ -28,6 +28,8 @@ export interface StoredAssistantMessage {
   proposalId: string | null;
   /** MVP 3 (F8.1): the refs an answer used, as the lookups returned them; [] for any other. */
   sources: AnswerSource[];
+  /** An answer that read full-access data (message text, drafts): not for a pipeline-only member. */
+  fullAccess: boolean;
   at: Date;
 }
 
@@ -125,6 +127,7 @@ export async function listThreadMessages(
     clarify: r.clarify ?? null,
     proposalId: r.proposalId,
     sources: r.sources ?? [],
+    fullAccess: r.fullAccess,
     at: r.createdAt,
   }));
 }
@@ -159,6 +162,8 @@ export async function saveTurn(
     clarify: AssistantClarify | null;
     proposalId: string | null;
     sources?: AnswerSource[];
+    /** The reply read what only a member who sees everything may (message text, drafts). */
+    fullAccess: boolean;
     at: Date;
   },
 ): Promise<void> {
@@ -171,6 +176,8 @@ export async function saveTurn(
       role: "user",
       turn: input.turn,
       text: input.text,
+      // The member's own words: never hidden from them.
+      fullAccess: false,
       createdAt: input.at,
     },
     {
@@ -182,6 +189,7 @@ export async function saveTurn(
       clarify: input.clarify,
       proposalId: input.proposalId,
       sources: input.sources && input.sources.length > 0 ? input.sources : null,
+      fullAccess: input.fullAccess,
       createdAt: replyAt,
     },
   ]);

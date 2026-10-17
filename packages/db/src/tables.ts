@@ -1008,6 +1008,13 @@ export const assistantMessages = pgTable(
     proposalId: uuid("proposal_id"),
     /** MVP 3 (F8.1): what an answer used, as refs the lookups returned. */
     sources: jsonb("sources").$type<AnswerSource[]>(),
+    /**
+     * An answer that read what only a member who sees everything may (a message's text, drafts):
+     * a pipeline-only member is shown it as not available, and the model never reads it again
+     * for them. It fails closed: rows stored before the column (0004) read true, and saveTurn
+     * always writes it, so a forgotten write hides rather than leaks.
+     */
+    fullAccess: boolean("full_access").notNull().default(true),
     createdAt: at("created_at").notNull(),
   },
   (t) => [
@@ -1284,7 +1291,10 @@ const ACTIVITY_KINDS_SQL = [
   "member.left",
   "workspace.ownership_transferred",
   "export.downloaded",
+  "mailbox.connected",
+  "mailbox.smtp_changed",
   "mailbox.disconnected",
+  "ai.settings_changed",
   "account.deleted",
 ] as const satisfies readonly ActivityKind[];
 

@@ -29,6 +29,13 @@
       "when": 1792209015363,
       "tag": "0003_mvp3",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792221433872,
+      "tag": "0004_mvp3_audit",
+      "breakpoints": true
     }
   ]
 }

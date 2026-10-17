@@ -1,0 +1,3 @@
+ALTER TABLE "activity_log" DROP CONSTRAINT "activity_log_kind_check";--> statement-breakpoint
+ALTER TABLE "assistant_messages" ADD COLUMN "full_access" boolean DEFAULT true NOT NULL;--> statement-breakpoint
+ALTER TABLE "activity_log" ADD CONSTRAINT "activity_log_kind_check" CHECK (kind in ('draft.saved', 'mail.sent', 'member.invited', 'member.role_changed', 'member.scope_changed', 'member.removed', 'member.left', 'workspace.ownership_transferred', 'export.downloaded', 'mailbox.connected', 'mailbox.smtp_changed', 'mailbox.disconnected', 'ai.settings_changed', 'account.deleted'));

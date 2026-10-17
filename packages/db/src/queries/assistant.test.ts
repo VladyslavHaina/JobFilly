@@ -145,6 +145,7 @@ describe("assistant threads", () => {
       reply: "What makes a job bad for you?",
       clarify: { question: "What makes a job bad for you?", choices: ["Low pay", "Far away"] },
       proposalId: null,
+      fullAccess: false,
       at,
     });
     const { id: proposalId } = await proposal(id);
@@ -154,6 +155,7 @@ describe("assistant threads", () => {
       reply: "Here is a proposal.",
       clarify: null,
       proposalId,
+      fullAccess: false,
       at: later(5000),
     });
     expect(await nextTurn(conn.db, ws, id)).toBe(3);
@@ -231,6 +233,7 @@ describe("answers (MVP 3, F8.1)", () => {
       clarify: null,
       proposalId: null,
       sources,
+      fullAccess: true,
       at,
     });
     await saveTurn(conn.db, ws, id, {
@@ -240,10 +243,13 @@ describe("answers (MVP 3, F8.1)", () => {
       clarify: null,
       proposalId: null,
       sources: [],
+      fullAccess: false,
       at: later(1000),
     });
     const messages = await listThreadMessages(conn.db, ws, id);
     expect(messages.map((m) => m.sources)).toEqual([[], sources, [], []]);
+    // Whether a reply read full-access data, as written; the member's own words never did.
+    expect(messages.map((m) => m.fullAccess)).toEqual([false, true, false, false]);
   });
 
   it("name a decision by its group key, in its own workspace only", async () => {

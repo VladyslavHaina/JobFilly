@@ -20,6 +20,7 @@ import {
   saveEnvelopes,
   saveEvaluation,
 } from "./index";
+import { listThreadMessages } from "./queries/assistant";
 import { createConfirmedProfile } from "./queries/profiles";
 import {
   assistantMessages,
@@ -48,10 +49,10 @@ describe("room on a loaded machine", () => {
 });
 
 describe("migrations", () => {
-  it("applies every migration (MVP 1, MVP 2, the CV preferred flag, MVP 3) once, then nothing", async () => {
+  it("applies every migration (MVP 1, MVP 2, the CV preferred flag, MVP 3 and its audit) once, then nothing", async () => {
     conn = await openTestDatabase({ migrated: false });
     expect(await conn.migrationState()).toBe("missing");
-    expect(await conn.migrate()).toEqual({ applied: 4 });
+    expect(await conn.migrate()).toEqual({ applied: 5 });
     expect(await conn.migrate()).toEqual({ applied: 0 });
     expect(await conn.migrationState()).toBe("current");
   });
@@ -284,8 +285,8 @@ describe("the MVP 2 migration", () => {
       sql`insert into ai_settings (workspace_id, provider, models) values (${ws}, 'anthropic',
         ${JSON.stringify({ classify: "small", extract: "big", prefs: "big", intake: "big" })}::jsonb)`,
     );
-    // MVP 2's migration, the CV preferred flag's and MVP 3's after it.
-    expect(await conn.migrate()).toEqual({ applied: 3 });
+    // MVP 2's migration, the CV preferred flag's and MVP 3's two after it.
+    expect(await conn.migrate()).toEqual({ applied: 4 });
     const [row] = await queryRows<{ models: Record<string, string> }>(
       conn.db,
       sql`select models from ai_settings where workspace_id = ${ws}`,
@@ -475,7 +476,8 @@ describe("the MVP 3 migration", () => {
           values (${ws}, '<m1@agency.example>', 'inbox', 'INBOX', 1, 1, 'r@agency.example',
             '[]', '[]', '[]', '[]', now(), 's', '', 'likely_job')`,
     );
-    expect(await conn.migrate()).toEqual({ applied: 1 });
+    // MVP 3's migration and its audit one (0004: activity kinds, assistant full_access).
+    expect(await conn.migrate()).toEqual({ applied: 2 });
     const [message] = await queryRows<{ mailbox_id: string | null }>(
       conn.db,
       sql`select mailbox_id from messages where workspace_id = ${ws}`,
@@ -535,5 +537,27 @@ describe("the MVP 3 migration", () => {
       sql`select started_by from scans where workspace_id = ${ws}`,
     );
     expect(scan).toEqual({ started_by: null });
+  });
+});
+
+describe("the MVP 3 audit migration (0004)", () => {
+  // Fails closed: an answer stored before the column may quote a message or a draft, so it counts
+  // as full-access data and a pipeline-only member never sees it.
+  it("counts every assistant message stored before it as full-access data", async () => {
+    conn = await openTestDatabase({ migrated: false });
+    await migrateEarlier(conn.db, 4);
+    const { ws, userId } = await seedEarlierWorkspace(conn.db);
+    const [thread] = await queryRows<{ id: string }>(
+      conn.db,
+      sql`insert into assistant_threads (workspace_id, user_id, created_at, updated_at)
+          values (${ws}, ${userId}, now(), now()) returning id`,
+    );
+    await conn.db.execute(
+      sql`insert into assistant_messages (workspace_id, thread_id, role, turn, text, created_at)
+          values (${ws}, ${thread?.id}, 'assistant', 1, 'It says E2E-BODY', now())`,
+    );
+    expect(await conn.migrate()).toEqual({ applied: 1 });
+    const messages = await listThreadMessages(conn.db, ws, thread?.id as string);
+    expect(messages.map((m) => m.fullAccess)).toEqual([true]);
   });
 });
