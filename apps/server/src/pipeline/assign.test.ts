@@ -1,6 +1,8 @@
 import { createConfirmedProfile, getEvaluations, setMemberScope } from "@jobfilly/db";
 import {
   MessageDetailSchema,
+  PIPELINE_REEVALUATE_JOB,
+  PipelineReevaluatePayloadSchema,
   type Profile,
   ProfileChangeResultSchema,
   type ProfileEntry,
@@ -9,6 +11,8 @@ import {
 } from "@jobfilly/schema";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../app";
+import { defineJob } from "../jobs/queue";
+import { jobRegistry } from "../jobs/registry";
 import {
   createFakeMailbox,
   createTestDeps,
@@ -28,6 +32,7 @@ import {
 import { profileOfRole } from "./assign";
 import { evaluateMessage } from "./evaluate";
 import { matchStage } from "./match";
+import { reevaluateWorkspace } from "./reevaluate";
 
 // Every role goes to the best profile that is on, with the reason (MVP 3, F1.3): the cv-choice
 // and match stages work with that profile and its rules, the reply stage with each role's, the
@@ -77,7 +82,15 @@ async function profile(name: string, entries: ProfileEntry[]): Promise<Profile> 
 }
 
 beforeEach(async () => {
-  deps = await createTestDeps({ now: NOW });
+  deps = await createTestDeps({
+    now: NOW,
+    registry: {
+      ...jobRegistry,
+      [PIPELINE_REEVALUATE_JOB]: defineJob(PipelineReevaluatePayloadSchema, (ctx) =>
+        reevaluateWorkspace(ctx.deps, ctx.payload.workspaceId, { stages }).then(() => {}),
+      ),
+    },
+  });
   mailbox = createFakeMailbox();
   deps.mail = mailbox.port;
   const owner = await seedUser(deps, { name: "Maria Santos" });
@@ -153,6 +166,10 @@ const evaluate = async (...ids: string[]) => {
   for (const id of ids)
     await evaluateMessage(deps, ws.workspaceId, id, { origin: "backlog", stages });
 };
+/** Runs queued jobs until none is left. */
+async function drain() {
+  while (await deps.queue.runOnce()) {}
+}
 const base = () => `/api/workspaces/${ws.workspaceId}`;
 const roleUrl = (id: string) => `${base()}/messages/${encodeURIComponent(id)}/roles/0/profile`;
 const detail = async (id: string) => {
@@ -298,5 +315,29 @@ describe("switching profiles on and off (F1.2)", () => {
     ).toBe(200);
     await evaluate(MUNICH);
     expect(await detail(MUNICH)).toMatchObject({ profileId: germany.id, source: "auto" });
+  });
+
+  it("puts a role back in its profile when it is switched off and on during a re-evaluation", async () => {
+    await evaluate(MUNICH);
+    expect(await detail(MUNICH)).toMatchObject({ profileId: germany.id });
+    // The re-evaluation the switch-off starts evaluates the Munich role while the profile is
+    // off; the profile is switched on again before that evaluation is saved.
+    let switchedOn = false;
+    const { cvChoice } = stages;
+    stages.cvChoice = async (input, ctx) => {
+      if (input.message.messageId === MUNICH && !switchedOn) {
+        switchedOn = true;
+        deps.clock.advance(1_000);
+        const on = await editor.patch(`${base()}/profiles/${germany.id}`, { enabled: true });
+        expect(on.status).toBe(200);
+      }
+      return cvChoice(input, ctx);
+    };
+    const off = await editor.patch(`${base()}/profiles/${germany.id}`, { enabled: false });
+    expect(off.status).toBe(200);
+    await drain();
+    expect(switchedOn).toBe(true);
+    expect(await detail(MUNICH)).toMatchObject({ profileId: germany.id });
+    expect((await getEvaluations(deps.db, ws.workspaceId, [MUNICH]))[0]?.stale).toBe(false);
   });
 });

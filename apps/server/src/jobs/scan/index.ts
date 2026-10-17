@@ -85,7 +85,7 @@ async function sortWindow(
       deps.db,
       scan.workspaceId,
       [...outcome.handled, ...outcome.candidates, ...outcome.ownReplies],
-      { mailboxId: mailbox.mailboxId },
+      { mailboxId: mailbox.mailboxId, now: deps.clock.now() },
     );
     handledWithoutAi += outcome.handled.length;
   }

@@ -326,7 +326,10 @@ export async function syncMailbox(
     // A message reusing a stored Message-ID with another sender goes by an id of its own
     // (TBD-440), here as in the database.
     const read = await distinctMessageIds(db, workspaceId, result.messages);
-    const known = await reindexMessages(db, workspaceId, read, { mailboxId });
+    const known = await reindexMessages(db, workspaceId, read, {
+      mailboxId,
+      now: deps.clock.now(),
+    });
     const wholeFolder = cursor.uidValidity === null || result.changed;
     const windowStart = Date.parse(firstScan.startedAt) - SCAN_WINDOW_DAYS * DAY;
     const unknown = read.filter((e) => !known.has(e.messageId));
@@ -341,7 +344,7 @@ export async function syncMailbox(
       db,
       workspaceId,
       [...sorted.handled, ...sorted.candidates, ...sorted.ownReplies],
-      { mailboxId },
+      { mailboxId, now: deps.clock.now() },
     );
     if (fresh.length > 0) await publish(deps, log, workspaceId, "messages.updated");
 

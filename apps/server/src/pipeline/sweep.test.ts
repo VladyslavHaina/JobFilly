@@ -330,7 +330,9 @@ describe("the sweep", () => {
 
     // A sync sees it again (it was moved back): its sender is checked with its text.
     const back = mailbox.deliver({ messageId: "<gone@x.example>", date: envelope.date });
-    await saveEnvelopes(deps.db, ws, [{ envelope: back, verdict: "likely_job", reason: null }]);
+    await saveEnvelopes(deps.db, ws, [{ envelope: back, verdict: "likely_job", reason: null }], {
+      now: deps.clock.now(),
+    });
     expect(await sweep(deps)).toBe(1);
     await deps.queue.runOnce();
     expect((await getSenderChecks(deps.db, ws, ["<gone@x.example>"]))[0]).toMatchObject({

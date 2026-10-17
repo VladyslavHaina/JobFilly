@@ -187,6 +187,10 @@ export async function evaluateMessage(
     evaluated: [],
     failed: [],
   };
+  // When the pass began, before it reads anything: what it saves clears only the stale marks
+  // made before this (saveEvaluation, saveSenderCheck), so a change made while it runs (a
+  // profile switched off and on) is evaluated again by the next pass instead of lost.
+  const now = deps.clock.now();
   // The sender check is read before the message, and a check is stored only after the language
   // it found (below): a pass that finds another pass's check also reads that check's language,
   // so no CV choice is made without it (a re-evaluation alongside a message's first pass).
@@ -195,7 +199,6 @@ export async function evaluateMessage(
   if (!message) return outcome;
   outcome.found = true;
   const log = deps.log.child({ workspaceId: ws });
-  const now = deps.clock.now();
   // The first profile that is on stands for the workspace's; each role gets its own below.
   const profiles = await loadWorkspaceProfiles(deps, ws);
   const profile = profiles.on[0] ?? profiles.confirmed[0] ?? null;
