@@ -25,6 +25,20 @@ function useSecondsUntil(at: string | null): number {
   return at ? Math.max(0, Math.ceil((Date.parse(at) - now) / 1000)) : 0;
 }
 
+/** Each draft undone in this tab, by id, with its `updatedAt` then; an edit since changes it. */
+const undoneVersion = new Map<string, string>();
+
+/**
+ * "Undone: nothing was sent." holds only for the draft as it was: once it is edited the note is
+ * old news. The send has no time of its undo, so after a reload an edit counts as one made after
+ * the moment it was due to leave.
+ */
+function stillUndone(draft: Draft, send: Send): boolean {
+  const seen = undoneVersion.get(draft.id);
+  if (seen !== undefined) return seen === draft.updatedAt;
+  return Date.parse(draft.updatedAt) < Date.parse(send.sendAt);
+}
+
 function Waiting({ draft, send }: { draft: Draft; send: Send }) {
   const { workspaceId, can } = useWorkspace();
   const undo = useUndoSend(workspaceId, draft.id);
@@ -41,7 +55,11 @@ function Waiting({ draft, send }: { draft: Draft; send: Send }) {
         variant="secondary"
         busy={undo.isPending}
         disabled={!can.edit}
-        onClick={() => undo.mutate(undefined)}
+        onClick={() => {
+          // Before the request: the card leaves Waiting as soon as the undo lands.
+          undoneVersion.set(draft.id, draft.updatedAt);
+          undo.mutate(undefined);
+        }}
       >
         Undo
       </Button>
@@ -154,7 +172,7 @@ export function SendButton({ draft }: { draft: Draft }) {
       <Button disabled={!can.edit} onClick={() => setOpen(true)}>
         Send…
       </Button>
-      {send?.status === "cancelled" && (
+      {send?.status === "cancelled" && stillUndone(draft, send) && (
         <span className="text-xs text-stone-500">Undone: nothing was sent.</span>
       )}
       {send?.status === "failed" && (

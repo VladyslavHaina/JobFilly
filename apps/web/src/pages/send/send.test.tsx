@@ -115,6 +115,50 @@ describe("Send on a draft (F4.1, F4.2)", () => {
     expect(seen.filter((r) => r.method === "DELETE")).toHaveLength(1);
   });
 
+  it("drops “Undone: nothing was sent.” once the draft is edited", async () => {
+    let current = draft({ send: scheduled(10) });
+    fakeApi({
+      [`GET ${BASE}/drafts`]: () => ({ items: [current] }),
+      [`DELETE ${BASE}/drafts/:id/send`]: () => {
+        current = { ...current, send: { ...scheduled(10), status: "cancelled" } };
+        return current.send;
+      },
+      // Edited right away, well before the undone send was due: the server keeps the undone send.
+      [`PATCH ${BASE}/drafts/:id`]: (req: FakeRequest) => {
+        const updatedAt = new Date().toISOString();
+        current = { ...current, ...(req.body as object), status: "edited", updatedAt };
+        return current;
+      },
+    });
+    renderInWorkspace(<DraftsPage workspaceId={W} />);
+    await userEvent.click(await screen.findByRole("button", { name: "Undo" }));
+    expect(await screen.findByText("Undone: nothing was sent.")).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Edit" }));
+    await userEvent.type(screen.getByLabelText("Reply"), " Bis bald.");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(await screen.findByRole("img", { name: "Draft status: Edited" })).toBeTruthy();
+    expect(screen.queryByText("Undone: nothing was sent.")).toBeNull();
+  });
+
+  it("after a reload, says nothing of an undone send for a draft edited since", async () => {
+    const send: Send = { ...scheduled(-60), status: "cancelled" };
+    fakeApi({
+      [`GET ${BASE}/drafts`]: {
+        items: [
+          draft({
+            id: "00000000-0000-4000-8000-000000000d09",
+            status: "edited",
+            updatedAt: new Date().toISOString(),
+            send: { ...send, draftId: "00000000-0000-4000-8000-000000000d09" },
+          }),
+        ],
+      },
+    });
+    renderInWorkspace(<DraftsPage workspaceId={W} />);
+    expect(await screen.findByRole("button", { name: "Send…" })).toBeTruthy();
+    expect(screen.queryByText("Undone: nothing was sent.")).toBeNull();
+  });
+
   it("asks to confirm again when the draft changed since the confirmation (F4.3)", async () => {
     let previews = 0;
     fakeApi({
