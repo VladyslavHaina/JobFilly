@@ -43,15 +43,21 @@ const errorText = (error: unknown) =>
 
 const mailboxKey = (workspaceId: string) =>
   [...queryKeys.area(workspaceId, "workspace"), "mailboxes"] as const;
+/** The last part of a mailbox's removal summary key. */
+const REMOVAL = "removal";
 
 /**
  * After a connect or disconnect: this form's mailboxes and the mailbox status (F1.4) in the inbox
  * header and Settings › Mailbox, which reads the same list under the "mailbox" area, and the
- * inbox, whose mail a disconnect removes.
+ * inbox, whose mail a disconnect removes. Not a mailbox's removal summary: after a disconnect
+ * that mailbox is gone (a refetch would 404), and the summary is fetched afresh on every open.
  */
 function refreshMailboxes(client: QueryClient, workspaceId: string) {
   return Promise.all([
-    client.invalidateQueries({ queryKey: mailboxKey(workspaceId) }),
+    client.invalidateQueries({
+      queryKey: mailboxKey(workspaceId),
+      predicate: (query) => query.queryKey.at(-1) !== REMOVAL,
+    }),
     client.invalidateQueries({ queryKey: queryKeys.area(workspaceId, "mailbox") }),
     client.invalidateQueries({ queryKey: queryKeys.area(workspaceId, "messages") }),
   ]);
@@ -121,7 +127,7 @@ function DisconnectConfirmation(props: { mailbox: MailboxPublic; onKeep: () => v
   const client = useQueryClient();
   const path = `${apiPaths.workspace(workspaceId)}/mailboxes/${props.mailbox.id}`;
   const summary = useQuery({
-    queryKey: [...mailboxKey(workspaceId), props.mailbox.id, "removal"],
+    queryKey: [...mailboxKey(workspaceId), props.mailbox.id, REMOVAL],
     queryFn: () => api(`${path}/removal`, MailboxRemovalSummarySchema),
     staleTime: 0,
   });
@@ -162,7 +168,13 @@ function DisconnectConfirmation(props: { mailbox: MailboxPublic; onKeep: () => v
   );
 }
 
-function ConnectedMailbox(props: { mailbox: MailboxPublic; canManage: boolean }) {
+function ConnectedMailbox(props: {
+  mailbox: MailboxPublic;
+  /** May disconnect it. */
+  canManage: boolean;
+  /** May sign it in again. */
+  canConnect: boolean;
+}) {
   const { workspaceId } = useWorkspace();
   const [confirming, setConfirming] = useState(false);
   const reconnect = useGoogleSignIn(workspaceId);
@@ -170,10 +182,9 @@ function ConnectedMailbox(props: { mailbox: MailboxPublic; canManage: boolean })
   const google = mailbox.auth === "google";
   return (
     <Card>
-      <h2 className="text-base font-semibold text-stone-900">Connected mailbox</h2>
+      {/* Headed by its address: with several mailboxes, each card says which one it is. */}
+      <h2 className="text-base font-semibold text-stone-900">{mailbox.address}</h2>
       <dl className="mt-3 grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-sm">
-        <dt className="text-stone-500">Address</dt>
-        <dd className="text-stone-900">{mailbox.address}</dd>
         <dt className="text-stone-500">Signs in with</dt>
         <dd className="text-stone-900">{google ? "Google" : "Password"}</dd>
         <dt className="text-stone-500">Server</dt>
@@ -191,7 +202,7 @@ function ConnectedMailbox(props: { mailbox: MailboxPublic; canManage: boolean })
             Google no longer accepts this mailbox's sign-in. Nothing stored is lost: sign in again
             and it carries on where it stopped.
           </Alert>
-          {props.canManage && (
+          {props.canConnect && (
             <div>
               <Button busy={reconnect.isPending} onClick={() => reconnect.mutate(mailbox.id)}>
                 Reconnect with Google
@@ -206,7 +217,11 @@ function ConnectedMailbox(props: { mailbox: MailboxPublic; canManage: boolean })
           <DisconnectConfirmation mailbox={mailbox} onKeep={() => setConfirming(false)} />
         ) : (
           <div className="mt-4">
-            <Button variant="secondary" onClick={() => setConfirming(true)}>
+            <Button
+              variant="secondary"
+              aria-label={`Disconnect ${mailbox.address}`}
+              onClick={() => setConfirming(true)}
+            >
               Disconnect
             </Button>
           </div>
@@ -447,6 +462,9 @@ function ConnectForm(props: {
 
 export function MailboxForm(props: { workspaceId: string; mode: Mode; onConnected?: () => void }) {
   const { can } = useWorkspace();
+  // Connecting a mailbox (or signing it in again) is for admins who see everything; the server
+  // refuses anyone else (TBD-450). Any admin may still disconnect one.
+  const canConnect = can.admin && can.mail;
   const [adding, setAdding] = useState(false);
   const base = `${apiPaths.workspace(props.workspaceId)}/mailboxes`;
   const mailboxes = useQuery({
@@ -456,30 +474,35 @@ export function MailboxForm(props: { workspaceId: string; mode: Mode; onConnecte
   const presets = useQuery({
     queryKey: [...mailboxKey(props.workspaceId), "presets"],
     queryFn: () => api(`${base}/presets`, MailPresetListSchema),
-    enabled: can.admin,
+    enabled: canConnect,
     staleTime: Number.POSITIVE_INFINITY,
   });
   // Whether this server offers Sign in with Google (F3.2).
   const providers = useQuery({
     queryKey: ["oauth", "providers"],
     queryFn: () => api("/api/oauth/providers", OAuthProvidersSchema),
-    enabled: can.admin,
+    enabled: canConnect,
     staleTime: Number.POSITIVE_INFINITY,
   });
-  if (mailboxes.isLoading || (can.admin && presets.isLoading)) return <Loading />;
+  if (mailboxes.isLoading || (canConnect && presets.isLoading)) return <Loading />;
   const failed = mailboxes.error ?? presets.error;
   if (failed) return <Alert>{errorText(failed)}</Alert>;
   const items = mailboxes.data?.items ?? [];
-  const showForm = can.admin && (items.length === 0 || adding);
+  const showForm = canConnect && (items.length === 0 || adding);
   return (
     <div className="flex flex-col gap-4">
       <OAuthOutcomeNote />
       {items.map((m) => (
-        <ConnectedMailbox key={m.id} mailbox={m} canManage={can.admin} />
+        <ConnectedMailbox key={m.id} mailbox={m} canManage={can.admin} canConnect={canConnect} />
       ))}
       {items.length === 0 && !can.admin && (
         <p className="text-sm text-stone-600">
           No mailbox is connected yet. An admin of this workspace can connect one.
+        </p>
+      )}
+      {can.admin && !canConnect && (
+        <p className="text-sm text-stone-600">
+          Only admins who see everything connect a mailbox or sign one in again.
         </p>
       )}
       {showForm && (
@@ -498,7 +521,7 @@ export function MailboxForm(props: { workspaceId: string; mode: Mode; onConnecte
           {props.mode === "onboarding" && props.onConnected && (
             <Button onClick={props.onConnected}>Continue</Button>
           )}
-          {can.admin && !adding && (
+          {canConnect && !adding && (
             <Button variant="secondary" onClick={() => setAdding(true)}>
               Connect another mailbox
             </Button>

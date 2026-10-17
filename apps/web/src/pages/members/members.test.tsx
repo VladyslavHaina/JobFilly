@@ -13,6 +13,7 @@ import {
 import { AccountPage } from "../account";
 import { ActivityPage } from "../activity";
 import { DataSettings } from "../data";
+import { formatFullDate } from "../inbox/format";
 import { MembersPage } from "./MembersPage";
 
 // MVP 3's sharing and data pages against a fake API: what a member sees and handing ownership
@@ -69,6 +70,18 @@ describe("Members (F6.1, F6.3)", () => {
     // Nobody changes their own row.
     expect(screen.queryByLabelText("Role for Maria Santos")).toBeNull();
     expect(screen.getByLabelText("Sees")).toHaveProperty("value", "everything");
+  });
+
+  it("reads each member's name, (you) and Owner apart", async () => {
+    fakeApi({
+      "GET /api/auth/session": session,
+      "GET /api/workspaces/:id/members": members(),
+      "GET /api/workspaces/:id/invites": { items: [] },
+    });
+    renderInWorkspace(<MembersPage />);
+    const me = (await screen.findByText("(you)")).closest("p");
+    expect(me?.textContent).toBe("Maria Santos (you), Owner");
+    expect(screen.getByText("Tom Okafor").closest("p")?.textContent).toBe("Tom Okafor");
   });
 
   it("the owner hands the workspace to an admin after confirming", async () => {
@@ -139,6 +152,10 @@ describe("Activity (F9.1)", () => {
     renderInWorkspace(<ActivityPage workspaceId={W} />);
     expect(await screen.findByText("Made Tom Okafor Editor")).toBeTruthy();
     expect(screen.getByText("Deleted user")).toBeTruthy();
+    // The app's usual date and time, not "10/16/2026, 10:00:00 AM".
+    const time = document.querySelector("time");
+    expect(time?.textContent).toBe(formatFullDate("2026-10-16T10:00:00.000Z"));
+    expect(time?.textContent).toMatch(/Oct 16, 2026|16 Oct 2026/);
     await userEvent.click(screen.getByRole("button", { name: "Show older" }));
     expect(await screen.findByText("Made Tom Okafor Viewer")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Show older" })).toBeNull();
@@ -159,6 +176,12 @@ describe("Settings › Data (F7.1, F7.2)", () => {
       `/api/workspaces/${W}/export`,
     );
     expect(screen.getByText(/Drafts and mail in your mailbox stay there/)).toBeTruthy();
+    // Every mailbox, and a Google one has no password: its sign-in goes, whichever it is.
+    expect(
+      screen.getByText(
+        /every mailbox connection and its stored sign-in \(a password or Google's access\)/,
+      ),
+    ).toBeTruthy();
     const button = screen.getByRole("button", { name: "Delete workspace" });
     expect(button).toHaveProperty("disabled", true);
     await userEvent.type(

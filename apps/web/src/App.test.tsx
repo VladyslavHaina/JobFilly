@@ -299,6 +299,17 @@ describe("the app shell (F1.7, F1.8)", () => {
     expect(await screen.findByRole("heading", { name: "Workspace not found" })).toBeTruthy();
   });
 
+  it("with no workspace left, still offers Account and Sign out (F7.3)", async () => {
+    signedIn({ "GET /api/account/deletion": { owned: [], memberOf: [] } }, []);
+    const { router } = renderApp(paths.home());
+    expect(await screen.findByRole("heading", { name: "Invitations" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Sign out" })).toBeTruthy();
+    await userEvent.setup().click(screen.getByRole("link", { name: TEST_USER.name }));
+    expect(await screen.findByRole("heading", { name: "Delete your account" })).toBeTruthy();
+    expect(router.state.location.pathname).toBe(paths.account());
+    expect(screen.getByRole("button", { name: "Sign out" })).toBeTruthy();
+  });
+
   it("signing out leaves nothing of the workspace on screen, even after Back", async () => {
     let signedOut = false;
     signedIn({

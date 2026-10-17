@@ -51,10 +51,13 @@ const ACTION_LABELS: Record<RuleAction, string> = {
 
 const PERIODS: PayPeriod[] = ["hour", "day", "week", "month", "year"];
 
-/** One condition as the form holds it, every kind of value side by side. */
+/**
+ * One condition as the form holds it, every kind of value side by side. A new condition starts
+ * with no fact and no comparison (""), so nothing is saved until the user picks both.
+ */
 interface Draft {
   fact: string;
-  op: RuleOp;
+  op: RuleOp | "";
   words: string;
   from: string;
   to: string;
@@ -71,17 +74,18 @@ function toDraft(c: Condition): Draft {
     fact: c.fact,
     op: c.op,
     words: Array.isArray(v) ? v.join(", ") : typeof v === "number" ? String(v) : "",
-    from: range?.from ?? "UTC+00:00",
-    to: range?.to ?? "UTC+00:00",
+    from: range?.from ?? "",
+    to: range?.to ?? "",
     amount: pay ? String(pay.amount) : "",
     currency: pay?.currency ?? "",
     period: pay?.period ?? "year",
   };
 }
 
+/** Only for a draft with a fact and a comparison (see `complete`). */
 function toCondition(d: Draft): Condition {
   const fact = d.fact as Condition["fact"];
-  if (d.op === "missing") return { fact, op: d.op, value: null };
+  if (d.op === "" || d.op === "missing") return { fact, op: "missing", value: null };
   if (d.op === "within" || d.op === "outside") {
     return { fact, op: d.op, value: { from: d.from.trim(), to: d.to.trim() } };
   }
@@ -100,11 +104,18 @@ function toCondition(d: Draft): Condition {
   return { fact, op: d.op, value: words };
 }
 
-const EMPTY: Condition = {
-  fact: "timeZones",
-  op: "outside",
-  value: { from: "UTC+00:00", to: "UTC+00:00" },
+const EMPTY: Draft = {
+  fact: "",
+  op: "",
+  words: "",
+  from: "",
+  to: "",
+  amount: "",
+  currency: "",
+  period: "year",
 };
+
+const complete = (d: Draft) => d.fact !== "" && d.op !== "";
 
 export interface RuleInput {
   description?: string;
@@ -124,7 +135,10 @@ function ConditionFields(props: {
     <fieldset className="flex flex-wrap items-end gap-2 rounded-md border border-stone-200 p-3">
       <legend className="px-1 text-xs text-stone-500">Condition {n}</legend>
       <SelectField label="Fact" value={draft.fact} onChange={(e) => set({ fact: e.target.value })}>
-        {!(RULE_FACTS as readonly string[]).includes(draft.fact) && (
+        <option value="" disabled>
+          Choose a fact
+        </option>
+        {draft.fact !== "" && !(RULE_FACTS as readonly string[]).includes(draft.fact) && (
           <option value={draft.fact}>{draft.fact}</option>
         )}
         {RULE_FACTS.map((f) => (
@@ -138,6 +152,9 @@ function ConditionFields(props: {
         value={draft.op}
         onChange={(e) => set({ op: e.target.value as RuleOp })}
       >
+        <option value="" disabled>
+          Choose how
+        </option>
         {RULE_OPS.map((op) => (
           <option key={op} value={op}>
             {OP_LABELS[op]}
@@ -206,11 +223,13 @@ export function RuleEditor(props: {
   onCancel: () => void;
 }) {
   const { rule } = props;
-  const [drafts, setDrafts] = useState<Draft[]>((rule?.when ?? [EMPTY]).map(toDraft));
+  const [drafts, setDrafts] = useState<Draft[]>(rule ? rule.when.map(toDraft) : [EMPTY]);
+  const ready = drafts.every(complete);
   const [then, setThen] = useState<RuleAction>(rule?.then ?? "hide");
   const [description, setDescription] = useState(rule?.description ?? "");
   const submit = (e: FormEvent) => {
     e.preventDefault();
+    if (!ready) return;
     // Old words kept with new conditions or a new action are worded afresh by the server.
     props.onSave({ when: drafts.map(toCondition), then, description: description.trim() });
   };
@@ -232,7 +251,7 @@ export function RuleEditor(props: {
         />
       ))}
       <div>
-        <Button variant="secondary" onClick={() => setDrafts([...drafts, toDraft(EMPTY)])}>
+        <Button variant="secondary" onClick={() => setDrafts([...drafts, EMPTY])}>
           Add a condition
         </Button>
       </div>
@@ -257,7 +276,7 @@ export function RuleEditor(props: {
       />
       {props.error && <Alert>{props.error}</Alert>}
       <div className="flex gap-2">
-        <Button type="submit" busy={props.busy}>
+        <Button type="submit" busy={props.busy} disabled={!ready}>
           Save rule
         </Button>
         <Button variant="ghost" onClick={props.onCancel}>

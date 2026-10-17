@@ -110,6 +110,15 @@ describe("the Drafts page (F6.7)", () => {
     expect(await screen.findAllByText(/· CV attached/)).toHaveLength(1);
   });
 
+  it("says a draft is sent only from its own Send…, not that nothing is sent", async () => {
+    fakeApi({ [`GET ${BASE}`]: { items: [] } });
+    renderInWorkspace(<DraftsPage workspaceId={W} />);
+    expect(
+      await screen.findByText(/one is sent only when you press its Send… and confirm\./),
+    ).toBeTruthy();
+    expect(screen.queryByText(/nothing is sent/i)).toBeNull();
+  });
+
   it("says so when there are none", async () => {
     fakeApi({ [`GET ${BASE}`]: { items: [] } });
     renderInWorkspace(<DraftsPage workspaceId={W} />);

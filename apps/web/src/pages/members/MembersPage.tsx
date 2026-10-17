@@ -93,13 +93,22 @@ function MemberRow({
   return (
     <li className="flex flex-wrap items-center gap-3 py-3">
       <div className="min-w-48 flex-1">
+        {/* Spaces and a comma between the parts, so it reads "Maria Santos (you), Owner". */}
         <p className="text-sm font-medium text-stone-900">
-          {member.name}
-          {isMe && <span className="ml-2 text-xs text-stone-500">(you)</span>}
+          <span>{member.name}</span>
+          {isMe && (
+            <>
+              {" "}
+              <span className="ml-1 text-xs text-stone-500">(you)</span>
+            </>
+          )}
           {member.isOwner && (
-            <span className="ml-2 rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-600">
-              Owner
-            </span>
+            <>
+              <span className="sr-only">,</span>{" "}
+              <span className="ml-1 rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-600">
+                Owner
+              </span>
+            </>
           )}
         </p>
         <p className="text-xs text-stone-500">{member.email}</p>

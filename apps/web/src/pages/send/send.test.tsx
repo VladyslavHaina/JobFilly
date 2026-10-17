@@ -13,7 +13,7 @@ import { DraftsPage } from "../drafts";
 import { SmtpSettings } from "./index";
 
 // Send on a draft (F4.1–F4.5) and Settings › Sending against a fake API: the confirmation shows
-// the message as it will leave, Send now confirms with its token, the card counts down with Undo,
+// the message as it will leave, Send confirms with its token, the card counts down with Undo,
 // a draft changed meanwhile asks to confirm again, and viewers can't send.
 
 const SLOW_MS = 10_000;
@@ -100,13 +100,63 @@ describe("Send on a draft (F4.1, F4.2)", () => {
     expect(within(dialog).getByRole("region", { name: "Message text" }).textContent).toBe(
       PREVIEW.text,
     );
-    await userEvent.click(within(dialog).getByRole("button", { name: "Send now" }));
+    // Send, not "Send now": the 10 s wait with Undo is said beside it.
+    const send = within(dialog).getByRole("button", { name: "Send" });
+    expect(send.getAttribute("aria-describedby")).toBeTruthy();
+    expect(document.getElementById(send.getAttribute("aria-describedby") ?? "")?.textContent).toBe(
+      "It leaves 10 seconds after you press Send; until then you can undo it.",
+    );
+    await userEvent.click(send);
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(seen.find((r) => r.method === "POST")?.body).toEqual({ token: "token-1" });
     expect(await screen.findByText(/Sending in \d+ s/)).toBeTruthy();
     await userEvent.click(screen.getByRole("button", { name: "Undo" }));
     expect(await screen.findByText("Undone: nothing was sent.")).toBeTruthy();
     expect(seen.filter((r) => r.method === "DELETE")).toHaveLength(1);
+  });
+
+  it("drops “Undone: nothing was sent.” once the draft is edited", async () => {
+    let current = draft({ send: scheduled(10) });
+    fakeApi({
+      [`GET ${BASE}/drafts`]: () => ({ items: [current] }),
+      [`DELETE ${BASE}/drafts/:id/send`]: () => {
+        current = { ...current, send: { ...scheduled(10), status: "cancelled" } };
+        return current.send;
+      },
+      // Edited right away, well before the undone send was due: the server keeps the undone send.
+      [`PATCH ${BASE}/drafts/:id`]: (req: FakeRequest) => {
+        const updatedAt = new Date().toISOString();
+        current = { ...current, ...(req.body as object), status: "edited", updatedAt };
+        return current;
+      },
+    });
+    renderInWorkspace(<DraftsPage workspaceId={W} />);
+    await userEvent.click(await screen.findByRole("button", { name: "Undo" }));
+    expect(await screen.findByText("Undone: nothing was sent.")).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Edit" }));
+    await userEvent.type(screen.getByLabelText("Reply"), " Bis bald.");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(await screen.findByRole("img", { name: "Draft status: Edited" })).toBeTruthy();
+    expect(screen.queryByText("Undone: nothing was sent.")).toBeNull();
+  });
+
+  it("after a reload, says nothing of an undone send for a draft edited since", async () => {
+    const send: Send = { ...scheduled(-60), status: "cancelled" };
+    fakeApi({
+      [`GET ${BASE}/drafts`]: {
+        items: [
+          draft({
+            id: "00000000-0000-4000-8000-000000000d09",
+            status: "edited",
+            updatedAt: new Date().toISOString(),
+            send: { ...send, draftId: "00000000-0000-4000-8000-000000000d09" },
+          }),
+        ],
+      },
+    });
+    renderInWorkspace(<DraftsPage workspaceId={W} />);
+    expect(await screen.findByRole("button", { name: "Send…" })).toBeTruthy();
+    expect(screen.queryByText("Undone: nothing was sent.")).toBeNull();
   });
 
   it("asks to confirm again when the draft changed since the confirmation (F4.3)", async () => {
@@ -130,7 +180,7 @@ describe("Send on a draft (F4.1, F4.2)", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Send…" }));
     const dialog = await screen.findByRole("dialog");
     expect(await within(dialog).findByText("Old text")).toBeTruthy();
-    await userEvent.click(within(dialog).getByRole("button", { name: "Send now" }));
+    await userEvent.click(within(dialog).getByRole("button", { name: "Send" }));
     expect(
       await within(dialog).findByText("The draft changed since you opened Send."),
     ).toBeTruthy();
@@ -161,7 +211,7 @@ describe("Send on a draft (F4.1, F4.2)", () => {
     await userEvent.click(screen.getByRole("button", { name: "Send…" }));
     const link = await screen.findByRole("link", { name: "Settings › Sending" });
     expect(link.getAttribute("href")).toBe(`/w/${W}/settings/sending`);
-    expect(screen.getByRole("button", { name: "Send now" })).toHaveProperty("disabled", true);
+    expect(screen.getByRole("button", { name: "Send" })).toHaveProperty("disabled", true);
   });
 
   it("is disabled for viewers, and gone once the draft was sent (F4.5)", async () => {
@@ -279,5 +329,20 @@ describe("Settings › Sending", () => {
     expect(screen.getByLabelText("SMTP server")).toHaveProperty("disabled", true);
     expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
     expect(screen.getByText(/Sends through Google with your sign-in/)).toBeTruthy();
+  });
+
+  it("is read-only, with a note, for an admin who sees the job pipeline only (TBD-450)", async () => {
+    fakeApi({
+      [`GET ${BASE}/mailboxes`]: { items: [MAILBOX] },
+      [`GET ${BASE}/mailboxes/presets`]: PRESETS,
+      [`GET ${BASE}/mailboxes/:id/smtp`]: { smtp: null, savesSentCopy: false },
+    });
+    renderInWorkspace(<SmtpSettings workspaceId={W} />, { workspace: { scope: "pipeline" } });
+    expect(
+      await screen.findByText("Only admins who see everything change how mail is sent."),
+    ).toBeTruthy();
+    expect(screen.getByLabelText("SMTP server")).toHaveProperty("disabled", true);
+    expect(screen.queryByRole("button", { name: "Test" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
   });
 });

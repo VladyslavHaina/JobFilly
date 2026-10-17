@@ -46,7 +46,7 @@ function Editor({ draft, onDone }: { draft: Draft; onDone: () => void }) {
         rows={10}
         value={body}
         onChange={(e) => setBody(e.target.value)}
-        hint="Saving replaces the draft in your mailbox's Drafts folder. Nothing is sent."
+        hint="Saving replaces the draft in your mailbox's Drafts folder; it doesn't send it."
       />
       {edit.error && <Alert>{errorText(edit.error)}</Alert>}
       <div className="flex gap-2">

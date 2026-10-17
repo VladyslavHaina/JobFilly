@@ -170,7 +170,7 @@ describe.each(["onboarding", "settings"] as const)("MailboxForm in %s mode", (mo
     await user.click(
       screen.getByRole("button", { name: mode === "onboarding" ? "Save and continue" : "Save" }),
     );
-    expect(await screen.findByText("Connected mailbox")).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: mailbox.address })).toBeTruthy();
     expect(onConnected).toHaveBeenCalledOnce();
     expect(seen.filter((r) => r.method === "POST")).toHaveLength(1);
     expect(screen.queryByDisplayValue(PASSWORD)).toBeNull();
@@ -183,7 +183,7 @@ describe("connected mailboxes (MVP 3 F3.1, F7.4; replacing F2.5's one)", () => {
     api({}, [mailbox]);
     const user = userEvent.setup();
     renderInWorkspace(<MailboxForm workspaceId={ws.id} mode="settings" />);
-    expect(await screen.findByText("maria.santos@inbox.example")).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "maria.santos@inbox.example" })).toBeTruthy();
     expect(screen.getByText("Inbox, Sent")).toBeTruthy();
     expect(screen.getByText("Password")).toBeTruthy();
     expect(screen.queryByLabelText("Mail provider")).toBeNull();
@@ -212,8 +212,15 @@ describe("connected mailboxes (MVP 3 F3.1, F7.4; replacing F2.5's one)", () => {
       },
     ]);
     renderInWorkspace(<MailboxForm workspaceId={ws.id} mode="settings" />);
-    expect(await screen.findByText("maria.gmail@gmail.example")).toBeTruthy();
-    expect(screen.getAllByText("Connected mailbox")).toHaveLength(2);
+    // Each card is headed by its own address, and its Disconnect names that address.
+    expect((await screen.findAllByRole("heading", { level: 2 })).map((h) => h.textContent)).toEqual(
+      ["maria.santos@inbox.example", "maria.gmail@gmail.example"],
+    );
+    expect(
+      screen
+        .getAllByRole("button", { name: /^Disconnect / })
+        .map((b) => b.getAttribute("aria-label")),
+    ).toEqual(["Disconnect maria.santos@inbox.example", "Disconnect maria.gmail@gmail.example"]);
     expect(screen.getByText("Google")).toBeTruthy();
     expect(screen.getByText("Inbox, Sent ([Gmail]/Sent Mail)")).toBeTruthy();
   });
@@ -231,7 +238,9 @@ describe("connected mailboxes (MVP 3 F3.1, F7.4; replacing F2.5's one)", () => {
     });
     const user = userEvent.setup();
     renderInWorkspace(<MailboxForm workspaceId={ws.id} mode="settings" />);
-    await user.click(await screen.findByRole("button", { name: "Disconnect" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Disconnect maria.santos@inbox.example" }),
+    );
     const warning = await screen.findByText("Disconnect maria.santos@inbox.example?");
     const note = warning.closest("[role=status]") as HTMLElement;
     expect(note.textContent).toContain(
@@ -244,11 +253,38 @@ describe("connected mailboxes (MVP 3 F3.1, F7.4; replacing F2.5's one)", () => {
     expect(seen.find((r) => r.method === "DELETE")?.path).toBe(`${base}/${mailbox.id}`);
   });
 
+  it("doesn't ask for a disconnected mailbox's removal summary again", async () => {
+    let items = [mailbox];
+    const seen = fakeApi({
+      [`GET ${base}`]: () => ({ items }),
+      [`GET ${base}/presets`]: { items: presets },
+      // Once the mailbox is gone its summary is a 404, as on the server.
+      [`GET ${base}/:id/removal`]: () =>
+        items.length ? removal : json({ error: "not_found" }, 404),
+      [`DELETE ${base}/:id`]: () => {
+        items = [];
+        return new Response(null, { status: 204 });
+      },
+    });
+    const user = userEvent.setup();
+    renderInWorkspace(<MailboxForm workspaceId={ws.id} mode="settings" />);
+    await user.click(
+      await screen.findByRole("button", { name: "Disconnect maria.santos@inbox.example" }),
+    );
+    await screen.findByText("Disconnect maria.santos@inbox.example?");
+    await user.click(screen.getByRole("button", { name: "Disconnect and delete its data" }));
+    expect(await screen.findByLabelText("Mail provider")).toBeTruthy();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(seen.filter((r) => r.path.endsWith("/removal"))).toHaveLength(1);
+  });
+
   it("keeps the mailbox when the user changes their mind", async () => {
     const seen = api({}, [mailbox]);
     const user = userEvent.setup();
     renderInWorkspace(<MailboxForm workspaceId={ws.id} mode="settings" />);
-    await user.click(await screen.findByRole("button", { name: "Disconnect" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Disconnect maria.santos@inbox.example" }),
+    );
     await screen.findByText("Disconnect maria.santos@inbox.example?");
     await user.click(screen.getByRole("button", { name: "Keep it" }));
     expect(screen.queryByText("Disconnect maria.santos@inbox.example?")).toBeNull();
@@ -289,7 +325,9 @@ describe("connected mailboxes (MVP 3 F3.1, F7.4; replacing F2.5's one)", () => {
     await user.click(screen.getByRole("button", { name: "Save" }));
     expect((await screen.findByRole("status")).textContent).toContain("Waiting for the first sync");
 
-    await user.click(await screen.findByRole("button", { name: "Disconnect" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Disconnect maria.santos@inbox.example" }),
+    );
     await user.click(await screen.findByRole("button", { name: "Disconnect and delete its data" }));
     expect(await screen.findByLabelText("Mail provider")).toBeTruthy();
     await waitFor(() => expect(screen.queryByRole("status")).toBeNull());
@@ -306,10 +344,40 @@ describe("connected mailboxes (MVP 3 F3.1, F7.4; replacing F2.5's one)", () => {
     expect(onConnected).toHaveBeenCalledOnce();
   });
 
+  it("lets an admin who sees the job pipeline only disconnect, but not connect (TBD-450)", async () => {
+    const seen = api({}, [{ ...mailbox, auth: "google", status: "reconnect_needed" }]);
+    renderInWorkspace(<MailboxForm workspaceId={ws.id} mode="settings" />, {
+      workspace: { scope: "pipeline" },
+    });
+    expect(await screen.findByRole("heading", { name: mailbox.address })).toBeTruthy();
+    expect(
+      screen.getByText("Only admins who see everything connect a mailbox or sign one in again."),
+    ).toBeTruthy();
+    expect(
+      screen.getAllByRole("button").map((b) => b.getAttribute("aria-label") ?? b.textContent),
+    ).toEqual([`Disconnect ${mailbox.address}`]);
+    expect(seen.some((r) => r.path.endsWith("/presets") || r.path.startsWith("/api/oauth"))).toBe(
+      false,
+    );
+  });
+
+  it("shows no connect form to a pipeline-only admin without a mailbox", async () => {
+    api();
+    renderInWorkspace(<MailboxForm workspaceId={ws.id} mode="settings" />, {
+      workspace: { scope: "pipeline" },
+    });
+    expect(
+      await screen.findByText(
+        "Only admins who see everything connect a mailbox or sign one in again.",
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByLabelText("Mail provider")).toBeNull();
+  });
+
   it("shows viewers the mailbox without Disconnect", async () => {
     api({}, [mailbox]);
     renderInWorkspace(<MailboxForm workspaceId={ws.id} mode="settings" />, { role: "viewer" });
-    const card = (await screen.findByText("Connected mailbox")).closest("section");
+    const card = (await screen.findByRole("heading", { name: mailbox.address })).closest("section");
     expect(within(card as HTMLElement).queryByRole("button")).toBeNull();
   });
 });

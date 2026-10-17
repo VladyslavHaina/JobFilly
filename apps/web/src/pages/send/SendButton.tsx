@@ -1,5 +1,5 @@
 import type { Draft, Send } from "@jobfilly/schema";
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { Link } from "react-router";
 import { ApiError, errorText } from "../../api";
 import { Alert, Button, Dialog, Loading } from "../../components";
@@ -9,7 +9,7 @@ import { useConfirmSend, useSendPreview, useUndoSend } from "./queries";
 
 // Send on a draft card (F4.1–F4.5): one draft at a time. Send opens the confirmation with the
 // message exactly as it will leave — from, to, cc, subject, attachments and the full text — and
-// Send now confirms that content. It then waits out its delay with Undo; if the draft changed
+// Send confirms that content. It then waits out its delay with Undo; if the draft changed
 // meanwhile the server asks to confirm again. Viewers see the button disabled.
 
 const kb = (bytes: number) => `${Math.max(1, Math.round(bytes / 1024))} KB`;
@@ -23,6 +23,20 @@ function useSecondsUntil(at: string | null): number {
     return () => clearInterval(timer);
   }, [at]);
   return at ? Math.max(0, Math.ceil((Date.parse(at) - now) / 1000)) : 0;
+}
+
+/** Each draft undone in this tab, by id, with its `updatedAt` then; an edit since changes it. */
+const undoneVersion = new Map<string, string>();
+
+/**
+ * "Undone: nothing was sent." holds only for the draft as it was: once it is edited the note is
+ * old news. The send has no time of its undo, so after a reload an edit counts as one made after
+ * the moment it was due to leave.
+ */
+function stillUndone(draft: Draft, send: Send): boolean {
+  const seen = undoneVersion.get(draft.id);
+  if (seen !== undefined) return seen === draft.updatedAt;
+  return Date.parse(draft.updatedAt) < Date.parse(send.sendAt);
 }
 
 function Waiting({ draft, send }: { draft: Draft; send: Send }) {
@@ -41,7 +55,11 @@ function Waiting({ draft, send }: { draft: Draft; send: Send }) {
         variant="secondary"
         busy={undo.isPending}
         disabled={!can.edit}
-        onClick={() => undo.mutate(undefined)}
+        onClick={() => {
+          // Before the request: the card leaves Waiting as soon as the undo lands.
+          undoneVersion.set(draft.id, draft.updatedAt);
+          undo.mutate(undefined);
+        }}
       >
         Undo
       </Button>
@@ -57,6 +75,7 @@ function Confirmation({ draft, onClose }: { draft: Draft; onClose: () => void })
   const shown = preview.data;
   const stale = confirm.error instanceof ApiError && confirm.error.code === "confirm_again";
   const noSmtp = preview.error instanceof ApiError && preview.error.code === "no_smtp";
+  const delayId = useId();
   return (
     <Dialog
       title="Send this reply?"
@@ -64,10 +83,14 @@ function Confirmation({ draft, onClose }: { draft: Draft; onClose: () => void })
       onClose={onClose}
       actions={
         <>
+          <p id={delayId} className="mr-auto self-center text-xs text-stone-500">
+            It leaves 10 seconds after you press Send; until then you can undo it.
+          </p>
           <Button variant="secondary" onClick={onClose}>
             Cancel
           </Button>
           <Button
+            aria-describedby={delayId}
             busy={confirm.isPending}
             disabled={!shown || preview.isFetching}
             onClick={() => {
@@ -79,7 +102,7 @@ function Confirmation({ draft, onClose }: { draft: Draft; onClose: () => void })
               });
             }}
           >
-            Send now
+            Send
           </Button>
         </>
       }
@@ -130,9 +153,6 @@ function Confirmation({ draft, onClose }: { draft: Draft; onClose: () => void })
               {shown.text}
             </pre>
           </section>
-          <p className="text-xs text-stone-500">
-            It leaves 10 seconds after you confirm; until then you can undo it.
-          </p>
         </div>
       )}
     </Dialog>
@@ -152,7 +172,7 @@ export function SendButton({ draft }: { draft: Draft }) {
       <Button disabled={!can.edit} onClick={() => setOpen(true)}>
         Send…
       </Button>
-      {send?.status === "cancelled" && (
+      {send?.status === "cancelled" && stillUndone(draft, send) && (
         <span className="text-xs text-stone-500">Undone: nothing was sent.</span>
       )}
       {send?.status === "failed" && (

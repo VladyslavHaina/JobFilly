@@ -53,9 +53,10 @@ function DeleteCard({ workspaceId, name }: { workspaceId: string; name: string }
     <Card>
       <h2 className="text-base font-semibold text-red-800">Delete this workspace</h2>
       <p className="mt-1 text-sm text-stone-600">
-        This removes everything JobFilly keeps for {name}: the mailbox connection and its password,
-        CVs and their files, profiles, rules, decisions, drafts, the activity log and every member's
-        access. It can't be undone. Drafts and mail in your mailbox stay there.
+        This removes everything JobFilly keeps for {name}: every mailbox connection and its stored
+        sign-in (a password or Google's access), CVs and their files, profiles, rules, decisions,
+        drafts, the activity log and every member's access. It can't be undone. Drafts and mail in
+        your mailbox stay there.
       </p>
       <form onSubmit={submit} className="mt-4 flex flex-wrap items-end gap-3" noValidate>
         <TextField

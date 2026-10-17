@@ -48,6 +48,8 @@ function MailboxSmtpForm({
   presets: readonly MailPreset[];
 }) {
   const { can } = useWorkspace();
+  // Where mail goes is for admins who see everything; the server refuses anyone else (TBD-450).
+  const canChange = can.admin && can.mail;
   const [form, setForm] = useState(() => initial(mailbox, view, presets));
   const [tested, setTested] = useState<SmtpTestResult | null>(null);
   const save = useSaveSmtp(workspaceId, mailbox.id);
@@ -77,7 +79,7 @@ function MailboxSmtpForm({
       <SelectField
         label="Provider"
         value={withSmtp.find((p) => p.smtp?.host === form.host)?.id ?? "other"}
-        disabled={!can.admin}
+        disabled={!canChange}
         onChange={(e) => {
           const smtp = presets.find((p) => p.id === e.target.value)?.smtp;
           if (smtp) update({ host: smtp.host, port: smtp.port, tlsMode: smtp.tlsMode });
@@ -94,20 +96,20 @@ function MailboxSmtpForm({
         <TextField
           label="SMTP server"
           value={form.host}
-          disabled={!can.admin}
+          disabled={!canChange}
           onChange={(e) => update({ host: e.target.value })}
         />
         <TextField
           label="Port"
           type="number"
           value={form.port}
-          disabled={!can.admin}
+          disabled={!canChange}
           onChange={(e) => update({ port: Number(e.target.value) })}
         />
         <SelectField
           label="Security"
           value={form.tlsMode}
-          disabled={!can.admin}
+          disabled={!canChange}
           onChange={(e) => update({ tlsMode: e.target.value as TlsMode })}
         >
           {(Object.keys(TLS_LABELS) as TlsMode[]).map((mode) => (
@@ -120,7 +122,7 @@ function MailboxSmtpForm({
       <TextField
         label="User name"
         value={form.username}
-        disabled={!can.admin}
+        disabled={!canChange}
         onChange={(e) => update({ username: e.target.value })}
       />
       <TextField
@@ -128,7 +130,7 @@ function MailboxSmtpForm({
         type="password"
         autoComplete="new-password"
         value={form.password}
-        disabled={!can.admin}
+        disabled={!canChange}
         onChange={(e) => update({ password: e.target.value })}
         hint={
           keepsPassword
@@ -141,7 +143,7 @@ function MailboxSmtpForm({
       {test.error && <Alert>{errorText(test.error)}</Alert>}
       {save.error && <Alert>{errorText(save.error)}</Alert>}
       {save.isSuccess && !save.isPending && <Alert tone="success">Saved.</Alert>}
-      {can.admin ? (
+      {canChange ? (
         <div className="flex gap-2">
           <Button
             variant="secondary"
@@ -156,7 +158,11 @@ function MailboxSmtpForm({
           </Button>
         </div>
       ) : (
-        <p className="text-xs text-stone-500">Only admins change how mail is sent.</p>
+        <p className="text-xs text-stone-500">
+          {can.admin
+            ? "Only admins who see everything change how mail is sent."
+            : "Only admins change how mail is sent."}
+        </p>
       )}
     </form>
   );
