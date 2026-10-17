@@ -152,13 +152,25 @@ export async function markStale(
   const senderScope = messagesOfScope(workspaceId, scope);
   let checks: unknown[] = [];
   if (senderScope) {
+    // Locked in key order first too, for the same reason: two sender marks changed at once.
+    const orderedChecks = db
+      .select({ messageId: senderChecks.messageId })
+      .from(senderChecks)
+      .where(
+        and(
+          eq(senderChecks.workspaceId, workspaceId),
+          sql`${senderChecks.messageId} in (${senderScope})`,
+        ),
+      )
+      .orderBy(senderChecks.messageId)
+      .for("update");
     checks = await db
       .update(senderChecks)
       .set({ stale: true, staleSince: at })
       .where(
         and(
           eq(senderChecks.workspaceId, workspaceId),
-          sql`${senderChecks.messageId} in (${senderScope})`,
+          inArray(senderChecks.messageId, orderedChecks),
         ),
       )
       .returning({ messageId: senderChecks.messageId });

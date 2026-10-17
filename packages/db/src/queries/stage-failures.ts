@@ -140,10 +140,25 @@ export async function clearStageFailures(
   } else if (!("all" in scope)) {
     return;
   }
+  // The rows are locked in key order before they are deleted, as markStale locks its rows: two
+  // re-evaluations of a workspace at once delete many of the same rows, and a plain DELETE locks
+  // them in whatever order its scan meets them, so the two could deadlock (40P01).
+  const ordered = db
+    .select({ messageId: stageFailures.messageId, position: stageFailures.position })
+    .from(stageFailures)
+    .where(
+      and(eq(stageFailures.workspaceId, workspaceId), eq(stageFailures.stage, "match"), filter),
+    )
+    .orderBy(stageFailures.messageId, stageFailures.position)
+    .for("update");
   await db
     .delete(stageFailures)
     .where(
-      and(eq(stageFailures.workspaceId, workspaceId), eq(stageFailures.stage, "match"), filter),
+      and(
+        eq(stageFailures.workspaceId, workspaceId),
+        eq(stageFailures.stage, "match"),
+        sql`(${stageFailures.messageId}, ${stageFailures.position}) in ${ordered}`,
+      ),
     );
 }
 
