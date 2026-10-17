@@ -281,7 +281,10 @@ Rules:
   without the mailbox; when it changes, the message's roles are evaluated again.
 - Without a confirmed profile only the sender stage runs; the roles stay unevaluated. Intake
   confirm asks for a re-evaluation of everything, which matches the first scan's backlog (F1.6).
-  A stage that fails leaves its role missing or stale; it is never marked evaluated.
+  A stage that fails leaves its role missing or stale; it is never marked evaluated. A save
+  (`saveEvaluation`, `saveSenderCheck`) clears only the stale marks made before its pass began
+  (compare-and-set on `stale_since`): a change made while the pass ran (a profile switched off
+  and on) keeps the item stale, so the next run evaluates it with that change.
 - `pipeline.reevaluate` (dedupe `reevaluate:<ws>`) snapshots what is missing or stale, evaluates
   each message at most once per run (a failing AI or mailbox can't make it loop) over one shared
   mailbox connection, re-claims the drafts to retry, and enqueues the next run only if something
