@@ -64,7 +64,8 @@ export const ScanSchema = z.object({
   calls: z.number().int().nonnegative(),
   inputTokens: z.number().int().nonnegative(),
   outputTokens: z.number().int().nonnegative(),
-  startedBy: z.uuid(),
+  /** Null once that account is gone (MVP 3, F7.3). */
+  startedBy: z.uuid().nullable(),
   startedAt: IsoDateTimeSchema,
   stoppedAt: IsoDateTimeSchema.nullable(),
 });
