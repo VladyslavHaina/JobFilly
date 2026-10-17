@@ -13,8 +13,9 @@ import {
 // why the run stops now, or null to go on:
 //
 //   done       nothing likely is left in the window (it wins over every other reason);
-//   confident  first scan only: two batches in a row changed no intake answer, at least one core
-//              question is answered, and every answered one is at least medium confidence;
+//   confident  the first scan and a re-run of setup (MVP 3, F1.1) only: two batches in a row
+//              changed no intake answer, at least one core question is answered, and every
+//              answered one is at least medium confidence;
 //   budget     the run's model-call budget is used up.
 //
 // The user's replies are read before the first batch, and the proposal they give is the
@@ -78,7 +79,7 @@ export function createConfidenceTracker(
       lastAnswers = answers;
       if (state.remaining === 0) return { reason: "done" };
       if (
-        kind === "first" &&
+        kind !== "analyze_rest" &&
         unchangedBatches >= CONFIDENT_AFTER_UNCHANGED_BATCHES &&
         firm(state.proposal)
       ) {
