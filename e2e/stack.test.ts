@@ -1193,20 +1193,28 @@ describe("wiringProblems", () => {
     expect(wiringProblems("")).toEqual(['the check printed no result ("")']);
   });
 
-  it("probes fixture domains whose zone and RDAP entry the generator writes", () => {
+  it("probes fixture domains whose zone or Corefile answer and RDAP entry the generator writes", () => {
     const zones = readdirSync(join(E2E, "dns", "zones"));
+    const corefile = readFileSync(join(E2E, "dns", "Corefile"), "utf8");
     const domains = readDomains().domains;
     for (const probe of WIRING_PROBES) {
       const zone = zones.find((z) => {
         const origin = z.replace(/^db\./, "");
         return probe.domain === origin || probe.domain.endsWith(`.${origin}`);
       });
-      expect(zone, probe.domain).toBeDefined();
+      expect(domains[probe.domain], probe.domain).toBeDefined();
+      if (zone === undefined) {
+        // A public domain: the Corefile's MX template answers its exact name with mx.<name>.
+        const exact = `^${probe.domain.split(".").join("[.]")}[.]$`;
+        expect(corefile, probe.domain).toContain(`match "${exact}"`);
+        expect(corefile).toContain('answer "{{ .Name }} 300 IN MX 10 mx.{{ .Name }}"');
+        expect(probe.mx).toBe(`mx.${probe.domain}`);
+        continue;
+      }
       const text = readFileSync(join(E2E, "dns", "zones", zone as string), "utf8");
       const origin = (zone as string).replace(/^db\./, "");
       const label = probe.domain === origin ? "@" : probe.domain.slice(0, -origin.length - 1);
       expect(text.split("\n"), probe.domain).toContain(`${label} IN MX 10 ${probe.mx}.`);
-      expect(domains[probe.domain], probe.domain).toBeDefined();
     }
   });
 });

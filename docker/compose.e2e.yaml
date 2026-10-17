@@ -151,7 +151,8 @@ services:
       FAKE_AI_SLOW_TEST_MS: ${FAKE_AI_SLOW_TEST_MS:-0}
 
   # MVP 2's domain checks without the internet (F5). CoreDNS answers the fixtures' sender domains
-  # from e2e/dns/zones and forwards every other name to Docker's resolver. It has a fixed address
+  # (the .example zone from e2e/dns/zones, public domains' MX by exact name in the Corefile) and
+  # forwards every other name to Docker's resolver. It has a fixed address
   # because a container's `dns` takes an address, not a name; only one test stack runs at a time,
   # and e2e/stack.ts (STACK_SUBNET) won't start one while another network overlaps the subnet.
   dns:
