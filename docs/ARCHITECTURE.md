@@ -434,6 +434,10 @@ Rules:
   from their results only, and any proposal or clarifying question in that turn is dropped, so
   mail can never become a change. Only refs a lookup returned are kept; they become links in
   `assistant/links.ts` when the thread is read, re-checked against the member's current access.
+  A turn whose lookups read full-access data (message text, draft lines) is stored with
+  `assistant_messages.full_access` (true for rows from before 0004, so it fails closed): once the
+  member sees the pipeline only, the thread shows it as "Not available with your access" without
+  links, and the turn is left out of the history sent to the model.
 - With several profiles a proposal targets one profile (named in the message or the thread, or
   the only one; otherwise the reply asks which) and its impact preview counts only that
   profile's roles.

@@ -361,6 +361,22 @@ async function run(view: View, lookup: AssistantLookup) {
 }
 
 /**
+ * True when results run with full access read what a pipeline-only member may not: a message's
+ * text, or draft lines and refs (role, find_roles and waiting add them with full access). The
+ * turn is then stored as full access, so a member whose scope narrows later is shown it as not
+ * available and the model never reads it again for them.
+ */
+export function usedFullAccess(scope: MemberScope, results: readonly AnswerToolResult[]): boolean {
+  const tools: readonly AssistantLookup["tool"][] = [
+    "message_text",
+    "role",
+    "find_roles",
+    "waiting",
+  ];
+  return scope === "everything" && results.some((r) => tools.includes(r.lookup.tool));
+}
+
+/**
  * Runs a question's lookups with the member's access (`scope`), at most MAX_LOOKUPS, each once:
  * the results answer.v1 answers from.
  */

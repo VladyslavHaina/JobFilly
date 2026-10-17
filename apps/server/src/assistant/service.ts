@@ -48,7 +48,7 @@ import type { Logger } from "../log";
 import { applyAndReevaluate } from "../profile/changes";
 import { openAiKey } from "../secrets";
 import { linksOf, resolveLinks } from "./links";
-import { runLookups } from "./lookups";
+import { runLookups, usedFullAccess } from "./lookups";
 import { previewChanges } from "./preview";
 import { fail, inTransaction, NOT_FOUND_FAILURE, type Result, refuse } from "./result";
 
@@ -80,6 +80,16 @@ const NO_PROFILE =
   "Your profile isn't confirmed yet: confirm it on the Intake page, then I can propose changes to it.";
 
 const SEVERAL_PROFILES = "You have more than one profile.";
+
+/** What a pipeline-only member sees of an answer that read full-access data. */
+export const NOT_AVAILABLE = "Not available with your access";
+
+/**
+ * The thread as the member may see it now (`scope`): for a pipeline-only member, an answer that
+ * read full-access data (message text, drafts) shows as not available, without its links.
+ */
+const hiddenFrom = (scope: MemberScope, m: StoredAssistantMessage) =>
+  scope !== "everything" && m.role === "assistant" && m.fullAccess;
 const WHICH_PROFILE = "Which profile is this change for?";
 
 /**
@@ -184,20 +194,23 @@ export async function assistantState(
     deps,
     ws,
     scope,
-    messages.flatMap((m) => m.sources),
+    messages.flatMap((m) => (hiddenFrom(scope, m) ? [] : m.sources)),
   );
   return {
     thread: {
       id: thread.id,
-      messages: messages.map((m) => ({
-        id: m.id,
-        role: m.role,
-        text: m.text,
-        clarify: m.clarify,
-        proposalId: m.proposalId,
-        at: m.at.toISOString(),
-        ...(m.role === "assistant" ? { links: linksOf(m.sources, links) } : {}),
-      })),
+      messages: messages.map((m) => {
+        const hidden = hiddenFrom(scope, m);
+        return {
+          id: m.id,
+          role: m.role,
+          text: hidden ? NOT_AVAILABLE : m.text,
+          clarify: hidden ? null : m.clarify,
+          proposalId: m.proposalId,
+          at: m.at.toISOString(),
+          ...(m.role === "assistant" ? { links: hidden ? [] : linksOf(m.sources, links) } : {}),
+        };
+      }),
       proposals: proposals.map(toProposal),
     },
   };
@@ -214,6 +227,8 @@ interface Outcome {
   sources: AnswerSource[];
   /** The lookups a question was answered from, by tool; [] for any other turn. */
   lookups: string[];
+  /** Whether the answer read full-access data (usedFullAccess). */
+  fullAccess: boolean;
 }
 
 /**
@@ -229,7 +244,7 @@ async function proposalOutcome(
   target: Target,
   rules: Rule[],
 ): Promise<Outcome> {
-  const none = { proposal: null, sources: [], lookups: [] };
+  const none = { proposal: null, sources: [], lookups: [], fullAccess: false };
   let text = answer.reply;
   const clarify: AssistantClarify | null = answer.clarify;
   // packages/ai lets through a proposal with changes outside rules and entries (a mailbox, a
@@ -291,7 +306,9 @@ export async function sendMessage(
   const { profile } = target;
   const rules = profile ? await listRules(deps.db, ws, profile.id) : [];
   const turn = thread ? await nextTurn(deps.db, ws, thread.id) : 1;
-  const history = earlier.map(historyItem);
+  // A turn that read full-access data is left out for a member who no longer sees everything.
+  const hiddenTurns = new Set(earlier.filter((m) => hiddenFrom(scope, m)).map((m) => m.turn));
+  const history = earlier.filter((m) => !hiddenTurns.has(m.turn)).map(historyItem);
   const client = aiClientFor(deps, ws, {
     provider: settings.provider,
     baseUrl: settings.baseUrl,
@@ -321,6 +338,7 @@ export async function sendMessage(
       proposal: null,
       sources: knownSources(answer.data.sources, results),
       lookups: results.map((r) => r.lookup.tool),
+      fullAccess: usedFullAccess(scope, results),
     };
   } else {
     outcome = await proposalOutcome(deps, ws, user, result.data, target, rules);
@@ -350,6 +368,7 @@ export async function sendMessage(
       clarify,
       proposalId: stored?.id ?? null,
       sources,
+      fullAccess: outcome.fullAccess,
       at,
     });
     return { threadId, proposalId: stored?.id ?? null };

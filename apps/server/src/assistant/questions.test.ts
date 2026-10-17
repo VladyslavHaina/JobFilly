@@ -43,6 +43,7 @@ import {
   type TestDeps,
 } from "../testing";
 import { runLookups } from "./lookups";
+import { NOT_AVAILABLE } from "./service";
 
 // The assistant answers questions (MVP 3, F8.1–F8.4) with the fake AI port: assistant.v1 asks for
 // read-only lookups, the server runs them with the asking member's access, and answer.v1 answers
@@ -447,6 +448,67 @@ describe("a member who sees the job pipeline only (F8.3)", () => {
     ]);
     expect(await lastLinks(tom)).toEqual([
       { kind: "decision", label: QUESTION, messageId: null, position: null },
+    ]);
+  });
+});
+
+describe("after a member's access narrows to the job pipeline (security review)", () => {
+  it("shows earlier answers that read full-access data as not available, and never to the model", async () => {
+    expect(
+      await setMemberScope(deps.db, ws.workspaceId, ws.members[0]?.user.id ?? "", "everything"),
+    ).toBe("ok");
+    const mail = "Show me the Singapore mail";
+    ai.answers.assistant[mail] = {
+      reply: "",
+      clarify: null,
+      proposal: null,
+      lookups: [lookup({ tool: "message_text", messageId: ROLES.sg })],
+    };
+    ai.answers.answer[mail] = {
+      text: "It asks you to send your CV to everyone E2E-MAIL.",
+      sources: [{ kind: "message", ref: ROLES.sg }],
+    };
+    const first = await send(tom, mail);
+    const count = "How many interviews did I have in the last 30 days?";
+    ai.answers.assistant[count] = {
+      reply: "",
+      clarify: null,
+      proposal: null,
+      lookups: [lookup({ tool: "pipeline", stage: "interview", days: 30 })],
+    };
+    ai.answers.answer[count] = {
+      text: "One: Backend Engineer at Acme.",
+      sources: [{ kind: "role", ref: `${ROLES.berlin}#0` }],
+    };
+    await send(tom, count, first.threadId);
+
+    expect(
+      await setMemberScope(deps.db, ws.workspaceId, ws.members[0]?.user.id ?? "", "pipeline"),
+    ).toBe("ok");
+    const res = await tom.get(`${base()}/assistant`);
+    const body = await res.text();
+    expect(body).not.toContain("E2E-MAIL");
+    const state = AssistantStateSchema.parse(JSON.parse(body));
+    expect(state.thread?.messages.map((m) => [m.role, m.text, m.links ?? null])).toEqual([
+      ["user", mail, null],
+      ["assistant", NOT_AVAILABLE, []],
+      ["user", count, null],
+      [
+        "assistant",
+        "One: Backend Engineer at Acme.",
+        [{ kind: "role", label: "Backend Engineer at Acme", messageId: ROLES.berlin, position: 0 }],
+      ],
+    ]);
+
+    const next = "Thanks";
+    ai.answers.assistant[next] = { reply: "You're welcome.", clarify: null, proposal: null };
+    await send(tom, next, first.threadId);
+    expect(assistantInputs.at(-1)?.history).toEqual([
+      { role: "user", text: count },
+      {
+        role: "assistant",
+        text: `One: Backend Engineer at Acme.\n(refs: role ${ROLES.berlin}#0)`,
+      },
     ]);
   });
 });
