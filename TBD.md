@@ -5570,3 +5570,16 @@ These make sign-off possible; without them the build goes on and records an open
 - **Refs:** F6.1, F7.1, CLAUDE.md "Unknown means ask"
 - **Status:** accepted
 
+## TBD-445 · The assistant meets 8 of 10 test requests with a real model
+- **Kind:** open item
+- **Where:** MVP 2 · Sign-off (real-AI quality)
+- **Context:** The threshold is 9 of the 10 requests in e2e/fixtures/assistant/requests.json, graded on the same kind of change with the same effect on the stored roles. With Anthropic claude-sonnet-5-5 the assistant got 8 (e2e/reports/mvp-2/20261017T015103Z-specs-and-assistant). #1 "Asian time zones" sometimes ends at UTC+09:00 (or +12) instead of +14, so it keeps the UTC+10 role; #6 "keine befristeten Stellen" covers German, English, Dutch and Portuguese phrases but sometimes leaves out "a termo". Nothing was ever applied without Apply. Fixes so far: a flat wire schema (705363a), contains for free-text facts (6192afe), the job mail's languages in the prompt (2c90ade).
+- **Options:**
+  1. Keep tuning the prompt; region or wording hints would be market-specific
+  2. Sign off with this open item; the user can edit a proposal before Apply
+  3. Loosen the fixture expectations
+- **Chosen:** Option 2, by the owner on 2026-10-17. MVP 2 is "accepted with open items".
+- **If you decide otherwise:** Revisit in MVP 3: for example, let the assistant show the roles a rule would hide before Apply (the preview already counts them), or ask back when a region is ambiguous.
+- **Refs:** F8, MVP-2 "Quality with a real AI provider", requests.json #1 and #6
+- **Status:** open
+
