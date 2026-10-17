@@ -32,6 +32,17 @@ describe("assistant.v1's instruction", () => {
     expect(system).toContain(" extra.<key>: a list of words");
   });
 
+  it("says `in` takes a whole value and free text needs `contains` with the mail's wording (F3)", () => {
+    expect(system).toContain(
+      "`in`, `not_in` and `equals` hold only when the fact's whole value, or a whole item of a list, is one of the words: use them for facts with a fixed set of values, places.country, workMode, sender.domain, category, skills or languages,",
+    );
+    expect(system).toContain(
+      "contract, company, agency or extra.<key> are free text as the mail words it, so `in` almost never holds for them: use `contains`",
+    );
+    expect(system).toContain("give short phrases as a mail would write them");
+    expect(system).toContain("in each language the user's mail may be in");
+  });
+
   it("asks one clarifying question with choices instead of guessing (F8.6)", () => {
     expect(system).toMatch(/unclear.*`clarify`.*`choices`.*never guess/);
     // …but a clear request whose value has several readings gets the likeliest, to edit (F8.2).

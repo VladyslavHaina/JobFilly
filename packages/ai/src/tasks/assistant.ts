@@ -43,6 +43,36 @@ const OP_VALUES: Record<RuleOp, string> = {
   missing: "null",
 };
 
+/**
+ * Which facts hold free text as the mail words it (JobFacts keeps contract, company and agency
+ * names and extra facts as written) and which a fixed set of values; a new fact in
+ * packages/schema fails typecheck here. The engine compares `in`, `not_in` and `equals` with the
+ * whole value, and `contains` in whole words, so a rule on free text needs `contains`.
+ */
+const FREE_TEXT: Record<(typeof RULE_FACTS)[number], boolean> = {
+  "places.country": false,
+  workMode: false,
+  timeZones: false,
+  pay: false,
+  contract: true,
+  company: true,
+  agency: true,
+  "sender.domain": false,
+  category: false,
+  skills: false,
+  languages: false,
+};
+
+/** How `in` and `contains` differ, and which facts need which. */
+function opSemantics(): string {
+  const free = [...RULE_FACTS.filter((f) => FREE_TEXT[f]), "extra.<key>"];
+  const fixed = RULE_FACTS.filter((f) => !FREE_TEXT[f] && f !== "timeZones" && f !== "pay");
+  return [
+    `\`in\`, \`not_in\` and \`equals\` hold only when the fact's whole value, or a whole item of a list, is one of the words: use them for facts with a fixed set of values, ${either(fixed)}, with codes and values as the profile and this instruction write them.`,
+    `${either(free)} are free text as the mail words it, so \`in\` almost never holds for them: use \`contains\`, which holds when the text has any of the words as whole words, and give short phrases as a mail would write them (not inflected as in the user's message), in each language the user's mail may be in, as the profile and the message show.`,
+  ].join(" ");
+}
+
 /** The ops in schema order, neighbours with the same value together: "in or not_in (value: …)". */
 function opWords(): string {
   const groups: { ops: RuleOp[]; value: string }[] = [];
@@ -96,6 +126,7 @@ const INSTRUCTION = [
     "Each change sets `op`, `target` (rule or entry), `ruleId` for a rule it updates or removes, `key` for an entry, `rule` to the rule as JSON text for add and update, and `value` to the entry's value as JSON text; every field a change doesn't use is null.",
     "A rule is { description, when, then, enabled }: `description` says in plain words what it does; it holds when every condition in `when` holds;",
     `\`then\` is ${either(RULE_ACTIONS)}. A condition is { fact, op, value } with fact one of ${either([...RULE_FACTS, "extra.<key>"])}; op ${opWords()}.`,
+    opSemantics(),
     `An entry's value, by key: ${keyWords()}.`,
     "Use only values the user stated or the profile holds; never invent one.",
   ].join(" "),
