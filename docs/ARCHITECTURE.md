@@ -421,6 +421,15 @@ Rules:
   that runs `applyAndReevaluate` on it (a savepoint), so each happens once; live events raised
   inside are sent only after the commit. Undo restores the entry's `before` (`restoreChanges`)
   by hand (source you), so the restore is in the history too. Neither writes a draft.
+- A question (MVP 3, F8) is a turn where assistant.v1 asks for read-only lookups: the server runs
+  them in `apps/server/src/assistant/lookups.ts` with the asking member's access (a pipeline-only
+  member gets no message text and no draft data), at most five, once each; answer.v1 answers
+  from their results only, and any proposal or clarifying question in that turn is dropped, so
+  mail can never become a change. Only refs a lookup returned are kept; they become links in
+  `assistant/links.ts` when the thread is read, re-checked against the member's current access.
+- With several profiles a proposal targets one profile (named in the message or the thread, or
+  the only one; otherwise the reply asks which) and its impact preview counts only that
+  profile's roles.
 
 ## AI
 
