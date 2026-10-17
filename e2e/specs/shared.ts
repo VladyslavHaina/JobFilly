@@ -22,7 +22,8 @@ import {
   personaPathsMvp2,
   readJson,
 } from "../fixtures/format.ts";
-import type { DraftsReport, SmtpReport } from "../seed/commands.ts";
+import type { MailboxName } from "../seed/accounts.ts";
+import type { DraftsReport, SentReport, SmtpReport } from "../seed/commands.ts";
 import { COMPOSE_FILE, fileState } from "../stack.ts";
 
 // What every MVP's scenario specs share: the running test stack (its compose project, the
@@ -236,8 +237,18 @@ export async function submitSignIn(page: Page, persona: Persona) {
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
 }
 
-/** The pages of a workspace, as the Main navigation names them. */
-type MainPage = "Inbox" | "Drafts" | "Decisions" | "Profile" | "CVs" | "Members";
+/** The pages of a workspace, as the Main navigation names them (MVP 3 adds Pipeline and Activity). */
+type MainPage =
+  | "Inbox"
+  | "Pipeline"
+  | "Drafts"
+  | "Decisions"
+  | "Scan"
+  | "Intake"
+  | "Profile"
+  | "CVs"
+  | "Members"
+  | "Activity";
 
 /**
  * Opens a page of the workspace through the Main navigation. Decisions carries the open count
@@ -254,8 +265,8 @@ export async function openPage(page: Page, name: MainPage) {
   await expect(link).toHaveAttribute("aria-current", "page");
 }
 
-/** The tabs of Settings, as its navigation names them. */
-type SettingsTab = "Mailbox" | "AI";
+/** The tabs of Settings, as its navigation names them (MVP 3 adds Sending and Data). */
+type SettingsTab = "Mailbox" | "Sending" | "AI" | "Data";
 
 /**
  * Opens a tab of Settings through the Main navigation, as an admin does. Every role here is
@@ -406,6 +417,8 @@ export function cvName(persona: Persona, fixtureName: string): string {
 export function roleParts(page: Page, position = 1) {
   return {
     facts: page.getByRole("region", { name: `Role ${position}`, exact: true }),
+    /** MVP 3 (F1.3): the profile the role is assigned to, with why. */
+    profile: page.getByRole("region", { name: `Profile for role ${position}`, exact: true }),
     fit: page.getByRole("region", { name: `Fit for role ${position}`, exact: true }),
     cv: page.getByRole("region", { name: `CV for role ${position}`, exact: true }),
     draft: page.getByRole("region", { name: `Reply draft for role ${position}`, exact: true }),
@@ -533,4 +546,59 @@ export function followLogs(): FollowedLogs {
     },
     stop: () => child.kill(),
   };
+}
+
+// --- MVP 3 -----------------------------------------------------------------------------------
+
+/** `seed inspect sent <mailbox>`: what the app itself filed in the mailbox's Sent folder. */
+export const inspectSent = (mailbox: MailboxName): SentReport =>
+  seedJson<SentReport>(seed(["inspect", "sent", mailbox]));
+
+/**
+ * A pg_dump of the stack's database as text: the verification step of MVP 3's S11 and S12 (what
+ * a deleted account or a disconnected mailbox leaves behind).
+ */
+export const pgDump = (): string =>
+  compose(["exec", "-T", "postgres", "pg_dump", "--username", "jobfilly", "--dbname", "jobfilly"]);
+
+/**
+ * A card headed by these words: in Settings › Mailbox and Settings › Sending each mailbox's card
+ * is headed by its address (F3.1).
+ */
+export const cardHeaded = (page: Page, heading: string): Locator =>
+  page
+    .locator("section")
+    .filter({ has: page.getByRole("heading", { name: heading, exact: true }) });
+
+/**
+ * Shows this profile on the Profile page, picked in its Profile switcher (F1.1); a profile that is
+ * switched off is listed there as "<name> (off)".
+ */
+export async function showProfile(page: Page, name: string) {
+  await openPage(page, "Profile");
+  const switcher = page.getByRole("combobox", { name: "Profile", exact: true });
+  await expect(switcher).toBeVisible();
+  const options = await switcher.locator("option").allTextContents();
+  const label = options.find((o) => o === name || o === `${name} (off)`);
+  expect(label, `the Profile switcher lists ${name}`).toBeDefined();
+  await switcher.selectOption({ label: label ?? name });
+  await expect(page.getByRole("heading", { name, level: 1, exact: true })).toBeVisible();
+}
+
+/** Turns the inbox's Hidden filter on or off (MVP 2 F3.4). */
+export async function showHidden(page: Page, on: boolean) {
+  const filter = page.getByRole("button", { name: "Hidden", exact: true });
+  if ((await filter.getAttribute("aria-pressed")) !== String(on)) await filter.click();
+  await expect(filter).toHaveAttribute("aria-pressed", String(on));
+}
+
+/** A member's row on the Members page, found by their address. */
+export const memberRow = (page: Page, persona: Persona): Locator =>
+  page.getByRole("listitem").filter({ hasText: PERSONA_ADDRESSES[persona] });
+
+/** The newest answer's links in the Assistant panel (MVP 3, F8.1), as their visible words. */
+export async function answerLinks(panel: Locator): Promise<string[]> {
+  const links = panel.getByRole("list", { name: "Used in this answer", exact: true }).last();
+  await expect(links).toBeVisible({ timeout: 10_000 });
+  return (await links.getByRole("link").allInnerTexts()).map((t) => t.trim());
 }
