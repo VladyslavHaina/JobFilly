@@ -1,5 +1,5 @@
 import { getMembership } from "@jobfilly/db";
-import { IdSchema, type Role, roleAtLeast } from "@jobfilly/schema";
+import { IdSchema, type Role, roleAtLeast, scopeOf } from "@jobfilly/schema";
 import type { MiddlewareHandler } from "hono";
 import type { AppDeps } from "../deps";
 import type { WorkspaceEnv } from "./env";
@@ -26,6 +26,19 @@ export function workspaceMember(deps: Pick<AppDeps, "db">): MiddlewareHandler<Wo
     c.set("workspaceId", workspaceId);
     c.set("membership", membership);
     c.set("log", c.get("log").child({ workspaceId }));
+    await next();
+  };
+}
+
+/**
+ * 404, as for anything that doesn't exist, unless the member sees everything (MVP 3, F6.2): a
+ * member who sees the job pipeline only gets no message bodies, drafts (nor sending) or non-job
+ * mail. Mounted in front of whole route modules (app.ts) or used by a handler.
+ */
+export function requireFullAccess(): MiddlewareHandler<WorkspaceEnv> {
+  return async (c, next) => {
+    const membership = c.get("membership");
+    if (!membership || scopeOf(membership) !== "everything") return c.json(NOT_FOUND, 404);
     await next();
   };
 }

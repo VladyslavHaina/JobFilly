@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { getCvFile, getMailboxConnection, getMessageRef } from "@jobfilly/db";
+import { getCvFile, getMailboxConnection, getMessageMailbox, getMessageRef } from "@jobfilly/db";
 import { MailUnavailableError } from "@jobfilly/mail";
 import {
   CV_MIME_TYPES,
@@ -40,7 +40,7 @@ export async function originalFor(
 ): Promise<OriginalMessage> {
   const ref = await getMessageRef(deps.db, ws, messageId);
   if (!ref) throw new DraftMailboxError(GONE);
-  const client = await session.get();
+  const client = await session.get(await mailboxOf(deps, ws, messageId));
   if (!client) throw new DraftMailboxError(NO_MAILBOX);
   const original = await client.fetchOriginal(ref);
   if (!original) throw new DraftMailboxError(GONE);
@@ -80,8 +80,26 @@ export function newDraftMessageId(address: string): string {
  * keeps on the copy, so a retry (or a discard of a failed draft) can find the copy an earlier
  * attempt left.
  */
-export async function draftMessageIdFor(deps: AppDeps, ws: string): Promise<string> {
-  return newDraftMessageId((await getMailboxConnection(deps.db, ws))?.address ?? "");
+export async function draftMessageIdFor(
+  deps: AppDeps,
+  ws: string,
+  messageId: string,
+): Promise<string> {
+  const mailboxId = await mailboxOf(deps, ws, messageId);
+  return newDraftMessageId((await getMailboxConnection(deps.db, ws, mailboxId))?.address ?? "");
+}
+
+/**
+ * The mailbox a message lives in (MVP 3, F3.1), so its draft goes to that mailbox's Drafts
+ * folder; null is the workspace's first mailbox (mail stored before MVP 3), as for an unknown
+ * message.
+ */
+export async function mailboxOf(
+  deps: AppDeps,
+  ws: string,
+  messageId: string,
+): Promise<string | null> {
+  return (await getMessageMailbox(deps.db, ws, messageId)) ?? null;
 }
 
 /** UIDVALIDITY 0 is never a folder's (RFC 3501): a ref with it names a copy by Message-ID. */

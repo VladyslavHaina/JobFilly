@@ -2,7 +2,13 @@ import { randomUUID } from "node:crypto";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { routePath } from "hono/route";
-import { type AppEnv, originCheck, type WorkspaceEnv, workspaceMember } from "./access";
+import {
+  type AppEnv,
+  originCheck,
+  requireFullAccess,
+  type WorkspaceEnv,
+  workspaceMember,
+} from "./access";
 import { requireUser, sessionMiddleware } from "./auth/session";
 import type { AppDeps } from "./deps";
 import { eventsRoutes } from "./live";
@@ -76,8 +82,17 @@ export function createApp(deps: AppDeps) {
 
   const workspace = app.basePath("/api/workspaces/:workspaceId");
   workspace.use("/*", requireUser, workspaceMember(deps));
-  const mount = (name: string, routes: WorkspaceRoutes) =>
-    workspace.route(`/${name}`, routes(deps));
+  /**
+   * Mounts a route module. `mail: true` (MVP 3, F6.2): the whole module holds mail content (drafts,
+   * sending), so a member who sees the job pipeline only gets 404 there, before any handler runs.
+   */
+  const mount = (name: string, routes: WorkspaceRoutes, options: { mail?: boolean } = {}) => {
+    if (!options.mail) return workspace.route(`/${name}`, routes(deps));
+    const guarded = new Hono<WorkspaceEnv>();
+    guarded.use("*", requireFullAccess());
+    guarded.route("/", routes(deps));
+    return workspace.route(`/${name}`, guarded);
+  };
   mount("members", membersRoutes);
   mount("invites", workspaceInvitesRoutes);
   mount("events", (d) => eventsRoutes(d));
@@ -92,7 +107,7 @@ export function createApp(deps: AppDeps) {
   mount("profiles", historyRoutes);
   mount("cvs", cvsRoutes);
   mount("senders", sendersRoutes);
-  mount("drafts", draftsRoutes);
+  mount("drafts", draftsRoutes, { mail: true });
   mount("decisions", decisionsRoutes);
   mount("assistant", assistantRoutes);
 

@@ -10,6 +10,7 @@ import {
   copyByMessageId,
   DraftMailboxError,
   isMailboxError,
+  mailboxOf,
   mailboxReason,
   originalFor,
 } from "./mailbox";
@@ -37,14 +38,18 @@ const CHANGED = { ok: false, error: "conflict", message: "The draft changed mean
 /** How often a discard deletes a newer copy an edit made meanwhile before it gives up. */
 const DISCARD_ROUNDS = 3;
 
-/** Runs the mailbox side of a change; any failure there is the mailbox's, in plain words. */
+/**
+ * Runs the mailbox side of a change in the mailbox of the draft's message (MVP 3, F3.1); any
+ * failure there is the mailbox's, in plain words.
+ */
 async function inMailbox<T>(
   session: MailboxSession,
+  mailboxId: string | null,
   log: Logger,
   work: (client: MailClient) => Promise<T>,
 ): Promise<{ ok: true; value: T } | { ok: false; reason: string }> {
   try {
-    const client = await session.get();
+    const client = await session.get(mailboxId);
     if (!client) throw new DraftMailboxError("No mailbox is connected");
     return { ok: true, value: await work(client) };
   } catch (error) {
@@ -79,9 +84,11 @@ export async function editDraft(
   const reply = { subject: edit.subject, body: edit.body };
   const fromCv = await attachmentFor(deps, ws, draft.cvId);
   const session = mailboxSession(deps, ws);
+  const mailboxId = await mailboxOf(deps, ws, draft.messageId);
   try {
     const replaced = await inMailbox<{ ref: DraftRef; attachment: DraftAttachment | null }>(
       session,
+      mailboxId,
       log,
       async (client) => {
         const original = await originalFor(deps, ws, session, draft.messageId);
@@ -115,7 +122,7 @@ export async function editDraft(
       // Another change won since the draft was read: the copy this edit made goes again, so the
       // one the winner left is the only one. That copy has a Message-ID of its own, so deleting it
       // by Message-ID (no UID known) can't take the winner's.
-      const removed = await inMailbox(session, log, (client) => client.deleteDraft(ref));
+      const removed = await inMailbox(session, mailboxId, log, (client) => client.deleteDraft(ref));
       if (!removed.ok) log.warn("draft.copy_left", { draftId: draft.id, reason: "delete_failed" });
       return CHANGED;
     }
@@ -153,7 +160,8 @@ export async function discardDraft(
       const copy = draft.mailbox;
       const kept = draft.draftMessageId;
       if (copy || kept !== null) {
-        const deleted = await inMailbox(session, log, async (client) => {
+        const mailboxId = await mailboxOf(deps, ws, draft.messageId);
+        const deleted = await inMailbox(session, mailboxId, log, async (client) => {
           if (copy) return client.deleteDraft(copy);
           // A failed draft's append may have reached the server and failed after it: any copy
           // with the Message-ID it kept goes, so a discarded draft leaves none (F6.4).

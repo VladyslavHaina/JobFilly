@@ -98,26 +98,36 @@ async function confirmedProfile(deps: AppDeps, ws: string): Promise<Profile | nu
 }
 
 /**
- * The workspace's mailbox, opened on first use and kept for the evaluations that share it, so a
- * run logs in once, not once per message. An open that failed stays failed for the session: the
- * rest of the run doesn't log in again, and what needed the mailbox waits for the next sweep.
+ * The workspace's mailboxes, each opened on first use and kept for the evaluations that share
+ * it, so a run logs in once per mailbox, not once per message. `get` takes a message's mailbox
+ * (MVP 3, F3.1); none names the workspace's first, where mail stored before MVP 3 lives. An open
+ * that failed stays failed for the session: the rest of the run doesn't log in again, and what
+ * needed that mailbox waits for the next sweep.
  */
 export interface MailboxSession {
-  get(): Promise<MailClient | null>;
+  get(mailboxId?: string | null): Promise<MailClient | null>;
   close(): Promise<void>;
 }
 
 export function mailboxSession(deps: AppDeps, ws: string): MailboxSession {
-  let opened: Promise<MailClient | null> | null = null;
+  const opened = new Map<string, Promise<MailClient | null>>();
   return {
-    get() {
-      opened ??= connectMailbox(deps, ws);
-      return opened;
+    get(mailboxId) {
+      const key = mailboxId ?? "";
+      let client = opened.get(key);
+      if (!client) {
+        client = connectMailbox(deps, ws, mailboxId);
+        opened.set(key, client);
+      }
+      return client;
     },
     async close() {
-      const client = await opened?.catch(() => null);
-      opened = null;
-      await client?.close().catch(() => {});
+      const clients = [...opened.values()];
+      opened.clear();
+      for (const pending of clients) {
+        const client = await pending.catch(() => null);
+        await client?.close().catch(() => {});
+      }
     },
   };
 }
@@ -211,7 +221,7 @@ export async function evaluateMessage(
     log,
     body() {
       body ??= (async () => {
-        const client = await session.get();
+        const client = await session.get(message.mailboxId);
         if (!client) throw new Error("no mailbox is connected");
         const fetched = await client.fetchBody(ref);
         if (!fetched) {
@@ -224,7 +234,7 @@ export async function evaluateMessage(
     },
     original() {
       original ??= (async () => {
-        const client = await session.get();
+        const client = await session.get(message.mailboxId);
         if (!client) throw new Error("no mailbox is connected");
         return client.fetchOriginal(ref);
       })();

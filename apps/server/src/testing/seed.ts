@@ -106,7 +106,8 @@ export async function seedMailbox(
     secretCiphertext: seal(deps.config.secretKey, input.conn.password),
     sentFolderPath: input.sentFolderPath,
   });
-  if (!result.ok) throw new Error("seedMailbox: the workspace already has a mailbox");
+  if (!result.ok)
+    throw new Error("seedMailbox: the workspace already has a mailbox at that address");
   return result.mailboxId;
 }
 

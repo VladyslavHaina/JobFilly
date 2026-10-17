@@ -52,6 +52,7 @@ async function sortWindow(
   scan: Scan,
   mail: MailClient,
   ownAddresses: string[],
+  mailboxId: string,
 ): Promise<ScanCheckpoint> {
   const since = new Date(Date.parse(scan.startedAt) - SCAN_WINDOW_DAYS * DAY);
   let envelopes: Awaited<ReturnType<MailClient["fetchEnvelopes"]>>;
@@ -64,11 +65,12 @@ async function sortWindow(
     throw new RunFailed("mailbox", "stage_one_error");
   }
   const outcome = stageOne(envelopes, { ownAddresses, platforms: loadJobPlatforms() });
-  await saveEnvelopes(deps.db, scan.workspaceId, [
-    ...outcome.handled,
-    ...outcome.candidates,
-    ...outcome.ownReplies,
-  ]);
+  await saveEnvelopes(
+    deps.db,
+    scan.workspaceId,
+    [...outcome.handled, ...outcome.candidates, ...outcome.ownReplies],
+    { mailboxId },
+  );
   return {
     ...START,
     likely: await countNotAnalyzed(deps.db, scan.workspaceId),
@@ -183,7 +185,13 @@ export function createScanRunHandler(
         checkpoint = saved.data;
       } else if (scan.kind === "first") {
         try {
-          checkpoint = await sortWindow(deps, scan, mail, [mailbox.address, mailbox.username]);
+          checkpoint = await sortWindow(
+            deps,
+            scan,
+            mail,
+            [mailbox.address, mailbox.username],
+            mailbox.mailboxId,
+          );
         } catch (error) {
           if (ctx.signal.aborted || !(error instanceof RunFailed)) throw error;
           return await fail(deps, scan, log, error.stopCause, error.code);

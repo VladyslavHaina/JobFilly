@@ -7,7 +7,7 @@ import { type Database, type DatabaseConnection, queryRows } from "./client";
 import { migrateLocked, pendingMigrations } from "./migrate";
 import { checkChannel, type Notifier } from "./notify";
 import type { RoleRef } from "./queries/evaluations";
-import { drafts } from "./tables";
+import { activityLog, drafts } from "./tables";
 
 // Tests run against PGlite (Postgres compiled to WebAssembly) in memory: no Docker, no network.
 // Starting PGlite takes about a second, so each test process migrates once, copies the result
@@ -163,4 +163,22 @@ export async function markTestDraftInMailbox(
     )
     .returning({ id: drafts.id });
   return rows.length > 0;
+}
+
+/**
+ * The workspace's activity log rows as stored, oldest first (tests only): what recordActivity
+ * wrote, before the workspace-admin slice's reader words them (MVP 3, F9).
+ */
+export async function activityRows(db: Database, workspaceId: string) {
+  return db
+    .select({
+      kind: activityLog.kind,
+      actorKind: activityLog.actorKind,
+      actorId: activityLog.actorId,
+      targetUserId: activityLog.targetUserId,
+      refs: activityLog.refs,
+    })
+    .from(activityLog)
+    .where(eq(activityLog.workspaceId, workspaceId))
+    .orderBy(activityLog.at, activityLog.id);
 }

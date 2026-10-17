@@ -8,9 +8,11 @@ import { open } from "./secrets";
 // with JOBFILLY_ALLOW_INSECURE_MAIL, so the password is opened in one place and never leaves the
 // mail client.
 //
-//   connectMailbox        reads the stored connection; null when there is none. The body route
-//                         (routes/messages.ts) and the pipeline (pipeline/evaluate.ts) use it;
-//                         the drafts, when their slice writes them, are to use it.
+//   connectMailbox        reads the stored connection of one mailbox (MVP 3: a message's own,
+//                         F3.1; none named is the workspace's first, where mail stored before
+//                         MVP 3 lives); null when there is none. The body route
+//                         (routes/messages.ts), the pipeline (pipeline/evaluate.ts) and the
+//                         drafts (drafts/) use it.
 //   connectStoredMailbox  opens a row the caller already read: the scan (jobs/scan) and the sync
 //                         (sync/run.ts).
 
@@ -26,14 +28,16 @@ export class MailboxSecretError extends Error {
 }
 
 /**
- * A client for the workspace's mailbox, or null when none is connected. Throws
- * MailboxSecretError when the password won't open (connectStoredMailbox).
+ * A client for one of the workspace's mailboxes (its first when `mailboxId` is null or left
+ * out), or null when that one isn't connected. Throws MailboxSecretError when the password won't
+ * open (connectStoredMailbox).
  */
 export async function connectMailbox(
   deps: AppDeps,
   workspaceId: string,
+  mailboxId?: string | null,
 ): Promise<MailClient | null> {
-  const mailbox = await getMailboxConnection(deps.db, workspaceId);
+  const mailbox = await getMailboxConnection(deps.db, workspaceId, mailboxId);
   return mailbox ? connectStoredMailbox(deps, mailbox) : null;
 }
 

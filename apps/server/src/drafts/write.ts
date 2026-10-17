@@ -15,6 +15,7 @@ import {
   loadMessageInputs,
   markDraftFailed,
   markDraftSaved,
+  recordActivity,
   releaseClaimWithNeeds,
   roleDecisions,
   type StoredDraft,
@@ -324,6 +325,18 @@ export async function createDraft(
       return;
     }
     log.info("draft.saved_to_mailbox", { draftId: draft.id, attached: mail.attachment !== null });
+    // An outward action (MVP 3, F9.1): the app's own, or the member's who asked for it.
+    await recordActivity(
+      deps.db,
+      ws,
+      {
+        kind: "draft.saved",
+        actor: draft.createdBy ? { kind: "user", userId: draft.createdBy } : { kind: "system" },
+        targetUserId: null,
+        refs: { draftId: draft.id, messageId: payload.messageId, position: payload.position },
+      },
+      deps.clock.now(),
+    );
     await publish();
     await deps.live.publish(ws, {
       type: "messages.updated",
@@ -380,7 +393,7 @@ async function prepare(
       await done.fail(written.failure, written.reason);
       return null;
     }
-    const draftMessageId = await draftMessageIdFor(deps, ws);
+    const draftMessageId = await draftMessageIdFor(deps, ws, payload.messageId);
     await saveDraftText(deps.db, ws, draft.id, {
       ...written,
       draftMessageId,
@@ -390,7 +403,7 @@ async function prepare(
   }
 
   const attachment = await attachmentFor(deps, ws, text.cvId);
-  const client = await session.get();
+  const client = await session.get(message.mailboxId);
   if (!client) throw new DraftMailboxError("No mailbox is connected");
   return {
     client,

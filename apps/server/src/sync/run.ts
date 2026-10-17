@@ -157,12 +157,13 @@ async function aiFor(
 async function cursorOf(
   deps: AppDeps,
   workspaceId: string,
+  mailboxId: string,
   state: SyncState | null,
 ): Promise<{ uidValidity: number | null; lastUid: number }> {
   if (state?.uidValidity != null) {
     return { uidValidity: state.uidValidity, lastUid: state.lastUid ?? 0 };
   }
-  const stored = await newestStoredUid(deps.db, workspaceId, SYNC_FOLDER);
+  const stored = await newestStoredUid(deps.db, workspaceId, SYNC_FOLDER, { mailboxId });
   return stored
     ? { uidValidity: stored.uidValidity, lastUid: stored.uid }
     : { uidValidity: null, lastUid: 0 };
@@ -265,10 +266,9 @@ export async function syncMailbox(
 ): Promise<SyncOutcome> {
   const { db } = deps;
   const log = deps.log.child({ workspaceId });
-  const mailbox = await getMailboxConnection(db, workspaceId);
-  // Disconnected (or replaced) since the job was queued.
-  if (!mailbox || mailbox.mailboxId !== mailboxId)
-    return { status: "skipped", reason: "no_mailbox" };
+  const mailbox = await getMailboxConnection(db, workspaceId, mailboxId);
+  // Disconnected since the job was queued.
+  if (!mailbox) return { status: "skipped", reason: "no_mailbox" };
   const firstScan = await getLatestScan(db, workspaceId, "first");
   if (firstScan?.status !== "stopped") {
     return { status: "skipped", reason: "first_scan_running" };
@@ -287,7 +287,7 @@ export async function syncMailbox(
   try {
     mail = connect(deps, mailbox);
     const client = mail;
-    const cursor = await cursorOf(deps, workspaceId, state);
+    const cursor = await cursorOf(deps, workspaceId, mailboxId, state);
     const result = await client.fetchSince({
       folder: "inbox",
       uidValidity: cursor.uidValidity,
@@ -315,7 +315,7 @@ export async function syncMailbox(
 
     // Stored messages move to their UIDs now; the rest is new. After a known cursor that is
     // every one of them; reading the whole folder, only what arrived within the scan's window.
-    const known = await reindexMessages(db, workspaceId, result.messages);
+    const known = await reindexMessages(db, workspaceId, result.messages, { mailboxId });
     const wholeFolder = cursor.uidValidity === null || result.changed;
     const windowStart = Date.parse(firstScan.startedAt) - SCAN_WINDOW_DAYS * DAY;
     const unknown = result.messages.filter((e) => !known.has(e.messageId));
@@ -326,11 +326,12 @@ export async function syncMailbox(
       ownAddresses: [mailbox.address, mailbox.username],
       platforms: loadJobPlatforms(),
     });
-    await saveEnvelopes(db, workspaceId, [
-      ...sorted.handled,
-      ...sorted.candidates,
-      ...sorted.ownReplies,
-    ]);
+    await saveEnvelopes(
+      db,
+      workspaceId,
+      [...sorted.handled, ...sorted.candidates, ...sorted.ownReplies],
+      { mailboxId },
+    );
     if (fresh.length > 0) await publish(deps, log, workspaceId, "messages.updated");
 
     // The new likely job mail, and mail an earlier sync stored but couldn't have sorted yet:
