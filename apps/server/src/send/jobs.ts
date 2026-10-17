@@ -89,9 +89,14 @@ export async function runSend(
       // Undo won: nothing is sent.
       if (!(await startSend(deps.db, ws, send.id, deps.clock.now()))) return;
       try {
-        await deps.smtp.send(smtpLogin(deps, from), built.message.envelope, built.message.raw, {
-          allowInsecure: deps.config.allowInsecureMail,
-        });
+        await deps.smtp.send(
+          await smtpLogin(deps, from),
+          built.message.envelope,
+          built.message.raw,
+          {
+            allowInsecure: deps.config.allowInsecureMail,
+          },
+        );
       } catch (error) {
         const reason =
           error instanceof SmtpError

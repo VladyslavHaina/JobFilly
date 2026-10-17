@@ -6,10 +6,10 @@ import {
   type StoredSmtp,
 } from "@jobfilly/db";
 import { composeOutgoing, MAIL_PRESETS, type OutgoingMessage } from "@jobfilly/mail";
-import { OAuthTokensSchema, type SmtpLogin } from "@jobfilly/schema";
+import type { SmtpLogin } from "@jobfilly/schema";
 import type { AppDeps } from "../deps";
 import { attachmentFor, contentHash, mailboxOf, originalFor } from "../drafts/mailbox";
-import { MailboxSecretError } from "../mailbox";
+import { MailboxSecretError, mailboxLogin } from "../mailbox";
 import type { MailboxSession } from "../pipeline/evaluate";
 import { open } from "../secrets";
 
@@ -53,22 +53,24 @@ export async function sendFrom(
 }
 
 /**
- * The SMTP login: a Google mailbox signs in with its OAuth access token (XOAUTH2), any other with
- * its SMTP password, or its IMAP password when it has none of its own. Throws MailboxSecretError
- * when the sealed secret won't open with this JOBFILLY_SECRET_KEY.
+ * The SMTP login: a Google mailbox signs in with its OAuth access token (XOAUTH2), refreshed
+ * through mailboxLogin when it is about to expire; any other with its SMTP password, or its IMAP
+ * password when it has none of its own. Throws MailboxSecretError when the sealed secret won't
+ * open with this JOBFILLY_SECRET_KEY.
  */
-export function smtpLogin(deps: AppDeps, from: SendFrom): SmtpLogin {
+export async function smtpLogin(deps: AppDeps, from: SendFrom): Promise<SmtpLogin> {
   const { mailbox, smtp } = from;
   const server = { host: smtp.host, port: smtp.port, tlsMode: smtp.tlsMode };
+  if (mailbox.authKind === "google") {
+    const login = await mailboxLogin(deps, mailbox);
+    if (!("accessToken" in login) || !login.accessToken) throw new MailboxSecretError();
+    return { ...server, username: smtp.username, accessToken: login.accessToken };
+  }
   let secret: string;
   try {
     secret = open(deps.config.secretKey, smtp.secretCiphertext ?? mailbox.secretCiphertext);
   } catch {
     throw new MailboxSecretError();
-  }
-  if (mailbox.authKind === "google") {
-    const tokens = OAuthTokensSchema.parse(JSON.parse(secret));
-    return { ...server, username: smtp.username, accessToken: tokens.accessToken };
   }
   return { ...server, username: smtp.username, password: secret };
 }

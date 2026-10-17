@@ -426,6 +426,7 @@ describe("a Google mailbox (F3, F4)", () => {
     smtp: { host: "smtp.gmail.com", port: 465, tlsMode: "tls" as const },
   };
   const mailbox = (): StoredMailbox => ({
+    workspaceId: h.ws,
     mailboxId: "6f1c2f4e-8d3a-4b5c-9e7f-0a1b2c3d4e5f",
     address: "maria.gmail@gmail.example",
     host: "imap.gmail.com",
@@ -437,7 +438,8 @@ describe("a Google mailbox (F3, F4)", () => {
       JSON.stringify({
         accessToken: "E2E-SECRET-access",
         refreshToken: "E2E-SECRET-refresh",
-        expiresAt: "2026-10-16T11:00:00.000Z",
+        // Valid well past the test clock, so the login needs no refresh.
+        expiresAt: "2099-01-01T00:00:00.000Z",
         email: "maria.gmail@gmail.example",
       }),
     ),
@@ -446,7 +448,7 @@ describe("a Google mailbox (F3, F4)", () => {
     authKind: "google",
   });
 
-  it("sends through the server's Google SMTP host only, with its access token", () => {
+  it("sends through the server's Google SMTP host only, with its access token", async () => {
     h.deps.config.google = google;
     const smtp = googleSmtp(h.deps, mailbox());
     expect(smtp).toEqual({
@@ -455,7 +457,7 @@ describe("a Google mailbox (F3, F4)", () => {
       secretCiphertext: null,
     });
     if (!smtp) throw new Error("expected Google's SMTP");
-    expect(smtpLogin(h.deps, { mailbox: mailbox(), smtp })).toEqual({
+    expect(await smtpLogin(h.deps, { mailbox: mailbox(), smtp })).toEqual({
       ...google.smtp,
       username: "maria.gmail@gmail.example",
       accessToken: "E2E-SECRET-access",
