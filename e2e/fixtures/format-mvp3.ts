@@ -3,6 +3,7 @@ import type {
   ExpectedFileMvp2,
   ExpectedMessageAll,
   FocusAnswer,
+  Persona,
   ProfileValues,
 } from "./format.ts";
 
@@ -32,10 +33,18 @@ import type {
 export const MARIA_HOME = "maria-home";
 export const MARIA_HOME_ADDRESS = "maria.home@post.example";
 
+/**
+ * Where a persona's mail for its Sent folder lives (`seed deliver` reads both files when they
+ * exist; only Maria has them).
+ */
+export function sentDeliveryPaths(persona: Persona) {
+  return { deliver: `${persona}/deliver-sent`, deliveries: `${persona}/deliveries-sent.json` };
+}
+
 /** Where MVP 3's own files live, relative to the fixtures directory. */
 export const MVP3_PATHS = {
-  sentDeliver: "maria/deliver-sent",
-  sentDeliveries: "maria/deliveries-sent.json",
+  sentDeliver: sentDeliveryPaths("maria").deliver,
+  sentDeliveries: sentDeliveryPaths("maria").deliveries,
   homeMail: `${MARIA_HOME}/mail`,
   homeEnvelopes: `${MARIA_HOME}/envelopes.json`,
   questions: "assistant/questions.json",
@@ -66,7 +75,7 @@ export type ApplicationStage =
   | "closed";
 
 /** One role of the pipeline as S6 expects it: a thread, or one role from two agencies. */
-export interface ExpectedPipelineItem {
+interface ExpectedPipelineItem {
   /** A name for the scenario to use ("offer", "two-agencies", …). */
   id: string;
   /** Its delivery ids (deliveries.json), oldest first. */
@@ -84,7 +93,7 @@ export interface ExpectedPipelineItem {
 }
 
 /** What the re-run with MARIA_RERUN_HINT proposes at least (S1): her replies say it. */
-export interface ExpectedRerun {
+interface ExpectedRerun {
   hint: string;
   /** focus.v1's answer for the hint. */
   focus: FocusAnswer;

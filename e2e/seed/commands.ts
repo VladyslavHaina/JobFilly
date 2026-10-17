@@ -4,11 +4,14 @@ import { join } from "node:path";
 import {
   type DeliveryEntry,
   type EnvelopeEntry,
+  isPersona,
   PERSONAS,
   type Persona,
   personaPaths,
   personaPathsMvp2,
 } from "../fixtures/format.ts";
+import { sentDeliveryPaths } from "../fixtures/format-mvp3.ts";
+import type { MailboxName } from "./accounts.ts";
 import type { GreenMailApi } from "./greenmail.ts";
 import { dateFor, prepareMessage, SeedError, type SeedImap } from "./load.ts";
 import { header, parseMime } from "./mime.ts";
@@ -19,6 +22,11 @@ import { header, parseMime } from "./mime.ts";
 //   inspect drafts <persona>     the persona's Drafts folder: threading, flags, text, attachments
 //   inspect smtp                 everything the mail server received over SMTP
 //   reset-uidvalidity <persona>  gives the persona's folders a new UIDVALIDITY, mail kept
+// and MVP 3's (MVP-3 › Fixtures added):
+//   deliver S1                   also appends Maria's replies to her Sent folder
+//                                (deliveries-sent.json), read like her own mail
+//   inspect sent <mailbox>       what the app put in a mailbox's Sent folder: everything there
+//                                the seed didn't load or deliver
 // The verification steps print JSON, so a walkthrough or a spec reads them the same way.
 
 /** A fetched message, as imapflow's fetchAll gives it. */
@@ -48,6 +56,7 @@ export interface MailboxImap extends SeedImap {
 }
 
 const INBOX = "INBOX";
+const SENT = "Sent";
 
 async function readJsonFile<T>(path: string, missing: string): Promise<T> {
   try {
@@ -57,29 +66,57 @@ async function readJsonFile<T>(path: string, missing: string): Promise<T> {
   }
 }
 
+/** A list file that only some mailboxes have: [] when it isn't there. */
+async function readListIfAny<T>(path: string): Promise<T[]> {
+  let text: string;
+  try {
+    text = await readFile(path, "utf8");
+  } catch {
+    return [];
+  }
+  try {
+    return JSON.parse(text) as T[];
+  } catch {
+    throw new SeedError(`${path} is not valid JSON`);
+  }
+}
+
 // --- deliver ---------------------------------------------------------------------------------
 
 export interface Delivered {
   persona: Persona;
   id: string;
   messageId: string;
+  /** The folder it went to: the Inbox, or Sent for the persona's own replies (MVP 3). */
+  folder: "Inbox" | "Sent";
+}
+
+interface Target {
+  persona: Persona;
+  entry: DeliveryEntry;
+  /** The IMAP folder, and the fixture directory its .eml files are in. */
+  folder: typeof INBOX | typeof SENT;
+  dir: string;
 }
 
 /**
  * Every delivery `targets` names, by id or by step ("S2" delivers the whole batch), in
- * deliveries.json order; an unknown target is an error naming the known ones.
+ * deliveries.json order, then deliveries-sent.json's; an unknown target is an error naming the
+ * known ones.
  */
-async function findDeliveries(
-  fixturesDir: string,
-  targets: readonly string[],
-): Promise<{ persona: Persona; entry: DeliveryEntry }[]> {
-  const all: { persona: Persona; entry: DeliveryEntry }[] = [];
+async function findDeliveries(fixturesDir: string, targets: readonly string[]): Promise<Target[]> {
+  const all: Target[] = [];
   for (const persona of PERSONAS) {
     const path = join(fixturesDir, personaPathsMvp2(persona).deliveries);
     const entries = await readJsonFile<DeliveryEntry[]>(path, `No deliveries for "${persona}"`);
-    for (const entry of entries) all.push({ persona, entry });
+    const dir = personaPathsMvp2(persona).deliver;
+    for (const entry of entries) all.push({ persona, entry, folder: INBOX, dir });
+    const sent = sentDeliveryPaths(persona);
+    for (const entry of await readListIfAny<DeliveryEntry>(join(fixturesDir, sent.deliveries))) {
+      all.push({ persona, entry, folder: SENT, dir: sent.deliver });
+    }
   }
-  const picked = new Set<DeliveryEntry>();
+  const picked = new Set<Target>();
   for (const target of targets) {
     const matches = all.filter(
       ({ entry }) => entry.id === target || entry.step.toLowerCase() === target.toLowerCase(),
@@ -90,9 +127,9 @@ async function findDeliveries(
         `Nothing to deliver for "${target}". Ids: ${all.map((d) => d.entry.id).join(", ")}; steps: ${steps.join(", ")}`,
       );
     }
-    for (const m of matches) picked.add(m.entry);
+    for (const m of matches) picked.add(m);
   }
-  return all.filter((d) => picked.has(d.entry));
+  return all.filter((d) => picked.has(d));
 }
 
 export interface DeliverOptions {
@@ -102,17 +139,23 @@ export interface DeliverOptions {
   open: (persona: Persona) => Promise<MailboxImap>;
 }
 
-/** `seed deliver`: appends each target to its persona's Inbox, unread, refusing a duplicate. */
+const FOLDER_NAMES = { [INBOX]: "Inbox", [SENT]: "Sent" } as const;
+
+/**
+ * `seed deliver`: appends each target to its persona's Inbox, unread, or (the persona's own
+ * replies) to Sent, read; refuses a duplicate before appending anything.
+ */
 export async function deliver(options: DeliverOptions): Promise<Delivered[]> {
   const deliveries = await findDeliveries(options.fixturesDir, options.targets);
   const prepared = await Promise.all(
-    deliveries.map(async ({ persona, entry }) => {
-      const path = join(options.fixturesDir, personaPathsMvp2(persona).deliver, entry.file);
+    deliveries.map(async (target) => {
+      const { persona, entry } = target;
+      const path = join(options.fixturesDir, target.dir, entry.file);
       const raw = await readFile(path).catch(() => {
-        throw new SeedError(`${persona}: ${entry.file} is listed in deliveries.json but missing`);
+        throw new SeedError(`${persona}: ${entry.file} is listed in deliveries but missing`);
       });
       const date = dateFor(options.now, entry.minutesAgo);
-      return { persona, entry, date, content: prepareMessage(raw, entry, date, persona) };
+      return { ...target, date, content: prepareMessage(raw, entry, date, persona) };
     }),
   );
   const out: Delivered[] = [];
@@ -121,19 +164,34 @@ export async function deliver(options: DeliverOptions): Promise<Delivered[]> {
     if (mine.length === 0) continue;
     const client = await options.open(persona);
     try {
-      await client.mailboxOpen(INBOX, { readOnly: true });
-      for (const { entry } of mine) {
-        const found = await client.search(
-          { header: { "message-id": entry.messageId } },
-          { uid: true },
-        );
-        if (found && found.length > 0) {
-          throw new SeedError(`${entry.id} is already in ${persona}'s Inbox: deliver it only once`);
+      const folders = new Set((await client.list()).map((f) => f.path));
+      for (const folder of [INBOX, SENT] as const) {
+        const here = mine.filter((p) => p.folder === folder);
+        if (here.length === 0 || !folders.has(folder)) continue;
+        await client.mailboxOpen(folder, { readOnly: true });
+        for (const { entry } of here) {
+          const found = await client.search(
+            { header: { "message-id": entry.messageId } },
+            { uid: true },
+          );
+          if (found && found.length > 0) {
+            throw new SeedError(
+              `${entry.id} is already in ${persona}'s ${FOLDER_NAMES[folder]}: deliver it only once`,
+            );
+          }
         }
       }
-      for (const { entry, date, content } of mine) {
-        await client.append(INBOX, content, [], date);
-        out.push({ persona, id: entry.id, messageId: entry.messageId });
+      if (mine.some((p) => p.folder === SENT) && !folders.has(SENT)) {
+        await client.mailboxCreate(SENT);
+      }
+      for (const { entry, date, content, folder } of mine) {
+        await client.append(folder, content, folder === SENT ? ["\\Seen"] : [], date);
+        out.push({
+          persona,
+          id: entry.id,
+          messageId: entry.messageId,
+          folder: FOLDER_NAMES[folder],
+        });
       }
     } finally {
       await client.logout();
@@ -144,7 +202,7 @@ export async function deliver(options: DeliverOptions): Promise<Delivered[]> {
 
 // --- inspect drafts --------------------------------------------------------------------------
 
-interface DraftInfo {
+interface MessageInfo {
   uid: number;
   messageId: string | null;
   inReplyTo: string | null;
@@ -164,7 +222,7 @@ export interface DraftsReport {
   persona: string;
   /** The Drafts folder's path, or null when the mailbox has none yet. */
   folder: string | null;
-  drafts: DraftInfo[];
+  drafts: MessageInfo[];
 }
 
 /** The Drafts folder: the one marked \Drafts (RFC 6154), else one named Drafts. */
@@ -176,7 +234,7 @@ function draftsFolder(folders: { path: string; specialUse?: string | undefined }
   );
 }
 
-function describeDraft(m: FetchedMessage): DraftInfo {
+function describeMessage(m: FetchedMessage): MessageInfo {
   const mime = parseMime(m.source ?? Buffer.alloc(0));
   const flags = [...(m.flags ?? [])].sort();
   const isAttachment = (p: { disposition: string | null; params: Record<string, string> }) =>
@@ -216,7 +274,72 @@ export async function inspectDrafts(persona: string, client: MailboxImap): Promi
       { uid: true, flags: true, internalDate: true, source: true },
       { uid: true },
     );
-    return { persona, folder, drafts: messages.sort((a, b) => a.uid - b.uid).map(describeDraft) };
+    return { persona, folder, drafts: messages.sort((a, b) => a.uid - b.uid).map(describeMessage) };
+  } finally {
+    await client.logout();
+  }
+}
+
+// --- inspect sent (MVP 3) --------------------------------------------------------------------
+
+export interface SentReport {
+  mailbox: string;
+  /** The Sent folder's path, or null when the mailbox has none. */
+  folder: string | null;
+  /** What is in Sent but the seed didn't put there, oldest first: what the app filed. */
+  messages: MessageInfo[];
+}
+
+/** The Sent folder: the one marked \Sent (RFC 6154), else one named Sent. */
+function sentFolder(folders: { path: string; specialUse?: string | undefined }[]) {
+  return (
+    folders.find((f) => f.specialUse === "\\Sent")?.path ??
+    folders.find((f) => /(^|[./])sent$/i.test(f.path))?.path ??
+    null
+  );
+}
+
+/** The Message-IDs the seed itself puts in a mailbox's Sent: its own mail and its deliveries. */
+async function seededSent(fixturesDir: string, mailbox: MailboxName): Promise<Set<string>> {
+  const envelopes = await readListIfAny<EnvelopeEntry>(
+    join(fixturesDir, mailbox, "envelopes.json"),
+  );
+  const delivered = isPersona(mailbox)
+    ? await readListIfAny<DeliveryEntry>(join(fixturesDir, sentDeliveryPaths(mailbox).deliveries))
+    : [];
+  return new Set([
+    ...envelopes.filter((e) => e.folder === "sent").map((e) => e.messageId),
+    ...delivered.map((d) => d.messageId),
+  ]);
+}
+
+/**
+ * `seed inspect sent <mailbox>` (F4.4): every message in the mailbox's Sent folder that the seed
+ * didn't load or deliver, with its threading, text and attachments, so a send that filed its copy
+ * twice shows two.
+ */
+export async function inspectSent(
+  fixturesDir: string,
+  mailbox: MailboxName,
+  client: MailboxImap,
+): Promise<SentReport> {
+  const seeded = await seededSent(fixturesDir, mailbox);
+  try {
+    const folder = sentFolder(await client.list());
+    if (folder === null) return { mailbox, folder, messages: [] };
+    const box = await client.mailboxOpen(folder, { readOnly: true });
+    if (box.exists === 0) return { mailbox, folder, messages: [] };
+    const messages = await client.fetchAll(
+      "1:*",
+      { uid: true, flags: true, internalDate: true, source: true },
+      { uid: true },
+    );
+    const described = messages.sort((a, b) => a.uid - b.uid).map(describeMessage);
+    return {
+      mailbox,
+      folder,
+      messages: described.filter((m) => m.messageId === null || !seeded.has(m.messageId)),
+    };
   } finally {
     await client.logout();
   }
@@ -229,8 +352,18 @@ export interface SmtpReport {
   messages: { account: string; messageId: string | null; subject: string | null }[];
 }
 
-/** The Message-IDs the seed itself puts in each persona's Inbox: the mailbox and the deliveries. */
-async function seededInbox(fixturesDir: string, persona: Persona): Promise<Set<string>> {
+/**
+ * The Message-IDs the seed itself puts in a mailbox's Inbox: its mail and its deliveries. A
+ * persona has both; Maria's other mailboxes (MVP 3) have their mail or nothing.
+ */
+async function seededInbox(fixturesDir: string, mailbox: MailboxName): Promise<Set<string>> {
+  if (!isPersona(mailbox)) {
+    const envelopes = await readListIfAny<EnvelopeEntry>(
+      join(fixturesDir, mailbox, "envelopes.json"),
+    );
+    return new Set(envelopes.filter((e) => e.folder === "inbox").map((e) => e.messageId));
+  }
+  const persona = mailbox;
   const envelopes = await readJsonFile<EnvelopeEntry[]>(
     join(fixturesDir, personaPaths(persona).envelopes),
     `No fixtures for persona "${persona}"`,
@@ -246,19 +379,19 @@ async function seededInbox(fixturesDir: string, persona: Persona): Promise<Set<s
 }
 
 /**
- * `seed inspect smtp` (F6.6): the seed loads and delivers over IMAP only, so whatever else is in
- * an Inbox came over SMTP. GreenMail delivers SMTP mail to the recipients' Inboxes, creating an
- * account for any recipient it doesn't know: every message of an account that is no persona's,
- * and every message in a persona's Inbox the seed didn't put there.
+ * `seed inspect smtp` (F6.6, F4.4): the seed loads and delivers over IMAP only, so whatever else
+ * is in an Inbox came over SMTP. GreenMail delivers SMTP mail to the recipients' Inboxes, creating
+ * an account for any recipient it doesn't know: every message of an account that is none of the
+ * test mailboxes', and every message in a test mailbox's Inbox the seed didn't put there.
  */
 export async function inspectSmtp(
   fixturesDir: string,
-  personaAccounts: Record<Persona, string>,
+  accounts: Partial<Record<MailboxName, string>>,
   api: GreenMailApi,
 ): Promise<SmtpReport> {
   const seeded = new Map<string, Set<string>>();
-  for (const persona of PERSONAS) {
-    seeded.set(personaAccounts[persona].toLowerCase(), await seededInbox(fixturesDir, persona));
+  for (const [mailbox, address] of Object.entries(accounts) as [MailboxName, string][]) {
+    seeded.set(address.toLowerCase(), await seededInbox(fixturesDir, mailbox));
   }
   const messages: SmtpReport["messages"] = [];
   for (const user of await api.users()) {

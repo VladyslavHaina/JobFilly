@@ -7,7 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { parse } from "yaml";
 import { PERSONAS } from "../fixtures/format.ts";
 import { COMPOSE_FILE, main, type StackDeps, WIRING_PROBES } from "../stack.ts";
-import { ACCOUNTS } from "./accounts.ts";
+import { ACCOUNTS, EXTRA_ACCOUNTS, MAILBOX_NAMES } from "./accounts.ts";
 
 // The seed's entry point run as the test stack runs it, without Docker: node with the entrypoint
 // and environment compose gives the seed service, from the repository root (the e2e image's /repo
@@ -156,9 +156,20 @@ describe("the seed entry point", { timeout: 30_000 }, () => {
     }
   });
 
-  it("names the known personas for an unknown one", async () => {
+  // MVP 3: Maria's personal mailbox loads like a persona's, into its own account.
+  it("reads every fixture of `seed load maria-home` and logs in as that mailbox", async () => {
+    imap.logins.length = 0;
+    const exit = await runSeed(["load", "maria-home"], local);
+    expect(exit.stderr.trim()).toBe(
+      "The mail server refused the login: check the persona's account",
+    );
+    expect(exit.code).toBe(1);
+    expect(imap.logins).toEqual([EXTRA_ACCOUNTS["maria-home"].user]);
+  });
+
+  it("names the known mailboxes for an unknown one", async () => {
     const exit = await runSeed(["load", "nobody"], local);
-    expect(exit.stderr.trim()).toBe(`Unknown persona "nobody". Known: ${PERSONAS.join(", ")}`);
+    expect(exit.stderr.trim()).toBe(`Unknown mailbox "nobody". Known: ${MAILBOX_NAMES.join(", ")}`);
     expect(exit.code).toBe(2);
   });
 });

@@ -23,3 +23,17 @@ export const EXTRA_ACCOUNTS = {
   "maria-home": { user: "maria.home@post.example", password: "E2E-SECRET-maria-home-imap" },
   "maria-gmail": { user: "maria.gmail@gmail.example", password: "E2E-SECRET-maria-gmail-imap" },
 } as const satisfies Record<string, Account>;
+
+/** Every test mailbox the seed logs in to: each persona's and Maria's other two (MVP 3). */
+export type MailboxName = Persona | keyof typeof EXTRA_ACCOUNTS;
+
+export const MAILBOX_ACCOUNTS: Readonly<Record<MailboxName, Account>> = {
+  ...ACCOUNTS,
+  ...EXTRA_ACCOUNTS,
+};
+
+export const MAILBOX_NAMES = Object.keys(MAILBOX_ACCOUNTS) as MailboxName[];
+
+export function isMailbox(value: string): value is MailboxName {
+  return (MAILBOX_NAMES as string[]).includes(value);
+}
