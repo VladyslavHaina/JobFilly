@@ -14,6 +14,8 @@ import {
   EXPORT_PARTS,
   ExportManifestSchema,
   jobDedupeKey,
+  LIVE_EVENT_TYPES,
+  LiveEventSchema,
   MAIL_SEND_JOB,
   MAX_SCAN_HINT_LENGTH,
   MailboxPublicSchema,
@@ -377,5 +379,15 @@ describe("the assistant answers questions (F8)", () => {
       at: "2026-10-16T10:00:00.000Z",
     };
     expect(AssistantMessageSchema.parse(message).links).toBeUndefined();
+  });
+});
+
+describe("live events (MVP 3)", () => {
+  it("tells open pages about stages set by hand and sends", () => {
+    expect(LIVE_EVENT_TYPES).toContain("pipeline.updated");
+    expect(
+      LiveEventSchema.safeParse({ type: "sends.updated", data: { draftId: ID } }).success,
+    ).toBe(true);
+    expect(LiveEventSchema.safeParse({ type: "sends.updated", data: {} }).success).toBe(false);
   });
 });

@@ -86,6 +86,9 @@ const AREA: Record<LiveEvent["type"], LiveArea[]> = {
   "profiles.updated": ["profiles"],
   "assistant.updated": ["assistant", "usage"],
   "mailbox.updated": ["mailbox"],
+  "pipeline.updated": ["pipeline"],
+  // A sent draft leaves the Drafts page and its inbox row.
+  "sends.updated": ["sends", "drafts", "messages"],
 };
 
 const STATUS_ORDER: Record<ScanProgress["status"], number> = { queued: 0, running: 1, stopped: 2 };

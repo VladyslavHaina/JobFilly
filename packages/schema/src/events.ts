@@ -35,6 +35,10 @@ export const LiveEventSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("assistant.updated"), data: z.object({}) }),
   /** A mailbox's sync status changed (synced, failing, recovered). */
   z.object({ type: z.literal("mailbox.updated"), data: z.object({}) }),
+  /** MVP 3 (F5): a role's stage was set by hand (new mail moves stages with messages.updated). */
+  z.object({ type: z.literal("pipeline.updated"), data: z.object({}) }),
+  /** MVP 3 (F4): a send was scheduled, undone, sent or failed. */
+  z.object({ type: z.literal("sends.updated"), data: z.object({ draftId: z.uuid() }) }),
 ]);
 export type LiveEvent = z.infer<typeof LiveEventSchema>;
 
@@ -58,6 +62,8 @@ export const LIVE_EVENT_TYPES = [
   "profiles.updated",
   "assistant.updated",
   "mailbox.updated",
+  "pipeline.updated",
+  "sends.updated",
 ] as const satisfies readonly LiveEventType[];
 
 /**

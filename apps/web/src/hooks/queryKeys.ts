@@ -12,6 +12,9 @@ export type LiveArea =
   | "decisions"
   | "assistant"
   | "mailbox"
+  /** MVP 3: the application pipeline (F5) and sends waiting out their Undo (F4). */
+  | "pipeline"
+  | "sends"
   /** The workspace's model calls and tokens per day (F1.5): every event a model call can lead to. */
   | "usage";
 
