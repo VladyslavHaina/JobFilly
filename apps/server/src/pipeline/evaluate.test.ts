@@ -10,7 +10,7 @@ import {
   markStale,
 } from "@jobfilly/db";
 import { CHECK_FAILED_SIGNAL, type LiveEvent } from "@jobfilly/schema";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { requestReevaluation } from "../profile/changes";
 import {
   createFakeMailbox,
@@ -634,6 +634,45 @@ describe("evaluateMessage", () => {
     ]);
     expect(stages.cvLanguages.at(-1)).toBe("<a@x.example>#0 de");
     expect(await listToEvaluate(deps.db, ws)).toEqual([]);
+  });
+
+  it("gives a re-evaluation that starts during the first pass's sender stage the message's language", async () => {
+    await confirm();
+    await seedJobMail(deps, ws, mailbox, { messageId: "<a@x.example>", receivedAt: daysAgo(1) });
+    stages.language = () => "de";
+    // The first pass (new mail, one replica) holds in its sender stage, the text already read.
+    const record = stages.sender;
+    let release = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let entered = () => {};
+    const inSender = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    let held = false;
+    stages.sender = async (input, ctx) => {
+      const result = await record(input, ctx);
+      if (!held) {
+        held = true;
+        entered();
+        await gate;
+      }
+      return result;
+    };
+    const first = evaluate("<a@x.example>", "new");
+    await inSender;
+    // A re-evaluation pass (another replica) starts and has read the message when the first pass
+    // goes on to store its check and the language.
+    const realNow = deps.clock.now;
+    vi.spyOn(deps.clock, "now").mockImplementationOnce(() => {
+      release();
+      return realNow();
+    });
+    await Promise.all([first, evaluate("<a@x.example>", "reevaluate")]);
+    // Every CV choice saw the language, never one made without it.
+    expect(stages.cvLanguages.length).toBeGreaterThan(0);
+    expect(new Set(stages.cvLanguages)).toEqual(new Set(["<a@x.example>#0 de"]));
   });
 
   it("tries a waiting role never evaluated in the same run once the sender stage tells a new language", async () => {

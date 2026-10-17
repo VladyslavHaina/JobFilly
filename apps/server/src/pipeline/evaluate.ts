@@ -187,6 +187,10 @@ export async function evaluateMessage(
     evaluated: [],
     failed: [],
   };
+  // The sender check is read before the message, and a check is stored only after the language
+  // it found (below): a pass that finds another pass's check also reads that check's language,
+  // so no CV choice is made without it (a re-evaluation alongside a message's first pass).
+  const [stored] = await getSenderChecks(deps.db, ws, [messageId]);
   const [message] = await loadMessageInputs(deps.db, ws, [messageId]);
   if (!message) return outcome;
   outcome.found = true;
@@ -266,7 +270,6 @@ export async function evaluateMessage(
   };
 
   // What is to do, and what of it still waits out a back-off (stage_failures).
-  const [stored] = await getSenderChecks(deps.db, ws, [messageId]);
   const senderWork = !stored || stored.stale || isFailedCheck(stored);
   let holds = await getStageHolds(deps.db, ws, messageId, now);
   const evaluationsBefore = profile ? await getEvaluations(deps.db, ws, [messageId]) : [];
@@ -308,11 +311,16 @@ export async function evaluateMessage(
       }
       if (result) {
         sender = result.check;
+        // The language before the check (see the reads above). The roles use what this stage
+        // found, even when another pass stored the same language first. A gone message's isn't
+        // stored: nothing was read, and what this pass loaded may be older than another's.
+        const languageChanged =
+          !gone && (await saveMessageLanguage(deps.db, ws, messageId, result.language));
+        message.language = result.language;
         await saveSenderCheck(deps.db, ws, messageId, sender, now);
         await clearStageFailure(deps.db, ws, { messageId, stage: "sender" });
         outcome.senderChecked = true;
-        if (await saveMessageLanguage(deps.db, ws, messageId, result.language)) {
-          message.language = result.language;
+        if (languageChanged) {
           await markStale(deps.db, ws, { messageIds: [messageId] }, now);
           // A new question for every role: an evaluated one is stale now, and one never evaluated
           // (no stale flag to show the change) has its wait ended here.
