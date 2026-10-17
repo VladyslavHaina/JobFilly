@@ -6,7 +6,7 @@ import {
 } from "@jobfilly/schema";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { DatabaseConnection } from "../client";
-import { openTestDatabase } from "../testing";
+import { explainQuery, openTestDatabase } from "../testing";
 import { registerAccount } from "./accounts";
 import {
   listToEvaluate,
@@ -17,7 +17,12 @@ import {
 } from "./evaluations";
 import { saveAnalysis, saveEnvelopes } from "./messages";
 import { createConfirmedProfile } from "./profiles";
-import { clearStageFailure, getStageHolds, recordStageFailure } from "./stage-failures";
+import {
+  clearStageFailure,
+  clearStageFailures,
+  getStageHolds,
+  recordStageFailure,
+} from "./stage-failures";
 
 // The pipeline's back-off for stages that keep failing: the first retry at the next sweep, then
 // one interval doubling up to the cap, in the database so every replica agrees; a change that
@@ -245,6 +250,54 @@ describe("what waits out its back-off", () => {
         ],
       },
     ]);
+  });
+
+  it("ends the roles' waits, locking their rows in key order so two at once can't deadlock", async () => {
+    await seedMessage();
+    await failTwice(role(0));
+    await failTwice(role(1));
+    await failTwice(sender);
+    await clearStageFailures(conn.db, ws, { all: true });
+    expect(await getStageHolds(conn.db, ws, MSG, at(MINUTE))).toEqual({
+      sender: true,
+      positions: [],
+      reply: "none",
+    });
+
+    // As markStale's (./evaluations.test.ts): a plain DELETE locks rows in its scan's order, so
+    // the plan must lock them (LockRows) only as they come out of a sort by their key.
+    const sent: { query: string; params: unknown[] }[] = [];
+    const logged = await openTestDatabase({
+      logQuery: (query, params) => sent.push({ query, params }),
+    });
+    try {
+      for (const scope of [
+        { all: true },
+        // Two messages each, or the plan sorts by what the filter leaves open only.
+        {
+          roles: [
+            { messageId: MSG, position: 0 },
+            { messageId: "<b@agency.example>", position: 1 },
+          ],
+        },
+        { messageIds: [MSG, "<b@agency.example>"] },
+      ] as const) {
+        sent.length = 0;
+        await clearStageFailures(logged.db, ws, scope);
+        const del = sent.find((s) => s.query.startsWith('delete from "stage_failures"'));
+        if (!del) throw new Error("clearStageFailures sent no delete");
+        const plan = await explainQuery(logged.db, del.query, del.params);
+        const shown = plan.join("\n");
+        const lockRows = plan.findIndex((line) => /^\s*(->\s+)?LockRows$/.test(line));
+        expect(lockRows, shown).toBeGreaterThanOrEqual(0);
+        expect(plan[lockRows + 1], shown).toMatch(/^\s*->\s+Sort$/);
+        expect(plan[lockRows + 2], shown).toMatch(
+          /^\s*Sort Key: (\w+\.)?message_id, (\w+\.)?"?position"?$/,
+        );
+      }
+    } finally {
+      await logged.close();
+    }
   });
 });
 

@@ -257,6 +257,28 @@ describe("uploading and reading CVs (F2.1)", () => {
     expect(ai.calls.cv).toBe(1);
   });
 
+  it("marks a CV failed when its cv.read job throws before the read is saved", async () => {
+    // A failed job isn't retried: left pending, the CV would show "Reading…" for good.
+    const client = ai.port.client;
+    deps.ai = {
+      client: (settings) => ({
+        ...client(settings),
+        readCv: () => Promise.reject(new Error("socket hang up")),
+      }),
+    };
+    const cv = await uploaded(
+      await upload(maria, { bytes: pdfWithText(BACKEND_EN), name: "a.pdf" }),
+    );
+    await drain();
+    expect((await getCv(deps.db, ws, cv.id))?.readStatus).toBe("failed");
+    expect(deps.logs.find((l) => l.event === "cv.read_failed")).toMatchObject({
+      level: "warn",
+      cvId: cv.id,
+      reason: "socket hang up",
+    });
+    expect(deps.logs.filter((l) => l.event === "job.failed")).toHaveLength(1);
+  });
+
   it("refuses a file over 5 MB, a file that is neither PDF nor DOCX, and one without text", async () => {
     const big = new Uint8Array(MAX_CV_BYTES + 1);
     big.set(new TextEncoder().encode("%PDF-1.4"));
@@ -464,6 +486,29 @@ describe("re-evaluation after a CV change (requestReevaluation)", () => {
       [1, true],
     ]);
     expect(await reevaluationWaiting()).toBe(true);
+  });
+
+  it("a cv.read whose re-evaluation request fails once asks again, and the CV stays read", async () => {
+    await evaluatedRoles();
+    const pdf = pdfWithText(BACKEND_EN);
+    ai.answers.cv[sha256(pdf)] = read();
+    const cv = await uploaded(await upload(maria, { bytes: pdf, name: "a.pdf" }));
+    // The first live event after the read is saved fails (NOTIFY on a dropped connection).
+    const publish = deps.live.publish.bind(deps.live);
+    let failures = 1;
+    deps.live.publish = (workspaceId, event) =>
+      failures-- > 0 ? Promise.reject(new Error("connection reset")) : publish(workspaceId, event);
+    expect(await deps.queue.runOnce()).toBe(true);
+    expect((await getCv(deps.db, ws, cv.id))?.readStatus).toBe("done");
+    expect(await stale()).toEqual([
+      [0, true],
+      [1, true],
+    ]);
+    expect(await reevaluationWaiting()).toBe(true);
+    expect(deps.logs.find((l) => l.event === "cv.read_failed")).toMatchObject({
+      step: "reevaluate",
+    });
+    expect(deps.logs.some((l) => l.event === "job.failed")).toBe(false);
   });
 
   it("a CV delete marks the roles stale and enqueues a re-evaluation (F2.5)", async () => {

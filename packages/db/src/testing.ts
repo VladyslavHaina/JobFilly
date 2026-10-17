@@ -112,6 +112,34 @@ export async function openTestDatabase(
 }
 
 /**
+ * The plan of a statement the queries sent (seen through openTestDatabase's logQuery), its
+ * parameters written in as literals: one line per plan row. Index scans and merge joins are off
+ * while it is planned, so no path hands rows over already in order: an ORDER BY the statement
+ * has shows as a Sort node, under the LockRows of its FOR UPDATE.
+ */
+export async function explainQuery(
+  db: Database,
+  query: string,
+  params: unknown[],
+): Promise<string[]> {
+  const literal = (v: unknown) =>
+    typeof v === "number" || typeof v === "boolean"
+      ? String(v)
+      : `'${String(v instanceof Date ? v.toISOString() : v).replaceAll("'", "''")}'`;
+  const text = query.replace(/\$(\d+)/g, (_, n: string) => literal(params[Number(n) - 1]));
+  return db.transaction(async (tx) => {
+    for (const setting of ["enable_indexscan", "enable_bitmapscan", "enable_mergejoin"]) {
+      await tx.execute(sql.raw(`set local ${setting} = off`));
+    }
+    const rows = await queryRows<{ "QUERY PLAN": string }>(
+      tx,
+      sql.raw(`explain (costs off) ${text}`),
+    );
+    return rows.map((r) => r["QUERY PLAN"]);
+  });
+}
+
+/**
  * Puts the role's claimed draft in the mailbox state, as draft.create leaves it once the copy is
  * in the Drafts folder: for tests that need a draft the user may already be editing there. Only a
  * `saving` row of the workspace moves; returns whether one did.

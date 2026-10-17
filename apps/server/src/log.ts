@@ -80,7 +80,10 @@ export type LogEvent =
   | "draft.copy_left"
   // Operational: an edit of a draft whose CV was deleted (F2.5) couldn't read the file back from
   // its mailbox copy (the copy is gone), so the new copy has no attachment.
-  | "draft.attachment_lost";
+  | "draft.attachment_lost"
+  // Operational: a cv.read job threw, why with failureFields. Before the read was saved the CV is
+  // marked failed; after it (step reevaluate) its re-evaluation is asked for once more.
+  | "cv.read_failed";
 
 export type LogFields = Record<string, unknown>;
 

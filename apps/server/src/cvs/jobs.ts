@@ -4,6 +4,7 @@ import { CV_READ_JOB, type CvReadOutput, CvReadPayloadSchema } from "@jobfilly/s
 import { aiClientFor } from "../ai-usage";
 import type { AppDeps } from "../deps";
 import { defineJob, type JobRegistry } from "../jobs/queue";
+import { failureFields } from "../log";
 import { requestReevaluation } from "../profile/changes";
 import { openAiKey } from "../secrets";
 
@@ -13,12 +14,17 @@ import { openAiKey } from "../secrets";
 // logged as cv.skill_dropped (F2.2). The language, role families and seniority become the CV's
 // suggested tags; the skills and format hints are edited as lists of their own. A finished read
 // can change every role's CV choice, so the profile's roles are re-evaluated. A read that fails
-// leaves the CV marked failed. Registered here, spread into jobs/registry.ts.
+// leaves the CV marked failed, and so does a job that throws before the read is saved (a database
+// error, an AI client that throws): a failed job isn't retried, and a CV left pending would show
+// "Reading…" for good, where a failed one tells the user to upload it again. Once the read is
+// saved the CV stays read, and its re-evaluation is asked for once more if asking fails.
+// Registered here, spread into jobs/registry.ts.
 
-async function readCv(deps: AppDeps, ws: string, cvId: string): Promise<void> {
+/** Reads the CV and saves what was read; true when it was saved (so it is to be re-evaluated). */
+async function readCv(deps: AppDeps, ws: string, cvId: string): Promise<boolean> {
   const log = deps.log.child({ workspaceId: ws, cvId });
   const cv = await getCv(deps.db, ws, cvId);
-  if (!cv) return;
+  if (!cv) return false;
   const text = cv.text ?? "";
 
   let read: CvReadOutput | null = await findCvReadByHash(deps.db, ws, cv.contentHash);
@@ -27,7 +33,7 @@ async function readCv(deps: AppDeps, ws: string, cvId: string): Promise<void> {
     if (!settings) {
       await markCvReadFailed(deps.db, ws, cvId, deps.clock.now());
       await deps.live.publish(ws, { type: "cvs.updated", data: {} });
-      return;
+      return false;
     }
     const client = aiClientFor(deps, ws, {
       provider: settings.provider,
@@ -43,7 +49,7 @@ async function readCv(deps: AppDeps, ws: string, cvId: string): Promise<void> {
     if (!result.ok) {
       await markCvReadFailed(deps.db, ws, cvId, deps.clock.now());
       await deps.live.publish(ws, { type: "cvs.updated", data: {} });
-      return;
+      return false;
     }
     read = result.data;
   }
@@ -57,12 +63,41 @@ async function readCv(deps: AppDeps, ws: string, cvId: string): Promise<void> {
     tags: tagsAfterRead(checked, cv.tags),
     at: deps.clock.now(),
   });
+  return true;
+}
+
+/** What a saved read asks for: the CV list refreshed, and every role re-evaluated. */
+async function afterRead(deps: AppDeps, ws: string): Promise<void> {
   await deps.live.publish(ws, { type: "cvs.updated", data: {} });
   await requestReevaluation(deps, ws, { all: true }, "cv.read");
 }
 
 export const cvJobs: JobRegistry = {
-  [CV_READ_JOB]: defineJob(CvReadPayloadSchema, async (ctx) => {
-    await readCv(ctx.deps, ctx.payload.workspaceId, ctx.payload.cvId);
+  [CV_READ_JOB]: defineJob(CvReadPayloadSchema, async ({ deps, payload, signal }) => {
+    const { workspaceId: ws, cvId } = payload;
+    const log = deps.log.child({ workspaceId: ws, cvId });
+    let saved: boolean;
+    try {
+      saved = await readCv(deps, ws, cvId);
+    } catch (error) {
+      // Stopped by a shutdown or a lost lease, the job runs again: the CV is still being read.
+      if (!signal.aborted) {
+        log.warn("cv.read_failed", { ...failureFields(error) });
+        try {
+          await markCvReadFailed(deps.db, ws, cvId, deps.clock.now());
+          await deps.live.publish(ws, { type: "cvs.updated", data: {} });
+        } catch {
+          // The database is gone too; the job's own failure (job.failed) is logged below.
+        }
+      }
+      throw error;
+    }
+    if (!saved) return;
+    try {
+      await afterRead(deps, ws);
+    } catch (error) {
+      log.warn("cv.read_failed", { ...failureFields(error), step: "reevaluate" });
+      await afterRead(deps, ws);
+    }
   }),
 };
