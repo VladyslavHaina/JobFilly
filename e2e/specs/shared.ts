@@ -22,6 +22,7 @@ import {
   personaPathsMvp2,
   readJson,
 } from "../fixtures/format.ts";
+import { mergeByTime } from "../logs.ts";
 import type { MailboxName } from "../seed/accounts.ts";
 import type { DraftsReport, SentReport, SmtpReport } from "../seed/commands.ts";
 import { COMPOSE_FILE, fileState } from "../stack.ts";
@@ -110,9 +111,12 @@ export function serviceLog(service: string): LogLine[] {
 /** Where each replica's log is now, for eventsSince and logSince. */
 export const logMark = (): number[] => REPLICAS.map((replica) => serviceLog(replica).length);
 
-/** Every line the replicas logged since `mark`, app-a's first. */
+/**
+ * Every line the replicas logged since `mark`, ordered by time across the replicas (requests
+ * land on any replica, so replica by replica would misorder them).
+ */
 export const logSince = (mark: number[]): LogLine[] =>
-  REPLICAS.flatMap((replica, i) => serviceLog(replica).slice(mark[i]));
+  mergeByTime(REPLICAS.map((replica, i) => serviceLog(replica).slice(mark[i])));
 
 /** The events the replicas logged since `mark`. */
 export const eventsSince = (mark: number[]): unknown[] => logSince(mark).map((l) => l.event);
@@ -124,13 +128,16 @@ export const eventsSince = (mark: number[]): unknown[] => logSince(mark).map((l)
 export const errorsSince = (mark: number[]): LogLine[] =>
   logSince(mark).filter((l) => l.level === "error" || l.level === "fatal");
 
-/** Every replica's whole log as written, JSON or not, for the leak checks. */
+/**
+ * Every replica's whole log as written, JSON or not, for the leak checks. Unordered: a leak check
+ * only counts what's there.
+ */
 export const replicaLogText = (): string =>
   compose(["logs", "--no-color", "--no-log-prefix", ...REPLICAS]);
 
-/** Every line the replicas logged with this event and these fields. */
+/** Every line the replicas logged with this event and these fields, ordered by time. */
 export const logged = (event: string, fields: Record<string, unknown>): LogLine[] =>
-  REPLICAS.flatMap(serviceLog).filter(
+  mergeByTime(REPLICAS.map(serviceLog)).filter(
     (l) => l.event === event && Object.entries(fields).every(([k, v]) => l[k] === v),
   );
 
