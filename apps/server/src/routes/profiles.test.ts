@@ -198,6 +198,8 @@ describe("PATCH /profiles/:profileId", () => {
       },
       NOW,
     );
+    // After Confirm's own history row (MVP 3, F2.2), so the newest-first order is certain.
+    deps.clock.advance(1_000);
     const res = await editor.patch(profilesPath(`/${created.id}`), {
       entries: [
         { key: "contracts", value: ["unbefristet"] },
