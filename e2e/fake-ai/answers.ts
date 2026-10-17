@@ -38,6 +38,13 @@ import type { Prompt } from "./prompt.ts";
 // by attempt, assistant.v1 by the user's message and the turn. MVP 3's focus.v1 is answered by
 // the hint (its "message" block), answer.v1 like assistant.v1, by the question and the turn. The
 // soak's generated mail (fixtures/soak.ts) is answered from templates by its Message-ID.
+//
+// One more defined case: mail the app wrote itself. A reply sent in an earlier scenario (MVP 3
+// S5) lands in the Sent folder with a Message-ID the app made up at runtime, "<uuid@domain>"
+// (newDraftMessageId in apps/server), and a later re-run (S10) reads it. No fixture can know that
+// id, so classify.v1 answers it not_job and prefs.v1 with no preferences, the way the soak's
+// templates answer generated mail. No fixture message has an id of that shape, and every other
+// task, and every id of any other shape, still gets HTTP 500 when it has no answer.
 
 export interface PersonaAnswers {
   classify: AnswerFile<ClassifyAnswer>;
@@ -119,6 +126,12 @@ export function loadAnswers(fixturesDir: string): AnswerStore {
   );
 }
 
+/** The answers for mail the app wrote itself (isAppWritten): no job, no preferences. */
+const APP_WRITTEN: { classify: ClassifyAnswer; prefs: PrefsAnswer } = {
+  classify: { category: "not_job" },
+  prefs: { preferences: {} },
+};
+
 /** A value no output schema accepts, standing in for a model's invalid answer. */
 export const INVALID_VALUE = "fake-ai: invalid on purpose";
 
@@ -160,17 +173,27 @@ function roleAsWritten(role: JobFacts) {
   });
 }
 
+/** A Message-ID the app made up itself, "<uuid@domain>"; no fixture message has one. */
+const APP_MESSAGE_ID = /^<[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}@[^>]+>$/i;
+
+/** True when `id` is in the shape of a Message-ID the app wrote, and no fixture names it. */
+function isAppWritten(store: AnswerStore, id: string): boolean {
+  return APP_MESSAGE_ID.test(id) && !store.owner.has(id);
+}
+
 function lookup<T>(
   store: AnswerStore,
   id: string,
   file: (a: PersonaAnswers) => AnswerFile<T>,
   template: (soak: NonNullable<ReturnType<typeof soakAnswers>>) => T | null = () => null,
+  appWritten: T | null = null,
 ): T | "invalid" | null {
   const persona = store.personas.get(store.owner.get(id) ?? "");
   const answer = persona ? file(persona)[id] : undefined;
   if (answer === undefined) {
     const soak = soakAnswers(id);
-    return soak ? template(soak) : null;
+    if (soak) return template(soak);
+    return isAppWritten(store, id) ? appWritten : null;
   }
   return isInvalid(answer as object) ? "invalid" : (answer as T);
 }
@@ -285,11 +308,12 @@ export function answerFor(store: AnswerStore, prompt: Prompt): Answer {
             id,
             (p) => p.classify,
             (soak) => soak.classify,
+            APP_WRITTEN.classify,
           );
           if (a === null) return missing(`no classify.v1 answer for ${id}`);
           items.push({ messageId: id, category: a === "invalid" ? INVALID_VALUE : a.category });
         } else {
-          const a = lookup(store, id, (p) => p.prefs);
+          const a = lookup(store, id, (p) => p.prefs, undefined, APP_WRITTEN.prefs);
           if (a === null) return missing(`no prefs.v1 answer for ${id}`);
           items.push({
             messageId: id,
