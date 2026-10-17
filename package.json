@@ -17,7 +17,8 @@
     "unused": "knip",
     "e2e": "node e2e/stack.ts run",
     "e2e:stack": "node e2e/stack.ts stack",
-    "e2e:specs": "node e2e/stack.ts specs"
+    "e2e:specs": "node e2e/stack.ts specs",
+    "e2e:soak": "node e2e/scripts/soak.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.15",
