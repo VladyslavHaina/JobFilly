@@ -5,6 +5,7 @@ import {
   knownSources,
   rewordEdited,
   rewordProposed,
+  withoutRefsNotes,
 } from "@jobfilly/core";
 import {
   createThread,
@@ -35,6 +36,7 @@ import {
   type AssistantState,
   type AssistantTurn,
   type Change,
+  MAX_LOOKUP_ROUNDS,
   type MemberScope,
   type Profile,
   type Proposal,
@@ -48,7 +50,7 @@ import type { Logger } from "../log";
 import { applyAndReevaluate } from "../profile/changes";
 import { openAiKey } from "../secrets";
 import { linksOf, resolveLinks } from "./links";
-import { runLookups, usedFullAccess } from "./lookups";
+import { foundRefs, questionLookups, usedFullAccess } from "./lookups";
 import { previewChanges } from "./preview";
 import { fail, inTransaction, NOT_FOUND_FAILURE, type Result, refuse } from "./result";
 
@@ -60,10 +62,12 @@ import { fail, inTransaction, NOT_FOUND_FAILURE, type Result, refuse } from "./r
 // refused, never stored as a proposal.
 //
 // MVP 3 (F8): a question is answered instead. assistant.v1 asks for read-only lookups, the server
-// runs them with the member's access (./lookups) and answer.v1 answers from their results only,
-// with the refs it used; only refs the lookups returned are kept, and they become the answer's
-// links when the thread is read (./links). A question's turn never holds a proposal, so nothing a
-// mail says can become a change (F8.4).
+// runs them with the member's access (./lookups), in up to MAX_LOOKUP_ROUNDS rounds: after a
+// round whose searches found refs, assistant.v1 is asked again with the results so far, so it can
+// read a role or message it just found. answer.v1 then answers from all the results only, with
+// the refs it used; only refs the lookups returned are kept, and they become the answer's links
+// when the thread is read (./links). A question's turn never holds a proposal, so nothing a mail
+// says can become a change (F8.4).
 //
 // Messages, replies, summaries and requests are stored for the history and never logged (F8.10):
 // the log lines carry ids and counts only.
@@ -227,6 +231,8 @@ interface Outcome {
   sources: AnswerSource[];
   /** The lookups a question was answered from, by tool; [] for any other turn. */
   lookups: string[];
+  /** How many rounds of lookups ran (at most MAX_LOOKUP_ROUNDS); 0 for any other turn. */
+  rounds: number;
   /** Whether the answer read full-access data (usedFullAccess). */
   fullAccess: boolean;
 }
@@ -244,7 +250,7 @@ async function proposalOutcome(
   target: Target,
   rules: Rule[],
 ): Promise<Outcome> {
-  const none = { proposal: null, sources: [], lookups: [], fullAccess: false };
+  const none = { proposal: null, sources: [], lookups: [], rounds: 0, fullAccess: false };
   let text = answer.reply;
   const clarify: AssistantClarify | null = answer.clarify;
   // packages/ai lets through a proposal with changes outside rules and entries (a mailbox, a
@@ -315,7 +321,7 @@ export async function sendMessage(
     models: settings.models,
     apiKey: openAiKey(deps.config.secretKey, settings.keyCiphertext),
   });
-  const result = await client.assistant({
+  const asked = {
     turn,
     text: input.text,
     history,
@@ -323,21 +329,38 @@ export async function sendMessage(
     rules,
     // So a rule on free text gets its phrases in each language the mail is written in.
     mailLanguages: await listJobMailLanguages(deps.db, ws),
-  });
+  };
+  const result = await client.assistant(asked);
   if (!result.ok) return aiFailed(log, "assistant.v1", result.error);
 
   let outcome: Outcome;
   if (result.data.lookups.length > 0) {
-    // A question (F8.1): answered from the lookups' results only, never with a proposal.
-    const results = await runLookups(deps, ws, scope, result.data.lookups);
+    // A question (F8.1): answered from the lookups' results only, never with a proposal. After
+    // a round whose searches found refs, the model is asked again with the results so far, so it
+    // can read a role or a message it has just found (they take an exact Message-ID); at most
+    // MAX_LOOKUP_ROUNDS rounds. Only its lookups are read from those answers.
+    const lookups = questionLookups(deps, ws, scope);
+    const results = await lookups(result.data.lookups);
+    let rounds = 1;
+    let found = foundRefs(results);
+    while (found && rounds < MAX_LOOKUP_ROUNDS) {
+      const next = await client.assistant({ ...asked, round: rounds + 1, results: [...results] });
+      if (!next.ok) return aiFailed(log, "assistant.v1", next.error);
+      const more = await lookups(next.data.lookups);
+      if (more.length === 0) break;
+      results.push(...more);
+      rounds += 1;
+      found = foundRefs(more);
+    }
     const answer = await client.answer({ turn, text: input.text, history, results });
     if (!answer.ok) return aiFailed(log, "answer.v1", answer.error);
     outcome = {
-      text: answer.data.text,
+      text: withoutRefsNotes(answer.data.text),
       clarify: null,
       proposal: null,
       sources: knownSources(answer.data.sources, results),
       lookups: results.map((r) => r.lookup.tool),
+      rounds,
       fullAccess: usedFullAccess(scope, results),
     };
   } else {
@@ -380,6 +403,7 @@ export async function sendMessage(
     log.info("assistant.answered", {
       threadId: saved.threadId,
       lookups: outcome.lookups,
+      rounds: outcome.rounds,
       sources: sources.length,
     });
   }
