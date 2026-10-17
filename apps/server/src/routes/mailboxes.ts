@@ -45,7 +45,7 @@ const EXISTS = {
   message: "This mailbox is already connected to the workspace.",
 };
 
-export function toPublic(m: StoredMailbox): MailboxPublic {
+function toPublic(m: StoredMailbox): MailboxPublic {
   return {
     id: m.mailboxId,
     address: m.address,

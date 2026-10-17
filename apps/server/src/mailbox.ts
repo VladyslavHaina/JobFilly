@@ -58,7 +58,7 @@ export class ReconnectNeededError extends MailUnavailableError {
 }
 
 /** An access token expiring within this is refreshed before use. */
-export const REFRESH_MARGIN_MS = 5 * MINUTE;
+const REFRESH_MARGIN_MS = 5 * MINUTE;
 
 /**
  * A client for one of the workspace's mailboxes (its first when `mailboxId` is null or left
