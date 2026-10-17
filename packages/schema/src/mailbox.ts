@@ -26,7 +26,23 @@ export const MailPresetIdSchema = z.enum([
 ]);
 export type MailPresetId = z.infer<typeof MailPresetIdSchema>;
 
-/** A provider preset: it fills host, port and TLS; "other" leaves them to the user. */
+/**
+ * A provider's SMTP server (MVP 3, F4): the preset fills it on Settings › Sending.
+ * `savesSentCopy` is true when the provider files every message sent through it in the Sent
+ * folder itself, so the app must not append a second copy (F4.4).
+ */
+export const SmtpPresetSchema = z.object({
+  host: z.string(),
+  port: z.number().int(),
+  tlsMode: TlsModeSchema,
+  savesSentCopy: z.boolean(),
+});
+export type SmtpPreset = z.infer<typeof SmtpPresetSchema>;
+
+/**
+ * A provider preset: it fills host, port and TLS; "other" leaves them to the user. From MVP 3 it
+ * also names the provider's SMTP server (null for "other").
+ */
 export const MailPresetSchema = z.object({
   id: MailPresetIdSchema,
   label: z.string(),
@@ -35,6 +51,7 @@ export const MailPresetSchema = z.object({
   tlsMode: TlsModeSchema,
   needsAppPassword: z.boolean(),
   helpUrl: z.url().nullable(),
+  smtp: SmtpPresetSchema.nullable(),
 });
 export type MailPreset = z.infer<typeof MailPresetSchema>;
 
@@ -70,8 +87,28 @@ export const MailboxInputSchema = MailConnectionSchema.extend({
 });
 export type MailboxInput = z.infer<typeof MailboxInputSchema>;
 
-export const MailboxStatusSchema = z.enum(["connected", "failing"]);
+/**
+ * connected, failing (the sync's state says why), or (MVP 3, F3.2) reconnect_needed: the provider
+ * refused the mailbox's OAuth token, so the user signs in again; nothing stored is lost meanwhile.
+ */
+export const MailboxStatusSchema = z.enum(["connected", "failing", "reconnect_needed"]);
 export type MailboxStatus = z.infer<typeof MailboxStatusSchema>;
+
+/**
+ * How a mailbox signs in (MVP 3, F3): a password (an app password where the provider offers one)
+ * or Google's OAuth, the only OAuth provider (TBD-441). IMAP and SMTP both use it.
+ */
+export const MailboxAuthSchema = z.enum(["password", "google"]);
+export type MailboxAuth = z.infer<typeof MailboxAuthSchema>;
+
+/** A mailbox's SMTP settings as the API returns them (F4): never a password. */
+export const SmtpSettingsPublicSchema = z.object({
+  host: z.string(),
+  port: z.number().int(),
+  tlsMode: TlsModeSchema,
+  username: z.string(),
+});
+export type SmtpSettingsPublic = z.infer<typeof SmtpSettingsPublicSchema>;
 
 /** A mailbox as the API returns it: never a password or any other secret. */
 export const MailboxPublicSchema = z.object({
@@ -85,11 +122,15 @@ export const MailboxPublicSchema = z.object({
   status: MailboxStatusSchema,
   /** The continuous sync's status (F1.4); "never" until the first sync. */
   sync: MailboxSyncStatusSchema.default(NEVER_SYNCED),
+  /** MVP 3: how it signs in; absent (a previous replica) reads as password. */
+  auth: MailboxAuthSchema.optional(),
+  /** MVP 3 (F4.1): its SMTP settings, null until set; only then can its drafts be sent. */
+  smtp: SmtpSettingsPublicSchema.nullable().optional(),
 });
 /** As the server writes it: `sync` may be left out before the first sync. */
 export type MailboxPublic = z.input<typeof MailboxPublicSchema>;
 
-/** GET /mailboxes: the workspace's mailbox (one per workspace in MVP 1), if any. */
+/** GET /mailboxes: the workspace's mailboxes (one at most before MVP 3), oldest first. */
 export const MailboxListSchema = z.object({ items: z.array(MailboxPublicSchema) });
 export type MailboxList = z.input<typeof MailboxListSchema>;
 
@@ -252,3 +293,33 @@ export const DraftMailInputSchema = z.object({
   draftMessageId: z.string().min(1).optional(),
 });
 export type DraftMailInput = z.infer<typeof DraftMailInputSchema>;
+
+// --- MVP 3: several mailboxes, OAuth sign-in and what a disconnect removes ---------------------
+
+/**
+ * What packages/mail signs in with: the connection with its password, or (XOAUTH2) with an OAuth
+ * access token instead. The secret never leaves the server.
+ */
+export const OAuthMailConnectionSchema = MailConnectionSchema.omit({ password: true }).extend({
+  accessToken: z.string().min(1),
+});
+export type OAuthMailConnection = z.infer<typeof OAuthMailConnectionSchema>;
+export type MailLogin = MailConnection | OAuthMailConnection;
+
+/**
+ * DELETE /mailboxes/:mailboxId asks first (F7.4): GET /mailboxes/:mailboxId/removal says what
+ * goes with it — its credentials, its synced messages and everything tied to them — and that
+ * drafts and mail in the mailbox itself stay there.
+ */
+export const MailboxRemovalSummarySchema = z.object({
+  address: z.string(),
+  messages: z.number().int().nonnegative(),
+  roles: z.number().int().nonnegative(),
+  drafts: z.number().int().nonnegative(),
+  decisions: z.number().int().nonnegative(),
+});
+export type MailboxRemovalSummary = z.infer<typeof MailboxRemovalSummarySchema>;
+
+/** A message's mailbox, as the inbox shows it on every message (F3.1). */
+export const MessageMailboxSchema = z.object({ id: z.uuid(), address: z.string() });
+export type MessageMailbox = z.infer<typeof MessageMailboxSchema>;

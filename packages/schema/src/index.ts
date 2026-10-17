@@ -16,6 +16,7 @@ export * from "./jobs";
 export * from "./mailbox";
 export * from "./match";
 export * from "./messages";
+export * from "./oauth";
 export * from "./profile";
 export * from "./rules";
 export * from "./scan";

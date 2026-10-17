@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   MAX_SCAN_HINT_LENGTH,
+  MailboxPublicSchema,
+  MailboxStatusSchema,
+  MessageListQuerySchema,
+  OAuthCallbackQuerySchema,
+  OAuthMailConnectionSchema,
+  OAuthTokensSchema,
   ProfilePatchSchema,
   ProfileSchema,
   RoleProfileInputSchema,
@@ -72,5 +78,62 @@ describe("several profiles and re-running setup (F1)", () => {
     expect(RoleProfileSchema.parse(assigned)).toEqual(assigned);
     expect(RoleProfileSchema.safeParse({ ...assigned, source: "rule" }).success).toBe(false);
     expect(RoleProfileInputSchema.safeParse({ profileId: "nope" }).success).toBe(false);
+  });
+});
+
+describe("several mailboxes and OAuth (F3)", () => {
+  const mailbox = {
+    id: ID,
+    address: "maria.santos@inbox.example",
+    host: "imap.inbox.example",
+    port: 993,
+    tlsMode: "tls",
+    username: "maria.santos@inbox.example",
+    sentFolderPath: "Sent",
+    status: "connected",
+  };
+
+  it("reads a previous replica's mailbox as a password one without SMTP settings", () => {
+    const parsed = MailboxPublicSchema.parse(mailbox);
+    expect(parsed.auth).toBeUndefined();
+    expect(parsed.smtp).toBeUndefined();
+    expect(
+      MailboxPublicSchema.parse({
+        ...mailbox,
+        auth: "google",
+        smtp: { host: "smtp.gmail.com", port: 465, tlsMode: "tls", username: "m@gmail.example" },
+      }).auth,
+    ).toBe("google");
+  });
+
+  it("has a reconnect-needed state for a refused token", () => {
+    expect(MailboxStatusSchema.options).toContain("reconnect_needed");
+  });
+
+  it("signs in to IMAP with an access token instead of a password", () => {
+    const { password: _p, ...rest } = { ...mailbox, password: "x" };
+    expect(OAuthMailConnectionSchema.safeParse({ ...rest, accessToken: "t" }).success).toBe(true);
+    expect(OAuthMailConnectionSchema.safeParse(rest).success).toBe(false);
+  });
+
+  it("filters the inbox by a mailbox id", () => {
+    expect(MessageListQuerySchema.parse({ mailboxId: ID })).toEqual({ mailboxId: ID });
+    expect(MessageListQuerySchema.safeParse({ mailboxId: "inbox" }).success).toBe(false);
+  });
+
+  it("needs a state on every OAuth callback and keeps the tokens with the account's address", () => {
+    expect(OAuthCallbackQuerySchema.safeParse({ code: "c" }).success).toBe(false);
+    expect(OAuthCallbackQuerySchema.parse({ state: "s", error: "access_denied" })).toEqual({
+      state: "s",
+      error: "access_denied",
+    });
+    expect(
+      OAuthTokensSchema.safeParse({
+        accessToken: "a",
+        refreshToken: "r",
+        expiresAt: "2026-10-16T10:00:00.000Z",
+        email: "not an address",
+      }).success,
+    ).toBe(false);
   });
 });

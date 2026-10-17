@@ -21,6 +21,7 @@ const presets: MailPreset[] = [
     tlsMode: "tls",
     needsAppPassword: true,
     helpUrl: "https://support.google.com/accounts/answer/185833",
+    smtp: { host: "smtp.gmail.com", port: 465, tlsMode: "tls", savesSentCopy: true },
   },
   {
     id: "other",
@@ -30,6 +31,7 @@ const presets: MailPreset[] = [
     tlsMode: "tls",
     needsAppPassword: false,
     helpUrl: null,
+    smtp: null,
   },
 ];
 

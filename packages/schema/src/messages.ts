@@ -4,7 +4,7 @@ import { IsoDateTimeSchema } from "./common";
 import { CvChoiceSchema } from "./cv";
 import { DraftStatusSchema } from "./drafts";
 import { JobFactsSchema } from "./facts";
-import { AddressSchema, EnvelopeSchema } from "./mailbox";
+import { AddressSchema, EnvelopeSchema, MessageMailboxSchema } from "./mailbox";
 import { RoleEvaluationSchema } from "./match";
 import { RoleProfileSchema } from "./profile";
 import { SenderCheckSchema, SenderVerdictSchema } from "./sender";
@@ -81,6 +81,11 @@ export const MessageListItemSchema = z.object({
   sender: z.object({ verdict: SenderVerdictSchema, complete: z.boolean() }).nullable(),
   hidden: z.object({ reason: z.string() }).nullable(),
   draft: z.object({ status: DraftStatusSchema }).nullable(),
+  /**
+   * MVP 3 (F3.1): the mailbox it came from; null for mail of a mailbox disconnected before MVP 3.
+   * Absent from a replica of the previous release.
+   */
+  mailbox: MessageMailboxSchema.nullable().optional(),
 });
 export type MessageListItem = z.infer<typeof MessageListItemSchema>;
 
@@ -99,6 +104,8 @@ export const MessageListQuerySchema = z.object({
    */
   hidden: z.enum(["true", "false"]).optional(),
   page: z.coerce.number().int().min(1).optional(),
+  /** MVP 3 (F3.1): only this mailbox's messages. */
+  mailboxId: z.uuid().optional(),
 });
 export type MessageListQuery = z.infer<typeof MessageListQuerySchema>;
 
