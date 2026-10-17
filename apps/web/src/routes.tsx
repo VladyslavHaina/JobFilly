@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { type RouteObject, useParams } from "react-router";
 import { useWorkspace } from "./hooks";
-import { AppShell, Home, NotFound, RequireSession, WorkspaceIndex } from "./layout";
+import { AccountShell, AppShell, Home, NotFound, RequireSession, WorkspaceIndex } from "./layout";
 import { OnboardingPage } from "./onboarding";
 import { AccountPage } from "./pages/account";
 import { ActivityPage } from "./pages/activity";
@@ -45,9 +45,15 @@ export const routes: RouteObject[] = [
     element: <RequireSession />,
     children: [
       { path: "/", element: <Home /> },
-      { path: "/invitations", element: <InvitationsPage /> },
-      { path: "/account", element: <AccountPage /> },
-      { path: "/invites/:inviteId", element: <InviteLinkPage /> },
+      {
+        // Outside a workspace, with the header's Account and Sign out (F7.3).
+        element: <AccountShell />,
+        children: [
+          { path: "/invitations", element: <InvitationsPage /> },
+          { path: "/account", element: <AccountPage /> },
+          { path: "/invites/:inviteId", element: <InviteLinkPage /> },
+        ],
+      },
       {
         path: "/w/:workspaceId",
         element: <AppShell />,

@@ -76,7 +76,8 @@ function Nav() {
   );
 }
 
-function Header() {
+/** The brand, then `children` (a workspace's switcher and pages), then Account and Sign out. */
+function Header({ children }: { children?: ReactNode }) {
   const { user } = useSession();
   const signOut = useSignOut();
   const navigate = useNavigate();
@@ -84,8 +85,7 @@ function Header() {
     <header className="border-b border-stone-200 bg-white">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
         <span className="text-base font-semibold tracking-tight text-indigo-700">JobFilly</span>
-        <WorkspaceSwitcher />
-        <Nav />
+        {children}
         <div className="ml-auto flex items-center gap-3">
           <NavLink
             to={paths.account()}
@@ -162,7 +162,10 @@ export function AppShell() {
     <WorkspaceProvider workspace={workspace}>
       <LiveUpdates />
       <div className="min-h-screen bg-stone-50">
-        <Header />
+        <Header>
+          <WorkspaceSwitcher />
+          <Nav />
+        </Header>
         <main className="mx-auto max-w-6xl px-4 py-6">
           <PendingInvitations />
           <Page />
@@ -171,5 +174,18 @@ export function AppShell() {
         <AssistantLauncher workspaceId={workspace.id} />
       </div>
     </WorkspaceProvider>
+  );
+}
+
+/**
+ * The signed-in pages outside a workspace (invitations, account, invite links): the same header,
+ * so Account and Sign out are a click away even when no workspace is left (F7.3).
+ */
+export function AccountShell() {
+  return (
+    <div className="min-h-screen bg-stone-50">
+      <Header />
+      <Outlet />
+    </div>
   );
 }
