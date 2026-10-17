@@ -12,14 +12,16 @@ import {
   type ExportPart,
 } from "@jobfilly/schema";
 import { Zip, ZipDeflate } from "fflate";
+import { loadPipeline } from "../applications/load";
 import type { AppDeps } from "../deps";
 import { activityEntry } from "../routes/activity";
 
 // The workspace as one ZIP (MVP 3, F7.1): manifest.json, one JSON file per part (EXPORT_PARTS),
-// each an array written a page at a time, and the CV files under cvs/. The ZIP is produced as
-// the response is read: each page is read from Postgres, compressed and handed on before the
-// next is read, so memory stays flat whatever the workspace's size. Nothing secret is in any
-// part (mailbox credentials and the AI key aren't exported).
+// each an array written a page at a time, and the CV files under cvs/. The ZIP is produced as the
+// response is read: each page is read from Postgres, compressed and handed on before the next is
+// read, so memory stays flat whatever the workspace's size. pipeline.json is the pipeline's items
+// as GET /pipeline builds them (loadPipeline). Nothing secret is in any part (mailbox credentials
+// and the AI key aren't exported).
 
 /** Rows read from Postgres per page. */
 const PAGE = 500;
@@ -46,6 +48,12 @@ async function* partRows(
       yield page.items.map(activityEntry);
       before = page.nextBefore ?? undefined;
     } while (before);
+    return;
+  }
+  if (part === "pipeline") {
+    // The whole pipeline as GET /pipeline answers it: every item with its stage, derived from the
+    // mail or set by hand (F5.1). It is built whole, as it is for GET /pipeline.
+    yield (await loadPipeline(deps, workspaceId)).stages.flatMap((s) => s.items);
     return;
   }
   let after: string | null = null;

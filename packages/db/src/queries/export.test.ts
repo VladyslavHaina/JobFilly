@@ -198,7 +198,8 @@ describe("the export, read in pages (F7.1)", () => {
     expect(new TextDecoder().decode(bytes ?? new Uint8Array())).toBe("%PDF-CVFILE");
     expect(await exportCvFile(conn.db, tom.workspaceId, files[0]?.id ?? "")).toBeNull();
     const parts = ["profiles", "rules", "cvs", "messages", "facts", "matches"] as const;
-    for (const part of [...parts, "decisions", "drafts", "pipeline"] as const) {
+    // pipeline.json is built by the server (loadPipeline); its export test checks it too.
+    for (const part of [...parts, "decisions", "drafts"] as const) {
       const page = await exportPage(conn.db, maria.workspaceId, part, null, 100);
       expect(JSON.stringify(page.rows)).not.toContain("SEALED-SECRET");
       expect(JSON.stringify(page.rows)).not.toContain("%PDF-CVFILE");

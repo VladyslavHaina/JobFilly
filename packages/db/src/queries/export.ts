@@ -9,7 +9,6 @@ import {
   messages,
   profiles,
   roleEvaluations,
-  roleStages,
   roles,
   rules,
 } from "../tables";
@@ -21,8 +20,11 @@ import {
 // and an account are in ./workspaces and ./accounts (F7.2, F7.3); the activity log is read with
 // listActivity (./activity).
 
-/** The parts read here; `activity` is read with listActivity. */
-export type ExportTablePart = Exclude<ExportPart, "activity">;
+/**
+ * The parts read here; `activity` is read with listActivity, and `pipeline` is the server's
+ * loadPipeline (derived from the mail with the stages set by hand, not a table).
+ */
+export type ExportTablePart = Exclude<ExportPart, "activity" | "pipeline">;
 
 /** A page of one part: plain JSON rows, and where the next page starts (null at the end). */
 export interface ExportPage {
@@ -188,28 +190,6 @@ const SOURCES: Record<ExportTablePart, Source> = {
       createdBy: drafts.createdBy,
       createdAt: drafts.createdAt,
       updatedAt: drafts.updatedAt,
-    },
-  },
-  // The stages set by hand (F5.1), paged by their role; a derived stage follows from the
-  // messages' categories.
-  pipeline: {
-    table: roleStages,
-    key: roles.id,
-    workspaceId: roleStages.workspaceId,
-    fields: {
-      messageId: roleStages.messageId,
-      position: roleStages.position,
-      stage: roleStages.stage,
-      setBy: roleStages.setBy,
-      setAt: roleStages.setAt,
-    },
-    join: {
-      table: roles,
-      on: and(
-        eq(roles.workspaceId, roleStages.workspaceId),
-        eq(roles.messageId, roleStages.messageId),
-        eq(roles.position, roleStages.position),
-      ),
     },
   },
 };

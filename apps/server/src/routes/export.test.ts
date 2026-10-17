@@ -1,12 +1,19 @@
 import { addMember, saveAnalysis, saveEnvelopes, setMemberScope } from "@jobfilly/db";
 import { activityRows } from "@jobfilly/db/testing";
-import { EXPORT_PARTS, ExportManifestSchema, type StageOneResult } from "@jobfilly/schema";
+import {
+  EXPORT_PARTS,
+  ExportManifestSchema,
+  type PipelineItem,
+  type StageOneResult,
+} from "@jobfilly/schema";
 import { unzipSync } from "fflate";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../app";
+import { loadPipeline } from "../applications/load";
 import {
   createFakeMailbox,
   createTestDeps,
+  roleFacts,
   type SeededUser,
   seedAiSettings,
   seedCv,
@@ -144,6 +151,33 @@ describe("the export (F7.1)", () => {
     const again = await download(mariaApi);
     expect(json(again["activity.json"])).toMatchObject([
       { kind: "export.downloaded", actor: { userId: maria.id, name: "Maria Santos" } },
+    ]);
+  });
+
+  it("holds the whole pipeline, the derived stages and those set by hand", async () => {
+    await saveEnvelopes(deps.db, maria.workspaceId, mail(2));
+    for (const [i, company] of ["Nordlicht", "Globex"].entries()) {
+      await saveAnalysis(deps.db, maria.workspaceId, {
+        messageId: `<job-${i}@agency.example>`,
+        scanId: null,
+        category: "recruiter_outreach",
+        roles: [roleFacts({ company })],
+      });
+    }
+    const role = { messageId: "<job-1@agency.example>", position: 0 };
+    const set = await mariaApi.put(`/api/workspaces/${maria.workspaceId}/pipeline/stage`, {
+      role,
+      stage: "interview",
+    });
+    expect(set.status).toBe(200);
+
+    const files = await download(mariaApi);
+    const items = json(files["pipeline.json"]) as PipelineItem[];
+    const pipeline = await loadPipeline(deps, maria.workspaceId);
+    expect(items).toEqual(pipeline.stages.flatMap((s) => s.items));
+    expect(items.map((i) => [i.company, i.stage, i.stageSource]).sort()).toEqual([
+      ["Globex", "interview", "you"],
+      ["Nordlicht", "new", "derived"],
     ]);
   });
 
