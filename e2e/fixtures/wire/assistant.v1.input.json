@@ -17,5 +17,6 @@
       ]
     }
   ],
-  "rules": []
+  "rules": [],
+  "mailLanguages": ["en", "de"]
 }

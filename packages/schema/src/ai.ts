@@ -236,7 +236,9 @@ export type DraftTaskInput = z.infer<typeof DraftTaskInputSchema>;
 
 /**
  * assistant.v1's input: the user's message (untrusted, any language), the turn number in the
- * thread, the earlier turns, and the profile's entries and rules a proposal would change.
+ * thread, the earlier turns, the profile's entries and rules a proposal would change, and the
+ * languages the workspace's job mail is in (ISO 639-1, most frequent first), so a rule on free
+ * text can name the phrases in each of them.
  */
 export const AssistantTaskInputSchema = z.object({
   turn: z.number().int().min(1),
@@ -244,6 +246,7 @@ export const AssistantTaskInputSchema = z.object({
   history: z.array(z.object({ role: z.enum(["user", "assistant"]), text: z.string() })),
   entries: z.array(PromptEntrySchema),
   rules: z.array(RuleSchema),
+  mailLanguages: z.array(z.string().regex(/^[a-z]{2}$/, "an ISO 639-1 code")),
 });
 export type AssistantTaskInput = z.infer<typeof AssistantTaskInputSchema>;
 
