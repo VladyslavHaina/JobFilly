@@ -16,11 +16,11 @@ The UI only ever talks to the server over HTTP from the same origin.
 | `packages/schema` | Zod schemas: every API payload, every AI structured output, job facts, profiles, rules | — |
 | `packages/core` | Scan decisions, intake aggregation, profiles, rules engine, matching, decisions, CV choice. Pure logic, no I/O | schema |
 | `packages/db` | PostgreSQL through Drizzle: tables, migrations, workspace-scoped queries, the job queue | schema |
-| `packages/mail` | IMAP (imapflow), parsing (mailparser), building drafts and sending (nodemailer) | schema |
+| `packages/mail` | IMAP (imapflow, password or XOAUTH2), parsing (mailparser), building drafts, and sending one confirmed message (nodemailer, `src/smtp` only) | schema |
 | `packages/ai` | Provider registry (AI SDK), per-task models, prompts, structured output, usage | schema |
 | `apps/server` | HTTP API (Hono), sessions, workspace access, workers, live updates, config, logs | all packages |
 | `apps/web` | React UI (Vite, Tailwind, TanStack Query, React Router) | schema; server types only |
-| `e2e/` | Test stack fixtures, fake AI, mail seeding, Playwright specs (workspace package `@jobfilly/e2e`) | — |
+| `e2e/` | Test stack fixtures, fake AI, fake RDAP and fake Google OAuth servers, mail seeding, Playwright specs (workspace package `@jobfilly/e2e`) | — |
 
 Rules:
 
@@ -57,6 +57,20 @@ Rules:
   Not a member: `404`. A member without the needed role: `403`. Each route module under
   `/api/workspaces/:workspaceId/<name>` is mounted once behind the membership check
   (`apps/server/src/access`) and applies `requireRole` on its own handlers.
+- MVP 3: a member's scope (`memberships.scope`, F6.1) is everything or the job pipeline only.
+  For a pipeline-only member, `mount` in `app.ts` closes every module (404, `requireFullAccess`)
+  unless it is mounted with `pipeline: true`, so a new module is closed by default; and
+  `requireJobMail` answers 404 for every route about one message (`/messages/:messageId/*`,
+  `/senders/messages/:messageId/*`, reads and writes alike) unless it is job mail. Open: members,
+  invites, events, mailboxes, ai, scans, messages (the list job mail only, no draft status, never
+  a body), intake, profiles, rules, history, cvs, senders, decisions, the assistant (its lookups
+  apply the scope, F8.3), pipeline, oauth, activity, the workspace's own DELETE. Closed: drafts
+  and sending, export. The web mirrors it with `can.mail`.
+- MVP 3 exceptions to "every query takes a workspace id", added by their slices: the Google
+  callback (`/api/oauth/google/callback`) finds its waiting sign-in by the state's hash
+  (`oauth_states`), which names the workspace and the user, and then checks that user's session;
+  deleting an account works on the signed-in user's own view (their memberships, owned
+  workspaces and invites to their email).
 - Roles: `viewer` reads; `editor` also changes profiles, rules, decisions and drafts; `admin` also
   manages members, mailboxes and AI settings. The owner is an admin who can't be removed.
 - Sessions: the cookie `jf_session` (HttpOnly, SameSite=Lax, Secure behind HTTPS) holds a random
@@ -96,6 +110,20 @@ Rules:
   message). The migration also gives saved AI settings a model for each new task, from their
   extract model. Migration `0002_cv_preferred` adds `cvs.preferred`, the user's flag for the CV
   to use when nothing else in a role tells the CVs apart.
+- MVP 3's tables and columns (migration `0003_mvp3`, add-only but for two constraints): several
+  mailboxes per workspace (the one-per-workspace unique goes, one per address instead; old
+  replicas can't connect a mailbox during the rolling update), with `auth_kind` (password or
+  google, whose sealed secret is its OAuth tokens as JSON), the `reconnect_needed` status and
+  SMTP settings; `messages.mailbox_id` (composite FK, cascade: disconnecting deletes its messages
+  and all tied to them, F7.4; backfilled; null reads as the first mailbox; a Message-ID seen in a
+  second mailbox stays the first one's message); `oauth_states`; `profiles.enabled`;
+  `scans.hint` and `scans.focus` and the `rerun` kind; the role's profile on `role_evaluations`
+  (`profile_id`, reason, source) and an editor's choice in `role_profile_choices`; `sends` (one
+  waiting or running per draft) and the `sent` draft status; `jobs.run_at`; `role_stages` (a stage
+  set by hand); `memberships.scope` and `invites.scope`; `activity_log`; `assistant_messages.sources`;
+  `scans.started_by` set null when its account goes. The activity log holds ids, never a name or
+  an address (actor and target user ids set null when the account goes: "Deleted user"), written
+  through `recordActivity` wherever an outward or sharing action happens.
 - A reference from one workspace-owned row to another includes `workspace_id`: `cvs`,
   `profiles` and `assistant_threads` have a unique `(workspace_id, id)`, and every foreign key to
   them is composite, as those to `messages` and `roles` are. The database itself refuses a link,
@@ -142,7 +170,9 @@ Rules:
   `cv:<cvId>`, `draft:<ws>:<messageId>:<position>`.
 - Job types and their owners: `scan.run`; `pipeline.reevaluate`; `mail.sync`, `cv.read` and
   `draft.create`, each registered in its slice's module (`sync/jobs.ts`, `cvs/jobs.ts`,
-  `drafts/jobs.ts`) and spread into `jobs/registry.ts`.
+  `drafts/jobs.ts`) and spread into `jobs/registry.ts`. MVP 3: `mail.send` (`send/jobs.ts`,
+  dedupe `send:<sendId>`) runs once its `run_at` (the 10-second Undo delay, F4.2) has passed; the
+  claim skips a job not yet due.
 - Live updates reach the browser over Server-Sent Events
   (`GET /api/workspaces/:workspaceId/events`). Replicas publish events through Postgres
   `LISTEN/NOTIFY`, so a browser connected to any replica sees work done on any other.
@@ -191,6 +221,11 @@ Rules:
   `mailbox_sync.last_error_reason`) that the UI branches on; the words beside it come from
   packages/mail (`UNAVAILABLE_MESSAGES`) for the mail server's reasons, and from
   `apps/server/src/sync/run.ts` for `secret_error` and `error`.
+- MVP 3 (F3.1): `connectMailbox(deps, ws, mailboxId)` opens one mailbox of several (none named:
+  the first, where mail stored before MVP 3 lives); the pipeline's `mailboxSession` keeps one
+  connection per mailbox; the body route, a draft's original, Message-ID domain and Drafts folder
+  use the message's mailbox (`getMessageMailbox`); the scan and the sync file what they store
+  under theirs (`saveEnvelopes`, `reindexMessages` and `newestStoredUid` take it).
 - Every caller of `MailPort.connect` passes the mailbox's stored address
   (`MailClientOptions.address`): it is the From of every draft and the domain of its
   Message-ID, as the IMAP user name need not be an address.
@@ -400,6 +435,18 @@ Rules:
   `connectMailbox` too. Nothing else calls `deps.mail.connect` with a stored mailbox; the
   connection test in Settings connects with the settings being tested, not a stored row.
 - The assistant can only propose changes. Applying one is a separate request made by the user.
+- MVP 3's prompts, pinned like MVP 2's (header, key lines, framing; the instruction is the
+  slice's): `focus.v1` reads a re-run's hint into `ScanFocus` (countries, cities, languages, work
+  modes, contract words, other words) on the intake model, keyed by the hint in its "message"
+  block; `answer.v1` answers a question from read-only lookup results (`Turn:` key line, one
+  "lookup <n>" block per result, the question last) on the assistant model, with the refs it used.
+  assistant.v1's answer carries `lookups` (default none) for a question. No new model slot, so
+  `ai_settings.models` doesn't change. Answers come back as JSON, never as provider tool calls.
+- MVP 3's ports: `deps.smtp` (`SmtpPort`: send one message's exact bytes, and Test; packages/mail
+  `src/smtp`) and `deps.oauth` (`OAuthPort`: Google's token endpoint, exchange and refresh,
+  `OAuthRefusedError` when a refresh is refused; `apps/server/src/oauth/google.ts`). Sending
+  happens only in the send job, one confirmed message at a time; `MailClient.appendSent` files it
+  in Sent once per Message-ID.
 
 ## Configuration (environment)
 
@@ -414,9 +461,12 @@ Rules:
 | `JOBFILLY_SYNC_INTERVAL_SECONDS` | Mail polling interval, default `120` |
 | `JOBFILLY_RDAP_URL` | RDAP service for domain age, default `https://rdap.org` |
 | `JOBFILLY_ALLOW_INSECURE_MAIL` | Allow plain-text IMAP/SMTP; only the test stack sets it |
+| `JOBFILLY_GOOGLE_CLIENT_ID`, `JOBFILLY_GOOGLE_CLIENT_SECRET` | Google's OAuth client, set together; without them there is no Sign in with Google (MVP 3, F3.2). Redirect URI: `${PUBLIC_URL}/api/oauth/google/callback` |
+| `JOBFILLY_GOOGLE_AUTHORIZE_URL`, `JOBFILLY_GOOGLE_TOKEN_URL` | Google's endpoints, by default `https://accounts.google.com/o/oauth2/v2/auth` and `https://oauth2.googleapis.com/token`; the test stack's fake overrides them |
+| `JOBFILLY_GOOGLE_IMAP_HOST`, `JOBFILLY_GOOGLE_SMTP_HOST` | Gmail's servers as URLs, by default `imaps://imap.gmail.com:993` and `smtps://smtp.gmail.com:465`; `imap://`/`smtp://` is plain text (test stack only) |
 
 The server validates all of them at start and exits with one clear message if one is missing or
-invalid. Later MVPs add OAuth client settings to this table.
+invalid.
 
 ## Kubernetes readiness
 
@@ -448,8 +498,9 @@ Every MVP keeps these true; the Helm chart after MVP 3 relies on them.
   (dot-separated, e.g. `scan.stopped`), `requestId` for HTTP requests, and `workspaceId` / `userId`
   as ids. Every HTTP request logs `http.request` with method, route pattern, status and duration;
   the UI's files and deep links all log the route `/*`, never their path.
-- Never logged: passwords, keys, tokens, cookies, message bodies, subjects, email addresses, CV
-  text, assistant messages.
+- Never logged: passwords, keys, tokens (OAuth access, refresh and id tokens, the PKCE verifier
+  and the client secret included), cookies, message bodies, subjects, email addresses, CV text,
+  assistant messages, a re-run's hint, the assistant's search words.
 
 ## Testing
 
@@ -460,9 +511,10 @@ Every MVP keeps these true; the Helm chart after MVP 3 relies on them.
   isolation, reusing each worker's databases, so they don't use `vi.mock`. The doubles every
   slice tests with live there too: a fake mailbox (`createFakeMailbox`: INBOX with UIDs and
   UIDVALIDITY, `deliver`, a Drafts folder recording each draft, `pause`/`resume`, `failNext`,
-  `setUidValidity`, `expunge`, call counts), a fake AI (`createFakeAi`, keyed like the test
-  stack's fake AI), a fake `DomainPort`, `seedCv`, real PDF and DOCX files to upload
-  (`pdfWithText`, `docxWithText`), and recording pipeline stages.
+  `setUidValidity`, `expunge`, call counts; MVP 3: `appendSent`), a fake AI (`createFakeAi`,
+  keyed like the test stack's fake AI), a fake `DomainPort`, `seedCv`, real PDF and DOCX files to
+  upload (`pdfWithText`, `docxWithText`), recording pipeline stages, and (MVP 3) a fake SMTP server
+  (`createFakeSmtp`) and Google token endpoint (`createFakeOAuth`).
 - `pnpm e2e` starts the test stack (`docker/compose.e2e.yaml`) and runs the Playwright specs.
   The root scripts run `node e2e/stack.ts run` (`pnpm e2e`), `node e2e/stack.ts stack up|down`
   and `node e2e/stack.ts specs [--mvp <n>]`.
@@ -481,5 +533,12 @@ Every MVP keeps these true; the Helm chart after MVP 3 relies on them.
   lookups get the fixture zone's answer and `JOBFILLY_RDAP_URL` answers. The seed's
   `inspect smtp` and `reset-uidvalidity` use the test mail server's REST API
   (`GREENMAIL_API_URL`). Personas:
-  `maria` (maria.santos@inbox.example) and `tom` (tom.okafor@inbox.example). How
+  `maria` (maria.santos@inbox.example) and `tom` (tom.okafor@inbox.example). From MVP 3 the mail
+  server also has Maria's personal mailbox (maria.home@post.example) and her Gmail test account
+  (maria.gmail@gmail.example; `EXTRA_ACCOUNTS` in `e2e/seed/accounts.ts`), and the fake Google
+  authorisation server starts with `node e2e/oauth/main.ts` (`PORT` 8080; `OAUTH_CLIENT_ID`,
+  `OAUTH_CLIENT_SECRET`, `OAUTH_EMAIL`, `OAUTH_ACCESS_TOKEN`, which is that account's mail
+  password, for XOAUTH2), reached by the browser through the proxy at `127.0.0.1:8084` and by the
+  app at `http://oauth:8080`. The fake AI answers focus.v1 from `ai/focus.json` and answer.v1
+  from `ai/answer.json`. How
   each MVP is validated is described in [docs/mvp/README.md](mvp/README.md).
