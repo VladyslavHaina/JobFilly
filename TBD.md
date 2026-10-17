@@ -5693,3 +5693,37 @@ These make sign-off possible; without them the build goes on and records an open
 - **Refs:** docs/mvp/MVP-3.md F1–F9, TBD-446
 - **Status:** accepted
 
+## TBD-448 · No rate limit on password checks
+- **Kind:** open item
+- **Where:** MVP 3 · Security review
+- **Context:** Sign-in, account deletion and workspace deletion check the account password, and nothing limits how often. A hijacked session or an attacker with an account could guess passwords without limit. Workspace deletion now asks for the password (d7e3a0e).
+- **Options:**
+  1. Leave it
+  2. Per-account throttling stored in Postgres (shared by every replica), e.g. N failures per 15 minutes, then 429
+- **Chosen:** Left for now: throttling needs state shared across replicas, and the owner asked to keep MVP 3 simple. Revisit before running the server for other people.
+- **If you decide otherwise:** Add a failed-attempts table keyed by account with a sliding window, checked by every password route.
+- **Refs:** CLAUDE.md "Kubernetes-ready: no state on local disk"; routes/auth.ts, routes/account.ts, routes/workspace.ts
+- **Status:** open
+
+## TBD-449 · MVP 3 fixture decisions
+- **Kind:** decision
+- **Where:** MVP 3 · Build (fixtures slice)
+- **Context:** Choices the fixtures slice made where the spec left room.
+- **Options:**
+  1. As chosen below
+- **Chosen:** The second mailbox (maria-home) has no expected.json of its own; its truth sits in Maria's file under mvp3. New roles' fit, needs and drafts are written against the profile MVP 2 starts with, and their MVP 3 profile is recorded separately (mvp3.assignments). S9's interview count is two (Nordlicht, and Brandung once S6 moves it by hand); Lindwurm has moved on to offer, so it isn't counted. Where open items depend on the run, the fake answers list every link that could apply and the server keeps only those its lookups returned. German mail and her replies both write "München". Soak mail: Maria's generated roles are onsite in Munich (no drafts); Tom's may get drafts. maria-gmail gets no mail; S4 only needs its sign-in to complete.
+- **If you decide otherwise:** Change the generator in e2e/fixtures/build and regenerate.
+- **Refs:** docs/mvp/MVP-3.md "Fixtures added", S1, S4, S6, S9
+- **Status:** accepted
+
+## TBD-450 · Pipeline-only admins can't change where mail goes
+- **Kind:** decision
+- **Where:** MVP 3 · Security review
+- **Context:** A pipeline-only admin could change SMTP or AI settings or connect a mailbox, and so redirect mail text to a server they control.
+- **Options:**
+  1. Leave settings open (D24)
+  2. Close the routes that change where mail or its text goes
+- **Chosen:** Option 2 (f3f371f): SMTP save and test, AI save and test, POST /mailboxes and its test, and Google sign-in start need full access; reads stay open. Old assistant answers that used full-access data are hidden from pipeline-only members, failing closed (e69d2aa, ad95fbf). Live events are filtered and the stream closes on a role or scope change (ca1aa9d, 82d52ba). The web still shows those forms to pipeline-only admins (they get 404): a small follow-up.
+- **If you decide otherwise:** Reopen D24 and remove requireFullAccess from those routes.
+- **Refs:** TBD-446 D24, docs/mvp/MVP-3.md F6
+- **Status:** accepted
