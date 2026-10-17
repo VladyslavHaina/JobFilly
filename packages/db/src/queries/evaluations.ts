@@ -54,6 +54,11 @@ const isJobMessage = and(
 /**
  * Stores a role's evaluation as current (stale cleared), with the profile it was evaluated with
  * (MVP 3, F1.3), or none (an evaluation made before MVP 3 reads as the first profile's).
+ *
+ * `at` is when the pass began, before it read what the evaluation depends on. A mark made after
+ * that (stale_since later than `at`: a profile switched while the pass ran) isn't cleared: the
+ * evaluation is stored but stays stale, so the next pass makes it again with the change. The
+ * check and the write are one statement, so a mark can't slip in between.
  */
 export async function saveEvaluation(
   db: Database,
@@ -75,20 +80,40 @@ export async function saveEvaluation(
     cvId: evaluation.cvChoice.cvId,
     cvReason: evaluation.cvChoice.reason,
     cvSource: evaluation.cvChoice.source,
-    stale: false,
-    staleSince: null,
     evaluatedAt: at,
   };
   await db
     .insert(roleEvaluations)
-    .values({ workspaceId, messageId, position: evaluation.position, ...set })
+    .values({
+      workspaceId,
+      messageId,
+      position: evaluation.position,
+      ...set,
+      stale: false,
+      staleSince: null,
+    })
     .onConflictDoUpdate({
       target: [roleEvaluations.workspaceId, roleEvaluations.messageId, roleEvaluations.position],
-      set,
+      set: { ...set, ...keepLaterMark("role_evaluations", at) },
     });
 }
 
-/** Stores a message's sender check as current (stale cleared). */
+/**
+ * The stale flag a save leaves on the existing row `table`: cleared, unless the row was marked
+ * stale after `at` (when the saving pass began), which then stays as it is.
+ */
+function keepLaterMark(table: "role_evaluations" | "sender_checks", at: Date) {
+  const later = sql`(${sql.raw(table)}.stale and ${sql.raw(table)}.stale_since > ${at.toISOString()}::timestamptz)`;
+  return {
+    stale: later,
+    staleSince: sql`case when ${later} then ${sql.raw(table)}.stale_since end`,
+  };
+}
+
+/**
+ * Stores a message's sender check as current (stale cleared). `at` is when the pass began: a
+ * mark made since (a sender marked while the check ran) stays, as in saveEvaluation.
+ */
 export async function saveSenderCheck(
   db: Database,
   workspaceId: string,
@@ -101,14 +126,15 @@ export async function saveSenderCheck(
     complete: check.complete,
     reasons: check.reasons,
     mark: check.mark,
-    stale: false,
-    staleSince: null,
     checkedAt: at,
   };
   await db
     .insert(senderChecks)
-    .values({ workspaceId, messageId, ...set })
-    .onConflictDoUpdate({ target: [senderChecks.workspaceId, senderChecks.messageId], set });
+    .values({ workspaceId, messageId, ...set, stale: false, staleSince: null })
+    .onConflictDoUpdate({
+      target: [senderChecks.workspaceId, senderChecks.messageId],
+      set: { ...set, ...keepLaterMark("sender_checks", at) },
+    });
 }
 
 function messagesOfScope(workspaceId: string, scope: StaleScope): SQL | undefined {

@@ -298,6 +298,40 @@ describe("what the pipeline has to evaluate", () => {
   });
 });
 
+describe("a save after a change made while the pass ran", () => {
+  // A pass begins at later(1) (the time it saves with); the role and check are marked stale before
+  // it, and again (a profile switched off and on, a sender marked twice) while it runs.
+  it("keeps an evaluation stale that was marked again after the pass began", async () => {
+    await seedMessage(1);
+    await saveEvaluation(conn.db, ws, id(1), evaluation(0, 64), t0);
+    await markStale(conn.db, ws, { all: true }, later(1));
+    await markStale(conn.db, ws, { all: true }, later(2));
+    await saveEvaluation(conn.db, ws, id(1), evaluation(0, 80), later(1));
+    expect((await getEvaluations(conn.db, ws, [id(1)]))[0]).toMatchObject({
+      match: { score: 80 },
+      stale: true,
+    });
+    expect(await listToEvaluate(conn.db, ws)).toMatchObject([
+      { messageId: id(1), roles: [{ position: 0, state: "stale", staleSince: later(2) }] },
+    ]);
+    // The next pass, begun after that mark, clears it.
+    await saveEvaluation(conn.db, ws, id(1), evaluation(0, 90), later(3));
+    expect((await getEvaluations(conn.db, ws, [id(1)]))[0]).toMatchObject({ stale: false });
+  });
+
+  it("keeps a sender check stale that was marked again after the pass began", async () => {
+    await seedMessage(1, { from: "anna@agency.example" });
+    await evaluateAll(1);
+    const sender = { senderAddress: "anna@agency.example" };
+    await markStale(conn.db, ws, sender, later(1));
+    await markStale(conn.db, ws, sender, later(2));
+    await saveSenderCheck(conn.db, ws, id(1), check, later(1));
+    expect((await getSenderChecks(conn.db, ws, [id(1)]))[0]).toMatchObject({ stale: true });
+    await saveSenderCheck(conn.db, ws, id(1), check, later(3));
+    expect((await getSenderChecks(conn.db, ws, [id(1)]))[0]).toMatchObject({ stale: false });
+  });
+});
+
 describe("the stages' message input", () => {
   it("reads the envelope fields and every role's facts in order", async () => {
     await seedMessage(1, { roles: 2 });

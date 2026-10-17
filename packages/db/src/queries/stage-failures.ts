@@ -45,8 +45,9 @@ const positionOf = (ref: FailedStage) => (ref.stage === "match" ? ref.position :
 /**
  * Counts one more failure of the stage and sets when it may run again: at once after the first
  * (the next sweep), then failed_at + interval × 2^(failures - 2), at most the cap (never less
- * than one interval). A role's row keeps its evaluation's stale_since as it was, so a later
- * change is told apart. Returns the count and the retry time.
+ * than one interval). A role's row keeps its evaluation's stale_since as the failing pass found
+ * it, so a later change is told apart. `now` is when that pass began: a mark made since (stale_since
+ * later) isn't kept, so that change still ends the wait. Returns the count and the retry time.
  */
 export async function recordStageFailure(
   db: Database,
@@ -57,7 +58,8 @@ export async function recordStageFailure(
   const position = positionOf(ref);
   const staleSince =
     ref.stage === "match"
-      ? sql`(select stale_since from role_evaluations
+      ? sql`(select case when stale_since > ${options.now.toISOString()}::timestamptz then null
+              else stale_since end from role_evaluations
             where workspace_id = ${workspaceId} and message_id = ${ref.messageId}
               and position = ${position})`
       : null;

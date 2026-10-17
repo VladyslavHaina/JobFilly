@@ -252,6 +252,20 @@ describe("what waits out its back-off", () => {
     ]);
   });
 
+  it("doesn't hold a role on a change made while its failing pass ran", async () => {
+    await seedMessage();
+    await saveEvaluation(conn.db, ws, MSG, evaluation(0), t0);
+    await markStale(conn.db, ws, { all: true }, t0);
+    await recordStageFailure(conn.db, ws, role(0), { ...BACK_OFF, now: t0 });
+    // The second pass begins at at(1_000); a profile is switched while it runs, then it fails.
+    await markStale(conn.db, ws, { all: true }, at(2_000));
+    await recordStageFailure(conn.db, ws, role(0), { ...BACK_OFF, now: at(1_000) });
+    expect((await getStageHolds(conn.db, ws, MSG, at(MINUTE))).positions).toEqual([]);
+    // A pass begun after that change that fails again holds it.
+    await recordStageFailure(conn.db, ws, role(0), { ...BACK_OFF, now: at(3_000) });
+    expect((await getStageHolds(conn.db, ws, MSG, at(MINUTE))).positions).toEqual([0]);
+  });
+
   it("ends the roles' waits, locking their rows in key order so two at once can't deadlock", async () => {
     await seedMessage();
     await failTwice(role(0));

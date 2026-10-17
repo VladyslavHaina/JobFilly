@@ -196,12 +196,16 @@ export async function distinctMessageIds<T extends Envelope>(
  *
  * A Message-ID stored with another From address is another message's (distinctMessageIds): the
  * envelope is stored under an id of its own, and the stored row is never updated by it.
+ *
+ * `now` is when the check goes stale, by the caller's clock: a pipeline pass compares it with
+ * when it began (saveSenderCheck), so it is the clock the pipeline reads. Without it, the
+ * database's.
  */
 export async function saveEnvelopes(
   db: Database,
   workspaceId: string,
   items: readonly StageOneResult[],
-  options: { mailboxId?: string } = {},
+  options: { mailboxId?: string; now?: Date } = {},
 ): Promise<void> {
   const mailboxId = options.mailboxId ?? null;
   const envelopes = await distinctMessageIds(
@@ -262,7 +266,7 @@ export async function saveEnvelopes(
       });
     await db
       .update(senderChecks)
-      .set({ stale: true, staleSince: sql`now()` })
+      .set({ stale: true, staleSince: options.now ?? sql`now()` })
       .where(
         and(
           eq(senderChecks.workspaceId, workspaceId),
@@ -290,13 +294,13 @@ export async function saveEnvelopes(
  * MVP 3 (F3.1): with `mailboxId`, only that mailbox's messages (and those without a mailbox)
  * are matched; another mailbox's copy of a Message-ID keeps its own location.
  * A Message-ID stored with another From address is another message's (distinctMessageIds): it is
- * matched under its own id, and the stored row keeps its location.
+ * matched under its own id, and the stored row keeps its location. `now` as in saveEnvelopes.
  */
 export async function reindexMessages(
   db: Database,
   workspaceId: string,
   envelopes: readonly Envelope[],
-  options: { mailboxId?: string } = {},
+  options: { mailboxId?: string; now?: Date } = {},
 ): Promise<Set<string>> {
   // One location per Message-ID: of two copies in the folder, the newest (highest UID) wins.
   const byId = new Map<string, Envelope>();
@@ -343,7 +347,7 @@ export async function reindexMessages(
     if (updated.length === 0) continue;
     await db
       .update(senderChecks)
-      .set({ stale: true, staleSince: sql`now()` })
+      .set({ stale: true, staleSince: options.now ?? sql`now()` })
       .where(
         and(
           eq(senderChecks.workspaceId, workspaceId),
