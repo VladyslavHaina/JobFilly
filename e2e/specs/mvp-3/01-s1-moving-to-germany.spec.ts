@@ -161,9 +161,13 @@ test("S1: moving to Germany", async ({ page }) => {
         ).toBeVisible({ timeout: 60_000 });
       }
     }
-    // Only mail in the hint's focus: none of her older, wider answers (TBD-451).
+    // Only mail in the hint's focus: none of her older, wider answers (TBD-451). Checked on the
+    // proposed values (the chips) only: the card's add-value editor lists every option, such as
+    // "per day" in its Period select, whatever is proposed.
     for (const { key, words } of NOT_PROPOSED) {
-      for (const word of words) await expect(card(page, key)).not.toContainText(word);
+      const proposed = card(page, key).getByRole("listitem");
+      await expect(proposed.first(), key).toBeVisible();
+      for (const word of words) await expect(proposed.filter({ hasText: word })).toHaveCount(0);
     }
   });
 
@@ -185,7 +189,7 @@ test("S1: moving to Germany", async ({ page }) => {
 
   await test.step("both profiles are listed and on; the first is untouched", async () => {
     const switcher = page.getByRole("combobox", { name: "Profile", exact: true });
-    expect(await switcher.locator("option").allTextContents()).toEqual([FIRST, GERMANY]);
+    await expect(switcher.locator("option")).toHaveText([FIRST, GERMANY]);
     await expect(onOff(page)).toHaveAttribute("aria-checked", "true");
 
     await showProfile(page, FIRST);
@@ -221,7 +225,7 @@ test("S1: moving to Germany", async ({ page }) => {
     await expect(page.getByText("Off: it gets no roles", { exact: true })).toHaveCount(0);
     await page.reload();
     const switcher = page.getByRole("combobox", { name: "Profile", exact: true });
-    expect(await switcher.locator("option").allTextContents()).toEqual([FIRST, GERMANY]);
+    await expect(switcher.locator("option")).toHaveText([FIRST, GERMANY]);
   });
 
   await test.step("logs: scan.started kind=rerun, intake.confirmed, no errors", async () => {
