@@ -215,7 +215,14 @@ describe("rules by hand (MVP 3, F2.1, F2.3)", () => {
     const user = userEvent.setup();
     await user.click(await screen.findByRole("button", { name: "Add a rule" }));
     const form = within(screen.getByRole("form", { name: "New rule" }));
+    // Nothing is picked for the user: no rule can be saved until they choose a condition.
+    expect(form.getByLabelText("Fact")).toHaveProperty("value", "");
+    expect(form.getByLabelText("Compared")).toHaveProperty("value", "");
+    expect(form.getByRole("button", { name: "Save rule" })).toHaveProperty("disabled", true);
+    await user.selectOptions(form.getByLabelText("Fact"), "Working hours (UTC offsets)");
+    expect(form.getByRole("button", { name: "Save rule" })).toHaveProperty("disabled", true);
     await user.selectOptions(form.getByLabelText("Compared"), "is within");
+    expect(form.getByLabelText("From")).toHaveProperty("value", "");
     await user.clear(form.getByLabelText("From"));
     await user.type(form.getByLabelText("From"), "UTC+05:00");
     await user.clear(form.getByLabelText("To"));
