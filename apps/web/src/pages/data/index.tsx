@@ -7,7 +7,7 @@ import { queryKeys, useWorkspace } from "../../hooks";
 import { apiPaths, paths } from "../../paths";
 
 // Settings › Data (MVP 3, F7.1, F7.2): download the workspace as a ZIP (admins who see
-// everything), and delete it with its name typed in (the owner).
+// everything), and delete it with its name typed in and the owner's password (the owner).
 
 function ExportCard({ workspaceId }: { workspaceId: string }) {
   return (
@@ -33,9 +33,13 @@ function DeleteCard({ workspaceId, name }: { workspaceId: string; name: string }
   const client = useQueryClient();
   const navigate = useNavigate();
   const [typed, setTyped] = useState("");
+  const [password, setPassword] = useState("");
   const remove = useMutation({
     mutationFn: () =>
-      apiVoid(apiPaths.workspace(workspaceId), { method: "DELETE", body: { name: typed } }),
+      apiVoid(apiPaths.workspace(workspaceId), {
+        method: "DELETE",
+        body: { name: typed, password },
+      }),
     onSuccess: async () => {
       await client.invalidateQueries({ queryKey: queryKeys.workspaces });
       navigate(paths.home(), { replace: true });
@@ -60,7 +64,20 @@ function DeleteCard({ workspaceId, name }: { workspaceId: string; name: string }
           value={typed}
           onChange={(e) => setTyped(e.target.value)}
         />
-        <Button type="submit" variant="danger" busy={remove.isPending} disabled={typed !== name}>
+        <TextField
+          label="Your password"
+          type="password"
+          autoComplete="current-password"
+          className="min-w-64 flex-1"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+        <Button
+          type="submit"
+          variant="danger"
+          busy={remove.isPending}
+          disabled={typed !== name || !password}
+        >
           Delete workspace
         </Button>
       </form>

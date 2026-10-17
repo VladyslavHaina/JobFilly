@@ -146,7 +146,7 @@ describe("Activity (F9.1)", () => {
 });
 
 describe("Settings › Data (F7.1, F7.2)", () => {
-  it("downloads the ZIP, and deletes the workspace once its name is typed", async () => {
+  it("downloads the ZIP, and deletes the workspace once its name and the password are typed", async () => {
     const seen = fakeApi({ "DELETE /api/workspaces/:id": undefined });
     renderInWorkspace(
       <Routes>
@@ -165,9 +165,14 @@ describe("Settings › Data (F7.1, F7.2)", () => {
       screen.getByLabelText("Type Maria's workspace to confirm"),
       "Maria's workspace",
     );
+    expect(button).toHaveProperty("disabled", true);
+    await userEvent.type(screen.getByLabelText("Your password"), "E2E-SECRET-maria");
     await userEvent.click(button);
     expect(await screen.findByText("Home")).toBeTruthy();
-    expect(seen.find((r) => r.method === "DELETE")?.body).toEqual({ name: "Maria's workspace" });
+    expect(seen.find((r) => r.method === "DELETE")?.body).toEqual({
+      name: "Maria's workspace",
+      password: "E2E-SECRET-maria",
+    });
   });
 
   it("offers no export to a pipeline-only admin, and no deletion to a non-owner", () => {
