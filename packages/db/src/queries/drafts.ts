@@ -3,6 +3,7 @@ import { and, desc, eq, inArray, isNull, ne } from "drizzle-orm";
 import type { Database } from "../client";
 import { drafts } from "../tables";
 import type { RoleRef } from "./evaluations";
+import { latestSends } from "./sends";
 
 // A draft's content and edits (F6): the reply text only — never the quote of the original, which
 // packages/mail adds when it builds the MIME message — and where its copy is in the mailbox
@@ -15,6 +16,8 @@ import type { RoleRef } from "./evaluations";
 //   saving      ─markDraftSaved─▶ in_mailbox
 //   in_mailbox  ─saveDraftEdit─▶ edited ─saveDraftEdit─▶ edited
 //   in_mailbox, edited, failed ─markDraftDiscarded─▶ discarded
+//   in_mailbox, edited ─completeSend (./sends.ts)─▶ sent (MVP 3, F4.4: the copy is gone, the row
+//                                stays as the role's one live draft, D13)
 //
 // An edit and a discard compare and set on the draft's Message-ID, which each mailbox copy has
 // its own of: one that read an older copy than the row names by now changes nothing, so its
@@ -95,7 +98,24 @@ export function publicDraft(draft: StoredDraft): Draft {
   return view;
 }
 
-/** The workspace's drafts, newest change first; only one message's when `messageId` is given. */
+/** The drafts with their latest send (MVP 3, F4), null for one never sent. */
+async function withSends(
+  db: Database,
+  workspaceId: string,
+  rows: DraftRow[],
+): Promise<StoredDraft[]> {
+  const latest = await latestSends(
+    db,
+    workspaceId,
+    rows.map((r) => r.id),
+  );
+  return rows.map((row) => ({ ...toDraft(row), send: latest.get(row.id) ?? null }));
+}
+
+/**
+ * The workspace's drafts, newest change first; only one message's when `messageId` is given. Each
+ * comes with its latest send.
+ */
 export async function listDrafts(
   db: Database,
   workspaceId: string,
@@ -111,9 +131,10 @@ export async function listDrafts(
       ),
     )
     .orderBy(desc(drafts.updatedAt), desc(drafts.createdAt));
-  return rows.map(toDraft);
+  return withSends(db, workspaceId, rows);
 }
 
+/** One draft with its latest send, or null. */
 export async function getDraft(
   db: Database,
   workspaceId: string,
@@ -123,7 +144,9 @@ export async function getDraft(
     .select()
     .from(drafts)
     .where(and(eq(drafts.workspaceId, workspaceId), eq(drafts.id, draftId)));
-  return row ? toDraft(row) : null;
+  if (!row) return null;
+  const [draft] = await withSends(db, workspaceId, [row]);
+  return draft ?? null;
 }
 
 /** The role's live draft (any status but discarded), or null. */

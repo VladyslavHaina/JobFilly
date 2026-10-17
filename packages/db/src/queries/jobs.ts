@@ -17,6 +17,9 @@ import { jobs } from "../tables";
 // moment can't both start one. A job enqueued while its key runs still queues, so a change made
 // during a run always gets a later one. A running job whose lease expired is taken over as any
 // other.
+//
+// Delayed jobs (MVP 3, F4.2): a job enqueued with `runAt` is not claimed before that time (a
+// send's Undo delay); one without it is due at once.
 
 /** The advisory lock space of the per-key claim lock (the migration lock is a single key). */
 const DEDUPE_LOCK_SPACE = 74_617;
@@ -31,18 +34,19 @@ function leaseUntil(now: Date, leaseMs: number): Date {
 /**
  * Adds a job to the queue. Pass a transaction to enqueue together with other writes. With a
  * dedupe key, a job with the same key already waiting makes this a no-op: `enqueued` is false and
- * `id` is the waiting job's.
+ * `id` is the waiting job's. With `runAt` it isn't claimed before then.
  */
 export async function enqueueJob(
   db: Database,
   workspaceId: string,
-  input: { type: string; payload: unknown; now: Date; dedupeKey?: string },
+  input: { type: string; payload: unknown; now: Date; dedupeKey?: string; runAt?: Date },
 ): Promise<{ id: string; enqueued: boolean }> {
   const values = {
     type: input.type,
     workspaceId,
     payload: input.payload,
     dedupeKey: input.dedupeKey ?? null,
+    runAt: input.runAt ?? null,
     createdAt: input.now,
     updatedAt: input.now,
   };
@@ -71,7 +75,8 @@ export async function enqueueJob(
 }
 
 /**
- * Claims the oldest queued job of one of `types`, or a running one whose lease has expired, and
+ * Claims the oldest queued job of one of `types` that is due (its run_at, if any, has come), or a
+ * running one whose lease has expired, and
  * leases it to `owner`. Concurrent workers never claim the same job, and never two jobs with the
  * same dedupe key: a queued job waits while its key runs under a live lease (see the top).
  */
@@ -101,7 +106,8 @@ export async function claimJob(
         from jobs
         where type in (${types})
           and (
-            (status = 'queued' and (dedupe_key is null or not exists (
+            (status = 'queued' and (run_at is null or run_at <= ${input.now})
+              and (dedupe_key is null or not exists (
               select 1 from jobs live
               where live.dedupe_key = jobs.dedupe_key and live.status = 'running'
                 and live.lease_expires_at > ${input.now})))

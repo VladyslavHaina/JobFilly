@@ -172,6 +172,8 @@ describe("a draft's content (F6)", () => {
       cvAttached: false,
       auto: true,
       updatedAt: later(4).toISOString(),
+      // MVP 3 (F4): never sent.
+      send: null,
     });
   });
 
