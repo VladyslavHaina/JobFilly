@@ -5520,7 +5520,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Left as is for now; revisit with MVP 3's sync.
 - **If you decide otherwise:** Matching by Message-ID when envelopes are saved or a folder is re-indexed would also compare the From address, and a mismatch would be stored as a new message.
 - **Refs:** F1.3; packages/db/src/queries/messages.ts saveEnvelopes
-- **Status:** open
+- **Status:** changed (owner, 2026-10-17): fix it; a stored Message-ID with a different From address is a different message.
 
 ## TBD-441 · Gmail is the only OAuth mail provider
 - **Kind:** decision
@@ -5581,7 +5581,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Option 2, by the owner on 2026-10-17. MVP 2 is "accepted with open items".
 - **If you decide otherwise:** Revisit in MVP 3: for example, let the assistant show the roles a rule would hide before Apply (the preview already counts them), or ask back when a region is ambiguous.
 - **Refs:** F8, MVP-2 "Quality with a real AI provider", requests.json #1 and #6
-- **Status:** open
+- **Status:** accepted (owner, 2026-10-17): 8 of 10 with edit-before-Apply is fine; MVP 3's real-AI run measures it again.
 
 ## TBD-446 · MVP 3 plan and foundation decisions (D1–D28)
 - **Kind:** decision
@@ -5703,7 +5703,7 @@ These make sign-off possible; without them the build goes on and records an open
 - **Chosen:** Left for now: throttling needs state shared across replicas, and the owner asked to keep MVP 3 simple. Revisit before running the server for other people.
 - **If you decide otherwise:** Add a failed-attempts table keyed by account with a sliding window, checked by every password route.
 - **Refs:** CLAUDE.md "Kubernetes-ready: no state on local disk"; routes/auth.ts, routes/account.ts, routes/workspace.ts
-- **Status:** open
+- **Status:** accepted (owner, 2026-10-17): left as is for a personal, self-hosted tool.
 
 ## TBD-449 · MVP 3 fixture decisions
 - **Kind:** decision
