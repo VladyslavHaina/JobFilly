@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { PERSONAS } from "./fixtures/format.ts";
+import { MARIA_HOME } from "./fixtures/format-mvp3.ts";
 
 // The test stack's commands (docs/mvp/README.md › The test stack, F7.8). The root scripts run:
 //   pnpm e2e                  node e2e/stack.ts run [--mvp <n>]    fresh stack, specs, down
@@ -11,7 +12,7 @@ import { PERSONAS } from "./fixtures/format.ts";
 // docker/compose.e2e.yaml under a project name of its own, waits until the proxy and both
 // replicas answer /api/health/ready, checks from inside app-a that the fixture DNS zones and the
 // fake RDAP service answer (MVP 2, F5), loads the mail of every persona of fixtures/format.ts
-// with `seed load <persona>`, prints the name and keeps it in e2e/.stack/project. `down` removes
+// and Maria's personal mailbox (MVP 3) with `seed load <name>` (SEED_LOADS), prints the name and keeps it in e2e/.stack/project. `down` removes
 // that project's containers (one-off seed runs too), networks and volumes, checks nothing is left
 // and removes e2e/.stack. Only one stack runs at a time: the proxy's ports are fixed. Ctrl-C stops
 // `up`, `run` and `specs` at the next step (the running child gets it too) and exits 130; `up` and
@@ -21,6 +22,8 @@ const ROOT = resolve(import.meta.dirname, "..");
 const E2E_DIR = join(ROOT, "e2e");
 
 export const COMPOSE_FILE = "docker/compose.e2e.yaml";
+/** What `up` loads with `seed load <name>`, in order: each persona's mailbox, then Maria's other. */
+export const SEED_LOADS = [...PERSONAS, MARIA_HOME] as const;
 /** The proxy, then app-a's and app-b's direct ports. */
 export const READY_URLS = [
   "http://127.0.0.1:8080/api/health/ready",
@@ -223,10 +226,10 @@ async function up(deps: StackDeps): Promise<number> {
   if (wiring.length > 0) {
     return failed(`app-a doesn't reach the fixture DNS zones and RDAP: ${wiring.join("; ")}`);
   }
-  for (const persona of PERSONAS) {
-    const seeded = await deps.run(compose(project, ["run", "--rm", "seed", "load", persona]));
+  for (const name of SEED_LOADS) {
+    const seeded = await deps.run(compose(project, ["run", "--rm", "seed", "load", name]));
     if (deps.interrupted()) return stopped();
-    if (seeded.code !== 0) return failed(`loading ${persona}'s mail failed`);
+    if (seeded.code !== 0) return failed(`loading ${name}'s mail failed`);
   }
   deps.print(`Test stack is up: ${project}`);
   deps.print("  App:   http://127.0.0.1:8080 (app-a directly on :8081, app-b on :8082)");

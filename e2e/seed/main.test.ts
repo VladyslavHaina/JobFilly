@@ -6,8 +6,8 @@ import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { parse } from "yaml";
 import { PERSONAS } from "../fixtures/format.ts";
-import { COMPOSE_FILE, main, type StackDeps, WIRING_PROBES } from "../stack.ts";
-import { ACCOUNTS, EXTRA_ACCOUNTS, MAILBOX_NAMES } from "./accounts.ts";
+import { COMPOSE_FILE, main, SEED_LOADS, type StackDeps, WIRING_PROBES } from "../stack.ts";
+import { EXTRA_ACCOUNTS, MAILBOX_ACCOUNTS, MAILBOX_NAMES, type MailboxName } from "./accounts.ts";
 
 // The seed's entry point run as the test stack runs it, without Docker: node with the entrypoint
 // and environment compose gives the seed service, from the repository root (the e2e image's /repo
@@ -124,11 +124,12 @@ describe("the seed entry point", { timeout: 30_000 }, () => {
   });
   afterAll(() => new Promise<void>((resolve) => imap.server.close(() => resolve())));
 
-  it("is run by stack up once for every persona", () => {
-    expect(runs).toEqual(PERSONAS.map((p) => ["load", p]));
+  it("is run by stack up once for every persona, then for Maria's personal mailbox", () => {
+    expect(runs).toEqual([...PERSONAS, "maria-home"].map((p) => ["load", p]));
+    expect(SEED_LOADS).toEqual([...PERSONAS, "maria-home"]);
   });
 
-  it.each(runs.map((args) => ({ args, persona: args[1] as (typeof PERSONAS)[number] })))(
+  it.each(runs.map((args) => ({ args, persona: args[1] as MailboxName })))(
     "reads every fixture of `seed $args` and logs in as the persona",
     async ({ args, persona }) => {
       imap.logins.length = 0;
@@ -138,7 +139,7 @@ describe("the seed entry point", { timeout: 30_000 }, () => {
         "The mail server refused the login: check the persona's account",
       );
       expect(exit.code).toBe(1);
-      expect(imap.logins).toEqual([ACCOUNTS[persona].user]);
+      expect(imap.logins).toEqual([MAILBOX_ACCOUNTS[persona].user]);
     },
   );
 

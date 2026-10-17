@@ -796,8 +796,16 @@ const WIRING = [
   "kiezwerk.example",
   "gmail.com",
 ];
-// Every persona of fixtures/format.ts, in its order.
-const SEEDS = PERSONAS.map((p) => ["docker", ...C, "run", "--rm", "seed", "load", p]);
+// Each persona's mail, then Maria's personal mailbox (MVP 3).
+const SEEDS = [...PERSONAS, "maria-home"].map((p) => [
+  "docker",
+  ...C,
+  "run",
+  "--rm",
+  "seed",
+  "load",
+  p,
+]);
 const FIRST_SEED = SEEDS[0] as string[];
 const LAST_SEED = SEEDS.at(-1) as string[];
 const UP = [NETWORKS, COMPOSE_UP, WIRING, ...SEEDS];
@@ -904,7 +912,12 @@ describe("stack up", () => {
     expect(f.lines()).toEqual(UP);
     for (const c of f.commands) expect(c.cwd).toBe(ROOT);
     // The network listing and the wiring check are read; compose's own output passes through.
-    expect(f.commands.map((c) => c.capture ?? false)).toEqual([true, false, true, false, false]);
+    expect(f.commands.map((c) => c.capture ?? false)).toEqual([
+      true,
+      false,
+      true,
+      ...SEEDS.map(() => false),
+    ]);
     // The wiring check and the seed run only after everything answered ready.
     expect(f.polls).toEqual([
       "http://127.0.0.1:8080/api/health/ready",
