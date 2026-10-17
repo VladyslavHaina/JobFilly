@@ -123,6 +123,89 @@ export const AssistantClarifySchema = z.object({
 });
 export type AssistantClarify = z.infer<typeof AssistantClarifySchema>;
 
+// --- MVP 3: the assistant answers questions (F8) ---------------------------------------------
+
+/**
+ * The read-only lookups the assistant may ask for when the user asks a question (F8.2): what
+ * waits on the user (open decisions, drafts not yet reviewed), roles found by words in their
+ * title, company or places, one role in full (its facts, match, rules and why it has a draft or
+ * not), the pipeline (by stage, over the last days), one message's text (never for a member who
+ * sees the pipeline only, F8.3), and the profile. Each runs with the asking member's access.
+ */
+export const ASSISTANT_TOOLS = [
+  "waiting",
+  "find_roles",
+  "role",
+  "pipeline",
+  "message_text",
+  "profile",
+] as const;
+export const AssistantToolSchema = z.enum(ASSISTANT_TOOLS);
+export type AssistantTool = z.infer<typeof AssistantToolSchema>;
+
+/**
+ * One lookup as assistant.v1 asks for it: one flat shape for every tool, the fields a tool
+ * doesn't use null (find_roles: words; role: messageId and position; message_text: messageId;
+ * pipeline: stage and days).
+ */
+export const AssistantLookupSchema = z.object({
+  tool: AssistantToolSchema,
+  words: z.string().nullable(),
+  messageId: z.string().nullable(),
+  position: z.number().int().nonnegative().nullable(),
+  stage: z.string().nullable(),
+  days: z.number().int().positive().nullable(),
+});
+export type AssistantLookup = z.infer<typeof AssistantLookupSchema>;
+
+/**
+ * What an answer may point at (F8.1): a role ("<Message-ID>#<position>"), a message (its
+ * Message-ID), a decision (its group key) or a role's draft ("<Message-ID>#<position>"). Only
+ * refs the lookups returned are kept, so an answer can't link to anything made up (F8.2).
+ */
+export const AnswerSourceSchema = z.object({
+  kind: z.enum(["role", "message", "decision", "draft"]),
+  ref: z.string().min(1),
+});
+export type AnswerSource = z.infer<typeof AnswerSourceSchema>;
+
+/** One lookup's result as answer.v1 sees it: plain lines (mail words untrusted) and its refs. */
+export const AnswerToolResultSchema = z.object({
+  lookup: AssistantLookupSchema,
+  lines: z.array(z.string()),
+  sources: z.array(AnswerSourceSchema),
+});
+export type AnswerToolResult = z.infer<typeof AnswerToolResultSchema>;
+
+/**
+ * answer.v1's input: the question (untrusted, any language), its turn and the earlier turns, and
+ * the lookups' results. Quoted mail is untrusted data: its instructions never become actions
+ * (F8.4).
+ */
+export const AnswerTaskInputSchema = z.object({
+  turn: z.number().int().min(1),
+  text: z.string(),
+  history: z.array(z.object({ role: z.enum(["user", "assistant"]), text: z.string() })),
+  results: z.array(AnswerToolResultSchema),
+});
+export type AnswerTaskInput = z.infer<typeof AnswerTaskInputSchema>;
+
+/** answer.v1: the answer in the user's language, and the refs it used. */
+export const AnswerOutputSchema = z.object({
+  text: TextSchema,
+  sources: z.array(AnswerSourceSchema),
+});
+export type AnswerOutput = z.infer<typeof AnswerOutputSchema>;
+
+/** A link under an answer, as the API gives it to the page: what it is and where it points. */
+export const AssistantLinkSchema = z.object({
+  kind: AnswerSourceSchema.shape.kind,
+  label: z.string(),
+  messageId: z.string().nullable(),
+  position: z.number().int().nonnegative().nullable(),
+});
+export type AssistantLink = z.infer<typeof AssistantLinkSchema>;
+
 export const AssistantMessageSchema = z.object({
   id: z.uuid(),
   role: z.enum(["user", "assistant"]),
@@ -130,6 +213,8 @@ export const AssistantMessageSchema = z.object({
   clarify: AssistantClarifySchema.nullable(),
   proposalId: z.uuid().nullable(),
   at: IsoDateTimeSchema,
+  /** MVP 3 (F8.1): the roles, messages, decisions and drafts an answer used; absent before. */
+  links: z.array(AssistantLinkSchema).optional(),
 });
 export type AssistantMessage = z.infer<typeof AssistantMessageSchema>;
 

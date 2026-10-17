@@ -3,7 +3,10 @@ import {
   ACTIVITY_KINDS,
   AccountDeletionPreviewSchema,
   ActivityRecordSchema,
+  AnswerOutputSchema,
   APPLICATION_STAGES,
+  AssistantLookupSchema,
+  AssistantMessageSchema,
   ChangeMemberInputSchema,
   CreateInviteInputSchema,
   DeleteWorkspaceInputSchema,
@@ -334,5 +337,45 @@ describe("your data and the activity log (F7, F9)", () => {
         memberOf: [{ workspaceId: ID, name: "Maria's workspace" }],
       }).owned,
     ).toHaveLength(1);
+  });
+});
+
+describe("the assistant answers questions (F8)", () => {
+  it("asks for read-only lookups in one flat shape", () => {
+    const lookup = {
+      tool: "find_roles",
+      words: "Singapore",
+      messageId: null,
+      position: null,
+      stage: null,
+      days: null,
+    };
+    expect(AssistantLookupSchema.parse(lookup)).toEqual(lookup);
+    expect(AssistantLookupSchema.safeParse({ ...lookup, tool: "send_mail" }).success).toBe(false);
+  });
+
+  it("answers with refs of what it used", () => {
+    expect(
+      AnswerOutputSchema.parse({
+        text: "Two decisions wait on you.",
+        sources: [{ kind: "decision", ref: "min_pay:CHF:year" }],
+      }).sources,
+    ).toHaveLength(1);
+    expect(
+      AnswerOutputSchema.safeParse({ text: "x", sources: [{ kind: "url", ref: "http://x" }] })
+        .success,
+    ).toBe(false);
+  });
+
+  it("reads an assistant message of a previous replica, without links", () => {
+    const message = {
+      id: ID,
+      role: "assistant",
+      text: "Done.",
+      clarify: null,
+      proposalId: null,
+      at: "2026-10-16T10:00:00.000Z",
+    };
+    expect(AssistantMessageSchema.parse(message).links).toBeUndefined();
   });
 });
