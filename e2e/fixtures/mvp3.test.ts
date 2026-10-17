@@ -25,6 +25,7 @@ import {
   type MatchAnswer,
   matchKey,
   PERSONA_ADDRESSES,
+  PERSONAS,
   type PrefsAnswer,
   personaPaths,
   personaPathsMvp2,
@@ -41,6 +42,7 @@ import {
   MVP3_PATHS,
 } from "./format-mvp3.ts";
 import { type ParsedEml, parseAddresses, parseEml } from "./read-eml.ts";
+import { soakAnswers, soakMessage, soakMessageId } from "./soak.ts";
 
 // MVP 3's fixtures (MVP-3 › Fixtures added) against what its scenarios need, from the files
 // alone, like consistency.test.ts: S1's Germany batch and the replies it delivers to Sent, S6's
@@ -424,5 +426,27 @@ describe("the assistant's questions (MVP 3)", () => {
 
   it("answer without template placeholders", () => {
     for (const q of questions) expect(answerOf(q)?.text, q.id).not.toMatch(PLACEHOLDER);
+  });
+});
+
+describe("the soak's generated mail (F10.3)", () => {
+  const known = read<DomainsFile>("../rdap/domains.json").domains;
+
+  it("is a recruiter's onsite role to each persona, from a sender domain the stack knows", () => {
+    for (const persona of PERSONAS) {
+      const id = soakMessageId(persona, "r1", 1);
+      const m = parseEml(
+        soakMessage(persona, "r1", 1, new Date(FIXTURE_REFERENCE_TIME)).toString(),
+      );
+      expect(m.headers.get("message-id")).toBe(id);
+      expect(parseAddresses(m.headers.get("to"))[0]?.address).toBe(PERSONA_ADDRESSES[persona]);
+      const from = parseAddresses(m.headers.get("from"))[0]?.address ?? "";
+      expect(known[from.slice(from.indexOf("@") + 1)], from).toBeDefined();
+      expect(m.text.indexOf(`BODYSENTINEL-soak-${persona}-r1-1`)).toBeGreaterThanOrEqual(1000);
+      const answers = soakAnswers(id);
+      expect(answers?.classify).toEqual({ category: "recruiter_outreach" });
+      expect(answers?.extract.roles.map((r) => r.workMode)).toEqual(["onsite"]);
+      expect(answers?.draft.body, persona).not.toMatch(PLACEHOLDER);
+    }
   });
 });
