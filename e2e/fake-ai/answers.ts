@@ -9,6 +9,7 @@ import {
   type AssistantAnswer,
   type AssistantAnswerFile,
   assistantMessageKey,
+  assistantRoundKey,
   type ClassifyAnswer,
   type CvAnswer,
   type DraftAnswer,
@@ -257,19 +258,26 @@ function wireAssistantAnswer(answer: AssistantAnswer): unknown {
     : answer;
 }
 
-/** assistant.v1: by the user's message (assistantMessageKey), then by the Turn line or any turn. */
+/**
+ * assistant.v1: by the user's message (assistantMessageKey), then by the Turn line or any turn;
+ * a question's later round (MVP 3, the "Round: <n>" key line) by assistantRoundKey.
+ */
 function assistantAnswer(store: AnswerStore, prompt: Prompt): Answer {
   const turn = prompt.keys.Turn;
   if (!turn || prompt.message === null) {
     return missing("assistant.v1 has no Turn line or no message block");
   }
+  const round = Number(prompt.keys.Round ?? "1");
+  if (!Number.isInteger(round) || round < 1) return missing("assistant.v1 has a bad Round line");
   const byTurn = store.assistant[assistantMessageKey(prompt.message)];
-  const answer = byTurn?.[turn] ?? byTurn?.[ASSISTANT_ANY_TURN];
+  const answer =
+    byTurn?.[assistantRoundKey(turn, round)] ??
+    byTurn?.[assistantRoundKey(ASSISTANT_ANY_TURN, round)];
   // The reason names the turn only: the user's words are never logged (F8.10), and the app may
   // log a provider's error message.
   return answer
     ? { ok: true, content: wireAssistantAnswer(answer) }
-    : missing(`no assistant.v1 answer for this message at turn ${turn}`);
+    : missing(`no assistant.v1 answer for this message at turn ${turn}, round ${round}`);
 }
 
 /** focus.v1: by the hint, the prompt's "message" block. */

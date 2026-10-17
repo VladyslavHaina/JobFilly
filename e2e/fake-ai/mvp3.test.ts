@@ -89,7 +89,19 @@ describe("MVP 3's new mail in the fake AI", () => {
       const message = `${q.text} E2E-CHAT-7`;
       const keys = { Turn: "4" };
       const asked = answerFor(store, { taskId: "assistant.v1", messageIds: [], keys, message });
-      expect(asked, q.id).toMatchObject({ ok: true, content: { lookups: q.lookups } });
+      const again = answerFor(store, {
+        taskId: "assistant.v1",
+        messageIds: [],
+        keys: { ...keys, Round: "2" },
+        message,
+      });
+      // Its lookups come over two rounds: round 2 reads what round 1 found.
+      const lookups = [asked, again].flatMap((a) =>
+        a.ok ? (a.content as { lookups: unknown[] }).lookups : [],
+      );
+      expect([asked.ok, again.ok], q.id).toEqual([true, true]);
+      expect(lookups, q.id).toEqual(expect.arrayContaining(q.lookups));
+      expect(lookups, q.id).toHaveLength(q.lookups.length);
       const answered = answerFor(store, { taskId: "answer.v1", messageIds: [], keys, message });
       expect(answered, q.id).toMatchObject({ ok: true });
     }

@@ -4,7 +4,10 @@ import {
   type AssistantAnswerFile,
   type AssistantRequest,
   assistantMessageKey,
+  assistantRoundKey,
+  FOLLOW_UP_TOOLS,
 } from "../format.ts";
+import type { Lookup } from "../format-mvp3.ts";
 import { questionAnswers } from "./questions.ts";
 
 // The assistant's fixtures (F8): the ten requests of the real-AI quality run with the change each
@@ -226,9 +229,17 @@ export function assistantAnswers(): AssistantAnswerFile {
   };
   for (const r of REQUESTS) add(r.text, proposal(r.reply, r.summary, r.expected ?? []));
   for (const [text, answer] of SCENARIO_ANSWERS) add(text, answer);
-  // MVP 3 (F8): a question gets the lookups that answer it; answer.v1 words the answer.
+  // MVP 3 (F8): a question gets the lookups that answer it, as a model that knows no Message-ID
+  // asks for them: the searches first, then, in round 2, with the refs they returned, the role
+  // and message_text lookups that take one (none when round 1 answers it). answer.v1 words it.
   for (const q of questionAnswers()) {
-    add(q.text, { reply: q.reply, clarify: null, proposal: null, lookups: q.lookups });
+    const later = (l: Lookup) => FOLLOW_UP_TOOLS.includes(l.tool);
+    const ask = (lookups: Lookup[]) => ({ reply: q.reply, clarify: null, proposal: null, lookups });
+    add(q.text, ask(q.lookups.filter((l) => !later(l))));
+    const key = assistantMessageKey(q.text);
+    (file[key] as Record<string, AssistantAnswer>)[assistantRoundKey(ASSISTANT_ANY_TURN, 2)] = ask(
+      q.lookups.filter(later),
+    );
   }
   return file;
 }
