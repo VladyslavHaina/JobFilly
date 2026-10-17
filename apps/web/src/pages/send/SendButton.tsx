@@ -1,5 +1,5 @@
 import type { Draft, Send } from "@jobfilly/schema";
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { Link } from "react-router";
 import { ApiError, errorText } from "../../api";
 import { Alert, Button, Dialog, Loading } from "../../components";
@@ -9,7 +9,7 @@ import { useConfirmSend, useSendPreview, useUndoSend } from "./queries";
 
 // Send on a draft card (F4.1–F4.5): one draft at a time. Send opens the confirmation with the
 // message exactly as it will leave — from, to, cc, subject, attachments and the full text — and
-// Send now confirms that content. It then waits out its delay with Undo; if the draft changed
+// Send confirms that content. It then waits out its delay with Undo; if the draft changed
 // meanwhile the server asks to confirm again. Viewers see the button disabled.
 
 const kb = (bytes: number) => `${Math.max(1, Math.round(bytes / 1024))} KB`;
@@ -57,6 +57,7 @@ function Confirmation({ draft, onClose }: { draft: Draft; onClose: () => void })
   const shown = preview.data;
   const stale = confirm.error instanceof ApiError && confirm.error.code === "confirm_again";
   const noSmtp = preview.error instanceof ApiError && preview.error.code === "no_smtp";
+  const delayId = useId();
   return (
     <Dialog
       title="Send this reply?"
@@ -64,10 +65,14 @@ function Confirmation({ draft, onClose }: { draft: Draft; onClose: () => void })
       onClose={onClose}
       actions={
         <>
+          <p id={delayId} className="mr-auto self-center text-xs text-stone-500">
+            It leaves 10 seconds after you press Send; until then you can undo it.
+          </p>
           <Button variant="secondary" onClick={onClose}>
             Cancel
           </Button>
           <Button
+            aria-describedby={delayId}
             busy={confirm.isPending}
             disabled={!shown || preview.isFetching}
             onClick={() => {
@@ -79,7 +84,7 @@ function Confirmation({ draft, onClose }: { draft: Draft; onClose: () => void })
               });
             }}
           >
-            Send now
+            Send
           </Button>
         </>
       }
@@ -130,9 +135,6 @@ function Confirmation({ draft, onClose }: { draft: Draft; onClose: () => void })
               {shown.text}
             </pre>
           </section>
-          <p className="text-xs text-stone-500">
-            It leaves 10 seconds after you confirm; until then you can undo it.
-          </p>
         </div>
       )}
     </Dialog>

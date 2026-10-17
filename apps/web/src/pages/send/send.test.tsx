@@ -13,7 +13,7 @@ import { DraftsPage } from "../drafts";
 import { SmtpSettings } from "./index";
 
 // Send on a draft (F4.1–F4.5) and Settings › Sending against a fake API: the confirmation shows
-// the message as it will leave, Send now confirms with its token, the card counts down with Undo,
+// the message as it will leave, Send confirms with its token, the card counts down with Undo,
 // a draft changed meanwhile asks to confirm again, and viewers can't send.
 
 const SLOW_MS = 10_000;
@@ -100,7 +100,13 @@ describe("Send on a draft (F4.1, F4.2)", () => {
     expect(within(dialog).getByRole("region", { name: "Message text" }).textContent).toBe(
       PREVIEW.text,
     );
-    await userEvent.click(within(dialog).getByRole("button", { name: "Send now" }));
+    // Send, not "Send now": the 10 s wait with Undo is said beside it.
+    const send = within(dialog).getByRole("button", { name: "Send" });
+    expect(send.getAttribute("aria-describedby")).toBeTruthy();
+    expect(document.getElementById(send.getAttribute("aria-describedby") ?? "")?.textContent).toBe(
+      "It leaves 10 seconds after you press Send; until then you can undo it.",
+    );
+    await userEvent.click(send);
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(seen.find((r) => r.method === "POST")?.body).toEqual({ token: "token-1" });
     expect(await screen.findByText(/Sending in \d+ s/)).toBeTruthy();
@@ -130,7 +136,7 @@ describe("Send on a draft (F4.1, F4.2)", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Send…" }));
     const dialog = await screen.findByRole("dialog");
     expect(await within(dialog).findByText("Old text")).toBeTruthy();
-    await userEvent.click(within(dialog).getByRole("button", { name: "Send now" }));
+    await userEvent.click(within(dialog).getByRole("button", { name: "Send" }));
     expect(
       await within(dialog).findByText("The draft changed since you opened Send."),
     ).toBeTruthy();
@@ -161,7 +167,7 @@ describe("Send on a draft (F4.1, F4.2)", () => {
     await userEvent.click(screen.getByRole("button", { name: "Send…" }));
     const link = await screen.findByRole("link", { name: "Settings › Sending" });
     expect(link.getAttribute("href")).toBe(`/w/${W}/settings/sending`);
-    expect(screen.getByRole("button", { name: "Send now" })).toHaveProperty("disabled", true);
+    expect(screen.getByRole("button", { name: "Send" })).toHaveProperty("disabled", true);
   });
 
   it("is disabled for viewers, and gone once the draft was sent (F4.5)", async () => {
