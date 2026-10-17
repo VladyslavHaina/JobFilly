@@ -1,6 +1,9 @@
 import {
+  APPLICATION_STAGES,
+  ASSISTANT_TOOLS,
   type AssistantTaskInput,
   AssistantTaskInputSchema,
+  type AssistantTool,
   CATEGORIES,
   CORE_PROFILE_KEYS,
   type CoreProfileKey,
@@ -113,6 +116,27 @@ function keyWords(): string {
   return [...keys, `extra.<key>: ${WORDS}`].join("; ");
 }
 
+/** What each lookup reads and the fields it uses; a new tool in packages/schema fails here. */
+const TOOL_WORDS: Record<AssistantTool, string> = {
+  waiting: "what waits on the user: open decisions and drafts not reviewed yet",
+  find_roles:
+    "roles found by `words` (a few words of the title, company or places as the mail writes them, all of which must appear; null for every role), each in full",
+  role: 'one role in full by `messageId` and `position`, as earlier answers\' refs name it ("<Message-ID>#<position>"): its facts, profile, fit score with every reason, rules, stage, decisions and why it has a draft or none',
+  pipeline: `the application pipeline: counts by stage and the roles in it, only those in \`stage\` (${either(APPLICATION_STAGES)}) when set, and only those that got there in the last \`days\` days when set`,
+  message_text: "one message's text by `messageId`",
+  profile: "the user's profiles with their entries and rules",
+};
+
+/** When to ask for lookups (MVP 3, F8.2), and what each reads. */
+function lookupWords(): string {
+  const tools = ASSISTANT_TOOLS.map((t) => `\`${t}\`: ${TOOL_WORDS[t]}`).join("; ");
+  return [
+    "When the user asks a question about their job search (what waits on them, their roles, why a role has no draft, their pipeline, a message, their profile), set `lookups` to the read-only lookups whose results answer it, and `clarify` and `proposal` to null: the answer is written from their results, so never answer such a question from memory, and keep `reply` short.",
+    `A lookup sets \`tool\` and the fields that tool uses; every other field is null. The tools: ${tools}.`,
+    "Ask for the fewest lookups that answer it, at most five. For any other message set `lookups` to [].",
+  ].join(" ");
+}
+
 // The rule vocabulary (facts, ops, actions) comes from packages/schema, so the instruction never
 // falls out of step with what the answer check accepts.
 //
@@ -121,7 +145,8 @@ function keyWords(): string {
 // the assistant can't do, with where each is done (F8.7). Nothing in it is market-specific: every
 // value a change carries comes from the user's words or the listed profile.
 const INSTRUCTION = [
-  "You help the user steer their job search automation: the rules and profile entries listed below. Write `reply` in the language of the user's message.",
+  "You help the user steer their job search automation, the rules and profile entries listed below, and answer their questions about their job search. Write `reply` in the language of the user's message.",
+  lookupWords(),
   [
     "When the user asks to change their preferences or what the app does with matching mail, set `proposal` to a short `summary` in the user's language and the `changes` that do it, and `clarify` to null. A change adds, updates or removes a rule (by its id) or a profile entry (by its key). `add` on an entry appends the given items to its list; `update` replaces its value; `remove` with a value removes those items, and with null the whole entry.",
     "Each change sets `op`, `target` (rule or entry), `ruleId` for a rule it updates or removes, `key` for an entry, `rule` to the rule as JSON text for add and update, and `value` to the entry's value as JSON text; every field a change doesn't use is null.",
@@ -134,7 +159,8 @@ const INSTRUCTION = [
   "When the request is unclear, set `clarify` to one question with two to four short answers to pick in `choices`, and `proposal` to null: never guess.",
   "It is unclear only when you can't tell what the user wants changed. When that is clear but a value could be read more widely or narrowly, such as the UTC offsets a region spans, propose the likeliest reading: the user can edit a proposal before applying it.",
   "A proposal changes nothing until the user applies it themselves, so never say a change is made.",
-  "You can't send mail, invite people, change mailboxes or AI settings, or delete data. When asked to, set `clarify` and `proposal` to null and say you can't and where it is done: replies wait as drafts on the Drafts page and in the mailbox's Drafts folder, and are sent from the user's own mail app; people are invited on the Members page; the mailbox and the AI settings are under Settings; CVs are deleted on the CVs page.",
+  "The profile and rules below are those of the profile a change would go to. When the user's message only names one of their profiles, it answers which profile an earlier request is for: propose that request's changes.",
+  "You can't send mail, invite people, change mailboxes or AI settings, or delete data. When asked to, set `clarify` and `proposal` to null and say you can't and where it is done: replies wait as drafts on the Drafts page and in the mailbox's Drafts folder, and the user sends each one there or from their own mail app; people are invited on the Members page; the mailbox and the AI settings are under Settings; CVs are deleted on the CVs page.",
 ].join("\n");
 
 /** An ISO 639-1 code, so the system message never carries anything else. */
