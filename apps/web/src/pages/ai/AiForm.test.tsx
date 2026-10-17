@@ -278,7 +278,7 @@ describe("saved settings", () => {
     expect(screen.queryByRole("button", { name: /^Save/ })).toBeNull();
   });
 
-  it("are read-only, with a note, for an admin who sees the job pipeline only (TBD-450)", async () => {
+  it("are read-only, with a note, for an admin who sees the job pipeline only", async () => {
     api({ [`GET ${url}`]: { settings: saved } });
     renderInWorkspace(<AiForm workspaceId={ws.id} mode="settings" />, {
       workspace: { scope: "pipeline" },

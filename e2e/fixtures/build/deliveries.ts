@@ -17,10 +17,10 @@ import { PIPELINE_DELIVERIES } from "./pipeline.ts";
 import type { Lang } from "./recruiters.ts";
 import type { HardConflict, MessageSpec } from "./spec.ts";
 
-// The mail `seed deliver <id>` brings into Maria's Inbox during an MVP 2 run (MVP-2 › Fixtures
-// added), all dated within the 14-day reply window. Each message has its ground truth: the
-// sender verdict, and per role the expected fit, the decisions it needs and whether it ends up
-// with a draft, plus the fake AI's draft.v1 answers for the roles that get one.
+// The mail `seed deliver <id>` brings into Maria's Inbox during an MVP 2 run, all dated within
+// the 14-day reply window. Each message has its ground truth: the sender verdict, and per role
+// the expected fit, the decisions it needs and whether it ends up with a draft, plus the fake
+// AI's draft.v1 answers for the roles that get one.
 //
 // Her profile at that point (MVP 1 S4 removed Amsterdam): backend roles, Senior, hybrid in
 // Berlin or remote in the EU, at least €70,000 a year or €450 a day, permanent or B2B. MVP 3's

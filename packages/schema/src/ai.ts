@@ -302,7 +302,7 @@ export type TaskResult<T> =
   | { ok: true; data: T; usage: Usage[] }
   | { ok: false; error: AiError; usage: Usage[] };
 
-/** The result of a batched task: one outcome per item, valid items kept (TBD-17). */
+/** The result of a batched task: one outcome per item, valid items kept. */
 export function batchResultSchema<T extends z.ZodType>(data: T) {
   return z.object({
     items: z.array(

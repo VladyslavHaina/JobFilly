@@ -115,7 +115,7 @@ const cases: [string, Partial<ReplyEligibilityInput>, HeldKind[]][] = [
   ],
 ];
 
-describe("replyEligibility (F6.1, F6.5, TBD-193)", () => {
+describe("replyEligibility (F6.1, F6.5)", () => {
   it.each(cases)("%s", (_name, overrides, held) => {
     const result = replyEligibility({ ...base, ...overrides });
     expect(result.heldBy.map((h) => h.kind)).toEqual(held);

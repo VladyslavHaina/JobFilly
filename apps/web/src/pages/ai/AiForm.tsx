@@ -100,7 +100,7 @@ function Form(props: {
 }) {
   const { workspaceId, can } = useWorkspace();
   // The AI reads mail text: only admins who see everything change it; the server refuses anyone
-  // else (TBD-450).
+  // else.
   const canChange = can.admin && can.mail;
   const client = useQueryClient();
   const [form, setForm] = useState<FormState>(() => initialState(props.saved));

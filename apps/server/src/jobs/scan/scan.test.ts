@@ -425,7 +425,7 @@ describe("stopping (F4.4, F4.5, F4.10)", { timeout: SLOW }, () => {
   });
 });
 
-describe("Couldn't analyze and the budget (F3.4, TBD-17)", { timeout: SLOW }, () => {
+describe("Couldn't analyze and the budget (F3.4)", { timeout: SLOW }, () => {
   it("retries an invalid item once, as a call of its own, then marks only that item failed", async () => {
     const box = mailbox(3);
     const bad = box.recruiters[1] as Envelope;
@@ -600,7 +600,7 @@ describe("Couldn't analyze and the budget (F3.4, TBD-17)", { timeout: SLOW }, ()
     expect(s.mail.connections).toEqual([]);
   });
 
-  it("opens the stored key for the provider, and reads a cleared key as no key (TBD-121)", async () => {
+  it("opens the stored key for the provider, and reads a cleared key as no key", async () => {
     /** Runs a first scan on a fresh workspace whose key is `apiKey`; the keys the client got. */
     const keysFor = async (apiKey?: string) => {
       const box = mailbox(2);
@@ -645,7 +645,7 @@ describe("Couldn't analyze and the budget (F3.4, TBD-17)", { timeout: SLOW }, ()
   });
 });
 
-describe("what a failed run ran into (TBD-112)", { timeout: SLOW }, () => {
+describe("what a failed run ran into", { timeout: SLOW }, () => {
   it("names the mailbox when a body can't be read mid-run", async () => {
     const box = mailbox(5);
     const s = await setup(box.envelopes, recruiterAnswers(box.notJob));

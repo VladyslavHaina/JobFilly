@@ -18,7 +18,7 @@ import {
   workspaceIdOf,
 } from "../shared.ts";
 
-// S11 of docs/mvp/MVP-3.md: export and delete (F7.1–F7.3, F9.2). Maria downloads her workspace
+// S11 of MVP 3: export and delete (F7.1–F7.3, F9.2). Maria downloads her workspace
 // from Settings › Data; the verification step unpacks the ZIP: a JSON file for every listed part,
 // a manifest with the schema version, and her CV files. She removes Tom from her workspace; probe:
 // Tom's session on the export's URL gets 404. Tom deletes his own workspace, typing its name and

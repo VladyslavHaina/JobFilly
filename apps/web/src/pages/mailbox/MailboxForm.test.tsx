@@ -344,7 +344,7 @@ describe("connected mailboxes (MVP 3 F3.1, F7.4; replacing F2.5's one)", () => {
     expect(onConnected).toHaveBeenCalledOnce();
   });
 
-  it("lets an admin who sees the job pipeline only disconnect, but not connect (TBD-450)", async () => {
+  it("lets an admin who sees the job pipeline only disconnect, but not connect", async () => {
     const seen = api({}, [{ ...mailbox, auth: "google", status: "reconnect_needed" }]);
     renderInWorkspace(<MailboxForm workspaceId={ws.id} mode="settings" />, {
       workspace: { scope: "pipeline" },

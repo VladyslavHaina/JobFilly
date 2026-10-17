@@ -34,14 +34,14 @@ import {
   workspaceIdOf,
 } from "../shared.ts";
 
-// S11 of docs/mvp/MVP-2.md: resilience (F1.2–F1.4), the last scenario on the stack. The
+// S11 of MVP 2: resilience (F1.2–F1.4), the last scenario on the stack. The
 // infrastructure steps are the scenario's own: `seed deliver s11-failover`, then the replica that
 // logs the next sync.started of Maria's mailbox is killed while that sync runs (the sync reads
 // the new message and runs the model on it inline, so it lasts about a second; the log is
 // followed as it is written and the container killed directly, so the kill lands in it). The
 // other replica takes the sync over once the lease expires. Then `docker compose pause imap`,
 // `unpause imap` and `seed deliver s11-recovery`, and `seed reset-uidvalidity maria`. Both
-// deliveries are capped onsite roles (TBD-442): no draft, no decision. Whatever happens, the
+// deliveries are capped onsite roles: no draft, no decision. Whatever happens, the
 // cleanup unpauses imap and starts the killed replica again.
 
 const FAILOVER = delivery("s11-failover");

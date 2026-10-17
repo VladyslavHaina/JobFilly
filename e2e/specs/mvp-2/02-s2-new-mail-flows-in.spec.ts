@@ -23,7 +23,7 @@ import {
   workspaceIdOf,
 } from "../shared.ts";
 
-// S2 of docs/mvp/MVP-2.md: new mail flows in (F1.1, F1.2, F1.5, F1.6). `seed deliver S2` brings
+// S2 of MVP 2: new mail flows in (F1.1, F1.2, F1.5, F1.6). `seed deliver S2` brings
 // the batch (every delivery but the second Zurich role, which S5 delivers, and S11's two). Maria
 // keeps the inbox open and never reloads it: the messages come in live, each with its category,
 // sender badge and fit score, within one sync interval (15 s in the test stack) plus processing.

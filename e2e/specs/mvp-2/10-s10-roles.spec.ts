@@ -17,7 +17,7 @@ import {
   workspaceIdOf,
 } from "../shared.ts";
 
-// S10 of docs/mvp/MVP-2.md: roles (F6.7, F7.7, F8.8). Maria sets Tom back to Viewer; in her
+// S10 of MVP 2: roles (F6.7, F7.7, F8.8). Maria sets Tom back to Viewer; in her
 // workspace he reads drafts, decisions and the assistant, but editing, answering and Apply are
 // disabled, and the server refuses them (403). S5 answered or closed every decision, so the
 // decision inbox has none open to look at (the walkthrough's gap): the answer probe uses the

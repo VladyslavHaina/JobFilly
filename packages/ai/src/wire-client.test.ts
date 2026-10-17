@@ -4,7 +4,7 @@ import { type AiClientSettings, TASK_IDS, type TaskId } from "@jobfilly/schema";
 import { describe, expect, it } from "vitest";
 import { type AiClient, createAiClient } from "./client";
 
-// Golden wire tests (TBD-10, TBD-25): for every task id, the client, configured for an
+// Golden wire tests: for every task id, the client, configured for an
 // OpenAI-compatible endpoint and given <taskId>.input.json, must send exactly
 // <taskId>.request.json and, fed <taskId>.response.json, return exactly <taskId>.output.json.
 // The fake AI's tests read the same files, so both sides agree on every byte without importing

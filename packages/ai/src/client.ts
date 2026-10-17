@@ -56,8 +56,8 @@ import { type ModelFor, modelRegistry, type TaskModel } from "./registry";
 // Every model call of the app goes through this client. Each call is one request to the provider
 // (the SDK's own retries are off, so the scan budget counts exactly) and adds one Usage entry,
 // retries included. An answer is checked against its schema from @jobfilly/schema; what fails is
-// retried once in one follow-up call and then reported per item, never patched up (F3.4,
-// TBD-17). ai.output_invalid events carry only the task id, the reason, how many items failed and
+// retried once in one follow-up call and then reported per item, never patched up (F3.4).
+// ai.output_invalid events carry only the task id, the reason, how many items failed and
 // the attempt: never the model's output or anything from the mail.
 
 export interface AiClientOptions {

@@ -37,7 +37,7 @@ import {
   senderDomain,
 } from "./sender/index";
 
-// The real engine against the personas' ground truth (TBD-414): every job message of the test
+// The real engine against the personas' ground truth: every job message of the test
 // stack's fixtures (e2e/fixtures/<persona>), the first scan's backlog and the mail MVP 2 delivers,
 // goes through what the server's pipeline runs on it — the sender check, the CV choice, the
 // rules and the match with the fake AI's match.v1 answer, the needs and the reply plan — and what
@@ -380,7 +380,7 @@ function runMessage(persona: Persona, m: JobMessage, profile: Profile) {
       fit: match.capped ? "capped" : match.score >= THRESHOLD ? "good" : "below",
     };
   });
-  // At most one automatic draft per message (TBD-221), as the reply stage plans it.
+  // At most one automatic draft per message, as the reply stage plans it.
   const roles = capAutoDrafts(planned).map(({ position, draftHistory, ...r }): RoleOutcome => {
     // What the first draft asks once the plan lets it be written (draft.v1, attempt 1).
     const firstDraft = persona.drafts[`${m.messageId}#${position}#1`];

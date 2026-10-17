@@ -324,7 +324,7 @@ export async function syncMailbox(
     // Stored messages move to their UIDs now; the rest is new. After a known cursor that is
     // every one of them; reading the whole folder, only what arrived within the scan's window.
     // A message reusing a stored Message-ID with another sender goes by an id of its own
-    // (TBD-440), here as in the database.
+    //, here as in the database.
     const read = await distinctMessageIds(db, workspaceId, result.messages);
     const known = await reindexMessages(db, workspaceId, read, {
       mailboxId,

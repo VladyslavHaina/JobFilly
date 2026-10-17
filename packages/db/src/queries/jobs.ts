@@ -10,7 +10,7 @@ import { jobs } from "../tables";
 // The worker's operations (claim, renew, checkpoint, complete, hand back) take no workspace id on
 // purpose: a worker serves every workspace, and the job it holds carries its workspace id.
 //
-// Dedupe (TBD-178): jobs with the same dedupe key are one piece of work. At most one of them
+// Dedupe: jobs with the same dedupe key are one piece of work. At most one of them
 // waits: enqueueing while one is queued is a no-op (a partial unique index while queued). At most
 // one runs: the claim skips a queued job while another job with its key runs under a live lease,
 // and takes a per-key advisory lock for its own transaction, so two workers claiming at the same

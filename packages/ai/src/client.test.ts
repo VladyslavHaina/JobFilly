@@ -70,7 +70,7 @@ const messageIdsIn = (prompt: string) =>
     .filter((l) => l.startsWith("Message-ID: "))
     .map((l) => l.slice("Message-ID: ".length));
 
-describe("batched tasks (F3.4, TBD-17)", () => {
+describe("batched tasks (F3.4)", () => {
   it("returns one result per item in the input's order, with one usage entry per call", async () => {
     const { client, prompts, events } = clientWith([
       classified([

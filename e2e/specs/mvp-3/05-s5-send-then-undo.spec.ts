@@ -22,7 +22,7 @@ import {
   workspaceIdOf,
 } from "../shared.ts";
 
-// S5 of docs/mvp/MVP-3.md: send, then undo (F4.1–F4.5, F9.1). Maria adds SMTP settings to her
+// S5 of MVP 3: send, then undo (F4.1–F4.5, F9.1). Maria adds SMTP settings to her
 // main mailbox: the Gmail preset fills its server, then she points it at the test mail server's
 // plain SMTP port (imap:3025, as the test stack allows) and tests it. MVP 2's S4 discarded the
 // Berlin draft, so she asks for a new one with Draft a reply, then presses Send…: the

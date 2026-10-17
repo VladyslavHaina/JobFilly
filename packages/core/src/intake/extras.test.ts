@@ -10,7 +10,7 @@ import { describe, expect, it } from "vitest";
 import { aggregateIntake } from "./aggregate";
 import { buildIntakeExtraInput, extraEvidenceIds, foundExtraQuestions } from "./extras";
 
-// The input of intake.v1 (TBD-20): the answered entries' evidence messages newest first, at most
+// The input of intake.v1: the answered entries' evidence messages newest first, at most
 // 20, with the stored snippet as text; and every core answer in core-key order. What the model
 // proposes is kept only when the mail it was shown backs it (F6.1).
 

@@ -331,7 +331,7 @@ describe("Settings › Sending", () => {
     expect(screen.getByText(/Sends through Google with your sign-in/)).toBeTruthy();
   });
 
-  it("is read-only, with a note, for an admin who sees the job pipeline only (TBD-450)", async () => {
+  it("is read-only, with a note, for an admin who sees the job pipeline only", async () => {
     fakeApi({
       [`GET ${BASE}/mailboxes`]: { items: [MAILBOX] },
       [`GET ${BASE}/mailboxes/presets`]: PRESETS,

@@ -42,7 +42,7 @@ export const CORE_PROFILE_LABELS: Record<CoreProfileKey, string> = {
 };
 
 /**
- * The policy keys of the reply automation (F6.1, TBD-162): valid profile keys outside the intake
+ * The policy keys of the reply automation (F6.1): valid profile keys outside the intake
  * form, each a one-number list. A key the profile doesn't set takes its POLICY_DEFAULTS value.
  */
 export const POLICY_KEYS = ["reply_threshold", "reply_window_days"] as const;
@@ -141,7 +141,7 @@ const PolicyNumberSchema = z.number().int().min(0).max(1000);
 export const PolicyValueSchema = z.array(PolicyNumberSchema).length(1);
 
 /**
- * The keys whose value is a list of independent items (TBD-195): every core key, read from
+ * The keys whose value is a list of independent items: every core key, read from
  * PROFILE_VALUE_SCHEMAS. A Change `add` appends items to them; on any other key (a policy key,
  * an extra question) `add` sets the whole value. packages/core/src/profile/changes.ts.
  */

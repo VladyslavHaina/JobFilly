@@ -1,7 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
 import { DIRECT_PORTS, logged, REPLICAS, signIn, workspaceIdOf } from "../shared.ts";
 
-// S3 of docs/mvp/MVP-1.md: the first scan stops when confident (F4.1–F4.7, F3.6). Maria starts
+// S3 of MVP 1: the first scan stops when confident (F4.1–F4.7, F3.6). Maria starts
 // it from the scan screen; a second view of that screen, opened through the direct port of the
 // replica that is not running the scan (the one address besides the start URL the scenario has
 // typed), keeps updating too (F4.6).

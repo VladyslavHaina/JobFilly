@@ -150,7 +150,7 @@ describe("parseAmount", () => {
   });
 });
 
-describe("in the browser's locale (TBD-130)", () => {
+describe("in the browser's locale", () => {
   const setLocale = (language: string) =>
     Object.defineProperty(navigator, "language", { value: language, configurable: true });
   afterEach(() => setLocale("en"));

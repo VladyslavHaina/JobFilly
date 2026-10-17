@@ -771,7 +771,7 @@ describe("draft, ask or hold (F6.1, F7.1)", () => {
   });
 });
 
-describe("one automatic draft per message (TBD-221)", () => {
+describe("one automatic draft per message", () => {
   const fresh = { hadDraft: false, dismissed: false };
   const draft = { kind: "draft" } as const;
   const another = {

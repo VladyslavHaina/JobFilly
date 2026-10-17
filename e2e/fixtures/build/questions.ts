@@ -3,7 +3,7 @@ import { type AssistantQuestion, type Lookup, MARIA_PROFILES } from "../format-m
 import { DELIVERIES, deliveredMessageId } from "./deliveries.ts";
 import { maria } from "./maria.ts";
 
-// The assistant's questions (F8, MVP-3 › Fixtures added): assistant/questions.json holds ten
+// The assistant's questions (F8): assistant/questions.json holds ten
 // questions with what a right answer says and links, for S7, S9 and the real-AI quality run; the
 // fake AI answers each with assistant.v1's lookups (ai/assistant.json) and answer.v1's text and
 // sources (ai/answer.json), at any turn.

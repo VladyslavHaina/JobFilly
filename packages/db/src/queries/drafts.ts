@@ -289,7 +289,7 @@ export async function saveDraftEdit(
 
 /**
  * Discards a draft whose copy is gone from the mailbox (or never got there): it stays listed as
- * discarded and is never recreated automatically (TBD-193). `copy` is the Message-ID the caller
+ * discarded and is never recreated automatically. `copy` is the Message-ID the caller
  * read (and deleted). Null when the row names another copy by now (an edit won meanwhile).
  */
 export async function markDraftDiscarded(

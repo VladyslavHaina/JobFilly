@@ -5,7 +5,7 @@ import { capped, reply } from "./delivery-kit.ts";
 import { pay, role } from "./facts.ts";
 import { RECRUITER_FOOTER_DE, RECRUITER_FOOTER_EN } from "./footers.ts";
 
-// MVP 3 S1, "Maria moves to Germany" (MVP-3 › Fixtures added): `seed deliver S1` brings German
+// MVP 3 S1, "Maria moves to Germany": `seed deliver S1` brings German
 // mail about hybrid roles in München and Hamburg, paid yearly in EUR on permanent contracts, while
 // her remote EU mail keeps arriving, and appends to her Sent folder two replies saying she has
 // moved and wants permanent roles in Germany. The re-run of setup reads those replies into the

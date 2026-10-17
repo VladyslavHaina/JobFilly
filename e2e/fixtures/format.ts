@@ -286,7 +286,7 @@ export interface ExpectedMessage {
   stageOne: StageOneVerdict;
   /**
    * What the message is; own replies are other_job (about a role) or not_job. The scan never
-   * classifies an own reply (TBD-37: its row keeps category null and only gets its preferences
+   * classifies an own reply (its row keeps category null and only gets its preferences
    * read), so for own replies this is a description, never compared: see comparedForF53.
    */
   category: Category;
@@ -305,7 +305,7 @@ export interface ExpectedMessage {
  * The messages whose stored category and facts F5.3 compares with `category` and `facts`
  * (compareWithExpected in compare.ts), and that the real-AI quality figures are counted over.
  * Every other message is checked another way:
- * - an own reply is never classified or extracted (TBD-37): its row ends with category null and
+ * - an own reply is never classified or extracted: its row ends with category null and
  *   preferences read, and F6.6 checks those through the profile answers;
  * - the invalid message ends "Couldn't analyze" with category null, which S5 checks.
  * Everything else, the not_job mail stage one sorts out included, must equal expected.json.

@@ -124,7 +124,7 @@ export type MailboxStatus = z.infer<typeof MailboxStatusSchema>;
 
 /**
  * How a mailbox signs in (MVP 3, F3): a password (an app password where the provider offers one)
- * or Google's OAuth, the only OAuth provider (TBD-441). IMAP and SMTP both use it.
+ * or Google's OAuth, the only OAuth provider. IMAP and SMTP both use it.
  */
 export const MailboxAuthSchema = z.enum(["password", "google"]);
 export type MailboxAuth = z.infer<typeof MailboxAuthSchema>;

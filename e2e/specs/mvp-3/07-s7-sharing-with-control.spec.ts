@@ -18,10 +18,10 @@ import {
   workspaceIdOf,
 } from "../shared.ts";
 
-// S7 of docs/mvp/MVP-3.md: sharing with control (F6.1, F6.2, F8.3). Tom is a Viewer in Maria's
+// S7 of MVP 3: sharing with control (F6.1, F6.2, F8.3). Tom is a Viewer in Maria's
 // workspace since MVP 2's S10; Maria changes what he sees to "Job pipeline only". In her
 // workspace Tom then sees the roles, their facts and matches, and the pipeline, but no Drafts
-// page, no draft and no message text (TBD-446 D14). Asked for a message's text, the assistant
+// page, no draft and no message text. Asked for a message's text, the assistant
 // says it isn't available to him (assistant/questions.json, "body-pipeline-only"). Probes with
 // Tom's own session: the message's body and a draft answer 404; Maria's control gets both.
 

@@ -15,7 +15,7 @@ import {
   type Persona,
 } from "./format.ts";
 
-// The soak's generated job mail (MVP-3 › Fixtures added, F10.3): `seed generate --per-minute N`
+// The soak's generated job mail (F10.3): `seed generate --per-minute N`
 // appends N messages a minute to each persona's Inbox, and the fake AI answers them from these
 // templates by their Message-ID, <soak-<persona>-<run>-<n>@sender-domain>, rather than from a
 // fixture file. Every message is a recruiter's onsite role from a sender domain the test stack's

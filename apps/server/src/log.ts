@@ -41,7 +41,7 @@ export type LogEvent =
   | "server.ready"
   | "server.shutting_down"
   | "server.stopped"
-  // MVP 2 (MVP-2.md › Log events)
+  // MVP 2
   | "sync.started"
   | "sync.completed"
   | "sync.failed"
@@ -86,7 +86,7 @@ export type LogEvent =
   // Operational: a cv.read job threw, why with failureFields. Before the read was saved the CV is
   // marked failed; after it (step reevaluate) its re-evaluation is asked for once more.
   | "cv.read_failed"
-  // MVP 3 (MVP-3.md › Log events; scan.started carries kind: rerun)
+  // MVP 3 (scan.started carries kind: rerun)
   | "profile.assigned"
   | "profile.updated"
   | "mailbox.oauth_connected"

@@ -17,7 +17,7 @@ import type { AppDeps } from "../deps";
 // lease has expired and the handler resumes from that checkpoint, so handlers must be idempotent.
 // On shutdown running handlers are aborted and their jobs handed back.
 //
-// Dedupe (TBD-178): a job enqueued with a dedupe key (enqueue below, keys from jobDedupeKey in
+// Dedupe: a job enqueued with a dedupe key (enqueue below, keys from jobDedupeKey in
 // @jobfilly/schema) has at most one of its kind waiting and one running across replicas; the
 // claim in packages/db skips a waiting one while another with its key runs under a live lease.
 // So each mailbox syncs once at a time (F1.2), and a change made during a re-evaluation still

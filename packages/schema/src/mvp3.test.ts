@@ -46,7 +46,7 @@ import {
   WorkspaceSummarySchema,
 } from "./index";
 
-// The shapes MVP 3 adds to the shared contract (docs/mvp/MVP-3.md). The slices that build on them
+// The shapes MVP 3 adds to the shared contract. The slices that build on them
 // test their behaviour; these pin the shapes themselves.
 
 const ID = "6f1c2f4e-8d3a-4b5c-9e7f-0a1b2c3d4e5f";

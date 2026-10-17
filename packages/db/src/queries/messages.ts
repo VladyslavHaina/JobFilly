@@ -128,7 +128,7 @@ function ofMailbox(mailboxId: string | undefined): SQL | undefined {
 }
 
 /**
- * The Message-ID a message reusing another sender's id is stored under (TBD-440): a synthetic one
+ * The Message-ID a message reusing another sender's id is stored under: a synthetic one
  * from the id and its own From address, so a re-sync gives it the same id again.
  */
 function reusedMessageId(e: Envelope): string {
@@ -140,11 +140,11 @@ function reusedMessageId(e: Envelope): string {
 }
 
 /**
- * One Message-ID, one sender (TBD-440): an envelope whose Message-ID is stored with another From
+ * One Message-ID, one sender: an envelope whose Message-ID is stored with another From
  * address (case aside) is another message that reuses the id, and gets an id of its own
  * (reusedMessageId), so it never takes over the stored message's row: its location, analysis,
  * drafts and sender check. The same id with the same From is the same message, moved, re-indexed
- * or in a second mailbox (F1.3, TBD-446 D3), and keeps its id. Of an id not stored yet but seen
+ * or in a second mailbox (F1.3), and keeps its id. Of an id not stored yet but seen
  * with several senders at once, the copy that arrived first (the lowest UID) keeps it. The sync
  * passes what it reads through here before matching it by Message-ID; saveEnvelopes does too.
  */

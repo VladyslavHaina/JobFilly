@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 // OAuth mail sign-in (MVP 3, F3.2): the authorization-code flow with PKCE, for Google (Gmail)
-// only (TBD-441). It is offered only when the server has JOBFILLY_GOOGLE_CLIENT_ID and
+// only. It is offered only when the server has JOBFILLY_GOOGLE_CLIENT_ID and
 // JOBFILLY_GOOGLE_CLIENT_SECRET. Tokens are sealed with JOBFILLY_SECRET_KEY, refreshed
 // automatically, never returned by the API and never logged.
 

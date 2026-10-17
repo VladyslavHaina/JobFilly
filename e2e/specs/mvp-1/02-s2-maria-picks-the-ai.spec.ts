@@ -11,7 +11,7 @@ import {
   workspaceIdOf,
 } from "../shared.ts";
 
-// S2 of docs/mvp/MVP-1.md: Maria picks the AI (F3.1–F3.3, F1.10). Every spec has a browser of
+// S2 of MVP 1: Maria picks the AI (F3.1–F3.3, F1.10). Every spec has a browser of
 // its own, and a person types no address but the start URL, so the onboarding step S1 left her
 // on can't be reopened: she signs in, lands in the job inbox (her mailbox is connected) and picks
 // the AI where the app offers it then, Main nav › Settings › AI, the same form. She continues to

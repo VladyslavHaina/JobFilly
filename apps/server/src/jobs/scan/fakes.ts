@@ -24,7 +24,7 @@ import { fakeAiClient, fakeMailClient } from "../../testing";
 
 // Test doubles for the scan worker's ports, behaving as packages/mail and packages/ai promise:
 // envelopes newest first within the window, bodies on demand; one Usage per model call, invalid
-// items retried once in one follow-up call when maxCalls allows it, else not_retried (TBD-17).
+// items retried once in one follow-up call when maxCalls allows it, else not_retried.
 // Only the scan tests import this file.
 
 /** Every fake body carries this marker, so tests can prove no body is stored or logged (F4.9). */
@@ -217,7 +217,7 @@ export function fakeAi(answers: FakeAiAnswers): FakeAi {
         : { ok: false, error: only.error, usage: r.usage };
     },
     async intake() {
-      throw new Error("the scan never makes the intake.v1 call (TBD-19)");
+      throw new Error("the scan never makes the intake.v1 call");
     },
     async test() {
       throw new Error("the scan never tests the provider");

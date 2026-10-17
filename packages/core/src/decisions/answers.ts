@@ -28,7 +28,7 @@ import {
   tokensOf,
 } from "./words";
 
-// A decision's answer (F7.4, TBD-195): the one profile item it adds, or words that answer the
+// A decision's answer (F7.4): the one profile item it adds, or words that answer the
 // messages waiting on it only and write nothing. Nothing here reads a yes or a no from words, in
 // any language (F8.1): the model that offers the answers says which ones turn the question down
 // (draft.v1's `declines`), and the group key's parts say what a yes adds ("Yes" to
@@ -377,7 +377,7 @@ export function answerOf(
 /**
  * The profile change an answer makes (F7.4): one `add` of a single item to the decision's key,
  * applied with source decision, so the items already there stay ("CHF per year" keeps the EUR
- * minimum, TBD-195).
+ * minimum).
  */
 export function answerChange(profileKey: ProfileKey, item: ProfileItem): Change {
   return { op: "add", target: "entry", key: profileKey, value: [item] as ProfileValue };

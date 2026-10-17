@@ -20,11 +20,11 @@ import {
   workspaceIdOf,
 } from "../shared.ts";
 
-// S1 of docs/mvp/MVP-3.md: moving to Germany (F1.1, F1.2), after MVP 2's end state. The
+// S1 of MVP 3: moving to Germany (F1.1, F1.2), after MVP 2's end state. The
 // infrastructure step is the scenario's own: `seed deliver S1` brings the Germany batch into her
 // Inbox and her two "I've moved" replies into Sent. Maria presses Re-run setup on the profile
 // page, types the hint, and the scan page follows the re-run until it stops. Its intake form reads
-// only mail that fits the whole hint (TBD-451), so it proposes German places, EUR per year and
+// only mail that fits the whole hint, so it proposes German places, EUR per year and
 // permanent contracts, and none of her older answers. Confirmed as "Germany permanent", it is a
 // new profile next to "My job search", which stays as it was. F1.2's "one stays on" is walked by
 // switching the new profile off (its roles go back to the first one, as they were before the
@@ -161,7 +161,7 @@ test("S1: moving to Germany", async ({ page }) => {
         ).toBeVisible({ timeout: 60_000 });
       }
     }
-    // Only mail in the hint's focus: none of her older, wider answers (TBD-451). Checked on the
+    // Only mail in the hint's focus: none of her older, wider answers. Checked on the
     // proposed values (the chips) only: the card's add-value editor lists every option, such as
     // "per day" in its Period select, whatever is proposed.
     for (const { key, words } of NOT_PROPOSED) {

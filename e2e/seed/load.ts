@@ -4,7 +4,7 @@ import { join } from "node:path";
 // `seed load <persona>`: puts e2e/fixtures/<persona>/mail into the persona's IMAP Inbox and Sent.
 // Fixture dates are relative: every message's Date header and IMAP internal date are set to the
 // run's current time minus the envelope's `minutesAgo`, so the 90-day window and the other
-// date rules behave the same on every run (docs/mvp/README.md › The test stack).
+// date rules behave the same on every run.
 //
 // The only fixture fields read are the .eml files and, in envelopes.json, each entry's `file`
 // (relative to mail/), `folder` (inbox | sent), `messageId` and `minutesAgo` (ARCHITECTURE ›

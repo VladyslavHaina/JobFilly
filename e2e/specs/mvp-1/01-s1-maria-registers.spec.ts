@@ -10,7 +10,7 @@ import {
   workspaceIdOf,
 } from "../shared.ts";
 
-// S1 of docs/mvp/MVP-1.md: Maria registers and connects her mailbox (F1.1, F1.2, F2.1–F2.3).
+// S1 of MVP 1: Maria registers and connects her mailbox (F1.1, F1.2, F2.1–F2.3).
 // She ends on "Pick your AI"; S2 picks it in Settings › AI. The test stack's imap service speaks
 // plain-text IMAP on port 3143 (docker/compose.e2e.yaml), which only the test stack allows (F2.4).
 

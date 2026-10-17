@@ -4,7 +4,7 @@ import { join, resolve } from "node:path";
 import { PERSONAS } from "./fixtures/format.ts";
 import { MARIA_HOME } from "./fixtures/format-mvp3.ts";
 
-// The test stack's commands (docs/mvp/README.md › The test stack, F7.8). The root scripts run:
+// The test stack's commands (F7.8). The root scripts run:
 //   pnpm e2e                  node e2e/stack.ts run [--mvp <n>]    fresh stack, specs, down
 //   pnpm e2e:stack up|down    node e2e/stack.ts stack up|down
 //   pnpm e2e:specs            node e2e/stack.ts specs [--mvp <n>]  specs against the running stack

@@ -10,7 +10,7 @@ import { SendSchema } from "./send";
  * - saving: the short claim while the draft is written to the mailbox (only the claim holder
  *   writes it);
  * - in_mailbox: saved to the Drafts folder; edited: an editor saved changes, replaced there too;
- * - discarded: deleted from the mailbox; never recreated automatically (TBD-193);
+ * - discarded: deleted from the mailbox; never recreated automatically;
  * - failed: see failureKind;
  * - sent (MVP 3, F4.4): sent from the app; its Drafts copy is gone. It keeps the role's one live
  *   draft, so no new automatic draft is made for a role already answered.

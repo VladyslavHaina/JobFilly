@@ -9,7 +9,7 @@ import {
 } from "../../fixtures/format.ts";
 import { eventsSince, INTAKE_LABELS, logMark, signIn } from "../shared.ts";
 
-// S4 of docs/mvp/MVP-1.md: from the intake form to the profile (F6.1–F6.5). The proposals are
+// S4 of MVP 1: from the intake form to the profile (F6.1–F6.5). The proposals are
 // checked against Maria's expected.json (F6.6); she removes Amsterdam with a click and confirms.
 
 const expected = readJson<ExpectedFile>(`${fixturesDir()}${personaPaths("maria").expected}`);

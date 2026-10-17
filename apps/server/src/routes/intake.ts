@@ -54,7 +54,7 @@ import { openAiKey } from "../secrets";
 // intake_answers, and Confirm saves both as the workspace's profile. Later runs ("Analyze them")
 // keep filling the proposal but never touch a confirmed profile: it is a separate row.
 //
-// The extra questions come from one intake.v1 call per workspace (TBD-19): whoever opens the form
+// The extra questions come from one intake.v1 call per workspace: whoever opens the form
 // first claims it through the intake_extras row and makes the call in the background
 // (deps.background, which shutdown waits for); everyone else sees 'pending' until an
 // intake.updated event says it is done. A replica that shuts down before the model answers

@@ -2,7 +2,7 @@ import { PERSONAS, type Persona } from "../fixtures/format.ts";
 import { soakMessage, soakMessageId } from "../fixtures/soak.ts";
 import type { SeedImap } from "./load.ts";
 
-// `seed generate --per-minute N [--minutes M]` (MVP-3 › Fixtures added, F10.3): the soak's new
+// `seed generate --per-minute N [--minutes M]` (F10.3): the soak's new
 // mail. Every 60/N seconds it appends one generated job message to each persona's Inbox (one
 // workspace each), dated now and unread, until M minutes have passed or the seed is stopped
 // (SIGTERM, SIGINT). The fake AI answers the messages from the templates in fixtures/soak.ts by

@@ -94,7 +94,7 @@ export function createConfidenceTracker(
 
 const emails = (n: number) => `${n} likely job email${n === 1 ? "" : "s"}`;
 
-/** Why a failed run couldn't go on, and where to look, by what it ran into (TBD-112). */
+/** Why a failed run couldn't go on, and where to look, by what it ran into. */
 const FAILED: Record<StopCause, (progress: string) => string> = {
   mailbox: (progress) =>
     `Stopped: couldn't read your mailbox ${progress}. Check Settings › Mailbox, then try again.`,

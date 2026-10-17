@@ -168,7 +168,7 @@ describe("stopMessage (F4.4)", () => {
     );
   });
 
-  it("names what a failed run ran into, and where to look (TBD-112)", () => {
+  it("names what a failed run ran into, and where to look", () => {
     expect(stopMessage("failed", 3, 12, "mailbox")).toBe(
       "Stopped: couldn't read your mailbox after 3 of 12 likely job emails. Check Settings › Mailbox, then try again.",
     );

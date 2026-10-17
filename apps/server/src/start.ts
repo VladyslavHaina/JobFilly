@@ -4,7 +4,7 @@ import type { Scheduler } from "./sync/scheduler";
 
 // What a replica starts once its database is reachable and migrated (index.ts), before it says
 // it is ready: one pipeline sweep, so a deployment whose profile was confirmed before MVP 2 ran
-// gets its backlog evaluated without anyone doing anything (F1.6, TBD-191); then the job queue,
+// gets its backlog evaluated without anyone doing anything (F1.6); then the job queue,
 // which runs that re-evaluation; then the scheduler, which syncs and sweeps every
 // JOBFILLY_SYNC_INTERVAL_SECONDS. A failed sweep is logged and the next tick tries again.
 

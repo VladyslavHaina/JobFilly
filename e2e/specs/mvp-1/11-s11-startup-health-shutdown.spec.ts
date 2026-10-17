@@ -18,9 +18,9 @@ import {
   withCleanup,
 } from "../shared.ts";
 
-// S11 of docs/mvp/MVP-1.md: startup, health and shutdown (F7.1, F7.2, F7.4, F7.5), a shell
+// S11 of MVP 1: startup, health and shutdown (F7.1, F7.2, F7.4, F7.5), a shell
 // scenario on the test stack's compose project. The slow request is a Settings › AI Test that the
-// fake AI holds for FAKE_AI_SLOW_TEST_MS (TBD-33: the stateless fake-ai is started again with
+// fake AI holds for FAKE_AI_SLOW_TEST_MS (the stateless fake-ai is started again with
 // 15000, and with 0 at the end). The proxy picks a replica per request, so every other replica
 // (app-a, and app-c from MVP 3) is paused while the browser's Test request and its live-update
 // stream open: the proxy takes them out and sends both to app-b. (They can't be routed to app-b's

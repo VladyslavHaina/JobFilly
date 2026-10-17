@@ -38,7 +38,7 @@ import { reevaluateWorkspace, requestRun } from "./reevaluate";
 import { senderStage } from "./sender";
 import { sweep } from "./sweep";
 
-// The sweep (TBD-191): at startup and every sync interval, one deduped pipeline.reevaluate for
+// The sweep: at startup and every sync interval, one deduped pipeline.reevaluate for
 // each workspace with work, so an upgraded deployment's backlog, a failed evaluation and a draft
 // that failed with kind mailbox are all picked up without anyone doing anything.
 

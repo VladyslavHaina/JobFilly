@@ -276,7 +276,7 @@ describe("the key (F3.3)", () => {
     expect(deps.rawLogs.join("\n")).not.toContain("E2E-SECRET-in-url");
   });
 
-  it("refuses a base URL the WHATWG URL parser reads differently (TBD-79)", async () => {
+  it("refuses a base URL the WHATWG URL parser reads differently", async () => {
     const message = "Retype the base URL as scheme://host/path, with the host written out plainly";
     for (const baseUrl of ["foo://a\\@b/v1", "https://ex%41mple.com/v1", "https://0x7f.1/v1"]) {
       const saved = await admin.put(url, { ...form, baseUrl });
@@ -330,7 +330,7 @@ describe("the key (F3.3)", () => {
     expect(ai.clients.at(-1)?.apiKey).toBeNull();
   });
 
-  it("reads a cleared key as no key, also after a keyless save to the same endpoint (TBD-129)", async () => {
+  it("reads a cleared key as no key, also after a keyless save to the same endpoint", async () => {
     await seedAiSettings(deps, owner.workspaceId, {
       provider: "openai-compatible",
       baseUrl: form.baseUrl,

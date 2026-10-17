@@ -5,7 +5,7 @@ import { capped } from "./delivery-kit.ts";
 import { days, pay, role } from "./facts.ts";
 import { ATS_FOOTER, RECRUITER_FOOTER_DE, RECRUITER_FOOTER_EN } from "./footers.ts";
 
-// MVP 3 S6, the threads for the pipeline (MVP-3 › Fixtures added), all delivered by
+// MVP 3 S6, the threads for the pipeline, all delivered by
 // `seed deliver S6` into Maria's Inbox, each reply threaded with In-Reply-To and References:
 //   - offer:        Lindwurm Robotics' application confirmation → interview invite → offer
 //   - rejection:    Mainwelle Energie's confirmation → rejection (in German)

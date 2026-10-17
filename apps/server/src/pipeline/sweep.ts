@@ -4,7 +4,7 @@ import type { AppDeps } from "../deps";
 import { enqueue } from "../jobs/queue";
 import { retryFailedLookups } from "../senders/retry";
 
-// The pinned backlog and retry trigger (TBD-191): one deduped pipeline.reevaluate for every
+// The pinned backlog and retry trigger: one deduped pipeline.reevaluate for every
 // workspace with pipeline work (a confirmed profile, and something missing or stale to evaluate,
 // or a draft to retry). startWork (../start.ts) runs it once at startup, so a deployment whose
 // profile was confirmed before MVP 2 is evaluated without any user action (F1.6); the scheduler

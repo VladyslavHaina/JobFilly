@@ -2,8 +2,8 @@ import { createHash, randomBytes } from "node:crypto";
 import { createServer, type IncomingMessage, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 
-// The fake Google authorisation server of the test stack (MVP 3, F3.2, F3.3; Google only,
-// TBD-441): node e2e/oauth/main.ts
+// The fake Google authorisation server of the test stack (MVP 3, F3.2, F3.3; Google only):
+// node e2e/oauth/main.ts
 //   PORT                 listen port (8080; 0 takes any free port)
 //   OAUTH_CLIENT_ID      the one client it knows, and OAUTH_CLIENT_SECRET its secret
 //   OAUTH_EMAIL          the account a sign-in is for (the id_token's email claim)

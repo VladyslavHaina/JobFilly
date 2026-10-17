@@ -7,7 +7,7 @@ import type {
   ProfileValues,
 } from "./format.ts";
 
-// MVP 3's part of the fixture contract (MVP-3 › Fixtures added), next to format.ts's MVP 1 and
+// MVP 3's part of the fixture contract, next to format.ts's MVP 1 and
 // MVP 2 parts. The generator (e2e/fixtures/build: mvp3-files.ts) writes these files, the seed and
 // the fake AI read them, and the consistency tests check them.
 //

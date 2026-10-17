@@ -345,6 +345,6 @@ CREATE INDEX "jobs_dedupe_running_idx" ON "jobs" USING btree ("dedupe_key") WHER
 -- Hand-written: drafts_cv_fk and role_evaluations_cv_fk clear only cv_id (ON DELETE SET NULL
 -- ("cv_id")), so deleting a CV keeps the row and its workspace_id.
 -- Hand-written: the new tasks' models (cv, match, draft, assistant) start as the workspace's
--- extract model (TBD-168), so MVP 1 workspaces keep working without opening Settings; a model
+-- extract model, so MVP 1 workspaces keep working without opening Settings; a model
 -- already set is kept.
 UPDATE "ai_settings" SET "models" = jsonb_build_object('cv', "models"->'extract', 'match', "models"->'extract', 'draft', "models"->'extract', 'assistant', "models"->'extract') || "models";

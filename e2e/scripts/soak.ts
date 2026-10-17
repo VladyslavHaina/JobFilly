@@ -6,7 +6,7 @@ import { PROXY_PORT, REPLICAS, type Replica, ROOT } from "../specs/shared.ts";
 import { COMPOSE_FILE, fileState } from "../stack.ts";
 import { signIn } from "./rolling-restart.ts";
 
-// The soak of docs/mvp/MVP-3.md, F10.3 and F10.4 (MVP 3 sign-off only; never in pnpm e2e or CI):
+// The soak of MVP 3, F10.3 and F10.4 (run by hand; never in pnpm e2e or CI):
 //
 //   pnpm e2e:soak [--minutes 20]        node e2e/scripts/soak.ts [--minutes <n>]
 //

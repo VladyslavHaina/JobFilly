@@ -49,7 +49,7 @@ const ctx = (source: ChangeContext["source"] = "decision"): ChangeContext => ({
 const entryValue = (result: ReturnType<typeof applyChanges>, key: string) =>
   result.ok ? result.entries.find((e) => e.key === key)?.value : undefined;
 
-describe("add on a list key (TBD-195)", () => {
+describe("add on a list key", () => {
   it("appends to min_pay, so the EUR and the CHF minimum are both kept", () => {
     const result = applyChanges(
       maria,

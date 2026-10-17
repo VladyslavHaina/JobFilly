@@ -12,7 +12,7 @@ import {
   workspaceIdOf,
 } from "../shared.ts";
 
-// S6 of docs/mvp/MVP-3.md: the pipeline (F5.1–F5.3). The infrastructure step is the scenario's
+// S6 of MVP 3: the pipeline (F5.1–F5.3). The infrastructure step is the scenario's
 // own: `seed deliver S6` brings the pipeline threads into her Inbox. The pipeline groups every
 // role by the stage its mail gives: the Lindwurm thread under Offer, the Mainwelle one under
 // Rejected, the Brandung application flagged after 21 days without an answer, and the Möwe role

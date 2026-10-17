@@ -1,6 +1,6 @@
 import { isMsgId, type TaskId } from "@jobfilly/schema";
 
-// The framing every prompt shares (F3.5, TBD-25): the system message and the user message both
+// The framing every prompt shares (F3.5): the system message and the user message both
 // start with "task: <taskId>"; structure lines (delimiters, key lines such as Message-ID) are
 // written at column 0; every line of untrusted content — mail, CV text, the user's own words,
 // profile values — starts with "| ". So no content, however it is worded, can produce a line

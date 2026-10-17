@@ -19,7 +19,7 @@ import {
   signIn,
 } from "../shared.ts";
 
-// S7 of docs/mvp/MVP-2.md: conflicts and policy (F4.2, F6.1, F1.6). The hybrid Amsterdam role
+// S7 of MVP 2: conflicts and policy (F4.2, F6.1, F1.6). The hybrid Amsterdam role
 // (Maria removed Amsterdam in MVP 1) and the onsite Singapore role are capped by a hard conflict
 // on her places, listed first. A job alert never gets a draft: the newest one, from today, is
 // inside the reply window. The German recruiter's Berlin role from the first scan's backlog

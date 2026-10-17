@@ -13,7 +13,7 @@ import {
   workspaceIdOf,
 } from "../shared.ts";
 
-// S9 of docs/mvp/MVP-1.md: a replica dies mid-run (F4.8, F4.10, F1.3). The infrastructure step
+// S9 of MVP 1: a replica dies mid-run (F4.8, F4.10, F1.3). The infrastructure step
 // is the scenario's own: `docker compose -p <project> -f docker/compose.e2e.yaml kill` of the
 // replica running Analyze them, read from the log; then `start` to bring it back. Whatever
 // happens, the cleanup starts it again, so the specs after this one have both replicas.

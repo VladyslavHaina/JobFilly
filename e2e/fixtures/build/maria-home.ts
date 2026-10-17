@@ -6,7 +6,7 @@ import { ATS_FOOTER, PERSONAL_FOOTER, RECRUITER_FOOTER_PT } from "./footers.ts";
 import { createRandom } from "./random.ts";
 import type { MessageSpec } from "./spec.ts";
 
-// Maria's second mailbox (MVP-3 › Fixtures added): her personal address, which she connects in
+// Maria's second mailbox: her personal address, which she connects in
 // S4 and disconnects in S12. A few job emails and a friend's mail, all from sender domains the
 // first mailbox already has (so the test stack's RDAP and DNS data cover them), named
 // <maria-home-nnnn@sender-domain>. None gets a draft: an alert and an application confirmation

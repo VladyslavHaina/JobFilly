@@ -47,7 +47,7 @@ import {
 import { type ParsedEml, parseAddresses, parseEml } from "./read-eml.ts";
 import { soakAnswers, soakMessage, soakMessageId } from "./soak.ts";
 
-// MVP 3's fixtures (MVP-3 › Fixtures added) against what its scenarios need, from the files
+// MVP 3's fixtures against what its scenarios need, from the files
 // alone, like consistency.test.ts: S1's Germany batch and the replies it delivers to Sent, S6's
 // pipeline threads, Maria's second mailbox (S4, S12), the assistant's questions (S7, S9) and the
 // fake AI's answers for all of them.

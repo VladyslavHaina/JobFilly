@@ -10,7 +10,7 @@ import freeMail from "./data/free-mail-domains.json";
 import words from "./data/language-words.json";
 import signals from "./data/message-signals.json";
 
-// The sender check's data (F5, TBD-176). Data and not code, so market-specific lists grow
+// The sender check's data (F5). Data and not code, so market-specific lists grow
 // without a code change:
 //
 //   data/free-mail-domains.json  {"version": 1, "domains": ["gmail.com", …]}: free-mail

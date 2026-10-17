@@ -12,7 +12,7 @@ import { hashPassword, UNKNOWN_USER_HASH, verifyPassword } from "../auth/passwor
 import { endSession, requireUser, startSession } from "../auth/session";
 import type { AppDeps } from "../deps";
 
-/** "Maria Santos's workspace" for Maria Santos: the full name (TBD-18). */
+/** "Maria Santos's workspace" for Maria Santos: the full name. */
 export function personalWorkspaceName(name: string): string {
   return `${name.trim()}'s workspace`;
 }

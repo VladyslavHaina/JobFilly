@@ -123,7 +123,7 @@ export const eventsSince = (mark: number[]): unknown[] => logSince(mark).map((l)
 
 /**
  * The lines at level error or fatal since `mark`: a scenario expects none unless it provokes
- * them (docs/mvp/README.md › Watch the logs).
+ * them.
  */
 export const errorsSince = (mark: number[]): LogLine[] =>
   logSince(mark).filter((l) => l.level === "error" || l.level === "fatal");
@@ -351,7 +351,7 @@ const SEED_RUN = ["run", "--rm", "--no-deps", "-T", "seed"];
 
 /**
  * Runs a seed command on the running stack (`docker compose run --rm seed …`, the infrastructure
- * and verification steps of docs/mvp/MVP-2.md) and returns what it printed. The seed only needs
+ * and verification steps of MVP 2) and returns what it printed. The seed only needs
  * the imap service, which is up, so nothing else is started.
  */
 export function seed(args: string[]): string {

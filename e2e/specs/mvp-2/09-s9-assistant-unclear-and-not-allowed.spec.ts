@@ -11,7 +11,7 @@ import {
   workspaceIdOf,
 } from "../shared.ts";
 
-// S9 of docs/mvp/MVP-2.md: the assistant, unclear and not allowed (F8.1, F8.6, F8.7, F8.10).
+// S9 of MVP 2: the assistant, unclear and not allowed (F8.1, F8.6, F8.7, F8.10).
 // Maria talks to it from her profile page, where the rules show that a discarded proposal
 // changed nothing. The message with E2E-CHAT-1 is also one the assistant can't do (inviting
 // someone): the fake AI keys its answers without the marker. It is in the stored thread after a

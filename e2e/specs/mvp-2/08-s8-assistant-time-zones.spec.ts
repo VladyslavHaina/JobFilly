@@ -16,7 +16,7 @@ import {
   workspaceIdOf,
 } from "../shared.ts";
 
-// S8 of docs/mvp/MVP-2.md: the assistant and time zones (F8.1–F8.5, F8.9, F3.1–F3.5). The fake
+// S8 of MVP 2: the assistant and time zones (F8.1–F8.5, F8.9, F3.1–F3.5). The fake
 // AI proposes a rule hiding roles on UTC+5 to UTC+14; Maria edits the range to start at UTC+4
 // before applying it. A rule's words are built from its conditions (owner decision): "Hide roles
 // whose hours are within UTC+4 to UTC+14". Three delivered roles are on Asia-Pacific hours (UTC+8,

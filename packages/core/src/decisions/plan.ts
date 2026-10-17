@@ -49,7 +49,7 @@ export interface MessageRolePlan {
 }
 
 /**
- * At most one automatic draft per message (TBD-221): of the roles planReply lets through (draft
+ * At most one automatic draft per message: of the roles planReply lets through (draft
  * or ask), only the best-scoring one keeps its plan; ties go to the lowest position. A role that
  * waits on a question keeps the place, so the others get no draft meanwhile. Once a role of the
  * message has had a draft or was dismissed, no other role gets one. The others are held with

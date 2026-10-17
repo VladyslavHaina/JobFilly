@@ -193,7 +193,7 @@ describe("the first scan with the real intake aggregation", { timeout: SLOW }, (
     expect(logs(s.d, "scan.stopped")).toEqual([
       expect.objectContaining({ level: "info", reason: "confident" }),
     ]);
-    // Stopped, not failed: no cause, and the stop is dated as this run's (TBD-112).
+    // Stopped, not failed: no cause, and the stop is dated as this run's.
     expect(current.stopMessage).not.toBeNull();
     expect(current.stoppedAt).toBe(NOW.toISOString());
     expect(logs(s.d, "scan.stopped")[0]).not.toHaveProperty("stopCause");

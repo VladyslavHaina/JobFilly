@@ -19,7 +19,7 @@ import {
   workspaceIdOf,
 } from "../shared.ts";
 
-// S6 of docs/mvp/MVP-2.md: the sender check (F5.1–F5.5). Both scams, the one in the first scan's
+// S6 of MVP 2: the sender check (F5.1–F5.5). Both scams, the one in the first scan's
 // backlog and the one S2 delivered, are high risk for the fee and the passport scan, and have no
 // draft; the free-mail "recruiter" is caution until Maria marks the sender trusted, which holds
 // after the next sync and is named in the check.

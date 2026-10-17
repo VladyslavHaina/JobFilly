@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { draftKey, matchKey } from "../format.ts";
 
-// The wire contract between packages/ai and the fake AI (TBD-10, TBD-20). For each task id:
+// The wire contract between packages/ai and the fake AI. For each task id:
 //   <taskId>.input.json     the argument packages/ai gets: AiMailItem[] for classify.v1 and
 //                           prefs.v1, one AiMailItem for extract.v1, IntakeExtraInput for
 //                           intake.v1, null for ai.test.v1

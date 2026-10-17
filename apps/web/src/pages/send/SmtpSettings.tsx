@@ -48,7 +48,7 @@ function MailboxSmtpForm({
   presets: readonly MailPreset[];
 }) {
   const { can } = useWorkspace();
-  // Where mail goes is for admins who see everything; the server refuses anyone else (TBD-450).
+  // Where mail goes is for admins who see everything; the server refuses anyone else.
   const canChange = can.admin && can.mail;
   const [form, setForm] = useState(() => initial(mailbox, view, presets));
   const [tested, setTested] = useState<SmtpTestResult | null>(null);

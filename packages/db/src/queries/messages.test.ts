@@ -176,7 +176,7 @@ describe("saveEnvelopes", () => {
 
   it("stores two envelopes with one Message-ID in one batch once, where the newest is (F1.3)", async () => {
     const id = "<inbox.0123456789abcdef0123456789abcdef@jobfilly.invalid>";
-    // Copies of one message: one id and one sender (another sender is another message, TBD-440).
+    // Copies of one message: one id and one sender (another sender is another message).
     const copies = [7, 3, 5].map((uid) =>
       at(envelope(uid, { messageId: id, from: envelope(1).from }), "likely_job"),
     );
@@ -220,7 +220,7 @@ describe("saveEnvelopes", () => {
   });
 });
 
-describe("a Message-ID reused by another sender (TBD-440)", () => {
+describe("a Message-ID reused by another sender", () => {
   const checkedAt = new Date("2026-10-15T10:00:00Z");
   const original = envelope(1);
   const spoof = envelope(50, {

@@ -20,7 +20,7 @@ import {
   workspaceIdOf,
 } from "../shared.ts";
 
-// S6 of docs/mvp/MVP-1.md: inviting Tom, roles enforced (F1.6–F1.9, F6.7). Maria and Tom each
+// S6 of MVP 1: inviting Tom, roles enforced (F1.6–F1.9, F6.7). Maria and Tom each
 // have a browser context of their own. Maria confirmed her profile in S4, so what Tom can't do
 // as a viewer is checked where the role alone decides it: the profile page's controls, and the
 // server refusing his writes. As an editor, Tom corrects the category of the message the AI

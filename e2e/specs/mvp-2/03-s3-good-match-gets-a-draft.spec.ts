@@ -15,7 +15,7 @@ import {
   workspaceIdOf,
 } from "../shared.ts";
 
-// S3 of docs/mvp/MVP-2.md: a good match gets a draft in the mailbox (F4.1, F4.4, F4.5, F2.3,
+// S3 of MVP 2: a good match gets a draft in the mailbox (F4.1, F4.4, F4.5, F2.3,
 // F6.1–F6.3, F6.6). The Berlin role S2 delivered is in German and asks for a CV. Its draft was
 // written automatically when it arrived; the verification steps are the seed's `inspect drafts`
 // and `inspect smtp`.

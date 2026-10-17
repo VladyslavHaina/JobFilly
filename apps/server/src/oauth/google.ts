@@ -7,12 +7,12 @@ import {
 import type { GoogleConfig } from "../config";
 import type { OAuthPort } from "../deps";
 
-// Google's token endpoint (MVP 3, F3.2), the only OAuth provider (TBD-441): exchanging an
+// Google's token endpoint (MVP 3, F3.2), the only OAuth provider: exchanging an
 // authorization code with its PKCE verifier, and refreshing an access token. The foundation pins
 // the port (deps.ts OAuthPort) and its errors. Tokens are never logged; the client secret only
 // ever goes to the token endpoint. The account's address is the id_token's email claim: the
 // id_token comes straight from the token endpoint over TLS, so its signature isn't checked
-// (OpenID Connect Core 3.1.3.7, TBD-446 D5).
+// (OpenID Connect Core 3.1.3.7).
 
 /** Google refused the refresh token (revoked or expired): the mailbox needs reconnecting. */
 export class OAuthRefusedError extends Error {

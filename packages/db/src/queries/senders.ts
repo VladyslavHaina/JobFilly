@@ -16,7 +16,7 @@ import { fromDomain } from "./sender-domain";
 
 // The sender check's own state (F5): an editor's trusted or blocked marks on an address or a
 // domain (sender_marks, F5.4), kept across syncs because they are keyed by the sender, not by a
-// message; and the cache of domain lookups (domain_lookups, TBD-165), per workspace. The checks
+// message; and the cache of domain lookups (domain_lookups), per workspace. The checks
 // themselves are saved and read with saveSenderCheck and getSenderChecks in ./evaluations.ts.
 
 /** Marks an address or a domain trusted or blocked (lower case), replacing an earlier mark. */

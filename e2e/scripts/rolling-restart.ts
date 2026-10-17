@@ -10,7 +10,7 @@ import {
   ROOT,
 } from "../specs/shared.ts";
 
-// S10 of docs/mvp/MVP-3.md, the scripted part: a rolling restart under load (F10.1, F10.2).
+// S10 of MVP 3, the scripted part: a rolling restart under load (F10.1, F10.2).
 //
 //   node e2e/scripts/rolling-restart.ts [--gap-seconds 10]
 //

@@ -463,7 +463,7 @@ function ConnectForm(props: {
 export function MailboxForm(props: { workspaceId: string; mode: Mode; onConnected?: () => void }) {
   const { can } = useWorkspace();
   // Connecting a mailbox (or signing it in again) is for admins who see everything; the server
-  // refuses anyone else (TBD-450). Any admin may still disconnect one.
+  // refuses anyone else. Any admin may still disconnect one.
   const canConnect = can.admin && can.mail;
   const [adding, setAdding] = useState(false);
   const base = `${apiPaths.workspace(props.workspaceId)}/mailboxes`;

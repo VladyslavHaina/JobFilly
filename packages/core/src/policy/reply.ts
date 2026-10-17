@@ -8,7 +8,7 @@ import type {
 } from "@jobfilly/schema";
 import { FUTURE_SKEW_MS, policyValue, withinReplyWindow } from "./window";
 
-// The reply policy (F6.1, F6.5, F1.6, TBD-193): whether a role gets a draft now, and what holds it
+// The reply policy (F6.1, F6.5, F1.6): whether a role gets a draft now, and what holds it
 // back. The replies slice asks it before every draft and the assistant's impact preview asks it to
 // count drafts that won't be created, so both agree.
 
@@ -25,7 +25,7 @@ export type HeldKind =
   | "open_needs"
   | "already_drafted"
   | "dismissed"
-  /** Another role of the message has the one automatic draft (capAutoDrafts, TBD-221). */
+  /** Another role of the message has the one automatic draft (capAutoDrafts). */
   | "another_role";
 
 export interface ReplyEligibilityInput {

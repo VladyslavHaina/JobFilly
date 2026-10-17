@@ -282,7 +282,7 @@ describe("the job queue worker", () => {
   });
 });
 
-describe("dedupe keys across replicas (F1.2, TBD-178)", () => {
+describe("dedupe keys across replicas (F1.2)", () => {
   it("keeps one waiting, runs one at a time, and still runs one enqueued meanwhile", async () => {
     let release: () => void = () => {};
     const runs: number[] = [];

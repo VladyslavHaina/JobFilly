@@ -16,7 +16,7 @@ import { draftPrompt } from "./tasks/draft";
 import { focusPrompt } from "./tasks/focus";
 import { matchPrompt } from "./tasks/match";
 
-// The prompts of every task, in the layout of ./framing.ts (F3.5, TBD-25). The MVP 1 tasks are
+// The prompts of every task, in the layout of ./framing.ts (F3.5). The MVP 1 tasks are
 // built here from mail items: structure lines (item delimiters, Message-ID lines, the summary
 // delimiters) at column 0, every line of untrusted content (the mail's From, Date, Subject and
 // text, every intake summary line) after "| ". The MVP 2 tasks each have their own module in

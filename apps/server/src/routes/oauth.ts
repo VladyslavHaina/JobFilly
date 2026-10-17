@@ -35,7 +35,7 @@ import type { AppDeps } from "../deps";
 import { open, seal } from "../secrets";
 import { publishMailboxChange, testFailedFields } from "./mailboxes";
 
-// Sign in with Google (MVP 3, F3.2), Google only (TBD-441): the authorization-code flow with PKCE
+// Sign in with Google (MVP 3, F3.2), Google only: the authorization-code flow with PKCE
 // (S256). POST /google/start (an admin of the workspace who sees everything) keeps a sign-in waiting for its callback:
 // the state's SHA-256 and the PKCE verifier sealed, for one use within ten minutes, and answers
 // Google's consent page to send the browser to. GET /api/oauth/google/callback takes the waiting
@@ -50,7 +50,7 @@ import { publishMailboxChange, testFailedFields } from "./mailboxes";
 /** How long a sign-in waits for its callback. */
 const STATE_TTL_MS = 10 * MINUTE;
 
-/** Gmail over IMAP and SMTP, and the account's address (TBD-446 D5). */
+/** Gmail over IMAP and SMTP, and the account's address. */
 const SCOPE = "https://mail.google.com/ openid email";
 
 const NOT_SET_UP = {

@@ -15,7 +15,7 @@ import {
   workspaceIdOf,
 } from "../shared.ts";
 
-// S4 of docs/mvp/MVP-2.md: edit, discard, draft on demand (F6.2, F6.4, F6.5, F6.7, F2.3, F2.5).
+// S4 of MVP 2: edit, discard, draft on demand (F6.2, F6.4, F6.5, F6.7, F2.3, F2.5).
 // The remote-EU role's first draft held "[Name]" and was written again (S2); Maria edits that
 // draft, discards the Berlin one, asks for a draft on the data-engineering role (capped below
 // the reply threshold, so it has none) and then deletes the CV that draft used. Each mailbox
@@ -50,7 +50,7 @@ test("S4: edit, discard, draft on demand", async ({ page }) => {
     expect(rejected.every((l) => l.level === "warn")).toBe(true);
     await openMessage(page, REMOTE.subject);
     // Its remote scope is free words ("within the EU"): never matched against hers by its words,
-    // so unknown (TBD-443), and still a good match.
+    // so unknown, and still a good match.
     const scope = roleParts(page)
       .fit.getByRole("list", { name: "Why this fit score", exact: true })
       .getByRole("listitem")

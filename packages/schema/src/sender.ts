@@ -149,7 +149,7 @@ export type MessageSignal = z.infer<typeof MessageSignalSchema>;
 /**
  * packages/core/src/sender/data/message-signals.json: per language (ISO 639-1), the phrases that
  * show each signal in a message body, lower case. A message in a language without a list can't
- * be read for signals, so its check is incomplete, never "looks fine" (TBD-176).
+ * be read for signals, so its check is incomplete, never "looks fine".
  */
 export const MessageSignalsFileSchema = z.object({
   version: z.literal(1),

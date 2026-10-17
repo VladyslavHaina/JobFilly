@@ -15,7 +15,7 @@ import type {
 
 /**
  * The browser's locale, read on each call: pay, dates and typed amounts are written the way the
- * user's browser writes numbers and dates (TBD-130). Country names stay in English, the language
+ * user's browser writes numbers and dates. Country names stay in English, the language
  * of the app's copy.
  */
 const userLocale = () => navigator.language;

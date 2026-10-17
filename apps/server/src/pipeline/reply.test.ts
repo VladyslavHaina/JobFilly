@@ -156,7 +156,7 @@ describe("the reply stage", () => {
     expect(await h.live("<old@x.example>")).toBeNull();
   });
 
-  it("drafts one role per message automatically, the best-scoring one (TBD-221)", async () => {
+  it("drafts one role per message automatically, the best-scoring one", async () => {
     const id = "<two-roles@x.example>";
     await h.deliver(id, { roles: [{ score: 75 }, { score: 85 }] });
     h.ai.answers.draft[key(id, 1, 0)] = draftAnswer();

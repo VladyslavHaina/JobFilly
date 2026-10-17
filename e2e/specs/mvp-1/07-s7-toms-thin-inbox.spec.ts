@@ -11,12 +11,11 @@ import {
 import { ACCOUNTS } from "../../seed/accounts.ts";
 import { AI_KEY, FAKE_AI_URL, INTAKE_LABELS, openSettingsTab, signIn } from "../shared.ts";
 
-// S7 of docs/mvp/MVP-1.md: Tom's thin inbox (F2.5, F4.4, F6.6), in his own workspace. The two
-// answers he fills in are his own words (docs/mvp/MVP-1.md › Personas): no mail of his says them.
+// S7 of MVP 1: Tom's thin inbox (F2.5, F4.4, F6.6), in his own workspace. The two
+// answers he fills in are his own words: no mail of his says them.
 // The test stack's imap service speaks plain-text IMAP on 3143 (docker/compose.e2e.yaml).
-// MVP 3 replaces MVP 1's one-mailbox limit (docs/mvp/MVP-3.md › Replaces from earlier MVPs, S13),
-// so this spec no longer checks that a second mailbox can't be added; Tom still connects,
-// disconnects and connects again.
+// MVP 3 replaces MVP 1's one-mailbox limit (S13), so this spec no longer checks that a second
+// mailbox can't be added; Tom still connects, disconnects and connects again.
 
 const FILLED: { key: CoreKey; value: string }[] = [
   { key: "target_roles", value: "Band 6 nurse" },

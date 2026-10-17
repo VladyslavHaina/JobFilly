@@ -21,11 +21,11 @@ import {
   workspaceIdOf,
 } from "../shared.ts";
 
-// S4 of docs/mvp/MVP-3.md: a second mailbox (F3.1–F3.3). Maria connects her personal mailbox
+// S4 of MVP 3: a second mailbox (F3.1–F3.3). Maria connects her personal mailbox
 // (maria-home, plain IMAP on the test mail server) from Settings › Mailbox; its job mail comes in
 // marked with that mailbox, and the inbox filters by it. Then Sign in with Google, the only OAuth
-// provider (TBD-441): the browser goes to the fake authorisation server's consent page through
-// the proxy's :8084 (TBD-446 D21), she presses Allow, and her Gmail test account is connected
+// provider: the browser goes to the fake authorisation server's consent page through
+// the proxy's :8084, she presses Allow, and her Gmail test account is connected
 // (its token is GreenMail's password for it, D6). Probe: the callback with a wrong state, and
 // with the state of the sign-in just used, are refused.
 

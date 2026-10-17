@@ -16,8 +16,8 @@ import {
   workspaceIdOf,
 } from "../shared.ts";
 
-// S2 of docs/mvp/MVP-3.md: roles go to the right profile (F1.3, F1.4). Once S1 confirmed
-// "Germany permanent", every role is assigned to the profile it fits best, by fit alone (TBD-451),
+// S2 of MVP 3: roles go to the right profile (F1.3, F1.4). Once S1 confirmed
+// "Germany permanent", every role is assigned to the profile it fits best, by fit alone,
 // with the reason in plain words: the Munich and Hamburg roles to the new profile, the remote EU
 // roles to the first one, as expected.json's mvp3.assignments says. Maria then puts the first
 // Munich role in "My job search" by hand: its match is worked out against that profile (München

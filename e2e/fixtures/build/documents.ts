@@ -1,6 +1,6 @@
 import { crc32 } from "node:zlib";
 
-// The CV files of MVP 2, written by hand so e2e needs no PDF or Word library (TBD-166):
+// The CV files of MVP 2, written by hand so e2e needs no PDF or Word library:
 // - pdfDocument: a one-page PDF 1.4 with the standard Helvetica fonts (WinAnsiEncoding), an
 //   uncompressed content stream and an exact cross-reference table;
 // - docxDocument: a store-only (uncompressed) zip holding the three parts a WordprocessingML

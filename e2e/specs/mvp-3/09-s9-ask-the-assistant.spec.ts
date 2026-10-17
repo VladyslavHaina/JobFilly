@@ -13,12 +13,12 @@ import {
   workspaceIdOf,
 } from "../shared.ts";
 
-// S9 of docs/mvp/MVP-3.md: ask the assistant (F8.1, F8.2, F8.4). Maria asks the three questions
+// S9 of MVP 3: ask the assistant (F8.1, F8.2, F8.4). Maria asks the three questions
 // of assistant/questions.json marked S9. The fake AI asks for read-only lookups (assistant.v1)
 // and answers from their results (answer.v1, ai/answer.json); the server keeps only the links
-// its lookups returned (TBD-449), so "What's waiting on me?" links exactly the drafts not reviewed
+// its lookups returned, so "What's waiting on me?" links exactly the drafts not reviewed
 // yet and any open decision. The Singapore role got no draft for its place conflict. Two
-// interviews in the last 30 days (TBD-449): Nordlicht's invite and Brandung, which S6 moved to
+// interviews in the last 30 days: Nordlicht's invite and Brandung, which S6 moved to
 // Interview by hand; Lindwurm has moved on to an offer.
 
 const questions = readJson<AssistantQuestion[]>(`${fixturesDir()}${MVP3_PATHS.questions}`);
@@ -88,7 +88,7 @@ test("S9: ask the assistant", async ({ page }) => {
     expect(questions.find((x) => x.id === "interviews")?.expected.count).toBe(2);
     await ask(panel, q);
     expect(q.answer).toMatch(/^Two /);
-    // Linked to the two: Brandung, and Nordlicht (any role of its pipeline item, TBD-449).
+    // Linked to the two: Brandung, and Nordlicht (any role of its pipeline item).
     const brandung = linkTo("Role", BRANDUNG.roles[0]?.facts);
     const links = await answerLinks(panel);
     expect(links).toContain(brandung);

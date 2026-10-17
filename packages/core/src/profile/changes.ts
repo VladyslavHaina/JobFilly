@@ -17,7 +17,7 @@ import {
 } from "@jobfilly/schema";
 import { describeRule } from "../rules/engine";
 
-// The semantics of a profile Change (TBD-195), pinned here and used by every writer through the
+// The semantics of a profile Change, pinned here and used by every writer through the
 // profile change service: the profile form (update), a decision answer (add of one item), an
 // applied assistant proposal, and Undo.
 //

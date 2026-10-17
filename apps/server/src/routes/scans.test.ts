@@ -143,7 +143,7 @@ describe("GET /scans/current", () => {
     });
   });
 
-  it("words a failed run by what it ran into, and says when it stopped (TBD-112)", async () => {
+  it("words a failed run by what it ran into, and says when it stopped", async () => {
     const expected: Record<StopCause, string> = {
       mailbox:
         "Stopped: couldn't read your mailbox after 3 of 12 likely job emails. Check Settings › Mailbox, then try again.",

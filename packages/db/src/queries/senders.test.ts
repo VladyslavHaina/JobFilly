@@ -18,7 +18,7 @@ import {
   setSenderMark,
 } from "./senders";
 
-// Sender marks (F5.4), the domain lookup cache (TBD-165) and the stale flag a mark sets on the
+// Sender marks (F5.4), the domain lookup cache and the stale flag a mark sets on the
 // sender's checks, on PGlite.
 
 let conn: DatabaseConnection;

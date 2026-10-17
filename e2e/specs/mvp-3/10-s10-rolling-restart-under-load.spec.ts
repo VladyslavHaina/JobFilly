@@ -22,7 +22,7 @@ import {
   workspaceIdOf,
 } from "../shared.ts";
 
-// S10 of docs/mvp/MVP-3.md: a rolling restart under load (F10.1, F10.2), scripted. Maria and Tom
+// S10 of MVP 3: a rolling restart under load (F10.1, F10.2), scripted. Maria and Tom
 // each start a re-run of setup in their own workspace (the scan an admin can start once the
 // first one is done) while `seed generate` brings new mail to both; then
 // `node e2e/scripts/rolling-restart.ts` restarts app-a, app-b and app-c in turn, 10 seconds

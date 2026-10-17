@@ -28,7 +28,7 @@ import {
 import { evaluateMessage } from "./evaluate";
 import { MessageGoneError } from "./stages";
 
-// The analysis pipeline for one message (F1.1, F1.6, TBD-192) with recording stages: the order of
+// The analysis pipeline for one message (F1.1, F1.6) with recording stages: the order of
 // the stages, when the sender stage runs (only for a missing or stale check), what happens
 // without a profile, and that a failing stage never marks a role evaluated.
 

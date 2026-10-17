@@ -11,7 +11,7 @@ import {
 } from "../../fixtures/format.ts";
 import { apiContext, apiSignIn, logged, openMessage, signIn, workspaceIdOf } from "../shared.ts";
 
-// S5 of docs/mvp/MVP-1.md: the job inbox (F5.1–F5.5, F3.4, F3.5), after the first scan (S3).
+// S5 of MVP 1: the job inbox (F5.1–F5.5, F3.4, F3.5), after the first scan (S3).
 // The messages it opens, their facts and categories come from Maria's fixtures. The category it
 // corrects is the always-invalid message's, which the scan couldn't analyze: Maria sets it to
 // what the mail is. It is marked narrow, so the inbox is walked again at 1024×768.

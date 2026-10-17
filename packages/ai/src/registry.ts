@@ -23,7 +23,7 @@ export type ModelFor = (task: AiTask) => TaskModel;
 
 /**
  * OpenAI's strict structured-output mode needs every key required; the prefs.v1 schema has
- * optional keys (TBD-45). extract.v1 was sent the same way while its `extra` was an open record;
+ * optional keys. extract.v1 was sent the same way while its `extra` was an open record;
  * `extra` now goes out as a list of closed {key, value} objects, and extract.v1 stays non-strict
  * until a run against OpenAI shows strict mode takes its patterns. assistant.v1's proposal holds
  * the Change union with every profile value shape, which strict mode may refuse the same way, so
@@ -64,7 +64,7 @@ export function modelRegistry(settings: AiClientSettings, fetchFn?: FetchFunctio
         apiKey: settings.apiKey ?? undefined,
         fetch: fetchFn,
         // Answers come back as JSON in the message content (response_format json_schema), which
-        // every compatible server supports, never as tool calls (TBD-25).
+        // every compatible server supports, never as tool calls.
         supportsStructuredOutputs: true,
       });
       build = (id) => provider(id);

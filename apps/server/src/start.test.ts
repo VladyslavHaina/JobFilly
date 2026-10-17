@@ -23,7 +23,7 @@ import {
   type TestDeps,
 } from "./testing";
 
-// The ready sequence index.ts runs once the database is migrated (F1.6, TBD-191): a deployment
+// The ready sequence index.ts runs once the database is migrated (F1.6): a deployment
 // whose profile was confirmed before MVP 2 has job mail nobody evaluated, and nothing but the
 // startup sweep evaluates it: no new mail, no intake confirm, no change.
 

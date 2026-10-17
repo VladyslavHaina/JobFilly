@@ -17,7 +17,7 @@ import {
   workspaceIdOf,
 } from "../shared.ts";
 
-// S5 of docs/mvp/MVP-2.md: decisions (F7.1–F7.6, F4.3, F4.6). The Zurich and Basel roles pay in
+// S5 of MVP 2: decisions (F7.1–F7.6, F4.3, F4.6). The Zurich and Basel roles pay in
 // CHF and her minimum is in EUR, so pay is unknown and one decision asks for a minimum in CHF;
 // the Dublin role's draft asked whether she would relocate. The decision ids the Decisions page
 // loads are kept for S10's viewer probe (remember), as the walkthrough read them there.

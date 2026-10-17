@@ -49,10 +49,10 @@ import {
 import type { JobContext } from "../queue";
 
 // One run of a scan, after the handler has opened the mailbox and the AI client and stage one is
-// stored (index.ts). The first scan reads the user's own replies for preferences first (TBD-32),
+// stored (index.ts). The first scan reads the user's own replies for preferences first,
 // then both kinds of run take the likely job mail newest first in batches of 20, sorted and
 // extracted by pipeline/analyze.ts, which the sync shares. Every call counts toward the run's
-// budget, retries included (TBD-17, TBD-66): a retry is only allowed while a call is left for it.
+// budget, retries included: a retry is only allowed while a call is left for it.
 // After every batch the run checkpoints, and the confidence tracker says whether it stops (F4.4).
 // Bodies are fetched for the model and never stored (F4.9).
 //

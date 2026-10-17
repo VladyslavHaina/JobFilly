@@ -4,7 +4,7 @@ import type { Database } from "../client";
 import { decisionMessages, drafts } from "../tables";
 import type { RoleRef } from "./evaluations";
 
-// The role-level draft lifecycle the pipeline needs (TBD-179, TBD-193, TBD-194). The replies
+// The role-level draft lifecycle the pipeline needs. The replies
 // slice's drafts.ts owns a draft's content and edits; this module owns who may write a role's
 // draft and when it is tried again.
 //

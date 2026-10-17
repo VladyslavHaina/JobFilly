@@ -493,7 +493,7 @@ export const jobs = pgTable(
     attempts: integer("attempts").notNull().default(0),
     checkpoint: jsonb("checkpoint").$type<unknown>(),
     /**
-     * Jobs with the same key are one piece of work (TBD-178): at most one waits (the unique
+     * Jobs with the same key are one piece of work: at most one waits (the unique
      * index while queued), and the claim skips a queued one while another with the key runs
      * under a live lease (claimJob).
      */
@@ -517,7 +517,7 @@ export const jobs = pgTable(
 
 // --- MVP 2 ---------------------------------------------------------------------------------------
 //
-// CV foreign keys (TBD-197) are simple keys on cvs.id, so deleting a CV (cvs-senders) never hits
+// CV foreign keys are simple keys on cvs.id, so deleting a CV (cvs-senders) never hits
 // a key held elsewhere: links (profile_cvs), overrides (role_cv_choices) and stored match answers
 // go with it (CASCADE); drafts and role evaluations stay and forget it (SET NULL), so a draft
 // already in the mailbox stays there (F2.5) and the next evaluation chooses a CV again.
@@ -710,7 +710,7 @@ export const roleEvaluations = pgTable(
 );
 
 /**
- * Stored match.v1 answers (TBD-175): keyed by the role, the CV and the hash of exactly what the
+ * Stored match.v1 answers: keyed by the role, the CV and the hash of exactly what the
  * model saw, so a rule or pay change re-scores without a model call.
  */
 export const matchAiAnswers = pgTable(
@@ -824,7 +824,7 @@ export const senderMarks = pgTable(
   ],
 );
 
-/** Cached RDAP and MX lookups, per workspace (TBD-165). */
+/** Cached RDAP and MX lookups, per workspace. */
 export const domainLookups = pgTable(
   "domain_lookups",
   {
@@ -854,7 +854,7 @@ const DRAFT_STATUSES_SQL = [
 
 /**
  * Reply drafts (F6). The row holds the reply text only; the quote of the original is added when
- * the MIME message is built. One live draft per role (TBD-179): the partial unique index allows a
+ * the MIME message is built. One live draft per role: the partial unique index allows a
  * new row only once the previous one is discarded.
  */
 export const drafts = pgTable(
@@ -1028,7 +1028,7 @@ export const assistantMessages = pgTable(
   ],
 );
 
-/** A proposal card (TBD-167): its changes, before and after, impact and status. */
+/** A proposal card: its changes, before and after, impact and status. */
 export const assistantProposals = pgTable(
   "assistant_proposals",
   {

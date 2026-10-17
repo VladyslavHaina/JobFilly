@@ -13,12 +13,12 @@ import {
   workspaceIdOf,
 } from "../shared.ts";
 
-// S3 of docs/mvp/MVP-3.md: editing by hand (F2.1–F2.3). On her first profile Maria makes a rule
+// S3 of MVP 3: editing by hand (F2.1–F2.3). On her first profile Maria makes a rule
 // by hand: hide roles whose working hours are UTC+5 or later (UTC+05:00 to UTC+14:00, the
 // largest offset). A profile's rule applies to the roles assigned to it, and hide means hidden
-// (TBD-451): the three Asia-Pacific roles (UTC+8, UTC+8, UTC+10), all remote and so with her first
+//: the three Asia-Pacific roles (UTC+8, UTC+8, UTC+10), all remote and so with her first
 // profile, go under Hidden. Each change says at once how many of the profile's roles it changes
-// (F2.3, TBD-446 D20). Then she narrows the range to UTC+6, sets the reply threshold (shown at its
+// (F2.3). Then she narrows the range to UTC+6, sets the reply threshold (shown at its
 // default, 70) to 80, switches the rule off, and undoes that last change, so the rule is on
 // again. The rule's words are built from its conditions; she leaves "In your words" empty.
 

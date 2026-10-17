@@ -170,7 +170,7 @@ describe("delayed jobs (MVP 3, F4.2)", () => {
   });
 });
 
-describe("dedupe keys (TBD-178)", () => {
+describe("dedupe keys", () => {
   const job = (dedupeKey: string, now = t0) =>
     enqueueJob(conn.db, workspaceId, { type: "scan.run", payload: {}, now, dedupeKey });
 

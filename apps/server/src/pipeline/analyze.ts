@@ -14,10 +14,10 @@ import type {
 
 // Sorting and fact extraction of likely job mail (MVP 1 F3, MVP 2 F1.1): one classify call per
 // batch for likely_job messages, then one extract call per job message and per job alert
-// (TBD-68). The scan (jobs/scan) runs it on the first scan's window and on "Analyze them"; the
+//. The scan (jobs/scan) runs it on the first scan's window and on "Analyze them"; the
 // sync (sync/run.ts) on new mail, before the rest of the pipeline (evaluate.ts). Bodies are
 // fetched for the model and never stored (F4.9). Whoever runs it decides how many calls it may
-// make and whether to stop; every call counts, retries included (TBD-17, TBD-66): a retry is only
+// make and whether to stop; every call counts, retries included: a retry is only
 // allowed while a call is left for it.
 
 /** A message body is cut to this many characters before it goes to the model. */

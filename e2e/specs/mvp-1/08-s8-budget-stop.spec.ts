@@ -1,7 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
 import { openSettingsTab, signIn, withCleanup } from "../shared.ts";
 
-// S8 of docs/mvp/MVP-1.md: the budget stop (F4.4, F4.5, F4.10). Maria's first scan stopped
+// S8 of MVP 1: the budget stop (F4.4, F4.5, F4.10). Maria's first scan stopped
 // confident with likely job mail unread (S3); with a budget of 5, Analyze them stops for budget
 // after 5 calls and analyzes some of it. The budget goes back to 300 at the end, and if a step
 // fails before that, the cleanup still sets it back so the specs after this one start from 300.

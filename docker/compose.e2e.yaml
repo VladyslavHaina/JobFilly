@@ -1,4 +1,4 @@
-# The test stack (docs/mvp/README.md › The test stack). Disposable: e2e/stack.ts starts it fresh
+# The test stack. Disposable: e2e/stack.ts starts it fresh
 # under its own project name and takes it down with its volumes:
 #   pnpm e2e:stack up      prints the project name
 #   pnpm e2e:stack down
@@ -174,7 +174,7 @@ services:
     environment:
       PORT: "8080"
 
-  # MVP 3 (F3.3): the fake Google authorisation server, Google only (TBD-441). A sign-in is for
+  # MVP 3 (F3.3): the fake Google authorisation server, Google only. A sign-in is for
   # Maria's Gmail test account; the access token it issues is that account's password on the
   # test mail server, so IMAP and SMTP with XOAUTH2 log in there.
   oauth:

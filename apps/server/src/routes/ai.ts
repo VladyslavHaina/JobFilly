@@ -54,7 +54,7 @@ const sameEndpoint = (a: { provider: string; baseUrl: string | null }, b: AiSett
 
 /**
  * True when the WHATWG URL parser reads the base URL's scheme, user part or host differently from
- * the schema's own check (TBD-79): "https://ex%41mple.com" or "foo://a\\@b/" pass the schema but
+ * the schema's own check: "https://ex%41mple.com" or "foo://a\\@b/" pass the schema but
  * would send requests, or a user part, somewhere the privacy line doesn't show. The port is left
  * out, as the parser drops a default one.
  */

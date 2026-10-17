@@ -122,7 +122,7 @@ export type DecisionCount = z.infer<typeof DecisionCountSchema>;
 /**
  * POST /decisions/:id/answer. For a list-valued key `value` is one item of the list (a MinPay
  * for min_pay), never the whole list: it is added with a Change `add` (source: decision), so the
- * items already there stay (TBD-195). A choice is sent as its value, free text as the words.
+ * items already there stay. A choice is sent as its value, free text as the words.
  * `useForSimilar` answers every waiting message and later ones with the same group key (F7.2,
  * F7.6), but only for an answer that makes an item: a choice that answers the waiting messages
  * only (answersWaitingOnly), and words that don't state the item in a form every language

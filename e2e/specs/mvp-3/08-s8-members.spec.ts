@@ -12,7 +12,7 @@ import {
   workspaceIdOf,
 } from "../shared.ts";
 
-// S8 of docs/mvp/MVP-3.md: members (F6.3). Maria makes Tom an admin who sees everything; Tom can
+// S8 of MVP 3: members (F6.3). Maria makes Tom an admin who sees everything; Tom can
 // then manage members (the invite form, other members' roles), but Maria's row, the owner's, has
 // nothing to change or remove, and the server refuses removing her (probe with Tom's session).
 // Maria hands ownership to Tom, Tom hands it back, and Maria sets Tom back to Editor.

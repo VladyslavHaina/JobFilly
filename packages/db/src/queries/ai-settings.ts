@@ -9,7 +9,7 @@ import { aiSettings } from "../tables";
 // Rolling updates: an MVP 1 replica still serving next to MVP 2 ones writes only its four models
 // (classify, extract, prefs, intake). Saving merges the models into the stored ones, so such a save
 // can't drop the newer tasks' models, and reading fills a task model that is still missing (a row
-// an old replica inserted) from the extract model, as migration 0001_mvp2 does (TBD-209).
+// an old replica inserted) from the extract model, as migration 0001_mvp2 does.
 
 export interface StoredAiSettings {
   provider: AiProviderId;

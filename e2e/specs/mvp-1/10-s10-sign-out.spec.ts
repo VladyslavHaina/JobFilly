@@ -1,7 +1,7 @@
 import { type APIRequestContext, expect, test } from "@playwright/test";
 import { apiContext, apiSignIn, signIn, submitSignIn } from "../shared.ts";
 
-// S10 of docs/mvp/MVP-1.md: sign-out (F1.2, F1.4). The probes sign in with sessions of their own.
+// S10 of MVP 1: sign-out (F1.2, F1.4). The probes sign in with sessions of their own.
 
 async function sessionCookie(api: APIRequestContext): Promise<string> {
   const { cookies } = await api.storageState();

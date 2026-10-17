@@ -254,7 +254,7 @@ export function maria(): PersonaSource {
   const rnd = createRandom(20261001);
   const book = new MessageBook("maria");
   const anyTime = () => rnd.int(days(0.05), days(88));
-  // MVP 2's first-scan backlog gets matches but no automatic drafts (MVP-2 › Fixtures added):
+  // MVP 2's first-scan backlog gets matches but no automatic drafts:
   // job mail that could be a good match is older than the 14-day reply window. Generated job
   // mail dated inside it moves back by REPLY_WINDOW_EDGE; the hand-written mail inside it
   // conflicts with her profile, isn't recruiter outreach, or names no role.

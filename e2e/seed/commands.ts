@@ -16,13 +16,13 @@ import type { GreenMailApi } from "./greenmail.ts";
 import { dateFor, prepareMessage, SeedError, type SeedImap } from "./load.ts";
 import { header, parseMime } from "./mime.ts";
 
-// MVP 2's seed commands (MVP-2 › Fixtures added):
+// MVP 2's seed commands:
 //   deliver <id|step>…           appends delivered mail to a persona's Inbox over IMAP, dated now
 //                                minus the entry's minutesAgo (never over SMTP)
 //   inspect drafts <persona>     the persona's Drafts folder: threading, flags, text, attachments
 //   inspect smtp                 everything the mail server received over SMTP
 //   reset-uidvalidity <persona>  gives the persona's folders a new UIDVALIDITY, mail kept
-// and MVP 3's (MVP-3 › Fixtures added):
+// and MVP 3's:
 //   deliver S1                   also appends Maria's replies to her Sent folder
 //                                (deliveries-sent.json), read like her own mail
 //   inspect sent <mailbox>       what the app put in a mailbox's Sent folder: everything there

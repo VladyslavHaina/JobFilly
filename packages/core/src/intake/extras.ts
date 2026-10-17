@@ -11,7 +11,7 @@ import {
 } from "@jobfilly/schema";
 
 // The input of intake.v1, the one call that proposes the wording of up to five extra questions
-// (F6.1, TBD-20): the evidence messages of every answered core question, as the model reads mail,
+// (F6.1): the evidence messages of every answered core question, as the model reads mail,
 // and the current answers; and the check of what the model proposes.
 
 /** Message-IDs that back at least one answered core question, each once, in form order. */

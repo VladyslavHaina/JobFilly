@@ -19,11 +19,11 @@ import {
   workspaceIdOf,
 } from "../shared.ts";
 
-// S1 of docs/mvp/MVP-2.md: CVs (F2.1, F2.2, F2.4), after MVP 1's end state. Maria uploads her
+// S1 of MVP 2: CVs (F2.1, F2.2, F2.4), after MVP 1's end state. Maria uploads her
 // three CVs with the file picker, Tom his one in his own workspace. The CVs page asks for no
 // name, so each CV is named after its file ("backend-en"); expected.json names them as cvs.json
 // does ("Backend (EN)"), and cvName maps one to the other. Preferred CV is a switch on the CV
-// (TBD-439), not a tag. F2.4 (files in Postgres, never on a replica's disk) is proven outside
+//, not a tag. F2.4 (files in Postgres, never on a replica's disk) is proven outside
 // the walkthrough, by apps/server/src/cvs/no-disk.test.ts and the read-only root filesystem.
 
 const expectedOf = (persona: Persona) =>

@@ -44,7 +44,7 @@ import type { ReplyStage } from "./stages";
 //   the role's score; once they are answered the held role gets its draft with origin
 //   `on_demand`, as Draft a reply asked (F6.5). An answer to an automatic draft's question on a
 //   held role makes no draft (F6.1).
-// - At most one automatic draft per message (capAutoDrafts, TBD-221): only the best-scoring role
+// - At most one automatic draft per message (capAutoDrafts): only the best-scoring role
 //   the policy lets through is drafted or asked about; the others are held like any held role, so
 //   Draft a reply still works on each of them (F6.5). The sweep's retry isn't capped: it tries
 //   again a draft that was the message's one.
@@ -198,7 +198,7 @@ export const replyStage: ReplyStage = async (input, ctx) => {
     };
   });
 
-  // At most one automatic draft per message (TBD-221).
+  // At most one automatic draft per message.
   for (const r of capAutoDrafts(roles)) {
     const { evaluation, own, mine, answeredHere, recorded, needs, draftHistory: history, plan } = r;
     const role = { messageId: message.messageId, position: evaluation.position };

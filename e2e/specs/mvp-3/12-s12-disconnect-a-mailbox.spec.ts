@@ -18,7 +18,7 @@ import {
   workspaceIdOf,
 } from "../shared.ts";
 
-// S12 of docs/mvp/MVP-3.md: disconnect a mailbox (F7.4), the last scenario on the stack. Maria
+// S12 of MVP 3: disconnect a mailbox (F7.4), the last scenario on the stack. Maria
 // disconnects the personal mailbox S4 connected: the confirmation says first what goes with it
 // (its stored sign-in, its synced messages with their roles, drafts and open decisions) and that
 // the mail in the mailbox stays there. Afterwards it is gone from Settings and the inbox, and a
