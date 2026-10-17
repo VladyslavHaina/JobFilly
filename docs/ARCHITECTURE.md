@@ -410,7 +410,8 @@ Rules:
   take only the workspace id, so the server calls them with a thread it got from a lookup, or
   checks the proposal's member (`ownProposal`) before acting. Another member's thread or proposal
   answers 404.
-- A message gets one assistant.v1 call (`apps/server/src/assistant/service.ts`). packages/ai asks
+- A message gets one assistant.v1 call (`apps/server/src/assistant/service.ts`), a question up to
+  `MAX_LOOKUP_ROUNDS` (below). packages/ai asks
   the provider for `AssistantRequestSchema` (every change one flat shape, with the rule and the
   entry's value as JSON text, so the schema stays small enough for every provider's grammar),
   reads the answer back into Changes and checks it against `AssistantAnswerSchema`,
@@ -432,9 +433,16 @@ Rules:
   by hand (source you), so the restore is in the history too. Neither writes a draft.
 - A question (MVP 3, F8) is a turn where assistant.v1 asks for read-only lookups: the server runs
   them in `apps/server/src/assistant/lookups.ts` with the asking member's access (a pipeline-only
-  member gets no message text and no draft data), at most five, once each; answer.v1 answers
-  from their results only, and any proposal or clarifying question in that turn is dropped, so
-  mail can never become a change. Only refs a lookup returned are kept; they become links in
+  member gets no message text and no draft data), in rounds over one view: at most
+  `MAX_LOOKUP_ROUNDS` (3, packages/schema), each of at most five lookups not run before. `role`
+  and `message_text` take an exact Message-ID the model doesn't know at first, so after a round
+  whose searches (`find_roles`, `waiting`, `pipeline`) returned refs, assistant.v1 is asked again
+  with the results so far (a `Round: <n>` key line and the results as answer.v1's "lookup <n>"
+  blocks); every role line names its Message-ID and position, and an answer with no new lookups
+  ends the rounds. answer.v1 answers from all the results only (its text without a raw
+  "(refs: …)" note: refs are links), and any proposal or clarifying question in that turn is
+  dropped, so mail can never become a change. `assistant.answered` logs the tools, the rounds
+  and the number of refs kept. Only refs a lookup returned are kept; they become links in
   `assistant/links.ts` when the thread is read, re-checked against the member's current access.
   A turn whose lookups read full-access data (message text, draft lines) is stored with
   `assistant_messages.full_access` (true for rows from before 0004, so it fails closed): once the
@@ -459,7 +467,8 @@ Rules:
 - MVP 2's tasks each have their module in `packages/ai/src/tasks`, keyed by a pinned key line the
   fake AI reads: cv.v1 `CV-SHA256: <hex>`, match.v1 `Message-ID:` and `Role: <position>`,
   draft.v1 `Message-ID:`, `Role: <position>` and `Attempt: <1|2>` (drafts are per role),
-  assistant.v1 `Turn: <n>` with the user's words as the last block. The header, key lines and
+  assistant.v1 `Turn: <n>` with the user's words as the last block (MVP 3: and `Round: <n>` from
+  a question's second round of lookups on). The header, key lines and
   framing are fixed; each task's instruction text belongs to the slice that uses it, which
   regenerates its wire samples when it changes.
 - Domain lookups for the sender check go through `deps.domains` (a `DomainPort`: `rdap(domain)`
