@@ -40,11 +40,11 @@ import {
   type AnalysisRun,
   aiFailed,
   analyzeBatch,
-  FATAL,
+  askBatch,
   type MailSource,
   mailItems,
-  maxCalls,
   RunFailed,
+  stopsRun,
 } from "../../pipeline/analyze";
 import type { JobContext } from "../queue";
 
@@ -221,6 +221,8 @@ export async function runScan(input: RunInput): Promise<void> {
     callsLeft,
     stopRequested: () => stopRequested(),
     call,
+    // One message the provider fails on is marked, and the scan goes on (walkthrough I5).
+    oneByOne: true,
   };
 
   /** The proposal as it stands, and the "answers firming up" count. */
@@ -304,11 +306,11 @@ export async function runScan(input: RunInput): Promise<void> {
       if (replies.length === 0) return null;
       if (callsLeft() <= 0) return "budget";
       const items = await mailItems(mail, replies);
-      const result = await call(() =>
-        ai.prefs([...items.values()], { maxCalls: maxCalls(analysis) }),
+      const results = await askBatch(analysis, [...items.values()], (batch, options) =>
+        ai.prefs(batch, options),
       );
       let changed = 0;
-      for (const item of result.items) {
+      for (const item of results) {
         if (item.ok) {
           await savePreferences(db, workspaceId, {
             messageId: item.messageId,
@@ -316,11 +318,12 @@ export async function runScan(input: RunInput): Promise<void> {
             preferences: item.data.preferences,
           });
           changed += 1;
-        } else if (item.error.kind === "invalid_output") {
+        } else if (stopsRun(analysis, item.error)) {
+          throw aiFailed(item.error);
+        } else if (item.error.kind !== "not_retried") {
+          // Read for no preferences: invalid twice, or an error answer for it alone too.
           await markAnalysisFailed(db, workspaceId, { messageId: item.messageId, scanId });
           changed += 1;
-        } else if (FATAL.includes(item.error.kind)) {
-          throw aiFailed(item.error);
         }
       }
       await propose();
