@@ -11,6 +11,7 @@ import {
   STACK_DATA_DIRS,
 } from "./build.ts";
 import { maria } from "./maria.ts";
+import { buildAllFixtures, generatedFixturesOnDisk } from "./mvp3-files.ts";
 import { tom } from "./tom.ts";
 
 // The committed fixtures are the generator's output, byte for byte: edit the sources and run
@@ -23,7 +24,7 @@ const mismatched = (root: string, files: Map<string, FileContent>) =>
 
 describe("the fixture generator", () => {
   const root = fixturesDir();
-  const files = buildFixtures();
+  const files = buildAllFixtures();
   const e2e = resolve(root, "..");
   const stack = buildStackData();
 
@@ -36,10 +37,28 @@ describe("the fixture generator", () => {
   });
 
   it("leaves no file in the generated directories that it doesn't write", () => {
-    expect(generatedFilesOnDisk(root).sort()).toEqual([...files.keys()].sort());
+    expect(generatedFixturesOnDisk(root).sort()).toEqual([...files.keys()].sort());
     expect(generatedFilesOnDisk(e2e, STACK_DATA_DIRS).sort()).toEqual(
       [...stack.keys()].filter((p) => p.startsWith("dns/zones/")).sort(),
     );
+  });
+
+  it("only adds to what MVP 1 and MVP 2 write: every file, and every key of its JSON, kept", () => {
+    const changed: string[] = [];
+    for (const [path, before] of buildFixtures()) {
+      const after = files.get(path);
+      if (after === undefined) {
+        changed.push(`${path}: gone`);
+      } else if (!Buffer.from(after).equals(Buffer.from(before))) {
+        // Only a JSON map may change, and only by gaining keys.
+        const was = JSON.parse(String(before)) as Record<string, unknown>;
+        const now = JSON.parse(String(after)) as Record<string, unknown>;
+        for (const [key, value] of Object.entries(was)) {
+          if (JSON.stringify(now[key]) !== JSON.stringify(value)) changed.push(`${path}: ${key}`);
+        }
+      }
+    }
+    expect(changed).toEqual([]);
   });
 
   it("writes the CVs as bytes and everything else as text", () => {

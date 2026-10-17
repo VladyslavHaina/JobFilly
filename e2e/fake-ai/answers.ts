@@ -28,6 +28,7 @@ import {
   personaPathsMvp2,
   readJson,
 } from "../fixtures/format.ts";
+import { soakAnswers } from "../fixtures/soak.ts";
 import type { Prompt } from "./prompt.ts";
 
 // The fake AI's canned answers, from e2e/fixtures/ai, and how a prompt maps to one. A task gets
@@ -35,7 +36,8 @@ import type { Prompt } from "./prompt.ts";
 // which the server turns into HTTP 500 so it is never silent. MVP 2's tasks are answered by their
 // key lines: cv.v1 by the CV's SHA-256, match.v1 by Message-ID and role position, draft.v1 also
 // by attempt, assistant.v1 by the user's message and the turn. MVP 3's focus.v1 is answered by
-// the hint (its "message" block), answer.v1 like assistant.v1, by the question and the turn.
+// the hint (its "message" block), answer.v1 like assistant.v1, by the question and the turn. The
+// soak's generated mail (fixtures/soak.ts) is answered from templates by its Message-ID.
 
 export interface PersonaAnswers {
   classify: AnswerFile<ClassifyAnswer>;
@@ -162,10 +164,14 @@ function lookup<T>(
   store: AnswerStore,
   id: string,
   file: (a: PersonaAnswers) => AnswerFile<T>,
+  template: (soak: NonNullable<ReturnType<typeof soakAnswers>>) => T | null = () => null,
 ): T | "invalid" | null {
   const persona = store.personas.get(store.owner.get(id) ?? "");
   const answer = persona ? file(persona)[id] : undefined;
-  if (answer === undefined) return null;
+  if (answer === undefined) {
+    const soak = soakAnswers(id);
+    return soak ? template(soak) : null;
+  }
   return isInvalid(answer as object) ? "invalid" : (answer as T);
 }
 
@@ -188,15 +194,17 @@ function roleAnswer(store: AnswerStore, prompt: Prompt): Answer {
     return missing(`${prompt.taskId} has no Message-ID and Role lines`);
   }
   const persona = store.personas.get(store.owner.get(id) ?? "");
+  // A generated soak message has one role, answered the same at every attempt.
+  const soak = role === 0 ? soakAnswers(id) : null;
   if (prompt.taskId === "match.v1") {
     const key = matchKey(id, role);
-    const answer = persona?.match[key];
+    const answer = persona?.match[key] ?? soak?.match;
     return answer ? { ok: true, content: answer } : missing(`no match.v1 answer for ${key}`);
   }
   const attempt = Number(prompt.keys.Attempt);
   if (attempt !== 1 && attempt !== 2) return missing("draft.v1 has no Attempt line of 1 or 2");
   const key = draftKey(id, role, attempt);
-  const answer = persona?.draft[key];
+  const answer = persona?.draft[key] ?? soak?.draft;
   return answer ? { ok: true, content: answer } : missing(`no draft.v1 answer for ${key}`);
 }
 
@@ -272,7 +280,12 @@ export function answerFor(store: AnswerStore, prompt: Prompt): Answer {
       const items: unknown[] = [];
       for (const id of ids) {
         if (prompt.taskId === "classify.v1") {
-          const a = lookup(store, id, (p) => p.classify);
+          const a = lookup(
+            store,
+            id,
+            (p) => p.classify,
+            (soak) => soak.classify,
+          );
           if (a === null) return missing(`no classify.v1 answer for ${id}`);
           items.push({ messageId: id, category: a === "invalid" ? INVALID_VALUE : a.category });
         } else {
@@ -289,7 +302,12 @@ export function answerFor(store: AnswerStore, prompt: Prompt): Answer {
     case "extract.v1": {
       if (ids.length !== 1) return missing(`extract.v1 names ${ids.length} Message-IDs, not 1`);
       const id = ids[0] as string;
-      const a = lookup(store, id, (p) => p.extract);
+      const a = lookup(
+        store,
+        id,
+        (p) => p.extract,
+        (soak) => soak.extract,
+      );
       if (a === null) return missing(`no extract.v1 answer for ${id}`);
       return {
         ok: true,

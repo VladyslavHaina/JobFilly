@@ -5,10 +5,12 @@ import {
   type AssistantRequest,
   assistantMessageKey,
 } from "../format.ts";
+import { questionAnswers } from "./questions.ts";
 
 // The assistant's fixtures (F8): the ten requests of the real-AI quality run with the change each
 // should produce (assistant/requests.json), and the fake AI's assistant.v1 answers
-// (ai/assistant.json) for those and for the messages the scenarios type (S8, S9). Changes are
+// (ai/assistant.json) for those and for the messages the scenarios type (MVP 2 S8, S9; MVP 3's
+// questions, questions.ts, with their lookups). Changes are
 // packages/schema Changes; rules use only RULE_FACTS and RULE_OPS, offsets like "UTC+05:00".
 
 const hideRule = (description: string, when: unknown[]) => ({
@@ -224,6 +226,10 @@ export function assistantAnswers(): AssistantAnswerFile {
   };
   for (const r of REQUESTS) add(r.text, proposal(r.reply, r.summary, r.expected ?? []));
   for (const [text, answer] of SCENARIO_ANSWERS) add(text, answer);
+  // MVP 3 (F8): a question gets the lookups that answer it; answer.v1 words the answer.
+  for (const q of questionAnswers()) {
+    add(q.text, { reply: q.reply, clarify: null, proposal: null, lookups: q.lookups });
+  }
   return file;
 }
 

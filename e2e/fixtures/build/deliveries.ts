@@ -1,5 +1,6 @@
 import {
   type Address,
+  type Category,
   type DraftAnswer,
   type ExpectedRoleFit,
   type JobFacts,
@@ -7,8 +8,12 @@ import {
   PERSONA_NAMES,
   type SenderVerdict,
 } from "../format.ts";
+import type { MariaProfile } from "../format-mvp3.ts";
+import { capped, reply } from "./delivery-kit.ts";
 import { pay, role } from "./facts.ts";
 import { RECRUITER_FOOTER_DE, RECRUITER_FOOTER_EN } from "./footers.ts";
+import { GERMANY_DELIVERIES } from "./germany.ts";
+import { PIPELINE_DELIVERIES } from "./pipeline.ts";
 import type { Lang } from "./recruiters.ts";
 import type { HardConflict, MessageSpec } from "./spec.ts";
 
@@ -18,9 +23,11 @@ import type { HardConflict, MessageSpec } from "./spec.ts";
 // with a draft, plus the fake AI's draft.v1 answers for the roles that get one.
 //
 // Her profile at that point (MVP 1 S4 removed Amsterdam): backend roles, Senior, hybrid in
-// Berlin or remote in the EU, at least €70,000 a year or €450 a day, permanent or B2B.
+// Berlin or remote in the EU, at least €70,000 a year or €450 a day, permanent or B2B. MVP 3's
+// deliveries (germany.ts, pipeline.ts) join the list below; their roles' fit, needs and draft are
+// written against the same profile, so the persona test in packages/core checks them too.
 
-interface DeliveryRole {
+export interface DeliveryRole {
   facts: JobFacts;
   /** Its hard conflicts (F4.2), written by hand against her profile above. */
   hardConflicts: HardConflict[];
@@ -34,6 +41,12 @@ interface DeliveryRole {
   answers: Partial<Record<1 | 2, DraftAnswer>>;
   /** Skills the chosen CV lacks that the match.v1 answer still calls close (skill → reason). */
   closeSkills?: Readonly<Record<string, string>>;
+  /**
+   * MVP 3 (F1.4): the profile the role is assigned to once S1 has confirmed "Germany permanent"
+   * (expected.json `mvp3.assignments`). Its fit, needs and draft stay those of the profile MVP 2
+   * starts with, which packages/core's persona test checks.
+   */
+  profile?: MariaProfile;
 }
 
 export interface DeliverySource {
@@ -41,9 +54,10 @@ export interface DeliverySource {
   id: string;
   /**
    * The scenario step that delivers it: S2 delivers the batch, S5 the second Zurich role, S11
-   * one message before a replica is killed and one after the mail server is back.
+   * one message before a replica is killed and one after the mail server is back. MVP 3: S1 the
+   * Germany batch (germany.ts), S6 the pipeline threads (pipeline.ts).
    */
-  step: "S2" | "S5" | "S11";
+  step: "S2" | "S5" | "S11" | "S1" | "S6";
   minutesAgo: number;
   from: Address;
   subject: string;
@@ -52,6 +66,13 @@ export interface DeliverySource {
   language: Lang;
   sender: SenderVerdict;
   roles: DeliveryRole[];
+  /** MVP 3: what the message is when it isn't recruiter outreach (S6's threads). */
+  category?: Category;
+  /**
+   * MVP 3: the deliveries this one follows in its thread, oldest first: its References, and
+   * In-Reply-To the last of them.
+   */
+  thread?: readonly string[];
 }
 
 const ME: Address = { address: PERSONA_ADDRESSES.maria, name: PERSONA_NAMES.maria };
@@ -61,8 +82,16 @@ function deliveryMessageId(d: DeliverySource): string {
   return `<maria-deliver-${d.id}@${d.from.address.slice(d.from.address.indexOf("@") + 1)}>`;
 }
 
+/** The Message-ID of the delivery with this id. */
+export function deliveredMessageId(id: string): string {
+  const d = DELIVERIES.find((x) => x.id === id);
+  if (!d) throw new Error(`no delivery ${id}`);
+  return deliveryMessageId(d);
+}
+
 /** A delivered message as a MessageSpec, for the .eml writer and the classify/extract answers. */
 export function deliverySpec(d: DeliverySource): MessageSpec {
+  const references = (d.thread ?? []).map(deliveredMessageId);
   return {
     messageId: deliveryMessageId(d),
     folder: "inbox",
@@ -74,46 +103,20 @@ export function deliverySpec(d: DeliverySource): MessageSpec {
     subject: d.subject,
     body: d.body,
     footer: d.footer,
-    inReplyTo: null,
-    references: [],
+    inReplyTo: references.at(-1) ?? null,
+    references,
     listId: null,
     listUnsubscribe: null,
     precedence: null,
     language: d.language,
     stageOne: "likely_job",
-    category: "recruiter_outreach",
+    category: d.category ?? "recruiter_outreach",
     facts: d.roles.map((r) => r.facts),
     preferences: null,
     invalid: false,
     hardConflicts: d.roles.map((r) => r.hardConflicts),
   };
 }
-
-const reply = (
-  subject: string,
-  body: string,
-  language: Lang,
-  usedEntries: string[],
-  extra: Partial<DraftAnswer> = {},
-): DraftAnswer => ({
-  subject: `Re: ${subject}`,
-  body,
-  language,
-  usedEntries,
-  attachCv: false,
-  questions: [],
-  ...extra,
-});
-
-/** A role a hard conflict caps (F4.2), with no draft. */
-const capped = (hardConflicts: HardConflict[], facts: JobFacts): DeliveryRole => ({
-  facts,
-  hardConflicts,
-  fit: "capped",
-  needs: [],
-  draft: false,
-  answers: {},
-});
 
 const BERLIN_SUBJECT = "Senior Backend-Entwicklerin (m/w/d) bei Kiezwerk – Berlin, hybrid";
 const REMOTE_SUBJECT = "Senior Backend Engineer – remote within the EU";
@@ -129,7 +132,7 @@ const CHF_PAY_GROUP = "min_pay:CHF:year";
 /** The group key of the Dublin relocation question, the extra entry its answer writes. */
 const RELOCATION_GROUP = "extra.relocation-ireland";
 
-export const DELIVERIES: readonly DeliverySource[] = [
+const MVP2_DELIVERIES: readonly DeliverySource[] = [
   {
     id: "berlin-de",
     step: "S2",
@@ -674,4 +677,11 @@ export const DELIVERIES: readonly DeliverySource[] = [
       ),
     ],
   },
+];
+
+/** Every delivery: MVP 2's, then MVP 3's Germany batch (S1) and pipeline threads (S6). */
+export const DELIVERIES: readonly DeliverySource[] = [
+  ...MVP2_DELIVERIES,
+  ...GERMANY_DELIVERIES,
+  ...PIPELINE_DELIVERIES,
 ];

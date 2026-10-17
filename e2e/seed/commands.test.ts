@@ -6,25 +6,29 @@ import {
   type DeliveryEntry,
   fixturesDir,
   PERSONA_ADDRESSES,
-  type Persona,
   personaPathsMvp2,
   readJson,
 } from "../fixtures/format.ts";
-import { ACCOUNTS } from "./accounts.ts";
+import { MARIA_HOME_ADDRESS, MVP3_PATHS } from "../fixtures/format-mvp3.ts";
+import { soakAnswers } from "../fixtures/soak.ts";
+import { ACCOUNTS, EXTRA_ACCOUNTS, MAILBOX_ACCOUNTS, type MailboxName } from "./accounts.ts";
 import {
   deliver,
   type FetchedMessage,
   inspectDrafts,
+  inspectSent,
   inspectSmtp,
   type MailboxImap,
   resetUidValidity,
 } from "./commands.ts";
+import { generate } from "./generate.ts";
 import type { GreenMailApi } from "./greenmail.ts";
 import { SeedError } from "./load.ts";
 import { main, type SeedDeps } from "./main.ts";
 
-// MVP 2's seed commands against doubles: an in-memory mail server with accounts, folders, UIDs
-// and UIDVALIDITY, reachable through an imapflow-shaped client and a GreenMail-shaped API.
+// MVP 2's and MVP 3's seed commands against doubles: an in-memory mail server with accounts,
+// folders, UIDs and UIDVALIDITY, reachable through an imapflow-shaped client and a GreenMail-shaped
+// API.
 
 const FIXTURES = fixturesDir();
 const NOW = new Date("2026-10-15T09:00:00.000Z");
@@ -146,13 +150,19 @@ function fakeMailServer(options: { keepUidValidity?: boolean } = {}) {
 const deliveries = readJson<DeliveryEntry[]>(join(FIXTURES, personaPathsMvp2("maria").deliveries));
 const byId = (id: string) => deliveries.find((d) => d.id === id) as DeliveryEntry;
 
+const sentDeliveries = readJson<DeliveryEntry[]>(join(FIXTURES, MVP3_PATHS.sentDeliveries));
+
 function setup(options?: { keepUidValidity?: boolean }) {
   const server = fakeMailServer(options);
-  server.createAccount(MARIA);
-  server.createAccount(PERSONA_ADDRESSES.tom);
-  const open = async (persona: Persona) => server.client(PERSONA_ADDRESSES[persona]);
+  for (const account of Object.values(MAILBOX_ACCOUNTS)) server.createAccount(account.user);
+  const open = async (mailbox: MailboxName) => server.client(MAILBOX_ACCOUNTS[mailbox].user);
   return { server, open };
 }
+
+const idsIn = (server: ReturnType<typeof fakeMailServer>, user: string, folder: string) =>
+  (server.accounts.get(user)?.get(folder)?.messages ?? []).map((m) =>
+    headerOf(m.source, "Message-ID"),
+  );
 
 describe("seed deliver", () => {
   it("delivers a step's batch to Maria's Inbox, unread and dated now minus minutesAgo", async () => {
@@ -203,6 +213,87 @@ describe("seed deliver", () => {
       /Nothing to deliver for "nope". Ids: berlin-de, .*steps: S2, S5/,
     );
     expect(server.calls).toEqual([]);
+  });
+
+  it("delivers S1's mail to the Inbox and Maria's replies to Sent, read, creating Sent", async () => {
+    const { server, open } = setup();
+    const delivered = await deliver({ fixturesDir: FIXTURES, targets: ["S1"], now: NOW, open });
+    const inbox = deliveries.filter((d) => d.step === "S1");
+    expect(sentDeliveries.length).toBeGreaterThan(0);
+    expect(delivered).toEqual([
+      ...inbox.map((d) => ({
+        persona: "maria",
+        id: d.id,
+        messageId: d.messageId,
+        folder: "Inbox",
+      })),
+      ...sentDeliveries.map((d) => ({
+        persona: "maria",
+        id: d.id,
+        messageId: d.messageId,
+        folder: "Sent",
+      })),
+    ]);
+    expect(idsIn(server, MARIA, "INBOX")).toEqual(inbox.map((d) => d.messageId));
+    expect(idsIn(server, MARIA, "Sent")).toEqual(sentDeliveries.map((d) => d.messageId));
+    expect(server.calls).toContain(`${MARIA} create Sent`);
+    const sent = server.accounts.get(MARIA)?.get("Sent")?.messages ?? [];
+    for (const m of sent) expect([...m.flags]).toEqual(["\\Seen"]);
+  });
+
+  it("delivers S6's threads to the Inbox, and refuses a reply already in Sent", async () => {
+    const { server, open } = setup();
+    await deliver({ fixturesDir: FIXTURES, targets: ["S6"], now: NOW, open });
+    expect(idsIn(server, MARIA, "INBOX")).toEqual(
+      deliveries.filter((d) => d.step === "S6").map((d) => d.messageId),
+    );
+    const reply = sentDeliveries[0] as DeliveryEntry;
+    await deliver({ fixturesDir: FIXTURES, targets: [reply.id], now: NOW, open });
+    await expect(
+      deliver({ fixturesDir: FIXTURES, targets: [reply.id], now: NOW, open }),
+    ).rejects.toThrow(/already in maria's Sent/);
+    expect(idsIn(server, MARIA, "Sent")).toEqual([reply.messageId]);
+  });
+});
+
+describe("seed inspect sent", () => {
+  it("shows what the app filed in Sent, never what the seed put there", async () => {
+    const { server, open } = setup();
+    expect(await inspectSent(FIXTURES, "maria", await open("maria"))).toEqual({
+      mailbox: "maria",
+      folder: null,
+      messages: [],
+    });
+    await deliver({ fixturesDir: FIXTURES, targets: ["S1"], now: NOW, open });
+    expect((await inspectSent(FIXTURES, "maria", await open("maria"))).messages).toEqual([]);
+    const berlin = byId("berlin-de").messageId;
+    server.add(MARIA, "Sent", draftSource(berlin, Buffer.from("cv"), "cv.pdf"), ["\\Seen"], NOW);
+    const report = await inspectSent(FIXTURES, "maria", await open("maria"));
+    expect(report.folder).toBe("Sent");
+    expect(report.messages).toEqual([
+      expect.objectContaining({
+        messageId: "<draft-1@jobfilly.example>",
+        inReplyTo: berlin,
+        text: "Hallo Frau Hoffmann,\n\nvielen Dank für Ihre Nachricht.",
+        attachments: [expect.objectContaining({ filename: "cv.pdf" })],
+      }),
+    ]);
+  });
+
+  it("looks in the folder marked \\Sent of Maria's other mailboxes too", async () => {
+    const { server, open } = setup();
+    const home = EXTRA_ACCOUNTS["maria-home"].user;
+    server.accounts.get(home)?.set("Gesendet", {
+      uidValidity: 7n,
+      nextUid: 1,
+      specialUse: "\\Sent",
+      messages: [],
+    });
+    const copy = Buffer.from("Message-ID: <sent-1@post.example>\r\nSubject: Re: Hi\r\n\r\nHi\r\n");
+    server.add(home, "Gesendet", copy, ["\\Seen"], NOW);
+    const report = await inspectSent(FIXTURES, "maria-home", await open("maria-home"));
+    expect(report.folder).toBe("Gesendet");
+    expect(report.messages.map((m) => m.messageId)).toEqual(["<sent-1@post.example>"]);
   });
 });
 
@@ -296,6 +387,29 @@ describe("seed inspect drafts", () => {
 describe("seed inspect smtp", () => {
   const accounts = { maria: MARIA, tom: PERSONA_ADDRESSES.tom };
 
+  it("leaves out the mail the seed loads into Maria's other mailboxes, and shows what came over SMTP", async () => {
+    const { server } = setup();
+    const home = readJson<{ messageId: string }[]>(join(FIXTURES, MVP3_PATHS.homeEnvelopes));
+    for (const e of home) {
+      server.add(
+        MARIA_HOME_ADDRESS,
+        "INBOX",
+        Buffer.from(`Message-ID: ${e.messageId}\r\n\r\nx\r\n`),
+        [],
+        NOW,
+      );
+    }
+    const gmail = EXTRA_ACCOUNTS["maria-gmail"].user;
+    const sent = Buffer.from("Message-ID: <sent-3@x.example>\r\nSubject: Hi\r\n\r\nHi\r\n");
+    server.add(gmail, "INBOX", sent, [], NOW);
+    const all = Object.fromEntries(
+      Object.entries(MAILBOX_ACCOUNTS).map(([name, account]) => [name, account.user]),
+    );
+    expect(await inspectSmtp(FIXTURES, all, server.api)).toEqual({
+      messages: [{ account: gmail, messageId: "<sent-3@x.example>", subject: "Hi" }],
+    });
+  });
+
   it("shows nothing while the mailboxes hold only what the seed put there", async () => {
     const { server, open } = setup();
     await deliver({ fixturesDir: FIXTURES, targets: ["S2"], now: NOW, open });
@@ -385,11 +499,68 @@ describe("seed reset-uidvalidity", () => {
   });
 });
 
+describe("seed generate", () => {
+  function run(options: { perMinute: number; minutes: number | null; stopAfter?: number }) {
+    const { server, open } = setup();
+    let clock = NOW.getTime();
+    const waits: number[] = [];
+    const out: string[] = [];
+    const result = generate({
+      perMinute: options.perMinute,
+      minutes: options.minutes,
+      now: () => new Date(clock),
+      sleep: async (ms) => {
+        waits.push(ms);
+        clock += ms;
+      },
+      stopped: () => options.stopAfter !== undefined && waits.length >= options.stopAfter,
+      open,
+      print: (t) => out.push(t),
+    });
+    return { result, server, waits, out };
+  }
+
+  it("appends n messages a minute to each persona's Inbox for m minutes, dated now", async () => {
+    const { result, server, waits, out } = run({ perMinute: 2, minutes: 1.5 });
+    expect(await result).toBe(3);
+    expect(waits).toEqual([30_000, 30_000]);
+    for (const user of [MARIA, PERSONA_ADDRESSES.tom]) {
+      const inbox = server.accounts.get(user)?.get("INBOX")?.messages ?? [];
+      expect(inbox).toHaveLength(3);
+      expect(inbox.map((m) => m.internalDate.getTime())).toEqual(
+        [0, 1, 2].map((i) => NOW.getTime() + i * 30_000),
+      );
+      for (const m of inbox) expect([...m.flags]).toEqual([]);
+    }
+    expect(out).toHaveLength(6);
+    expect(out[0]).toMatch(/^Generated <soak-maria-[a-z0-9]+-1@isarwerk\.example> for maria$/);
+  });
+
+  it("names every message once, with a body sentinel, answered by the fake AI's templates", async () => {
+    const { result, server } = run({ perMinute: 1, minutes: 2 });
+    await result;
+    const ids = [MARIA, PERSONA_ADDRESSES.tom].flatMap((u) => idsIn(server, u, "INBOX"));
+    expect(new Set(ids).size).toBe(4);
+    for (const id of ids) expect(soakAnswers(id as string), id as string).not.toBeNull();
+    const [first] = server.accounts.get(MARIA)?.get("INBOX")?.messages ?? [];
+    const text = first?.source.toString("utf8") ?? "";
+    expect(text).toContain("BODYSENTINEL-soak-maria-");
+    expect(text.indexOf("BODYSENTINEL-")).toBeGreaterThan(1000);
+  });
+
+  it("runs until stopped when no minutes are given", async () => {
+    const { result, waits } = run({ perMinute: 6, minutes: null, stopAfter: 4 });
+    expect(await result).toBe(4);
+    expect(waits).toEqual([10_000, 10_000, 10_000, 10_000]);
+  });
+});
+
 describe("the seed's commands", () => {
   function deps() {
     const { server, open } = setup();
     const out: string[] = [];
     const err: string[] = [];
+    let stop = false;
     const d: SeedDeps = {
       fixturesDir: FIXTURES,
       now: () => NOW,
@@ -397,9 +568,57 @@ describe("the seed's commands", () => {
       api: server.api,
       print: (t) => out.push(t),
       error: (t) => err.push(t),
+      sleep: async () => {
+        stop = true;
+      },
+      stopped: () => stop,
     };
     return { d, out, err, server };
   }
+
+  it("load maria-home loads Maria's personal mailbox into its own account", async () => {
+    const { d, out, server } = deps();
+    expect(await main(["load", "maria-home"], d)).toBe(0);
+    const home = readJson<{ messageId: string }[]>(join(FIXTURES, MVP3_PATHS.homeEnvelopes));
+    expect(out).toEqual([`Loaded maria-home: ${home.length} in Inbox, 0 in Sent`]);
+    expect(idsIn(server, MARIA_HOME_ADDRESS, "INBOX").sort()).toEqual(
+      home.map((e) => e.messageId).sort(),
+    );
+    expect(idsIn(server, MARIA, "INBOX")).toEqual([]);
+  });
+
+  it("deliver says which folder each message went to", async () => {
+    const { d, out } = deps();
+    const reply = sentDeliveries[0] as DeliveryEntry;
+    expect(await main(["deliver", "munich-1", reply.id], d)).toBe(0);
+    expect(out).toEqual([
+      `Delivered munich-1 to maria's Inbox: ${byId("munich-1").messageId}`,
+      `Delivered ${reply.id} to maria's Sent: ${reply.messageId}`,
+    ]);
+  });
+
+  it("inspect sent prints JSON, and generate runs until it is stopped", async () => {
+    const { d, out } = deps();
+    expect(await main(["inspect", "sent", "maria-home"], d)).toBe(0);
+    expect(JSON.parse(out[0] as string)).toEqual({
+      mailbox: "maria-home",
+      folder: null,
+      messages: [],
+    });
+    expect(await main(["generate", "--per-minute", "1"], d)).toBe(0);
+    expect(out.at(-1)).toBe("Generated 1 messages for each of maria, tom");
+  });
+
+  it.each([
+    [["generate"]],
+    [["generate", "--per-minute", "0"]],
+    [["generate", "--per-minute", "2", "--minutes", "-1"]],
+    [["generate", "--every", "2"]],
+  ])("refuses generate %j with the usage", async (args) => {
+    const { d, err } = deps();
+    expect(await main(args, d)).toBe(2);
+    expect(err[0]).toMatch(/seed generate --per-minute <n> \[--minutes <m>\]/);
+  });
 
   it("deliver prints what it delivered", async () => {
     const { d, out } = deps();
@@ -441,12 +660,18 @@ describe("the seed's commands", () => {
   ])("shows the usage for %j and exits 2", async (args) => {
     const { d, err } = deps();
     expect(await main(args, d)).toBe(2);
-    expect(err[0]).toMatch(/^Usage:\n {2}seed load <persona>\n {2}seed deliver/);
+    expect(err[0]).toMatch(/^Usage:\n {2}seed load <mailbox>\n {2}seed deliver/);
   });
 
   it("names the known personas for an unknown one", async () => {
     const { d, err } = deps();
     expect(await main(["inspect", "drafts", "nobody"], d)).toBe(2);
     expect(err).toEqual(['Unknown persona "nobody". Known: maria, tom']);
+  });
+
+  it("names the known mailboxes for an unknown one", async () => {
+    const { d, err } = deps();
+    expect(await main(["inspect", "sent", "nobody"], d)).toBe(2);
+    expect(err).toEqual(['Unknown mailbox "nobody". Known: maria, tom, maria-home, maria-gmail']);
   });
 });

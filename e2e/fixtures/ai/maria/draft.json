@@ -130,5 +130,167 @@
     ],
     "attachCv": false,
     "questions": []
+  },
+  "<maria-deliver-munich-1@isarblick.example>#0#1": {
+    "subject": "Re: Senior Backend-Entwicklerin (m/w/d) – München, hybrid",
+    "body": "Hallo Frau Vogel,\n\nvielen Dank für Ihre Nachricht. Die Stelle als Senior Backend-Entwicklerin in München, hybrid, passt sehr gut zu mir: Ich arbeite seit Jahren mit Go, PostgreSQL, Kubernetes und gRPC. Ich wohne inzwischen in Deutschland und suche genau so eine unbefristete Stelle.\n\nIch freue mich auf ein erstes Gespräch.\n\nViele Grüße\nMaria Santos",
+    "language": "de",
+    "usedEntries": [
+      "target_roles",
+      "seniority",
+      "places",
+      "contracts",
+      "min_pay"
+    ],
+    "attachCv": false,
+    "questions": []
+  },
+  "<maria-deliver-munich-1@isarblick.example>#0#2": {
+    "subject": "Re: Senior Backend-Entwicklerin (m/w/d) – München, hybrid",
+    "body": "Hallo Frau Vogel,\n\nherzlichen Dank für die Nachricht. Die Stelle als Senior Backend-Entwicklerin in München, hybrid, passt sehr gut zu mir: Ich arbeite seit Jahren mit Go, PostgreSQL, Kubernetes und gRPC. Seit meinem Umzug nach Deutschland suche ich eine unbefristete Stelle wie diese.\n\nGerne vereinbare ich einen Termin mit Ihnen.\n\nViele Grüße\nMaria Santos",
+    "language": "de",
+    "usedEntries": [
+      "target_roles",
+      "seniority",
+      "places",
+      "contracts",
+      "min_pay"
+    ],
+    "attachCv": false,
+    "questions": []
+  },
+  "<maria-deliver-munich-2@bergwerk-personal.example>#0#1": {
+    "subject": "Re: Senior Backend Engineer (m/w/d) für einen Versicherer in München",
+    "body": "Hallo Herr Huber,\n\nvielen Dank für Ihre Nachricht. Die Stelle als Senior Backend Engineer in München mit Go, Kafka und PostgreSQL klingt sehr passend. Ich wohne inzwischen in Deutschland und suche genau so eine unbefristete Stelle.\n\nIch freue mich auf ein erstes Gespräch.\n\nViele Grüße\nMaria Santos",
+    "language": "de",
+    "usedEntries": [
+      "target_roles",
+      "seniority",
+      "places",
+      "contracts",
+      "min_pay"
+    ],
+    "attachCv": false,
+    "questions": []
+  },
+  "<maria-deliver-munich-2@bergwerk-personal.example>#0#2": {
+    "subject": "Re: Senior Backend Engineer (m/w/d) für einen Versicherer in München",
+    "body": "Hallo Herr Huber,\n\nherzlichen Dank für die Nachricht. Die Stelle als Senior Backend Engineer in München mit Go, Kafka und PostgreSQL klingt sehr passend. Seit meinem Umzug nach Deutschland suche ich eine unbefristete Stelle wie diese.\n\nGerne vereinbare ich einen Termin mit Ihnen.\n\nViele Grüße\nMaria Santos",
+    "language": "de",
+    "usedEntries": [
+      "target_roles",
+      "seniority",
+      "places",
+      "contracts",
+      "min_pay"
+    ],
+    "attachCv": false,
+    "questions": []
+  },
+  "<maria-deliver-hamburg-1@alsterkontor.example>#0#1": {
+    "subject": "Re: Senior Backend-Entwickler (m/w/d) – Hamburg, hybrid",
+    "body": "Hallo Frau Petersen,\n\nvielen Dank für Ihre Nachricht. Die Stelle als Senior Backend-Entwicklerin in Hamburg, hybrid, passt sehr gut: Go, Kafka, PostgreSQL und Docker sind mein Alltag. Ich wohne inzwischen in Deutschland und suche genau so eine unbefristete Stelle.\n\nIch freue mich auf ein erstes Gespräch.\n\nViele Grüße\nMaria Santos",
+    "language": "de",
+    "usedEntries": [
+      "target_roles",
+      "seniority",
+      "places",
+      "contracts",
+      "min_pay"
+    ],
+    "attachCv": false,
+    "questions": []
+  },
+  "<maria-deliver-hamburg-1@alsterkontor.example>#0#2": {
+    "subject": "Re: Senior Backend-Entwickler (m/w/d) – Hamburg, hybrid",
+    "body": "Hallo Frau Petersen,\n\nherzlichen Dank für die Nachricht. Die Stelle als Senior Backend-Entwicklerin in Hamburg, hybrid, passt sehr gut: Go, Kafka, PostgreSQL und Docker sind mein Alltag. Seit meinem Umzug nach Deutschland suche ich eine unbefristete Stelle wie diese.\n\nGerne vereinbare ich einen Termin mit Ihnen.\n\nViele Grüße\nMaria Santos",
+    "language": "de",
+    "usedEntries": [
+      "target_roles",
+      "seniority",
+      "places",
+      "contracts",
+      "min_pay"
+    ],
+    "attachCv": false,
+    "questions": []
+  },
+  "<maria-deliver-hamburg-2@kaispeicher.example>#0#1": {
+    "subject": "Re: Backend Engineer (m/w/d) im Hamburger Hafen – hybrid",
+    "body": "Hallo Herr Hansen,\n\nvielen Dank für Ihre Nachricht. Software für den Hamburger Hafen mit Go, gRPC und PostgreSQL klingt spannend. Ich wohne inzwischen in Deutschland und suche genau so eine unbefristete Stelle.\n\nIch freue mich auf ein erstes Gespräch.\n\nViele Grüße\nMaria Santos",
+    "language": "de",
+    "usedEntries": [
+      "target_roles",
+      "seniority",
+      "places",
+      "contracts",
+      "min_pay"
+    ],
+    "attachCv": false,
+    "questions": []
+  },
+  "<maria-deliver-hamburg-2@kaispeicher.example>#0#2": {
+    "subject": "Re: Backend Engineer (m/w/d) im Hamburger Hafen – hybrid",
+    "body": "Hallo Herr Hansen,\n\nherzlichen Dank für die Nachricht. Software für den Hamburger Hafen mit Go, gRPC und PostgreSQL klingt spannend. Seit meinem Umzug nach Deutschland suche ich eine unbefristete Stelle wie diese.\n\nGerne vereinbare ich einen Termin mit Ihnen.\n\nViele Grüße\nMaria Santos",
+    "language": "de",
+    "usedEntries": [
+      "target_roles",
+      "seniority",
+      "places",
+      "contracts",
+      "min_pay"
+    ],
+    "attachCv": false,
+    "questions": []
+  },
+  "<maria-deliver-remote-eu-2@vistula-cloud.example>#0#1": {
+    "subject": "Re: Senior Backend Engineer – fully remote in the EU",
+    "body": "Hi Marta,\n\nThank you for reaching out. A fully remote Senior Backend Engineer role within the EU on CET hours fits what I'm looking for, and Go, Kafka and PostgreSQL are what I work with every day.\n\nA call this week works for me.\n\nBest regards,\nMaria Santos",
+    "language": "en",
+    "usedEntries": [
+      "target_roles",
+      "seniority",
+      "remote",
+      "min_pay"
+    ],
+    "attachCv": false,
+    "questions": []
+  },
+  "<maria-deliver-remote-eu-2@vistula-cloud.example>#0#2": {
+    "subject": "Re: Senior Backend Engineer – fully remote in the EU",
+    "body": "Hi Marta,\n\nThanks for your message. The remote Senior Backend Engineer role sounds like a good fit: I build services in Go, Kafka and PostgreSQL.\n\nI'd be glad to talk this week.\n\nBest regards,\nMaria Santos",
+    "language": "en",
+    "usedEntries": [
+      "target_roles",
+      "seniority",
+      "remote",
+      "min_pay"
+    ],
+    "attachCv": false,
+    "questions": []
+  },
+  "<maria-deliver-remote-eu-3@scheldt-data.example>#0#1": {
+    "subject": "Re: Backend Engineer (Go) – remote within the EU",
+    "body": "Hi Pieter,\n\nThank you for your message. A remote Backend Engineer role within the EU, working in Go with gRPC, PostgreSQL and Kubernetes, is right up my street.\n\nI'd be happy to hear more.\n\nBest regards,\nMaria Santos",
+    "language": "en",
+    "usedEntries": [
+      "target_roles",
+      "remote",
+      "min_pay"
+    ],
+    "attachCv": false,
+    "questions": []
+  },
+  "<maria-deliver-remote-eu-3@scheldt-data.example>#0#2": {
+    "subject": "Re: Backend Engineer (Go) – remote within the EU",
+    "body": "Hi Pieter,\n\nThanks for getting in touch. Ingestion services in Go on gRPC, PostgreSQL and Kubernetes are what I enjoy building, and a remote role within the EU suits me.\n\nI'd be happy to hear more.\n\nBest regards,\nMaria Santos",
+    "language": "en",
+    "usedEntries": [
+      "target_roles",
+      "remote",
+      "min_pay"
+    ],
+    "attachCv": false,
+    "questions": []
   }
 }

@@ -9253,5 +9253,539 @@
         "extra": {}
       }
     ]
+  },
+  "<maria-deliver-munich-1@isarblick.example>": {
+    "roles": [
+      {
+        "title": "Senior Backend-Entwicklerin (m/w/d)",
+        "company": "Isarblick Technologies GmbH",
+        "agency": null,
+        "places": [
+          {
+            "country": "DE",
+            "city": "München"
+          }
+        ],
+        "workMode": "hybrid",
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": {
+          "min": 82000,
+          "max": 92000,
+          "currency": "EUR",
+          "period": "year",
+          "asWritten": "82.000–92.000 € brutto pro Jahr"
+        },
+        "contract": "unbefristet",
+        "seniority": "Senior",
+        "workPermit": null,
+        "skills": [
+          "Go",
+          "PostgreSQL",
+          "Kubernetes",
+          "gRPC"
+        ],
+        "languages": [
+          "Deutsch"
+        ],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-deliver-munich-2@bergwerk-personal.example>": {
+    "roles": [
+      {
+        "title": "Senior Backend Engineer (m/w/d)",
+        "company": "Würmtal Versicherung AG",
+        "agency": {
+          "name": "Bergwerk Personalberatung",
+          "client": "Würmtal Versicherung AG"
+        },
+        "places": [
+          {
+            "country": "DE",
+            "city": "München"
+          }
+        ],
+        "workMode": "hybrid",
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": {
+          "min": 78000,
+          "max": 88000,
+          "currency": "EUR",
+          "period": "year",
+          "asWritten": "78.000–88.000 € brutto pro Jahr"
+        },
+        "contract": "unbefristet",
+        "seniority": "Senior",
+        "workPermit": null,
+        "skills": [
+          "Go",
+          "Kafka",
+          "PostgreSQL"
+        ],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-deliver-hamburg-1@alsterkontor.example>": {
+    "roles": [
+      {
+        "title": "Senior Backend-Entwickler (m/w/d)",
+        "company": "Alsterkontor Logistik GmbH",
+        "agency": null,
+        "places": [
+          {
+            "country": "DE",
+            "city": "Hamburg"
+          }
+        ],
+        "workMode": "hybrid",
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": {
+          "min": 80000,
+          "max": 90000,
+          "currency": "EUR",
+          "period": "year",
+          "asWritten": "80.000–90.000 € brutto pro Jahr"
+        },
+        "contract": "unbefristet",
+        "seniority": "Senior",
+        "workPermit": null,
+        "skills": [
+          "Go",
+          "Kafka",
+          "PostgreSQL",
+          "Docker"
+        ],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-deliver-hamburg-2@kaispeicher.example>": {
+    "roles": [
+      {
+        "title": "Backend Engineer (m/w/d)",
+        "company": "Kaispeicher Terminal GmbH",
+        "agency": null,
+        "places": [
+          {
+            "country": "DE",
+            "city": "Hamburg"
+          }
+        ],
+        "workMode": "hybrid",
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": {
+          "min": 76000,
+          "max": 86000,
+          "currency": "EUR",
+          "period": "year",
+          "asWritten": "76.000–86.000 € brutto pro Jahr"
+        },
+        "contract": "unbefristet",
+        "seniority": null,
+        "workPermit": null,
+        "skills": [
+          "Go",
+          "gRPC",
+          "PostgreSQL"
+        ],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-deliver-remote-eu-2@vistula-cloud.example>": {
+    "roles": [
+      {
+        "title": "Senior Backend Engineer",
+        "company": "Vistula Cloud",
+        "agency": null,
+        "places": [],
+        "workMode": "remote",
+        "remoteScope": "within the EU",
+        "timeZones": {
+          "from": "UTC+01:00",
+          "to": "UTC+02:00"
+        },
+        "pay": {
+          "min": 88000,
+          "max": 98000,
+          "currency": "EUR",
+          "period": "year",
+          "asWritten": "€88,000–98,000 a year"
+        },
+        "contract": "permanent",
+        "seniority": "Senior",
+        "workPermit": null,
+        "skills": [
+          "Go",
+          "Kafka",
+          "PostgreSQL"
+        ],
+        "languages": [
+          "English"
+        ],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-deliver-remote-eu-3@scheldt-data.example>": {
+    "roles": [
+      {
+        "title": "Backend Engineer (Go)",
+        "company": "Scheldt Data",
+        "agency": null,
+        "places": [],
+        "workMode": "remote",
+        "remoteScope": "within the EU",
+        "timeZones": null,
+        "pay": {
+          "min": 80000,
+          "max": 90000,
+          "currency": "EUR",
+          "period": "year",
+          "asWritten": "€80,000–90,000 a year"
+        },
+        "contract": "permanent",
+        "seniority": null,
+        "workPermit": null,
+        "skills": [
+          "Go",
+          "gRPC",
+          "PostgreSQL",
+          "Kubernetes"
+        ],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-deliver-lindwurm-applied@greenhouse-mail.io>": {
+    "roles": [
+      {
+        "title": "Senior Backend Engineer",
+        "company": "Lindwurm Robotics",
+        "agency": null,
+        "places": [],
+        "workMode": null,
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": null,
+        "contract": null,
+        "seniority": "Senior",
+        "workPermit": null,
+        "skills": [],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-deliver-lindwurm-interview@lindwurm-robotics.example>": {
+    "roles": [
+      {
+        "title": "Senior Backend Engineer",
+        "company": "Lindwurm Robotics",
+        "agency": null,
+        "places": [],
+        "workMode": "remote",
+        "remoteScope": "within the EU",
+        "timeZones": null,
+        "pay": null,
+        "contract": "permanent",
+        "seniority": "Senior",
+        "workPermit": null,
+        "skills": [],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-deliver-lindwurm-offer@lindwurm-robotics.example>": {
+    "roles": [
+      {
+        "title": "Senior Backend Engineer",
+        "company": "Lindwurm Robotics",
+        "agency": null,
+        "places": [],
+        "workMode": "remote",
+        "remoteScope": "within the EU",
+        "timeZones": null,
+        "pay": {
+          "min": 92000,
+          "max": 92000,
+          "currency": "EUR",
+          "period": "year",
+          "asWritten": "€92,000 a year"
+        },
+        "contract": "permanent",
+        "seniority": "Senior",
+        "workPermit": null,
+        "skills": [],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-deliver-mainwelle-applied@personio.de>": {
+    "roles": [
+      {
+        "title": "Backend-Entwicklerin (m/w/d)",
+        "company": "Mainwelle Energie GmbH",
+        "agency": null,
+        "places": [],
+        "workMode": null,
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": null,
+        "contract": null,
+        "seniority": null,
+        "workPermit": null,
+        "skills": [],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-deliver-mainwelle-rejected@personio.de>": {
+    "roles": [
+      {
+        "title": "Backend-Entwicklerin (m/w/d)",
+        "company": "Mainwelle Energie GmbH",
+        "agency": null,
+        "places": [],
+        "workMode": null,
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": null,
+        "contract": null,
+        "seniority": null,
+        "workPermit": null,
+        "skills": [],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-deliver-brandung-applied@hire.lever.co>": {
+    "roles": [
+      {
+        "title": "Backend Engineer",
+        "company": "Brandung Health",
+        "agency": null,
+        "places": [],
+        "workMode": null,
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": null,
+        "contract": null,
+        "seniority": null,
+        "workPermit": null,
+        "skills": [],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-deliver-moewe-elbe@elbe-talent.example>": {
+    "roles": [
+      {
+        "title": "Senior Backend Engineer",
+        "company": "Möwe Mobility GmbH",
+        "agency": {
+          "name": "Elbe Talent Partners",
+          "client": "Möwe Mobility GmbH"
+        },
+        "places": [
+          {
+            "country": "DE",
+            "city": "Frankfurt"
+          }
+        ],
+        "workMode": "onsite",
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": {
+          "min": 85000,
+          "max": 95000,
+          "currency": "EUR",
+          "period": "year",
+          "asWritten": "€85,000–95,000 a year"
+        },
+        "contract": "permanent",
+        "seniority": "Senior",
+        "workPermit": null,
+        "skills": [
+          "Go",
+          "PostgreSQL"
+        ],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-deliver-moewe-nordstern@nordstern-personal.example>": {
+    "roles": [
+      {
+        "title": "Senior Backend Engineer",
+        "company": "Möwe Mobility GmbH",
+        "agency": {
+          "name": "Nordstern Personalberatung",
+          "client": "Möwe Mobility GmbH"
+        },
+        "places": [
+          {
+            "country": "DE",
+            "city": "Frankfurt"
+          }
+        ],
+        "workMode": "onsite",
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": {
+          "min": 85000,
+          "max": 95000,
+          "currency": "EUR",
+          "period": "year",
+          "asWritten": "85.000–95.000 € brutto pro Jahr"
+        },
+        "contract": "unbefristet",
+        "seniority": "Senior",
+        "workPermit": null,
+        "skills": [
+          "Go",
+          "PostgreSQL"
+        ],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-home-0001@linkedin.com>": {
+    "roles": [
+      {
+        "title": "Backend Developer",
+        "company": "Tejo Cloud",
+        "agency": null,
+        "places": [
+          {
+            "country": "PT",
+            "city": "Lisbon"
+          }
+        ],
+        "workMode": "onsite",
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": null,
+        "contract": null,
+        "seniority": null,
+        "workPermit": null,
+        "skills": [],
+        "languages": [],
+        "applyUrl": "https://www.linkedin.com/jobs/view/3896212138",
+        "extra": {}
+      },
+      {
+        "title": "Senior Backend Engineer",
+        "company": "Douro Fintech",
+        "agency": null,
+        "places": [
+          {
+            "country": "PT",
+            "city": "Lisbon"
+          }
+        ],
+        "workMode": "onsite",
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": null,
+        "contract": null,
+        "seniority": "Senior",
+        "workPermit": null,
+        "skills": [],
+        "languages": [],
+        "applyUrl": "https://www.linkedin.com/jobs/view/3752615804",
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-home-0002@teamtailor.com>": {
+    "roles": [
+      {
+        "title": "Backend Developer",
+        "company": "Alfama Labs",
+        "agency": null,
+        "places": [],
+        "workMode": null,
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": null,
+        "contract": null,
+        "seniority": null,
+        "workPermit": null,
+        "skills": [],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
+  },
+  "<maria-home-0003@ribeira-rh.example>": {
+    "roles": [
+      {
+        "title": "Engenheira de Backend",
+        "company": "Mar Azul Logística",
+        "agency": {
+          "name": "Ribeira Recrutamento",
+          "client": "Mar Azul Logística"
+        },
+        "places": [
+          {
+            "country": "PT",
+            "city": "Lisboa"
+          }
+        ],
+        "workMode": "onsite",
+        "remoteScope": null,
+        "timeZones": null,
+        "pay": {
+          "min": 45000,
+          "max": 55000,
+          "currency": "EUR",
+          "period": "year",
+          "asWritten": "45.000–55.000 € por ano"
+        },
+        "contract": "sem termo",
+        "seniority": null,
+        "workPermit": null,
+        "skills": [
+          "Java",
+          "PostgreSQL"
+        ],
+        "languages": [],
+        "applyUrl": null,
+        "extra": {}
+      }
+    ]
   }
 }

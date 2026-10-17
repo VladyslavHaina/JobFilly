@@ -242,5 +242,75 @@
   },
   "<maria-0555@inbox.example>": {
     "preferences": {}
+  },
+  "<maria-deliver-moved-hamburg@inbox.example>": {
+    "preferences": {
+      "target_roles": [
+        "Backend Engineer"
+      ],
+      "seniority": [
+        "Senior"
+      ],
+      "places": [
+        {
+          "country": "DE",
+          "city": "Hamburg",
+          "mode": "hybrid"
+        },
+        {
+          "country": "DE",
+          "city": "München",
+          "mode": "hybrid"
+        }
+      ],
+      "contracts": [
+        "permanent"
+      ],
+      "min_pay": [
+        {
+          "amount": 75000,
+          "currency": "EUR",
+          "period": "year",
+          "asWritten": "€75,000 a year"
+        }
+      ],
+      "languages": [
+        "English",
+        "German"
+      ],
+      "work_permits": [
+        {
+          "country": null,
+          "text": "EU citizen"
+        }
+      ]
+    }
+  },
+  "<maria-deliver-moved-munich@inbox.example>": {
+    "preferences": {
+      "places": [
+        {
+          "country": "DE",
+          "city": "München",
+          "mode": "hybrid"
+        },
+        {
+          "country": "DE",
+          "city": "Hamburg",
+          "mode": "hybrid"
+        }
+      ],
+      "contracts": [
+        "unbefristet"
+      ],
+      "min_pay": [
+        {
+          "amount": 75000,
+          "currency": "EUR",
+          "period": "year",
+          "asWritten": "75.000 € brutto im Jahr"
+        }
+      ]
+    }
   }
 }
