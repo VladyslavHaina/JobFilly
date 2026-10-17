@@ -24,7 +24,7 @@ export function DraftsPage({ workspaceId }: DraftsPageProps) {
     <div>
       <PageHeader
         title="Drafts"
-        description="Replies written for you from your profile and CVs. They wait in your mailbox's Drafts folder; nothing is sent from here."
+        description="Replies written for you from your profile and CVs. They wait in your mailbox's Drafts folder; one is sent only when you press its Send… and confirm."
       />
       {drafts.isLoading && <Loading />}
       {drafts.error && <Alert>{errorText(drafts.error)}</Alert>}
