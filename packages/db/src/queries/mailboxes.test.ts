@@ -63,6 +63,7 @@ describe("mailboxes", () => {
     expect((await createMailbox(conn.db, b, mailbox)).ok).toBe(true);
     if (!first.ok || !second.ok) throw new Error("expected ok");
     expect(await getMailboxConnection(conn.db, a)).toEqual({
+      workspaceId: a,
       mailboxId: first.mailboxId,
       ...mailbox,
       status: "connected",

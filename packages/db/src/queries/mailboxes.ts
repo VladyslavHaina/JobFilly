@@ -20,6 +20,7 @@ export interface MailboxInsert {
 }
 
 export interface StoredMailbox extends MailboxInsert {
+  workspaceId: string;
   mailboxId: string;
   status: MailboxStatus;
   /** MVP 3: a password mailbox, or a Google one whose secret is its sealed OAuth tokens. */
@@ -41,6 +42,7 @@ export async function createMailbox(
 }
 
 const STORED = {
+  workspaceId: mailboxes.workspaceId,
   mailboxId: mailboxes.id,
   address: mailboxes.address,
   host: mailboxes.host,
