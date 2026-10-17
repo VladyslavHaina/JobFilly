@@ -138,8 +138,7 @@ export interface BatchOutcome {
 export type MailSource = MailClient | ((row: StoredMessage) => Promise<MailClient>);
 
 /** Two calls (a retry) while two are left, else one. */
-export const maxCalls = (run: Pick<AnalysisRun, "callsLeft">): 1 | 2 =>
-  run.callsLeft() >= 2 ? 2 : 1;
+const maxCalls = (run: Pick<AnalysisRun, "callsLeft">): 1 | 2 => (run.callsLeft() >= 2 ? 2 : 1);
 
 /**
  * What the model reads of each message: its headers and the body, fetched now, never kept. A
