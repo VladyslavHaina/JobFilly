@@ -108,6 +108,9 @@ export async function seedMailbox(
   });
   if (!result.ok)
     throw new Error("seedMailbox: the workspace already has a mailbox at that address");
+  // PGlite keeps created_at to the millisecond; without a tick between two seeds the "oldest
+  // mailbox first" order would fall back to the random id and make tests flaky.
+  await new Promise((resolve) => setTimeout(resolve, 2));
   return result.mailboxId;
 }
 
