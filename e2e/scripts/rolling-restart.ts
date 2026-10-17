@@ -48,7 +48,10 @@ interface Poll {
 }
 
 /** Signs the persona in through the proxy; its session cookie, or null. */
-async function signIn(deps: RollingDeps, persona: Persona): Promise<string | null> {
+export async function signIn(
+  deps: Pick<RollingDeps, "fetch">,
+  persona: Persona,
+): Promise<string | null> {
   const response = await deps
     .fetch(`${ORIGIN}/api/auth/sign-in`, {
       method: "POST",

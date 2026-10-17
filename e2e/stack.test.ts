@@ -1434,6 +1434,12 @@ describe("root scripts", () => {
     expect(scripts["e2e:specs"]).toBe("node e2e/stack.ts specs");
   });
 
+  it("run the soak on its own, never as part of pnpm e2e (F10.3)", () => {
+    const scripts = JSON.parse(readRepo("package.json")).scripts;
+    expect(scripts["e2e:soak"]).toBe("node e2e/scripts/soak.ts");
+    expect(scripts.e2e).not.toContain("soak");
+  });
+
   it("keep e2e/.stack out of git", () => {
     expect(readRepo(".gitignore").split("\n")).toContain("e2e/.stack/");
   });
