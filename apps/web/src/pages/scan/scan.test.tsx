@@ -244,6 +244,13 @@ describe("a re-run of setup on the scan page (MVP 3, F1.1)", () => {
         `Re-running setup over the last ${SCAN_WINDOW_DAYS} days of your mail…`,
       ),
     ).toBeTruthy();
+    // Worded for the re-run, not as the first scan.
+    expect(
+      screen.getByText(
+        `A re-run of setup reads the last ${SCAN_WINDOW_DAYS} days of your Inbox and Sent mail again, focusing on your hint if you gave one, and proposes the answers for a new profile; your existing profiles stay as they are.`,
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByText(/The first scan/)).toBeNull();
     expect(screen.queryByRole("button", { name: "Start scan again" })).toBeNull();
     cleanup();
     done = true;

@@ -139,7 +139,11 @@ export function ScanPage({ workspaceId }: { workspaceId: string }) {
     <section>
       <PageHeader
         title="Scan"
-        description={`The first scan reads the last ${SCAN_WINDOW_DAYS} days of your Inbox and Sent mail, sorts out what is plainly not job mail without AI, and lets the AI read the rest, newest first, until it is confident.`}
+        description={
+          progress?.kind === "rerun"
+            ? `A re-run of setup reads the last ${SCAN_WINDOW_DAYS} days of your Inbox and Sent mail again, focusing on your hint if you gave one, and proposes the answers for a new profile; your existing profiles stay as they are.`
+            : `The first scan reads the last ${SCAN_WINDOW_DAYS} days of your Inbox and Sent mail, sorts out what is plainly not job mail without AI, and lets the AI read the rest, newest first, until it is confident.`
+        }
       />
       <Card className="flex flex-col gap-5">
         {progress ? (
