@@ -108,6 +108,13 @@ describe("the confidence tracker (F4.4)", () => {
     });
   });
 
+  it("stops a re-run of setup as confident too (MVP 3, F1.1)", () => {
+    const tracker = createConfidenceTracker("rerun");
+    tracker.begin(firm);
+    expect(tracker.afterBatch(state(firm))).toBeNull();
+    expect(tracker.afterBatch(state(firm))).toEqual({ reason: "confident" });
+  });
+
   it("never stops an Analyze them run as confident", () => {
     const tracker = createConfidenceTracker("analyze_rest");
     tracker.begin(firm);

@@ -57,7 +57,11 @@ export interface AnalysisRun {
   /** The scan run the analysis belongs to; null for the sync. */
   scanId: string | null;
   ai: AiClient;
-  mail: MailClient;
+  /**
+   * Where the bodies are read: one mailbox (the sync's), or each message's own (the scan reads
+   * every mailbox of the workspace, MVP 3 F3.1).
+   */
+  mail: MailSource;
   /** How many model calls are left in the run's budget. */
   callsLeft(): number;
   /** The run was cancelled, or the replica is shutting down: no further call is made. */
@@ -73,6 +77,9 @@ export interface BatchOutcome {
   jobs: string[];
 }
 
+/** One mailbox, or the mailbox each message lives in. */
+export type MailSource = MailClient | ((row: StoredMessage) => Promise<MailClient>);
+
 /** Two calls (a retry) while two are left, else one. */
 export const maxCalls = (run: Pick<AnalysisRun, "callsLeft">): 1 | 2 =>
   run.callsLeft() >= 2 ? 2 : 1;
@@ -82,13 +89,15 @@ export const maxCalls = (run: Pick<AnalysisRun, "callsLeft">): 1 | 2 =>
  * mailbox that can't be read stops the run (RunFailed "mailbox").
  */
 export async function mailItems(
-  mail: MailClient,
+  source: MailSource,
   rows: StoredMessage[],
 ): Promise<Map<string, AiMailItem>> {
   const items = new Map<string, AiMailItem>();
-  for (const { envelope: e } of rows) {
+  for (const row of rows) {
+    const e = row.envelope;
     let body: { text: string } | null;
     try {
+      const mail = typeof source === "function" ? await source(row) : source;
       body = await mail.fetchBody({
         folderPath: e.folderPath,
         uidValidity: e.uidValidity,

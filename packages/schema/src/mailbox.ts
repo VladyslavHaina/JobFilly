@@ -5,9 +5,29 @@ import { MailboxSyncStatusSchema, NEVER_SYNCED } from "./sync";
 export const TlsModeSchema = z.enum(["tls", "starttls", "none"]);
 export type TlsMode = z.infer<typeof TlsModeSchema>;
 
+/** A DNS name: labels of letters, digits and inner hyphens, joined by dots. */
+const HOST_NAME =
+  /^(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\.)*[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?$/;
+/** An IPv6 literal in brackets. */
+const IPV6_LITERAL = /^\[[0-9A-Fa-f:.]+\]$/;
+
+/**
+ * A mail server's host name or IP address and nothing else, the same rule for IMAP and SMTP (MVP 3,
+ * F4): no scheme, user, path, port or space, so no URL trick can point the connection at anything
+ * but the host shown. Any host is allowed (self-hosted servers).
+ */
+export const MailHostSchema = z
+  .string()
+  .trim()
+  .min(1, "Enter the server name")
+  .max(253)
+  .refine((v) => HOST_NAME.test(v) || IPV6_LITERAL.test(v), {
+    message: "Enter only the server name, like mail.example.com",
+  });
+
 /** What packages/mail needs to reach an IMAP server. The password never leaves the server. */
 export const MailConnectionSchema = z.object({
-  host: z.string().trim().min(1, "Enter the server name"),
+  host: MailHostSchema,
   port: z.number().int().min(1).max(65535),
   tlsMode: TlsModeSchema,
   username: z.string().min(1, "Enter the user name"),

@@ -29,8 +29,8 @@ export const DELETED_USER = "Deleted user";
 
 /**
  * What an action was about, by id only. Each kind uses the fields it needs: a draft and its role
- * (draft.saved, mail.sent), the member and their new role or scope (member.*), a mailbox
- * (mailbox.disconnected).
+ * (draft.saved, mail.sent), the member and their new role or scope (member.*), the invite
+ * (member.invited), a mailbox (mailbox.disconnected).
  */
 export const ActivityRefsSchema = z.object({
   draftId: z.uuid().optional(),
@@ -38,6 +38,7 @@ export const ActivityRefsSchema = z.object({
   messageId: z.string().min(1).optional(),
   position: z.number().int().nonnegative().optional(),
   mailboxId: z.uuid().optional(),
+  inviteId: z.uuid().optional(),
   role: RoleSchema.optional(),
   scope: MemberScopeSchema.optional(),
 });
@@ -77,10 +78,14 @@ export type ActivityEntry = z.infer<typeof ActivityEntrySchema>;
 
 export const ActivityListSchema = z.object({
   items: z.array(ActivityEntrySchema),
-  /** The `before` of the next page, null at the end. */
-  nextBefore: IsoDateTimeSchema.nullable(),
+  /**
+   * The `before` of the next page (the last entry's id), null at the end. An id rather than a
+   * time, so entries that share one instant are never split or skipped between pages.
+   */
+  nextBefore: z.uuid().nullable(),
 });
 export type ActivityList = z.infer<typeof ActivityListSchema>;
 
-export const ActivityQuerySchema = z.object({ before: IsoDateTimeSchema.optional() });
+/** GET /activity?before=<entry id>: the page of entries older than that one. */
+export const ActivityQuerySchema = z.object({ before: z.uuid().optional() });
 export type ActivityQuery = z.infer<typeof ActivityQuerySchema>;

@@ -2,6 +2,7 @@
 // app.ts; each handler calls requireRole (403) and validates its input with validJson/validQuery/validParam.
 export type { AppEnv, SignedInEnv, WorkspaceEnv } from "./env";
 export {
+  FORBIDDEN,
   NOT_FOUND,
   requireFullAccess,
   requireJobMail,

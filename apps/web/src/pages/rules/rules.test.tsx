@@ -56,7 +56,8 @@ function setup(role: Role, rules: Rule[] = [ASIA, AGENCIES]) {
       if (!found) return json({ error: "not_found" }, 404);
       const updated = { ...found, enabled: (req.body as { enabled: boolean }).enabled };
       current = current.map((r) => (r.id === updated.id ? updated : r));
-      return updated;
+      // MVP 3 (F2.3): with how many roles the change changes.
+      return { ...updated, changed: 0 };
     },
     [`DELETE ${RULES_PATH}/:id`]: (_req: FakeRequest, params: Record<string, string>) => {
       current = current.filter((r) => r.id !== params.id);
@@ -179,5 +180,81 @@ describe("RulesList", () => {
   it("says when there are no rules yet", async () => {
     setup("editor", []);
     expect(await screen.findByText("No rules yet. Ask the assistant to add one.")).toBeTruthy();
+  });
+});
+
+describe("rules by hand (MVP 3, F2.1, F2.3)", () => {
+  function handApi(rules: Rule[]) {
+    let current = rules;
+    const requests = fakeApi({
+      [`GET ${RULES_PATH}`]: () => ({ items: current }),
+      [`POST ${RULES_PATH}`]: (req: FakeRequest) => {
+        const body = req.body as Pick<Rule, "when" | "then"> & { description: string };
+        const created = rule({
+          id: "00000000-0000-4000-8000-0000000000e9",
+          ...body,
+          description: body.description || "Hide roles whose hours are within UTC+5 to UTC+14",
+          source: "you",
+        });
+        current = [...current, created];
+        return json({ ...created, changed: 4 }, 201);
+      },
+      [`PATCH ${RULES_PATH}/:id`]: (req: FakeRequest, params: Record<string, string>) => {
+        const found = current.find((r) => r.id === params.id) as Rule;
+        const updated = { ...found, ...(req.body as Partial<Rule>) };
+        current = current.map((r) => (r.id === updated.id ? updated : r));
+        return { ...updated, changed: 0 };
+      },
+    });
+    renderInWorkspace(<RulesList workspaceId={WS} profileId={PROFILE} />, { role: "editor" });
+    return requests;
+  }
+
+  it("adds a rule from its conditions and action, and says how many roles it changes", async () => {
+    const requests = handApi([]);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Add a rule" }));
+    const form = within(screen.getByRole("form", { name: "New rule" }));
+    await user.selectOptions(form.getByLabelText("Compared"), "is within");
+    await user.clear(form.getByLabelText("From"));
+    await user.type(form.getByLabelText("From"), "UTC+05:00");
+    await user.clear(form.getByLabelText("To"));
+    await user.type(form.getByLabelText("To"), "UTC+14:00");
+    await user.selectOptions(form.getByLabelText("Then"), "Hide the role");
+    await user.click(form.getByRole("button", { name: "Save rule" }));
+    expect(
+      await screen.findByText("Saved. It changes 4 roles; your inbox shows them within a minute."),
+    ).toBeTruthy();
+    expect(requests.find((r) => r.method === "POST")?.body).toEqual({
+      when: [{ fact: "timeZones", op: "within", value: { from: "UTC+05:00", to: "UTC+14:00" } }],
+      then: "hide",
+      description: "",
+    });
+    const [added] = await rows();
+    expect(added?.textContent).toContain("Hide roles whose hours are within UTC+5 to UTC+14");
+  });
+
+  it("changes a rule's conditions and action", async () => {
+    const requests = handApi([AGENCIES]);
+    const user = userEvent.setup();
+    await user.click(
+      await screen.findByRole("button", {
+        name: `Change the rule "${AGENCIES.description}"`,
+      }),
+    );
+    const form = within(screen.getByRole("form", { name: "Change the rule" }));
+    const words = form.getByLabelText("Words, separated by commas");
+    expect(words).toHaveProperty("value", "Hays");
+    await user.type(words, ", Randstad");
+    await user.selectOptions(form.getByLabelText("Then"), "Ask me before replying");
+    await user.click(form.getByRole("button", { name: "Add a condition" }));
+    await user.click(form.getByRole("button", { name: "Remove condition 2" }));
+    await user.click(form.getByRole("button", { name: "Save rule" }));
+    expect(await screen.findByText("Saved. It changes none of your current roles.")).toBeTruthy();
+    expect(requests.find((r) => r.method === "PATCH")?.body).toEqual({
+      when: [{ fact: "agency", op: "in", value: ["Hays", "Randstad"] }],
+      then: "ask_first",
+      description: AGENCIES.description,
+    });
   });
 });

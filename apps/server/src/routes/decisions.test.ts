@@ -1,4 +1,10 @@
-import { addMember, getHistory, listProfiles } from "@jobfilly/db";
+import {
+  addMember,
+  createConfirmedProfile,
+  getHistory,
+  listProfiles,
+  setRoleProfileChoice,
+} from "@jobfilly/db";
 import {
   DecisionCountSchema,
   DecisionListSchema,
@@ -150,6 +156,42 @@ describe("the decision inbox (F7.2, F7.3)", () => {
     expect(events("decision.created")).toHaveLength(2);
     // No draft while the answer is missing.
     expect(h.mailbox.drafts()).toEqual([]);
+  });
+});
+
+describe("answering with several profiles (MVP 3, F1.3)", () => {
+  it("writes the answer into the profile of the role waiting on it", async () => {
+    const second = await createConfirmedProfile(h.deps.db, h.ws, {
+      name: "Switzerland",
+      entries: [],
+      createdBy: h.maria.id,
+      at: h.deps.clock.now(),
+      alongside: true,
+    });
+    if (!second.ok) throw new Error("expected a profile");
+    await h.deliver(ZURICH, { subject: "Backend in Zurich", roles: [{ needs: [CHF_NEED] }] });
+    await setRoleProfileChoice(
+      h.deps.db,
+      h.ws,
+      { messageId: ZURICH, position: 0 },
+      {
+        profileId: second.profile.id,
+        userId: h.maria.id,
+        at: h.deps.clock.now(),
+      },
+    );
+    await h.evaluate(ZURICH);
+    const chf = await decisionOf("min_pay:CHF:year");
+    const res = await maria.post(`${base}/${chf.id}/answer`, {
+      value: CHF_120,
+      useForSimilar: true,
+    });
+    expect(res.status).toBe(200);
+    expect(await getHistory(h.deps.db, h.ws, second.profile.id)).toMatchObject([
+      { source: "decision", changes: [{ key: "min_pay", value: [CHF_120] }] },
+    ]);
+    // The first profile is left as it was.
+    expect(await getHistory(h.deps.db, h.ws, h.profileId)).toEqual([]);
   });
 });
 

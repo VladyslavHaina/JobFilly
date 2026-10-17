@@ -18,8 +18,10 @@ import {
   LiveEventSchema,
   MAIL_SEND_JOB,
   MAX_SCAN_HINT_LENGTH,
+  MailboxInputSchema,
   MailboxPublicSchema,
   MailboxStatusSchema,
+  MailConnectionSchema,
   MailSendPayloadSchema,
   MessageListQuerySchema,
   NO_REPLY_FLAG_DAYS,
@@ -142,6 +144,41 @@ describe("several mailboxes and OAuth (F3)", () => {
     const { password: _p, ...rest } = { ...mailbox, password: "x" };
     expect(OAuthMailConnectionSchema.safeParse({ ...rest, accessToken: "t" }).success).toBe(true);
     expect(OAuthMailConnectionSchema.safeParse(rest).success).toBe(false);
+  });
+
+  it("takes an IMAP host by the same rule as an SMTP host", () => {
+    const imap = { host: "imap.inbox.example", port: 993, tlsMode: "tls", username: "m" };
+    const smtp = { ...imap, host: "smtp.inbox.example", port: 465 };
+    const schemas = [
+      (host: string) => MailConnectionSchema.safeParse({ ...imap, host, password: "p" }),
+      (host: string) =>
+        MailboxInputSchema.safeParse({
+          ...imap,
+          host,
+          password: "p",
+          address: "maria.santos@inbox.example",
+        }),
+      (host: string) => OAuthMailConnectionSchema.safeParse({ ...imap, host, accessToken: "t" }),
+      (host: string) => SmtpSettingsInputSchema.safeParse({ ...smtp, host }),
+    ];
+    for (const host of ["imap.inbox.example", "localhost", "10.0.0.5", "[::1]", " mail.x.de "]) {
+      for (const parse of schemas) expect(parse(host).success, host).toBe(true);
+    }
+    expect(MailConnectionSchema.parse({ ...imap, host: " mail.x.de ", password: "p" }).host).toBe(
+      "mail.x.de",
+    );
+    for (const host of [
+      "imaps://imap.inbox.example",
+      "imap.inbox.example:993",
+      "maria@imap.inbox.example",
+      "imap.inbox.example/INBOX",
+      "imap inbox.example",
+      "imap.inbox.example\r\nA1 LOGIN",
+      "-bad.example",
+      "",
+    ]) {
+      for (const parse of schemas) expect(parse(host).success, host).toBe(false);
+    }
   });
 
   it("filters the inbox by a mailbox id", () => {

@@ -1,6 +1,7 @@
 import type {
   Invite,
   InviteStatus,
+  MemberScope,
   PendingInvitation,
   Role,
   WorkspaceSummary,
@@ -31,6 +32,7 @@ function toInvite(row: InviteRow, now: Date): Invite {
     status: inviteStatus(row, now),
     createdAt: row.createdAt.toISOString(),
     expiresAt: row.expiresAt.toISOString(),
+    scope: row.scope,
   };
 }
 
@@ -48,6 +50,8 @@ export async function createInvite(
   input: {
     email: string;
     role: Role;
+    /** MVP 3 (F6.1): what the member will see; everything when left out. */
+    scope?: MemberScope;
     tokenHash: string;
     invitedBy: string;
     now: Date;
@@ -60,6 +64,7 @@ export async function createInvite(
       workspaceId,
       email: input.email.toLowerCase(),
       role: input.role,
+      scope: input.scope ?? "everything",
       tokenHash: input.tokenHash,
       invitedBy: input.invitedBy,
       createdAt: input.now,
@@ -154,7 +159,7 @@ export async function getInviteForResponse(
 
 /**
  * Accepts a pending invite: marks it accepted and makes the user a member with the invite's role
- * (someone already a member keeps their role). Null when the invite is no longer pending.
+ * and scope (someone already a member keeps theirs). Null when the invite is no longer pending.
  */
 export async function acceptInvite(
   db: Database,
@@ -166,11 +171,16 @@ export async function acceptInvite(
       .update(invites)
       .set({ acceptedAt: input.now })
       .where(and(eq(invites.id, inviteId), isOpen(input.now)))
-      .returning({ workspaceId: invites.workspaceId, role: invites.role });
+      .returning({ workspaceId: invites.workspaceId, role: invites.role, scope: invites.scope });
     if (!row) return null;
     await tx
       .insert(memberships)
-      .values({ workspaceId: row.workspaceId, userId: input.userId, role: row.role })
+      .values({
+        workspaceId: row.workspaceId,
+        userId: input.userId,
+        role: row.role,
+        scope: row.scope,
+      })
       .onConflictDoNothing();
     return getMembership(tx, row.workspaceId, input.userId);
   });

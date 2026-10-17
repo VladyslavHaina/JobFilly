@@ -11,10 +11,10 @@ import {
   type ProfileValue,
 } from "@jobfilly/schema";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { ApiError, api } from "../../api";
-import { Alert, Button, Card, Loading, PageHeader } from "../../components";
+import { Alert, Button, Card, Loading, PageHeader, TextField } from "../../components";
 import { useWorkspace } from "../../hooks";
 import { paths } from "../../paths";
 import { AnswerEditor } from "./answers";
@@ -33,6 +33,9 @@ import { ScanFirst } from "./ScanFirst";
 // each, corrections by clicking, up to five extra questions found in the mail, and Confirm, which
 // saves the answers as the profile. Low-confidence and empty answers stand out, unanswered extra
 // questions too. Viewers see it all, disabled.
+//
+// MVP 3 (F1.1): after a re-run of setup the form is the re-run's. It reads the mail in its hint's
+// focus, and Confirm saves it as a new profile, named here, next to the others.
 
 const errorText = (error: unknown) =>
   error instanceof ApiError ? error.message : "That didn't work. Try again.";
@@ -168,6 +171,8 @@ function Form({ form, confirmed }: { form: IntakeForm; confirmed: boolean }) {
   const { workspaceId, can } = useWorkspace();
   const client = useQueryClient();
   const navigate = useNavigate();
+  const rerun = form.rerun ?? null;
+  const [name, setName] = useState("");
   const edits = new Map(form.edits.map((e) => [e.key, e]));
   const disabled = !can.edit || confirmed;
   const extrasPending = form.extras.status === "pending";
@@ -200,8 +205,16 @@ function Form({ form, confirmed }: { form: IntakeForm; confirmed: boolean }) {
   const confirm = useMutation({
     scope: writes,
     mutationFn: () =>
-      api(`${intakeApi(workspaceId)}/confirm`, ProfileSchema, { method: "POST", body: {} }),
+      api(`${intakeApi(workspaceId)}/confirm`, ProfileSchema, {
+        method: "POST",
+        body: rerun ? { name: name.trim() } : {},
+      }),
     onSuccess: async (profile) => {
+      if (rerun) {
+        await client.invalidateQueries({ queryKey: profilesKey(workspaceId) });
+        await navigate(`${paths.profile(workspaceId)}?profile=${encodeURIComponent(profile.id)}`);
+        return;
+      }
       client.setQueryData(profilesKey(workspaceId), [profile]);
       await navigate(paths.profile(workspaceId));
     },
@@ -232,16 +245,26 @@ function Form({ form, confirmed }: { form: IntakeForm; confirmed: boolean }) {
       })}
       <Extras form={form} edits={edits} disabled={disabled} onChange={change} />
       {!confirmed && (
-        <Card className="flex flex-wrap items-center justify-between gap-3">
+        <Card className="flex flex-wrap items-end justify-between gap-3">
           <p className="text-sm text-stone-600">
             {!can.edit
               ? "Only editors and admins can change and confirm the answers."
               : extrasPending
                 ? "You can confirm once the questions from your mail have shown up."
-                : `Confirm saves these answers as your profile, “${DEFAULT_PROFILE_NAME}”. You can rename it later.`}
+                : rerun
+                  ? "Confirm saves these answers as a new profile next to your others, which stay as they are."
+                  : `Confirm saves these answers as your profile, “${DEFAULT_PROFILE_NAME}”. You can rename it later.`}
           </p>
+          {rerun && can.edit && (
+            <TextField
+              label="Name of the new profile"
+              value={name}
+              maxLength={100}
+              onChange={(e) => setName(e.target.value)}
+            />
+          )}
           <Button
-            disabled={!can.edit || extrasPending}
+            disabled={!can.edit || extrasPending || (rerun !== null && !name.trim())}
             busy={confirm.isPending}
             onClick={() => confirm.mutate()}
           >
@@ -259,12 +282,18 @@ export function IntakePage({ workspaceId }: { workspaceId: string }) {
   const gate = useFormOpen(workspaceId);
   const form = useIntakeForm(workspaceId, gate.open);
   const profiles = useProfiles(workspaceId);
-  const confirmed = profiles.data?.[0];
+  const rerun = form.data?.rerun ?? null;
+  // A re-run's form is confirmed once it made its profile; the first one once there is a profile.
+  const confirmed = rerun ? rerun.confirmed : !!profiles.data?.[0];
 
   const header = (
     <PageHeader
       title="Your job search"
-      description="What the scan understood from your mail. Check each answer, correct it with a click, then confirm."
+      description={
+        rerun
+          ? `What the re-run of setup understood from your mail${rerun.hint ? `, with your note “${rerun.hint}”` : ""}. Check each answer, correct it with a click, then confirm it as a new profile.`
+          : "What the scan understood from your mail. Check each answer, correct it with a click, then confirm."
+      }
     />
   );
 
@@ -283,7 +312,9 @@ export function IntakePage({ workspaceId }: { workspaceId: string }) {
       <section>
         {header}
         <Alert tone="info" title="Not ready yet">
-          The form fills itself in once the first scan has stopped.{" "}
+          {gate.rerun
+            ? "The form fills itself in once the re-run of setup has stopped."
+            : "The form fills itself in once the first scan has stopped."}{" "}
           <ScanFirst workspaceId={workspaceId} firstScan={gate.firstScan} />
         </Alert>
       </section>
@@ -295,7 +326,7 @@ export function IntakePage({ workspaceId }: { workspaceId: string }) {
       <div className="mb-4 flex flex-col gap-3">
         {confirmed && (
           <Alert tone="success" title="Confirmed">
-            Saved as “{confirmed.name}”.{" "}
+            {rerun ? "Saved as a new profile." : `Saved as “${profiles.data?.[0]?.name ?? ""}”.`}{" "}
             <Link className="font-medium underline" to={paths.profile(workspaceId)}>
               Open your profile
             </Link>
@@ -309,7 +340,7 @@ export function IntakePage({ workspaceId }: { workspaceId: string }) {
       </div>
       {form.isPending && <Loading />}
       {form.isError && <Alert>{errorText(form.error)}</Alert>}
-      {form.data && <Form form={form.data} confirmed={!!confirmed} />}
+      {form.data && <Form form={form.data} confirmed={confirmed} />}
     </section>
   );
 }

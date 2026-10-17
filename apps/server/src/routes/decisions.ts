@@ -20,6 +20,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { NOT_FOUND, requireRole, validJson, validParam, type WorkspaceEnv } from "../access";
 import type { AppDeps } from "../deps";
+import { profileOfRole } from "../pipeline/assign";
 import { afterProfileChanges, requestReevaluation, writeProfileChanges } from "../profile/changes";
 
 // The decision inbox (F7): list, the open count for the navigation, answer, Not now, Don't ask
@@ -80,10 +81,15 @@ export function decisionsRoutes(deps: AppDeps) {
         if (answer === null) return c.json(DOESNT_FIT, 400);
         const item = answer.kind === "item" ? answer.item : answer.words;
         const profileKey = useForSimilar && answer.kind === "item" ? decision.profileKey : null;
+        // The answer goes into the waiting role's profile (MVP 3, F1.3); a decision no role
+        // waits on any more goes to the first profile.
+        const waiting = decision.waiting[0];
         const profile =
           profileKey === null
             ? null
-            : (await listProfiles(deps.db, ws)).find((p) => p.confirmedAt !== null);
+            : waiting
+              ? await profileOfRole(deps, ws, waiting)
+              : (await listProfiles(deps.db, ws)).find((p) => p.confirmedAt !== null);
         if (profileKey !== null && !profile) {
           const message = "Confirm your profile first, so the answer has somewhere to go";
           return c.json({ error: "conflict", message }, 409);

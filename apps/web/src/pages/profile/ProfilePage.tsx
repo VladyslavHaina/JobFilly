@@ -1,16 +1,25 @@
 import {
   type Profile,
+  ProfileChangeResultSchema,
   type ProfileEntry,
   type ProfileKey,
-  ProfileSchema,
   type ProfileValue,
 } from "@jobfilly/schema";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, type ReactNode, useState } from "react";
-import { Link } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { ApiError, api } from "../../api";
-import { Alert, Button, Card, Loading, PageHeader, TextField } from "../../components";
-import { useWorkspace } from "../../hooks";
+import {
+  Alert,
+  Button,
+  Card,
+  Loading,
+  PageHeader,
+  SelectField,
+  Switch,
+  TextField,
+} from "../../components";
+import { queryKeys, useWorkspace } from "../../hooks";
 import { paths } from "../../paths";
 import { ProfileHistory } from "../assistant";
 import { ProfileCvPrompt } from "../cvs";
@@ -21,10 +30,15 @@ import { profilesApi, profilesKey, useFormOpen, useProfiles } from "../intake/qu
 import { ScanFirst } from "../intake/ScanFirst";
 import { RulesList } from "../rules";
 import { RerunSetup } from "../scan/RerunSetup";
+import { changedText } from "./changed";
 
 // The confirmed profile (F6.5): every entry with where it came from — the scan, or you — and a
 // name that can be changed. Editors change answers with the same clicks as the intake form;
 // viewers see it all, disabled (F6.7).
+//
+// MVP 3: with several profiles (F1.1) a switcher picks the one shown (?profile=<id>), each is
+// switched on or off (F1.2; the server keeps one on), and a changed answer says how many of the
+// profile's roles it changes (F2.3).
 
 const errorText = (error: unknown) =>
   error instanceof ApiError ? error.message : "That didn't work. Try again.";
@@ -54,17 +68,69 @@ function useUpdateProfile(profile: Profile) {
   const { workspaceId } = useWorkspace();
   const client = useQueryClient();
   return useMutation({
-    mutationFn: (patch: { name?: string; entries?: { key: ProfileKey; value: ProfileValue }[] }) =>
-      api(`${profilesApi(workspaceId)}/${encodeURIComponent(profile.id)}`, ProfileSchema, {
-        method: "PATCH",
-        body: patch,
-      }),
-    onSuccess: (updated) => {
+    mutationFn: (patch: {
+      name?: string;
+      enabled?: boolean;
+      entries?: { key: ProfileKey; value: ProfileValue }[];
+    }) =>
+      api(
+        `${profilesApi(workspaceId)}/${encodeURIComponent(profile.id)}`,
+        ProfileChangeResultSchema,
+        { method: "PATCH", body: patch },
+      ),
+    onSuccess: ({ changed: _changed, ...updated }, patch) => {
       client.setQueryData<Profile[]>(profilesKey(workspaceId), (current) =>
         current?.map((p) => (p.id === updated.id ? updated : p)),
       );
+      // Switching a profile on or off moves roles between profiles.
+      if (patch.enabled !== undefined) {
+        void client.invalidateQueries({ queryKey: queryKeys.area(workspaceId, "messages") });
+      }
     },
   });
+}
+
+/** Whether roles go to this profile (F1.2). */
+function OnOff({ profile }: { profile: Profile }) {
+  const { can } = useWorkspace();
+  const update = useUpdateProfile(profile);
+  const on = profile.enabled !== false;
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center gap-3">
+        <Switch
+          label="Give roles to this profile"
+          checked={on}
+          disabled={!can.edit || update.isPending}
+          onChange={(enabled) => update.mutate({ enabled })}
+        />
+        <span className="text-sm text-stone-600">{on ? "On" : "Off: it gets no roles"}</span>
+      </div>
+      {update.error && <Alert>{errorText(update.error)}</Alert>}
+    </div>
+  );
+}
+
+/** Which profile the page shows, when there are several (F1.1). */
+function Switcher(props: {
+  profiles: Profile[];
+  selected: string;
+  onSelect: (id: string) => void;
+}) {
+  return (
+    <SelectField
+      label="Profile"
+      value={props.selected}
+      onChange={(e) => props.onSelect(e.target.value)}
+      className="max-w-xs"
+    >
+      {props.profiles.map((p) => (
+        <option key={p.id} value={p.id}>
+          {p.enabled === false ? `${p.name} (off)` : p.name}
+        </option>
+      ))}
+    </SelectField>
+  );
 }
 
 function Rename({ profile }: { profile: Profile }) {
@@ -109,6 +175,9 @@ function Entries({ profile }: { profile: Profile }) {
   return (
     <div className="flex flex-col gap-4">
       {update.error && <Alert>{errorText(update.error)}</Alert>}
+      {update.data && update.variables?.entries && (
+        <Alert tone="success">{changedText(update.data.changed)}</Alert>
+      )}
       {profile.entries.map((entry) => (
         <section
           key={entry.key}
@@ -193,9 +262,10 @@ function NoProfileYet({ workspaceId }: { workspaceId: string }) {
 export function ProfilePage({ workspaceId }: { workspaceId: string }) {
   const { can } = useWorkspace();
   const profiles = useProfiles(workspaceId);
+  const [search, setSearch] = useSearchParams();
   if (profiles.isPending) return <Loading />;
   if (profiles.isError) return <Alert>{errorText(profiles.error)}</Alert>;
-  const profile = profiles.data[0];
+  const profile = profiles.data.find((p) => p.id === search.get("profile")) ?? profiles.data[0];
   if (!profile) return <NoProfileYet workspaceId={workspaceId} />;
   return (
     <section>
@@ -204,7 +274,7 @@ export function ProfilePage({ workspaceId }: { workspaceId: string }) {
         description={
           profile.confirmedAt ? `Confirmed ${formatFullDate(profile.confirmedAt)}` : undefined
         }
-        actions={<Rename profile={profile} />}
+        actions={<Rename key={profile.id} profile={profile} />}
       />
       {!can.edit && (
         <div className="mb-4">
@@ -212,10 +282,21 @@ export function ProfilePage({ workspaceId }: { workspaceId: string }) {
         </div>
       )}
       <RerunSetup workspaceId={workspaceId} />
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
+        {profiles.data.length > 1 && (
+          <Switcher
+            profiles={profiles.data}
+            selected={profile.id}
+            onSelect={(id) => setSearch({ profile: id })}
+          />
+        )}
+        {/* Keyed by the profile, so the switch's state never carries over to another one. */}
+        <OnOff key={profile.id} profile={profile} />
+      </div>
       <div className="mb-4">
         <ProfileCvPrompt workspaceId={workspaceId} profileId={profile.id} />
       </div>
-      <Entries profile={profile} />
+      <Entries key={profile.id} profile={profile} />
       <div className="mt-6 flex flex-col gap-6">
         <RulesList workspaceId={workspaceId} profileId={profile.id} />
         <ProfileHistory workspaceId={workspaceId} profileId={profile.id} />

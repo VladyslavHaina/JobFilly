@@ -284,6 +284,16 @@ export const ProfilePatchSchema = z.object({
 export type ProfilePatch = z.infer<typeof ProfilePatchSchema>;
 
 /**
+ * PATCH /profiles/:profileId's answer: the profile, with how many of its current roles the change
+ * changed (F2.3; 0 for a rename). Switching a profile on or off moves roles between profiles, which
+ * the re-evaluation shows; it counts no roles here.
+ */
+export const ProfileChangeResultSchema = ProfileSchema.extend({
+  changed: z.number().int().nonnegative(),
+});
+export type ProfileChangeResult = z.infer<typeof ProfileChangeResultSchema>;
+
+/**
  * The preferences one of the user's own replies states (task prefs.v1): for each core key the
  * reply mentions, values of that key's shape, plus extra facts as {slug: text}.
  */
@@ -376,6 +386,12 @@ export const IntakeFormSchema = z.object({
     status: IntakeExtrasStatusSchema,
     questions: z.array(ExtraQuestionSchema).max(MAX_EXTRA_QUESTIONS),
   }),
+  /**
+   * MVP 3 (F1.1): set when the form is a re-run of setup's, whose Confirm makes a new profile next
+   * to the others: the hint as typed (null without one), and whether it was confirmed already.
+   * Absent for the first scan's form.
+   */
+  rerun: z.object({ hint: z.string().nullable(), confirmed: z.boolean() }).nullable().optional(),
 });
 export type IntakeForm = z.infer<typeof IntakeFormSchema>;
 

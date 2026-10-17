@@ -19,6 +19,9 @@ import { saveAnalysis, saveEnvelopes } from "./messages";
 import { createScan, stopScan } from "./scans";
 import { listMailboxesToSync, recordSyncFailure } from "./sync";
 
+// PGlite keeps created_at to the millisecond: a tick keeps "oldest first" from tying.
+const tick = () => new Promise((resolve) => setTimeout(resolve, 2));
+
 let conn: DatabaseConnection;
 let a: string;
 let b: string;
@@ -58,6 +61,7 @@ describe("mailboxes", () => {
     const first = await createMailbox(conn.db, a, mailbox);
     expect(first.ok).toBe(true);
     expect(await createMailbox(conn.db, a, mailbox)).toEqual({ ok: false, reason: "exists" });
+    await tick();
     const second = await createMailbox(conn.db, a, { ...mailbox, address: "other@inbox.example" });
     expect(second.ok).toBe(true);
     expect((await createMailbox(conn.db, b, mailbox)).ok).toBe(true);
@@ -91,6 +95,7 @@ describe("mailboxes", () => {
 
   it("lists every mailbox of the workspace, the oldest first (F3.1)", async () => {
     const first = await createMailbox(conn.db, a, mailbox);
+    await tick();
     const second = await createMailbox(conn.db, a, {
       ...mailbox,
       address: "maria.gmail@gmail.example",

@@ -257,6 +257,47 @@ describe("sending a message (F8.9)", () => {
   });
 });
 
+describe("an answer to a question (MVP 3, F8.1)", () => {
+  it("links the roles, messages, decisions and drafts it used to their pages", async () => {
+    const role = "<sg@merlion.example>";
+    open("viewer", {
+      thread: {
+        id: THREAD,
+        messages: [
+          message("01", "user", "What's waiting on me?"),
+          message("02", "assistant", "One decision and one draft wait on you.", {
+            links: [
+              { kind: "role", label: "Backend Engineer at Merlion", messageId: role, position: 0 },
+              { kind: "message", label: "A role for you", messageId: role, position: null },
+              { kind: "decision", label: "Minimum pay?", messageId: null, position: null },
+              { kind: "draft", label: "Draft: Backend Engineer", messageId: role, position: 0 },
+            ],
+          }),
+        ],
+        proposals: [],
+      },
+    });
+    const panel = await openPanel();
+    const list = await within(panel).findByRole("list", { name: "Used in this answer" });
+    const links = within(list)
+      .getAllByRole("link")
+      .map((a) => [a.textContent, a.getAttribute("href")]);
+    expect(links).toEqual([
+      ["Role: Backend Engineer at Merlion", paths.message(WS, role)],
+      ["Message: A role for you", paths.message(WS, role)],
+      ["Decision: Minimum pay?", paths.decisions(WS)],
+      ["Draft: Backend Engineer", paths.drafts(WS)],
+    ]);
+  });
+
+  it("shows no links under a reply that has none", async () => {
+    open("viewer", withProposal(card()));
+    const panel = await openPanel();
+    await within(panel).findByText("Here is a proposal.");
+    expect(within(panel).queryByRole("list", { name: "Used in this answer" })).toBeNull();
+  });
+});
+
 describe("a proposal card (F8.2, F8.5, F8.8)", () => {
   it("shows the change before and after and its impact, with the mailbox's drafts staying", async () => {
     open("editor", withProposal(card()));

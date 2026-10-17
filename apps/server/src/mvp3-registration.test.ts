@@ -55,14 +55,18 @@ interface Route {
   role: "viewer" | "editor" | "admin";
   /** Open to a member who sees the job pipeline only. */
   pipeline: boolean;
-  /** Once its slice has built it: what it answers here instead of 501. */
-  built?: number;
+  /**
+   * Once its slice has built it: the status it answers here instead of 501, or true when the
+   * slice's own tests pin the answer and this test only checks it is no longer 501.
+   */
+  built?: number | true;
 }
 
 const ws = () => `/api/workspaces/${maria.workspaceId}`;
 const ROUTES = (): Route[] => [
-  { method: "get", path: `${ws()}/pipeline`, role: "viewer", pipeline: true },
-  { method: "put", path: `${ws()}/pipeline/stage`, role: "editor", pipeline: true },
+  // The applications slice: the empty pipeline, and an empty body.
+  { method: "get", path: `${ws()}/pipeline`, role: "viewer", pipeline: true, built: 200 },
+  { method: "put", path: `${ws()}/pipeline/stage`, role: "editor", pipeline: true, built: 400 },
   // The send slice: no such draft or mailbox, and an empty body.
   {
     method: "get",
@@ -99,9 +103,9 @@ const ROUTES = (): Route[] => [
     pipeline: true,
     built: 400,
   },
-  { method: "get", path: `${ws()}/export`, role: "admin", pipeline: false },
-  { method: "get", path: `${ws()}/activity`, role: "admin", pipeline: true },
-  { method: "delete", path: ws(), role: "admin", pipeline: true },
+  { method: "get", path: `${ws()}/export`, role: "admin", pipeline: false, built: true },
+  { method: "get", path: `${ws()}/activity`, role: "admin", pipeline: true, built: true },
+  { method: "delete", path: ws(), role: "admin", pipeline: true, built: true },
 ];
 
 const call = (client: TestClient | undefined, r: { method: Method; path: string }) => {
@@ -131,6 +135,10 @@ describe("the MVP 3 workspace routes", () => {
         r.role === "viewer" ? (r.built ?? 501) : 403,
       ]);
       const res = await call(clients.maria, r);
+      if (r.built === true) {
+        expect([r.method, r.path, res.status]).not.toEqual([r.method, r.path, 501]);
+        continue;
+      }
       expect([r.method, r.path, res.status]).toEqual([r.method, r.path, r.built ?? 501]);
       if (!r.built) expect(await res.json()).toMatchObject({ error: "not_implemented" });
     }
@@ -140,6 +148,10 @@ describe("the MVP 3 workspace routes", () => {
     await setMemberScope(deps.db, maria.workspaceId, tom.id, "pipeline");
     for (const r of ROUTES()) {
       const status = (await call(clients.tom, r)).status;
+      if (r.built === true) {
+        expect([r.method, r.path, status === 404]).toEqual([r.method, r.path, !r.pipeline]);
+        continue;
+      }
       expect([r.method, r.path, status]).toEqual([
         r.method,
         r.path,
@@ -153,8 +165,9 @@ describe("the MVP 3 workspace routes", () => {
       method: "put" as const,
       path: `${ws()}/messages/${enc("<m@agency.example>")}/roles/0/profile`,
     };
-    // An unknown message is no job mail: 404 for a pipeline-only member, the stub for the rest.
-    expect((await call(clients.tom, r)).status).toBe(501);
+    // An unknown message is no job mail: 404 for a pipeline-only member; the rest reach the
+    // route (built by the profiles slice), which refuses the empty body.
+    expect((await call(clients.tom, r)).status).toBe(400);
     await setMemberScope(deps.db, maria.workspaceId, tom.id, "pipeline");
     expect((await call(clients.tom, r)).status).toBe(404);
   });
@@ -165,9 +178,10 @@ describe("the MVP 3 routes outside a workspace", () => {
     const app = createApp(deps);
     for (const path of ["/api/account/deletion"]) {
       expect((await app.request(path)).status).toBe(401);
-      expect((await clients.maria?.get(path))?.status).toBe(501);
     }
-    expect((await clients.maria?.delete("/api/account"))?.status).toBe(501);
+    // Built (workspace-admin): what deleting the account takes; deleting it needs the password.
+    expect((await clients.maria?.get("/api/account/deletion"))?.status).toBe(200);
+    expect((await clients.maria?.delete("/api/account"))?.status).toBe(400);
     // Built by the mailboxes slice (routes/oauth.test.ts): still behind the signed-in user.
     expect((await app.request("/api/oauth/providers")).status).toBe(401);
     expect((await app.request("/api/oauth/google/callback?state=s")).status).toBe(401);

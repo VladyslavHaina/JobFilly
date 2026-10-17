@@ -288,6 +288,8 @@ describe("what the pipeline has to evaluate", () => {
     expect(await getEvaluations(conn.db, ws, [id(1)])).toEqual([
       {
         messageId: id(1),
+        // MVP 3 (F1.3): saved without a profile, as before MVP 3.
+        profileId: null,
         ...evaluation(0, 80),
         stale: false,
         evaluatedAt: later(2).toISOString(),

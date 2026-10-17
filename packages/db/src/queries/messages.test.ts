@@ -9,6 +9,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { type DatabaseConnection, queryRows } from "../client";
 import { openTestDatabase } from "../testing";
 import { registerAccount } from "./accounts";
+import { loadPipelineRows, setRoleStage } from "./applications";
+import { getRoleProfileChoices, setRoleProfileChoice } from "./assignments";
 import { claimDraft, getDraftClaim } from "./draft-claims";
 import {
   getEvaluations,
@@ -33,15 +35,18 @@ import {
   saveEnvelopes,
   savePreferences,
 } from "./messages";
+import { createConfirmedProfile } from "./profiles";
 import { createScan } from "./scans";
 
 let conn: DatabaseConnection;
 let ws: string;
 let other: string;
+let userId: string;
 
 beforeEach(async () => {
   conn = await openTestDatabase();
   const ids: string[] = [];
+  const users: string[] = [];
   for (const key of ["maria", "tom"]) {
     const r = await registerAccount(conn.db, {
       name: key,
@@ -51,8 +56,10 @@ beforeEach(async () => {
     });
     if (!r.ok) throw new Error("expected ok");
     ids.push(r.workspaceId);
+    users.push(r.user.id);
   }
   [ws, other] = ids as [string, string];
+  [userId] = users as [string];
 });
 afterEach(() => conn.close());
 
@@ -242,6 +249,65 @@ describe("analysis", () => {
       roles: [role("D")],
     });
     expect((await getRoles(conn.db, ws, e.messageId)).map((r) => r.title)).toEqual(["D"]);
+  });
+
+  it("keeps a stage and a profile set by hand when the message is analysed again", async () => {
+    const e = envelope(1);
+    await saveEnvelopes(conn.db, ws, [at(e, "job_alert")]);
+    const analyse = (titles: string[]) =>
+      saveAnalysis(conn.db, ws, {
+        messageId: e.messageId,
+        scanId: null,
+        category: "job_alert",
+        roles: titles.map(role),
+      });
+    await analyse(["A", "B", "C"]);
+    const profile = await createConfirmedProfile(conn.db, ws, {
+      name: "p",
+      entries: [],
+      createdBy: userId,
+      at: new Date("2026-09-02T10:00:00Z"),
+    });
+    if (!profile.ok) throw new Error("expected a profile");
+    const setAt = new Date("2026-09-03T10:00:00Z");
+    for (const position of [1, 2]) {
+      const ref = { messageId: e.messageId, position };
+      await setRoleStage(conn.db, ws, {
+        roles: [ref],
+        role: ref,
+        stage: "interview",
+        userId,
+        at: setAt,
+      });
+      await setRoleProfileChoice(conn.db, ws, ref, {
+        profileId: profile.profile.id,
+        userId,
+        at: setAt,
+      });
+    }
+
+    // A re-run of setup analyses the mail again: the same roles, then one fewer.
+    await analyse(["A", "B", "C"]);
+    const manual = async () =>
+      (await loadPipelineRows(conn.db, ws)).manual.sort((x, y) => x.position - y.position);
+    expect(await manual()).toEqual([
+      { messageId: e.messageId, position: 1, stage: "interview", setAt },
+      { messageId: e.messageId, position: 2, stage: "interview", setAt },
+    ]);
+    expect(await getRoleProfileChoices(conn.db, ws, e.messageId)).toEqual(
+      new Map([
+        [1, profile.profile.id],
+        [2, profile.profile.id],
+      ]),
+    );
+    await analyse(["A", "B"]);
+    expect((await manual()).map((m) => m.position)).toEqual([1]);
+    expect([...(await getRoleProfileChoices(conn.db, ws, e.messageId)).keys()]).toEqual([1]);
+    const [stage] = await queryRows<{ set_by: string }>(
+      conn.db,
+      sql`select set_by from role_stages where workspace_id = ${ws}`,
+    );
+    expect(stage?.set_by).toBe(userId);
   });
 
   it("does nothing for a message of another workspace", async () => {

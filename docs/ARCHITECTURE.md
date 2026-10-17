@@ -16,7 +16,7 @@ The UI only ever talks to the server over HTTP from the same origin.
 | `packages/schema` | Zod schemas: every API payload, every AI structured output, job facts, profiles, rules | — |
 | `packages/core` | Scan decisions, intake aggregation, profiles, rules engine, matching, decisions, CV choice. Pure logic, no I/O | schema |
 | `packages/db` | PostgreSQL through Drizzle: tables, migrations, workspace-scoped queries, the job queue | schema |
-| `packages/mail` | IMAP (imapflow, password or XOAUTH2), parsing (mailparser), building drafts, and sending one confirmed message (nodemailer, `src/smtp` only) | schema |
+| `packages/mail` | IMAP (imapflow, password or XOAUTH2), parsing (mailparser), building drafts, and building and sending one confirmed message (`composeOutgoing`; nodemailer, `src/smtp` only) | schema |
 | `packages/ai` | Provider registry (AI SDK), per-task models, prompts, structured output, usage | schema |
 | `apps/server` | HTTP API (Hono), sessions, workspace access, workers, live updates, config, logs | all packages |
 | `apps/web` | React UI (Vite, Tailwind, TanStack Query, React Router) | schema; server types only |
@@ -115,7 +115,8 @@ Rules:
   replicas can't connect a mailbox during the rolling update), with `auth_kind` (password or
   google, whose sealed secret is its OAuth tokens as JSON), the `reconnect_needed` status and
   SMTP settings; `messages.mailbox_id` (composite FK, cascade: disconnecting deletes its messages
-  and all tied to them, F7.4; backfilled; null reads as the first mailbox; a Message-ID seen in a
+  and all tied to them, F7.4, which `GET /mailboxes/:mailboxId/removal` counts first,
+  `getMailboxRemovalSummary`; backfilled; null reads as the first mailbox; a Message-ID seen in a
   second mailbox stays the first one's message); `oauth_states`; `profiles.enabled`;
   `scans.hint` and `scans.focus` and the `rerun` kind; the role's profile on `role_evaluations`
   (`profile_id`, reason, source) and an editor's choice in `role_profile_choices`; `sends` (one
@@ -134,6 +135,12 @@ Rules:
   already in the mailbox stays there (F2.5) and the next evaluation chooses a CV again.
   Evaluations and stored match answers belong to their role (`roles`), drafts, overrides, sender
   checks and decision rows to their message.
+- MVP 3: a stage set by hand (`role_stages`) and an editor's profile for a role
+  (`role_profile_choices`) belong to the role too, and `saveAnalysis` replaces a message's roles,
+  so it carries both over by message and position in its own transaction: a re-run of setup
+  analyses mail again and keeps what was chosen by hand. A position the new analysis no longer
+  has takes its choices with it. The CV choice and the decision rows belong to the message, so a
+  re-analysis leaves them as they are.
 - A draft row holds only the reply text and where its copy is in the mailbox (folder, UID,
   UIDVALIDITY, the draft's Message-ID, a content hash, the name of the file attached to it); the
   quote of the original is added when the MIME message is built, so no mail body is stored. A partial unique index allows one live
@@ -235,6 +242,20 @@ Rules:
   `pipeline/stages.ts` (`MessageInput`, `StageContext`, `CvChoiceResult`, the reply stage's
   input); each stage's body lives in its own file and slice (`sender.ts` and `cv-choice.ts`:
   cvs-senders, `match.ts`: rules-match, `reply.ts`: replies).
+- MVP 3 (F1.3): the assign step (`pipeline/assign.ts`) runs before a role's cv-choice and match
+  stages. The role goes to the best profile that is on (`assignProfile`, packages/core
+  `src/assign`: places, title, languages, contract and the profile's hide rules, ties to the
+  oldest, the reason in plain words), or to the one an editor chose (`role_profile_choices`);
+  profiles that are off get no roles. Matching, CV choice and drafting then use that profile and
+  its rules, and the evaluation stores it with its reason and source
+  (`role_evaluations.profile_id`). Every later step that needs a role's profile (the reply stage,
+  a draft, a decision's answer) reads it with `profileOfRole`: the profile the role was evaluated
+  with, else the first that is on, else the first confirmed one.
+- MVP 3 (F1.1): a re-run of setup (`POST /scans` with kind `rerun` and an optional hint) runs the
+  scan again over the last 90 days. Its hint is read into a `ScanFocus` once (focus.v1) and
+  stored with the scan (`scans.focus`); the run's intake proposal is the mail in focus
+  (`focusIntakeInput`), and it reads the pending likely job mail with the focus's words first
+  (`focusFirst`). Its Confirm makes a new profile next to the others.
 - The sender stage runs only when the sender check is missing (new mail, the backlog) or stale (a
   sender mark changed, or its failed domain lookup has expired). It is the only stage that reads the
   mail body (`ctx.body()`, fetched once, never stored). A re-evaluation after a profile, rule,
@@ -365,6 +386,12 @@ Rules:
   override, a sender mark, a decision answer, apply and undo, and a category correction
   (`{messageIds}`: the reply policy reads the category, so corrected mail gets or loses its
   draft).
+- MVP 3 (F2.3): a change by hand answers how many roles it changed
+  (`apps/server/src/profile/impact.ts`): the profile's roles (those last evaluated with it; one
+  evaluated before MVP 3 counts for the first profile that is on), scored before and after by
+  packages/core's `countChangedRoles` with each role's stored match.v1 answer, as the impact
+  preview does. Database only, no model call and no mailbox, so the count comes at once; the
+  re-evaluation that follows updates the roles.
 
 ### The assistant
 
@@ -430,10 +457,17 @@ Rules:
   (`MailboxSecretError` when it won't open) and connects through `deps.mail` with
   `JOBFILLY_ALLOW_INSECURE_MAIL`. `connectMailbox(deps, workspaceId)` reads the stored
   connection itself and answers null when there is none; the body route and the pipeline use it.
-  `connectStoredMailbox(deps, mailbox)` opens a row the caller has already read; the scan uses it
-  (it needs the address too). The sync and the drafts, when their slices write them, are to use
-  `connectMailbox` too. Nothing else calls `deps.mail.connect` with a stored mailbox; the
-  connection test in Settings connects with the settings being tested, not a stored row.
+  `connectStoredMailbox(deps, mailbox)` opens a row the caller has already read; the scan and the
+  sync use it (they need the address too), and the drafts use `connectMailbox`. Nothing else
+  calls `deps.mail.connect` with a stored mailbox; the connection test in Settings connects with
+  the settings being tested, not a stored row.
+- MVP 3: `mailboxLogin(deps, mailbox)` (same module) is the login itself: the password, or a
+  Google mailbox's access token, refreshed and stored sealed again when it is about to expire.
+  The send job signs in to SMTP with it for a Google mailbox (XOAUTH2,
+  `apps/server/src/send/outgoing.ts`); any other sends with its SMTP password, or its IMAP one
+  when it has none of its own. A refresh Google refuses turns the mailbox to `reconnect_needed`
+  and throws `ReconnectNeededError`, a `MailUnavailableError`, so every caller treats it as a
+  mailbox it can't reach now (drafts wait, scans stop) and nothing stored is lost.
 - The assistant can only propose changes. Applying one is a separate request made by the user.
 - MVP 3's prompts, pinned like MVP 2's (header, key lines, framing; the instruction is the
   slice's): `focus.v1` reads a re-run's hint into `ScanFocus` (countries, cities, languages, work
