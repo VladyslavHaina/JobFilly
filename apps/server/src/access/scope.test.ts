@@ -8,6 +8,7 @@ import {
 import { type MessageDetail, MessageListSchema } from "@jobfilly/schema";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../app";
+import type { GoogleConfig } from "../config";
 import {
   createFakeMailbox,
   createTestDeps,
@@ -28,6 +29,7 @@ let maria: SeededUser;
 let tom: SeededUser;
 let tomClient: TestClient;
 let mariaClient: TestClient;
+let mailboxId: string;
 
 const JOB = "<job-1@agency.example>";
 const OTHER = "<newsletter-1@shop.example>";
@@ -40,7 +42,7 @@ beforeEach(async () => {
   maria = await seedUser(deps, { name: "Maria Santos" });
   tom = await seedUser(deps, { name: "Tom Okafor" });
   await addMember(deps.db, maria.workspaceId, tom.id, "editor");
-  await seedMailbox(deps, maria.workspaceId, {
+  mailboxId = await seedMailbox(deps, maria.workspaceId, {
     address: "maria.santos@inbox.example",
     conn: {
       host: "imap.inbox.example",
@@ -177,5 +179,53 @@ describe("every route closed to a pipeline-only member (F6.2)", () => {
       category: "interview",
     });
     expect(res.status).toBe(200);
+  });
+});
+
+/**
+ * Where the workspace's mail comes from and goes (security review): connecting a mailbox, its
+ * SMTP settings and the AI provider. A pipeline-only admin gets 404 from each, so they can't send
+ * mail or mail content anywhere new; an admin who sees everything gets past the access checks
+ * (an empty body answers them 400).
+ */
+describe("where mail goes, closed to a pipeline-only admin", () => {
+  const google: GoogleConfig = {
+    clientId: "client",
+    clientSecret: "E2E-SECRET-google-client",
+    authorizeUrl: "https://accounts.google.example/authorize",
+    tokenUrl: "https://accounts.google.example/token",
+    imap: { host: "imap.gmail.example", port: 993, tlsMode: "tls" },
+    smtp: { host: "smtp.gmail.example", port: 465, tlsMode: "tls" },
+  };
+  const routes = () =>
+    [
+      { method: "put", url: `/mailboxes/${mailboxId}/smtp` },
+      { method: "post", url: `/mailboxes/${mailboxId}/smtp/test` },
+      { method: "put", url: "/ai" },
+      { method: "post", url: "/ai/test" },
+      { method: "post", url: "/mailboxes" },
+      { method: "post", url: "/mailboxes/test" },
+      { method: "post", url: "/oauth/google/start" },
+    ] as const;
+  let admin: TestClient;
+  beforeEach(async () => {
+    await addMember(deps.db, maria.workspaceId, tom.id, "admin");
+    admin = await signedIn(createApp({ ...deps, config: { ...deps.config, google } }), deps, tom);
+  });
+
+  it("is open to an admin who sees everything", async () => {
+    for (const r of routes()) {
+      const res = await admin[r.method](path(r.url), { mailboxId: 1 });
+      expect([r.method, r.url, res.status]).toEqual([r.method, r.url, 400]);
+    }
+  });
+
+  it("answers 404 to an admin who sees the pipeline only", async () => {
+    await setMemberScope(deps.db, maria.workspaceId, tom.id, "pipeline");
+    for (const r of routes()) {
+      const res = await admin[r.method](path(r.url), { mailboxId: 1 });
+      expect([r.method, r.url, res.status]).toEqual([r.method, r.url, 404]);
+      expect(await res.json()).toEqual({ error: "not_found" });
+    }
   });
 });

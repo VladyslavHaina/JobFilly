@@ -20,6 +20,7 @@ import {
 import { Hono } from "hono";
 import {
   NOT_FOUND,
+  requireFullAccess,
   requireRole,
   type SignedInEnv,
   validJson,
@@ -34,7 +35,7 @@ import { open, seal } from "../secrets";
 import { publishMailboxChange } from "./mailboxes";
 
 // Sign in with Google (MVP 3, F3.2), Google only (TBD-441): the authorization-code flow with PKCE
-// (S256). POST /google/start (an admin of the workspace) keeps a sign-in waiting for its callback:
+// (S256). POST /google/start (an admin of the workspace who sees everything) keeps a sign-in waiting for its callback:
 // the state's SHA-256 and the PKCE verifier sealed, for one use within ten minutes, and answers
 // Google's consent page to send the browser to. GET /api/oauth/google/callback takes the waiting
 // sign-in by the state's hash and refuses (400, logged as oauth.callback_refused with a reason
@@ -96,6 +97,7 @@ export function oauthRoutes(deps: AppDeps) {
   return new Hono<WorkspaceEnv>().post(
     "/google/start",
     requireRole("admin"),
+    requireFullAccess(),
     validJson(OAuthStartInputSchema),
     async (c) => {
       const google = deps.config.google;

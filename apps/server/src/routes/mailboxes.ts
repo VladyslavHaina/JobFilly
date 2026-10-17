@@ -18,7 +18,14 @@ import {
   type MailTestResult,
 } from "@jobfilly/schema";
 import { Hono } from "hono";
-import { NOT_FOUND, requireRole, validJson, validParam, type WorkspaceEnv } from "../access";
+import {
+  NOT_FOUND,
+  requireFullAccess,
+  requireRole,
+  validJson,
+  validParam,
+  type WorkspaceEnv,
+} from "../access";
 import type { AppDeps } from "../deps";
 import type { Logger } from "../log";
 import { seal } from "../secrets";
@@ -32,7 +39,8 @@ import { seal } from "../secrets";
 // messages and everything tied to them. Connecting and disconnecting tell every open browser of
 // the workspace (MVP 2 F1.4): workspace.updated for the mailboxes themselves and mailbox.updated
 // for their sync status, so no one keeps showing a mailbox that is gone or a status of one that
-// isn't there.
+// isn't there. Testing and connecting need full access as well as admin: a pipeline-only admin
+// can't decide where the workspace's mail comes from or goes.
 
 const INSECURE: MailTestResult = {
   ok: false,
@@ -104,39 +112,51 @@ export function mailboxRoutes(deps: AppDeps) {
       const list: MailPresetList = { items: [...MAIL_PRESETS] };
       return c.json(list);
     })
-    .post("/test", requireRole("admin"), validJson(MailboxInputSchema), async (c) => {
-      return c.json(await testConnection(c.req.valid("json"), c.get("log")));
-    })
-    .post("/", requireRole("admin"), validJson(MailboxInputSchema), async (c) => {
-      const workspaceId = c.get("workspaceId");
-      const input = c.req.valid("json");
-      // Saving tests again: only a mailbox that works is stored, with the Sent folder it found.
-      const tested = await testConnection(input, c.get("log"));
-      if (!tested.ok) {
-        return c.json({ error: tested.reason, message: tested.message }, 400);
-      }
-      const stored = {
-        address: input.address,
-        host: input.host,
-        port: input.port,
-        tlsMode: input.tlsMode,
-        username: input.username,
-        secretCiphertext: seal(deps.config.secretKey, input.password),
-        sentFolderPath: tested.sentPath,
-      };
-      const created = await createMailbox(deps.db, workspaceId, stored);
-      if (!created.ok) return c.json(EXISTS, 409);
-      c.get("log").info("mailbox.connected", { mailboxId: created.mailboxId });
-      await publishMailboxChange(deps, workspaceId);
-      const body: MailboxPublic = toPublic({
-        ...stored,
-        workspaceId,
-        mailboxId: created.mailboxId,
-        status: "connected",
-        authKind: "password",
-      });
-      return c.json(body, 201);
-    })
+    .post(
+      "/test",
+      requireRole("admin"),
+      requireFullAccess(),
+      validJson(MailboxInputSchema),
+      async (c) => {
+        return c.json(await testConnection(c.req.valid("json"), c.get("log")));
+      },
+    )
+    .post(
+      "/",
+      requireRole("admin"),
+      requireFullAccess(),
+      validJson(MailboxInputSchema),
+      async (c) => {
+        const workspaceId = c.get("workspaceId");
+        const input = c.req.valid("json");
+        // Saving tests again: only a mailbox that works is stored, with the Sent folder it found.
+        const tested = await testConnection(input, c.get("log"));
+        if (!tested.ok) {
+          return c.json({ error: tested.reason, message: tested.message }, 400);
+        }
+        const stored = {
+          address: input.address,
+          host: input.host,
+          port: input.port,
+          tlsMode: input.tlsMode,
+          username: input.username,
+          secretCiphertext: seal(deps.config.secretKey, input.password),
+          sentFolderPath: tested.sentPath,
+        };
+        const created = await createMailbox(deps.db, workspaceId, stored);
+        if (!created.ok) return c.json(EXISTS, 409);
+        c.get("log").info("mailbox.connected", { mailboxId: created.mailboxId });
+        await publishMailboxChange(deps, workspaceId);
+        const body: MailboxPublic = toPublic({
+          ...stored,
+          workspaceId,
+          mailboxId: created.mailboxId,
+          status: "connected",
+          authKind: "password",
+        });
+        return c.json(body, 201);
+      },
+    )
     .get(
       "/:mailboxId/removal",
       requireRole("admin"),

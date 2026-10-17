@@ -93,14 +93,16 @@ const ROUTES = (): Route[] => [
     method: "put",
     path: `${ws()}/mailboxes/${DRAFT}/smtp`,
     role: "admin",
-    pipeline: true,
+    // Closed (security review): it decides where the workspace's mail goes.
+    pipeline: false,
     built: 400,
   },
   {
     method: "post",
     path: `${ws()}/mailboxes/${DRAFT}/smtp/test`,
     role: "admin",
-    pipeline: true,
+    // Closed (security review): it decides where the workspace's mail goes.
+    pipeline: false,
     built: 400,
   },
   { method: "get", path: `${ws()}/export`, role: "admin", pipeline: false, built: true },

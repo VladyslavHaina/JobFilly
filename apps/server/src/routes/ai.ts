@@ -12,7 +12,7 @@ import {
   baseUrlHost,
 } from "@jobfilly/schema";
 import { type Context, Hono } from "hono";
-import { requireRole, validJson, type WorkspaceEnv } from "../access";
+import { requireFullAccess, requireRole, validJson, type WorkspaceEnv } from "../access";
 import { aiClientFor } from "../ai-usage";
 import type { AppDeps } from "../deps";
 import { openAiKey, seal } from "../secrets";
@@ -23,7 +23,9 @@ import { openAiKey, seal } from "../secrets";
 // one is stored and the one privacy line's provider and host (F3.2).
 //
 // A stored key only ever goes to the provider and base URL it was saved for: saving or testing
-// another provider or base URL without typing a key never sends the old key anywhere new.
+// another provider or base URL without typing a key never sends the old key anywhere new. Saving
+// and testing need full access as well as admin: the provider reads the workspace's mail, so a
+// pipeline-only admin can't choose where it goes.
 
 type Parsed = ReturnType<typeof AiSettingsInputSchema.parse>;
 
@@ -110,47 +112,59 @@ export function aiRoutes(deps: AppDeps) {
       const list: AiProviderList = { items: [...AI_PROVIDERS] };
       return c.json(list);
     })
-    .put("/", requireRole("admin"), validJson(AiSettingsInputSchema), async (c) => {
-      const input = c.req.valid("json");
-      const same = await storedFor(c, input);
-      const keptKey = openKey(same);
-      const invalid = problem(input, keptKey !== null);
-      if (invalid) return c.json({ error: "invalid", message: invalid }, 400);
-      const saved: StoredAiSettings = {
-        provider: input.provider,
-        baseUrl: input.baseUrl,
-        models: input.models,
-        budgetPerRun: input.budgetPerRun,
-        // A new key replaces the old; no key keeps it for the same endpoint (null), and clears
-        // it for another one.
-        keyCiphertext: input.apiKey ? seal(key, input.apiKey) : same ? null : seal(key, NO_KEY),
-      };
-      await saveAiSettings(deps.db, c.get("workspaceId"), saved);
-      c.get("log").info("ai.settings_saved", { provider: input.provider });
-      const body: AiSettingsResponse = {
-        settings: toPublic(saved, input.apiKey ?? keptKey),
-      };
-      return c.json(body);
-    })
-    .post("/test", requireRole("admin"), validJson(AiSettingsInputSchema), async (c) => {
-      const workspaceId = c.get("workspaceId");
-      const input = c.req.valid("json");
-      const apiKey = input.apiKey ?? openKey(await storedFor(c, input));
-      const invalid = problem(input, apiKey !== null);
-      if (invalid) return c.json({ error: "invalid", message: invalid }, 400);
-      const settings: AiClientSettings = {
-        provider: input.provider,
-        baseUrl: input.baseUrl,
-        models: input.models,
-        apiKey,
-      };
-      const result = await aiClientFor(deps, workspaceId, settings).test();
-      let body: AiTestResult = { ok: true };
-      if (!result.ok) {
-        const reason = result.error.kind === "not_retried" ? "invalid_output" : result.error.kind;
-        c.get("log").warn("ai.test_failed", { reason });
-        body = { ok: false, reason, message: result.error.message };
-      }
-      return c.json(body);
-    });
+    .put(
+      "/",
+      requireRole("admin"),
+      requireFullAccess(),
+      validJson(AiSettingsInputSchema),
+      async (c) => {
+        const input = c.req.valid("json");
+        const same = await storedFor(c, input);
+        const keptKey = openKey(same);
+        const invalid = problem(input, keptKey !== null);
+        if (invalid) return c.json({ error: "invalid", message: invalid }, 400);
+        const saved: StoredAiSettings = {
+          provider: input.provider,
+          baseUrl: input.baseUrl,
+          models: input.models,
+          budgetPerRun: input.budgetPerRun,
+          // A new key replaces the old; no key keeps it for the same endpoint (null), and clears
+          // it for another one.
+          keyCiphertext: input.apiKey ? seal(key, input.apiKey) : same ? null : seal(key, NO_KEY),
+        };
+        await saveAiSettings(deps.db, c.get("workspaceId"), saved);
+        c.get("log").info("ai.settings_saved", { provider: input.provider });
+        const body: AiSettingsResponse = {
+          settings: toPublic(saved, input.apiKey ?? keptKey),
+        };
+        return c.json(body);
+      },
+    )
+    .post(
+      "/test",
+      requireRole("admin"),
+      requireFullAccess(),
+      validJson(AiSettingsInputSchema),
+      async (c) => {
+        const workspaceId = c.get("workspaceId");
+        const input = c.req.valid("json");
+        const apiKey = input.apiKey ?? openKey(await storedFor(c, input));
+        const invalid = problem(input, apiKey !== null);
+        if (invalid) return c.json({ error: "invalid", message: invalid }, 400);
+        const settings: AiClientSettings = {
+          provider: input.provider,
+          baseUrl: input.baseUrl,
+          models: input.models,
+          apiKey,
+        };
+        const result = await aiClientFor(deps, workspaceId, settings).test();
+        let body: AiTestResult = { ok: true };
+        if (!result.ok) {
+          const reason = result.error.kind === "not_retried" ? "invalid_output" : result.error.kind;
+          c.get("log").warn("ai.test_failed", { reason });
+          body = { ok: false, reason, message: result.error.message };
+        }
+        return c.json(body);
+      },
+    );
 }

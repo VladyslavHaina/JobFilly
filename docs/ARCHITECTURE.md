@@ -65,7 +65,10 @@ Rules:
   invites, events, mailboxes, ai, scans, messages (the list job mail only, no draft status, never
   a body), intake, profiles, rules, history, cvs, senders, decisions, the assistant (its lookups
   apply the scope, F8.3), pipeline, oauth, activity, the workspace's own DELETE. Closed: drafts
-  and sending, export. The web mirrors it with `can.mail`.
+  and sending, export; and, inside open modules, whatever decides where mail comes from or goes
+  (`requireFullAccess` on the handler): connecting or testing a mailbox (`POST /mailboxes`,
+  `POST /mailboxes/test`, `POST /oauth/google/start`), saving or testing its SMTP settings, and
+  saving or testing the AI settings. The web mirrors it with `can.mail`.
 - MVP 3 exceptions to "every query takes a workspace id", added by their slices: the Google
   callback (`/api/oauth/google/callback`) finds its waiting sign-in by the state's hash
   (`oauth_states`), which names the workspace and the user, and then checks that user's session;

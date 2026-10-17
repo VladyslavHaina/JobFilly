@@ -139,7 +139,7 @@ describe("starting a sign-in", () => {
     expect(deps.rawLogs.join("\n")).not.toContain(verifier);
   });
 
-  it("is for admins of the workspace only", async () => {
+  it("is for admins of the workspace who see everything", async () => {
     const app = createApp(deps);
     for (const role of ["viewer", "editor"] as const) {
       const user = await seedUser(deps);
@@ -148,11 +148,12 @@ describe("starting a sign-in", () => {
     }
     const outsider = await signedIn(app, deps, await seedUser(deps));
     expect((await outsider.post(start, {})).status).toBe(404);
-    // Open to an admin who sees the job pipeline only (F6.1): a mailbox isn't mail content.
+    // Closed to an admin who sees the job pipeline only, as connecting a mailbox by password is
+    // (security review): connecting one decides where the workspace's mail comes from and goes.
     const pipelineAdmin = await seedUser(deps);
     await addMember(deps.db, workspaceId, pipelineAdmin.id, "admin");
     await setMemberScope(deps.db, workspaceId, pipelineAdmin.id, "pipeline");
-    expect((await (await signedIn(app, deps, pipelineAdmin)).post(start, {})).status).toBe(200);
+    expect((await (await signedIn(app, deps, pipelineAdmin)).post(start, {})).status).toBe(404);
   });
 
   it("reconnects only a Google mailbox of the workspace, hinting its account", async () => {

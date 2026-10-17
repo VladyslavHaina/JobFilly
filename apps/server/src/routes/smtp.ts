@@ -9,7 +9,14 @@ import {
   type SmtpTestResult,
 } from "@jobfilly/schema";
 import { Hono } from "hono";
-import { NOT_FOUND, requireRole, validJson, validParam, type WorkspaceEnv } from "../access";
+import {
+  NOT_FOUND,
+  requireFullAccess,
+  requireRole,
+  validJson,
+  validParam,
+  type WorkspaceEnv,
+} from "../access";
 import type { AppDeps } from "../deps";
 import { open, seal } from "../secrets";
 import { googleSmtp, providerSavesSentCopy } from "../send/outgoing";
@@ -17,8 +24,9 @@ import { googleSmtp, providerSavesSentCopy } from "../send/outgoing";
 // A mailbox's SMTP settings (MVP 3, F4): GET /:mailboxId/smtp reads them (never a password),
 // PUT /:mailboxId/smtp saves them (SmtpSettingsInputSchema, the password sealed), POST
 // /:mailboxId/smtp/test is the Test button (SmtpTestResultSchema). Mounted at
-// /api/workspaces/:workspaceId/mailboxes next to routes/mailboxes.ts; no mail content, so open to
-// a member who sees the pipeline only.
+// /api/workspaces/:workspaceId/mailboxes next to routes/mailboxes.ts; no mail content, so the read
+// is open to a member who sees the pipeline only, but saving and testing need full access: they
+// decide where the workspace's mail goes.
 //
 // The same policy as the IMAP settings: any host name or IP address (self-hosted servers), no
 // URL, plain text refused unless JOBFILLY_ALLOW_INSECURE_MAIL, and fixed words for every failure.
@@ -73,6 +81,7 @@ export function smtpRoutes(deps: AppDeps) {
     .put(
       "/:mailboxId/smtp",
       requireRole("admin"),
+      requireFullAccess(),
       validParam(MailboxParamsSchema),
       validJson(SmtpSettingsInputSchema),
       async (c) => {
@@ -106,6 +115,7 @@ export function smtpRoutes(deps: AppDeps) {
     .post(
       "/:mailboxId/smtp/test",
       requireRole("admin"),
+      requireFullAccess(),
       validParam(MailboxParamsSchema),
       validJson(SmtpSettingsInputSchema),
       async (c) => {
