@@ -23,7 +23,8 @@ import { changedRoles } from "../profile/impact";
 // service (applyAndReevaluate, source you), so it is in the profile history and every role is
 // re-evaluated: the affected roles are re-scored within a minute, and until then their scores are
 // stale, never shown as current (F3.5, F4.6). Making and changing a rule answers how many of the
-// profile's roles it changes (F2.3, profile/impact.ts), counted at once without the model.
+// profile's roles it changes (F2.3, profile/impact.ts), counted at once without the model. Each
+// change logs profile.updated with the profile's and the rule's ids and that count, never words.
 // Mounted at /api/workspaces/:workspaceId/profiles next to routes/profiles.ts.
 
 const ProfileParamsSchema = z.object({ profileId: IdSchema });
@@ -86,6 +87,7 @@ export function rulesRoutes(deps: AppDeps) {
     });
     const rule = result?.ok ? pick(result.rules.map((r) => ({ ...r, changed }))) : undefined;
     if (!rule) return c.json(NOT_FOUND, 404);
+    c.get("log").info("profile.updated", { profileId: profile.id, ruleId: rule.id, changed });
     return c.json(rule satisfies RuleChangeResult, status);
   }
 
@@ -163,6 +165,7 @@ export function rulesRoutes(deps: AppDeps) {
           { source: "you", userId: c.get("user").id, request: null },
         );
         if (!result?.ok) return c.json(NOT_FOUND, 404);
+        c.get("log").info("profile.updated", { profileId, ruleId, removed: true });
         return c.body(null, 204);
       },
     );

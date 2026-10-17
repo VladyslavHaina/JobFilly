@@ -448,6 +448,41 @@ describe("making and changing rules by hand (MVP 3, F2.1–F2.3)", () => {
     ]);
   });
 
+  it("logs profile.updated for each change, rule.applied once it takes effect, and the undo (S3)", async () => {
+    await seedRemoteMail("asia", 1, ASIA);
+    await requestReevaluation(deps, ws.workspaceId, { all: true }, "test");
+    await drain();
+    const events = (event: string) => deps.logs.filter((l) => l.event === event);
+
+    const created = await editor.post(rulesUrl(), { when: within("UTC+05:00"), then: "hide" });
+    const rule = RuleChangeResultSchema.parse(await created.json());
+    expect(events("profile.updated")).toEqual([
+      expect.objectContaining({ profileId: profile.id, ruleId: rule.id, changed: 3 }),
+    ]);
+    await drain();
+    // The re-evaluation applies the hand-made rule to the role it hides.
+    expect(events("rule.applied")).toEqual(
+      Array.from({ length: 3 }, () => expect.objectContaining({ ruleId: rule.id, action: "hide" })),
+    );
+
+    deps.clock.advance(1_000);
+    await editor.patch(`${rulesUrl()}/${rule.id}`, { enabled: false });
+    expect(events("profile.updated").at(-1)).toMatchObject({ ruleId: rule.id, changed: 3 });
+    deps.clock.advance(1_000);
+    expect((await editor.delete(`${rulesUrl()}/${rule.id}`)).status).toBe(204);
+    expect(events("profile.updated").at(-1)).toMatchObject({ ruleId: rule.id, removed: true });
+
+    const [removal] = await getHistory(deps.db, ws.workspaceId, profile.id);
+    const history = `${base()}/profiles/${profile.id}/history`;
+    expect((await editor.post(`${history}/${removal?.id}/undo`)).status).toBe(200);
+    expect(events("profile.change_undone")).toEqual([
+      expect.objectContaining({ entryId: removal?.id }),
+    ]);
+    // Ids and counts only: never the rule's words.
+    const lines = JSON.stringify(deps.logs);
+    expect(lines).not.toContain(rule.description);
+  });
+
   it("says how many roles a profile entry's change changes", async () => {
     await seedRemoteMail("cet", 2, CET);
     await requestReevaluation(deps, ws.workspaceId, { all: true }, "test");
