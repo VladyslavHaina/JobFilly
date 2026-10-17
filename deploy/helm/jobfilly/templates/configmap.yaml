@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "jobfilly.fullname" . }}
+  labels:
+    {{- include "jobfilly.labels" . | nindent 4 }}
+data:
+  PUBLIC_URL: {{ include "jobfilly.publicUrl" . | quote }}
+  PORT: {{ .Values.port | quote }}
+  LOG_LEVEL: {{ .Values.config.logLevel | quote }}
+  JOBFILLY_SYNC_INTERVAL_SECONDS: {{ .Values.config.syncIntervalSeconds | quote }}
+  {{- with .Values.config.rdapUrl }}
+  JOBFILLY_RDAP_URL: {{ . | quote }}
+  {{- end }}
+  {{- with .Values.config.googleAuthorizeUrl }}
+  JOBFILLY_GOOGLE_AUTHORIZE_URL: {{ . | quote }}
+  {{- end }}
+  {{- with .Values.config.googleTokenUrl }}
+  JOBFILLY_GOOGLE_TOKEN_URL: {{ . | quote }}
+  {{- end }}
+  {{- with .Values.config.googleImapHost }}
+  JOBFILLY_GOOGLE_IMAP_HOST: {{ . | quote }}
+  {{- end }}
+  {{- with .Values.config.googleSmtpHost }}
+  JOBFILLY_GOOGLE_SMTP_HOST: {{ . | quote }}
+  {{- end }}
+  {{- if .Values.config.allowInsecureMail }}
+  JOBFILLY_ALLOW_INSECURE_MAIL: "true"
+  {{- end }}

@@ -574,6 +574,32 @@ message a minute each, the API read every 5 s): memory 115–140 MiB per replica
 CPU about 1.3% of one core on average, 15% at peak; p95 API latency 10 ms; no job failed. The
 Helm chart's defaults follow from it: requests of 50m CPU and 192Mi memory, a 512Mi memory limit.
 
+## Deploying with Helm
+
+`deploy/helm/jobfilly` (MVP 3, H1–H4) deploys the image built from `docker/Dockerfile`
+(`image.repository`, default `jobfilly`; `image.tag`, default the chart's `appVersion`). It has no
+dependencies, so it renders offline.
+
+- A Deployment of 2 replicas: liveness on `/api/health/live`, readiness on `/api/health/ready`,
+  the container port from `port` (`PORT`, 8787), the image's `node` user (uid 1000), a read-only
+  root filesystem with an `emptyDir` on `/tmp`, `terminationGracePeriodSeconds` 30, and
+  `resources` as placeholders (requests 100m CPU and 256Mi, limit 512Mi) until the soak sets
+  them. A Service, an optional Ingress (`ingress.enabled`, `className`, `host`,
+  `tls.secretName`), and a PodDisruptionBudget (`minAvailable: 1`) only when `replicaCount` is 2
+  or more. An optional Istio `DestinationRule` (`istio.destinationRule.enabled`, off) hashes on
+  the `jf_session` cookie; the app doesn't need it.
+- A ConfigMap with `PUBLIC_URL` (default `https://<ingress.host>`, or `http://127.0.0.1:8787` for
+  a port-forward), `PORT`, `LOG_LEVEL`, `JOBFILLY_SYNC_INTERVAL_SECONDS` and the optional
+  overrides under `config`. A Secret with `DATABASE_URL`, `JOBFILLY_SECRET_KEY` and the Google
+  OAuth client, or `existingSecret` naming one whose keys are those variable names.
+- No migration Job: every replica migrates at start under the advisory lock and turns ready once
+  migrated, so installs and upgrades just roll the pods. An upgrade may cause brief downtime.
+- PostgreSQL is external (`secret.databaseUrl`). `postgresql.enabled` bundles one for trying it
+  out: a StatefulSet from the official `postgres:17` image with a PersistentVolumeClaim, its
+  password from `postgresql.auth.password`, and `DATABASE_URL` pointing at it.
+- `e2e/helm.test.ts` renders the chart with `helm template` and checks these objects; it skips
+  when helm isn't on PATH.
+
 ## Logs
 
 - JSON lines on stdout with `time`, `level`, `instance` (the replica's hostname), `event`
