@@ -12,7 +12,6 @@ import {
   getEvaluations,
   getSenderChecks,
   keepWaiting,
-  listProfiles,
   loadMessageInputs,
   type RoleDecision,
   recordNeeds,
@@ -28,6 +27,7 @@ import {
 } from "@jobfilly/schema";
 import type { AppDeps } from "../deps";
 import { requestDraft } from "../drafts/request";
+import { profileOfRole } from "./assign";
 import type { ReplyStage } from "./stages";
 
 // The reply stage (F6.1, F7.1–F7.6): for each evaluated role of the message, a draft, a question
@@ -119,7 +119,7 @@ export async function retryPlan(
   const [message] = await loadMessageInputs(deps.db, ws, [draft.messageId]);
   // A role gone from the message fails in draft.create, with its own reason.
   if (!message?.facts[draft.position]) return { kind: "retry" };
-  const profile = (await listProfiles(deps.db, ws)).find((p) => p.confirmedAt !== null);
+  const profile = await profileOfRole(deps, ws, role);
   const [check] = await getSenderChecks(deps.db, ws, [draft.messageId]);
   const evaluation = (await getEvaluations(deps.db, ws, [draft.messageId])).find(
     (e) => e.position === draft.position && !e.stale,
@@ -162,8 +162,10 @@ export const replyStage: ReplyStage = async (input, ctx) => {
   let changed = 0;
 
   const roles = input.evaluations.map((evaluation) => {
+    // The role's own profile (MVP 3, F1.3): its policy and answers decide its reply.
+    const own = input.profiles?.get(evaluation.position) ?? profile;
     const mine = decided.filter((r) => r.position === evaluation.position);
-    const { answeredHere, recorded, needs } = needsOf(mine, evaluation, profile);
+    const { answeredHere, recorded, needs } = needsOf(mine, evaluation, own);
     const history = input.draftHistory.get(evaluation.position) ?? {
       hadDraft: false,
       dismissed: false,
@@ -174,7 +176,7 @@ export const replyStage: ReplyStage = async (input, ctx) => {
       category: message.category,
       receivedAt: message.receivedAt,
       now: ctx.now,
-      profile,
+      profile: own,
       score,
       capped: evaluation.match?.capped ?? false,
       senderVerdict: input.sender?.verdict ?? null,
@@ -188,6 +190,7 @@ export const replyStage: ReplyStage = async (input, ctx) => {
       draftHistory: history,
       plan,
       evaluation,
+      own,
       mine,
       answeredHere,
       recorded,
@@ -197,13 +200,13 @@ export const replyStage: ReplyStage = async (input, ctx) => {
 
   // At most one automatic draft per message (TBD-221).
   for (const r of capAutoDrafts(roles)) {
-    const { evaluation, mine, answeredHere, recorded, needs, draftHistory: history, plan } = r;
+    const { evaluation, own, mine, answeredHere, recorded, needs, draftHistory: history, plan } = r;
     const role = { messageId: message.messageId, position: evaluation.position };
     if (plan.kind === "hold") {
       // Read from what was recorded, not `needs`: a match need with the same group key would
       // stand in for Draft a reply's question there.
       const kept = recorded
-        .filter((n) => fromDraftAReply(n) && isOpen(n, profile, answeredHere))
+        .filter((n) => fromDraftAReply(n) && isOpen(n, own, answeredHere))
         .map((n) => n.groupKey);
       changed += await keepWaiting(deps.db, ws, role, kept);
       if (kept.length === 0 && answeredForDraftAReply(mine, history)) {

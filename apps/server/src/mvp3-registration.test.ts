@@ -116,8 +116,9 @@ describe("the MVP 3 workspace routes", () => {
       method: "put" as const,
       path: `${ws()}/messages/${enc("<m@agency.example>")}/roles/0/profile`,
     };
-    // An unknown message is no job mail: 404 for a pipeline-only member, the stub for the rest.
-    expect((await call(clients.tom, r)).status).toBe(501);
+    // An unknown message is no job mail: 404 for a pipeline-only member; the rest reach the
+    // route (built by the profiles slice), which refuses the empty body.
+    expect((await call(clients.tom, r)).status).toBe(400);
     await setMemberScope(deps.db, maria.workspaceId, tom.id, "pipeline");
     expect((await call(clients.tom, r)).status).toBe(404);
   });

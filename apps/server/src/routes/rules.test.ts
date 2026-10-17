@@ -5,8 +5,10 @@ import {
   PIPELINE_REEVALUATE_JOB,
   PipelineReevaluatePayloadSchema,
   type Profile,
+  ProfileChangeResultSchema,
   type ProfileEntry,
   type Rule,
+  RuleChangeResultSchema,
   RuleListSchema,
   RuleSchema,
 } from "@jobfilly/schema";
@@ -16,7 +18,7 @@ import { defineJob } from "../jobs/queue";
 import { jobRegistry } from "../jobs/registry";
 import { matchStage } from "../pipeline/match";
 import { reevaluateWorkspace } from "../pipeline/reevaluate";
-import { applyAndReevaluate } from "../profile/changes";
+import { applyAndReevaluate, requestReevaluation } from "../profile/changes";
 import {
   createFakeAi,
   createFakeMailbox,
@@ -397,5 +399,81 @@ describe("the Hidden filter (F3.3, F3.4)", () => {
       ruleId: rule.id,
       action: "hide",
     });
+  });
+});
+
+describe("making and changing rules by hand (MVP 3, F2.1–F2.3)", () => {
+  const within = (from: string) => [
+    { fact: "timeZones" as const, op: "within" as const, value: { from, to: "UTC+14:00" } },
+  ];
+
+  it("creates a rule, changes its range and switches it off, each saying how many roles changed", async () => {
+    await seedRemoteMail("asia", 2, ASIA);
+    await seedRemoteMail("cet", 1, CET);
+    await requestReevaluation(deps, ws.workspaceId, { all: true }, "test");
+    await drain();
+
+    const asViewer = await viewer.post(rulesUrl(), { when: within("UTC+05:00"), then: "hide" });
+    expect(asViewer.status).toBe(403);
+    const created = await editor.post(rulesUrl(), { when: within("UTC+05:00"), then: "hide" });
+    expect(created.status).toBe(201);
+    const rule = RuleChangeResultSchema.parse(await created.json());
+    // The two Asia-Pacific messages' six roles are hidden; the CET ones aren't.
+    expect(rule).toMatchObject({ changed: 6, source: "you", enabled: true, then: "hide" });
+    expect(rule.description.trim()).not.toBe("");
+    await drain();
+    expect((await list(viewer, "?hidden=true")).items).toHaveLength(2);
+
+    deps.clock.advance(1_000);
+    const later = await editor.patch(`${rulesUrl()}/${rule.id}`, { when: within("UTC+06:00") });
+    expect(later.status).toBe(200);
+    const changed = RuleChangeResultSchema.parse(await later.json());
+    // UTC+8 is still inside the range: nothing changes, and the words follow the new range.
+    expect(changed).toMatchObject({ id: rule.id, changed: 0 });
+    expect(changed.description).not.toBe(rule.description);
+    expect(changed.when).toEqual(within("UTC+06:00"));
+
+    deps.clock.advance(1_000);
+    const off = await editor.patch(`${rulesUrl()}/${rule.id}`, { enabled: false });
+    expect(RuleChangeResultSchema.parse(await off.json())).toMatchObject({ changed: 6 });
+
+    deps.clock.advance(1_000);
+    const action = await editor.patch(`${rulesUrl()}/${rule.id}`, { then: "no_draft" });
+    expect(RuleChangeResultSchema.parse(await action.json())).toMatchObject({ then: "no_draft" });
+    expect((await getHistory(deps.db, ws.workspaceId, profile.id)).map((h) => h.source)).toEqual([
+      "you",
+      "you",
+      "you",
+      "you",
+    ]);
+  });
+
+  it("says how many roles a profile entry's change changes", async () => {
+    await seedRemoteMail("cet", 2, CET);
+    await requestReevaluation(deps, ws.workspaceId, { all: true }, "test");
+    await drain();
+    const url = `${base()}/profiles/${profile.id}`;
+    const same = await editor.patch(url, {
+      entries: [{ key: "remote", value: [{ scope: "EU", timeZones: null }] }],
+    });
+    expect(ProfileChangeResultSchema.parse(await same.json()).changed).toBe(0);
+    await editor.patch(url, { entries: [{ key: "reply_threshold", value: [0] }] });
+    const res = await editor.patch(url, { entries: [{ key: "reply_threshold", value: [101] }] });
+    expect(res.status).toBe(200);
+    // No score reaches the threshold any more: none of the six roles would get a reply.
+    expect(ProfileChangeResultSchema.parse(await res.json()).changed).toBe(6);
+    expect(deps.logs.filter((l) => l.event === "profile.updated").at(-1)).toMatchObject({
+      profileId: profile.id,
+      changed: 6,
+    });
+  });
+
+  it("refuses a rule without conditions, or for a profile that isn't the workspace's", async () => {
+    const hide = { when: within("UTC+05:00"), then: "hide" };
+    expect((await editor.post(rulesUrl(), { when: [], then: "hide" })).status).toBe(400);
+    expect((await editor.post(rulesUrl(), { when: within("UTC+05:00") })).status).toBe(400);
+    const other = "8f0e1c62-0000-4000-8000-000000000000";
+    expect((await editor.post(rulesUrl(other), hide)).status).toBe(404);
+    expect((await outsider.post(rulesUrl(), hide)).status).toBe(404);
   });
 });

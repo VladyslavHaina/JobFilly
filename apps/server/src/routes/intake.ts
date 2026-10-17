@@ -2,6 +2,7 @@ import {
   buildIntakeExtraInput,
   confirmedEntries,
   extraEvidenceIds,
+  focusIntakeInput,
   foundExtraQuestions,
 } from "@jobfilly/core";
 import {
@@ -12,8 +13,8 @@ import {
   getIntakeExtras,
   getLatestScan,
   getStoredMessages,
-  hasProfile,
   listIntakeAnswers,
+  listProfiles,
   loadIntakeInput,
   releaseIntakeExtras,
   saveIntakeAnswer,
@@ -32,12 +33,14 @@ import {
   isExtraKey,
   type Profile,
   profileValueSchema,
+  SCAN_WINDOW_DAYS,
+  type Scan,
   type TaskResult,
 } from "@jobfilly/schema";
 import { Hono } from "hono";
 import { requireRole, validJson, validParam, type WorkspaceEnv } from "../access";
 import { aiClientFor } from "../ai-usage";
-import { MINUTE } from "../clock";
+import { DAY, MINUTE } from "../clock";
 import type { AppDeps } from "../deps";
 import type { Logger } from "../log";
 import { requestReevaluation } from "../profile/changes";
@@ -58,6 +61,11 @@ import { openAiKey } from "../secrets";
 // releases the claim, so the next GET takes it over at once; a claim still pending after
 // 2 minutes (its replica died) can be taken over by one caller. It is the one model call made
 // outside the job queue (docs/ARCHITECTURE.md, "Background work and live updates").
+//
+// MVP 3 (F1.1): once setup has been re-run, the form is the latest re-run's. It opens when that
+// scan has stopped and reads only the mail of its 90 days that is in its hint's focus
+// (packages/core focusIntakeInput); its Confirm makes a new profile next to the others, which stay
+// untouched. Every Confirm writes the profile's first history row (source scan).
 
 const NOT_READY = {
   error: "not_ready",
@@ -76,14 +84,50 @@ const EXTRAS_PENDING = {
 /** A pending claim older than this belongs to a replica that is gone. */
 const EXTRAS_CLAIM_STALE_MS = 2 * MINUTE;
 
-/** Whether the first scan has stopped, which opens the form. */
-async function formIsOpen(deps: AppDeps, workspaceId: string): Promise<boolean> {
-  const first = await getLatestScan(deps.db, workspaceId, "first");
-  return first?.status === "stopped";
+const RERUN_NOT_READY = {
+  error: "not_ready",
+  message: "The intake form is ready once the re-run of setup has stopped",
+} as const;
+
+/** What a re-run's profile is called when Confirm names none (the page asks for a name). */
+const RERUN_PROFILE_NAME = "New job search";
+
+/**
+ * Whose form it is and where it stands: the first scan's, or the latest re-run's (MVP 3); open
+ * once that scan has stopped, and confirmed once a profile was made from it.
+ */
+interface FormState {
+  open: boolean;
+  confirmed: boolean;
+  rerun: Scan | null;
 }
 
-async function proposalOf(deps: AppDeps, workspaceId: string): Promise<IntakeProposal> {
-  return deps.intake.aggregate(await loadIntakeInput(deps.db, workspaceId));
+async function formState(deps: AppDeps, workspaceId: string): Promise<FormState> {
+  const rerun = await getLatestScan(deps.db, workspaceId, "rerun");
+  const profiles = await listProfiles(deps.db, workspaceId);
+  if (rerun) {
+    const since = Date.parse(rerun.startedAt);
+    return {
+      open: rerun.status === "stopped",
+      confirmed: profiles.some((p) => p.confirmedAt !== null && Date.parse(p.confirmedAt) >= since),
+      rerun,
+    };
+  }
+  const first = await getLatestScan(deps.db, workspaceId, "first");
+  return { open: first?.status === "stopped", confirmed: profiles.length > 0, rerun: null };
+}
+
+const notReady = (state: FormState) => (state.rerun ? RERUN_NOT_READY : NOT_READY);
+
+async function proposalOf(
+  deps: AppDeps,
+  workspaceId: string,
+  rerun: Scan | null,
+): Promise<IntakeProposal> {
+  const input = await loadIntakeInput(deps.db, workspaceId);
+  if (!rerun) return deps.intake.aggregate(input);
+  const since = new Date(Date.parse(rerun.startedAt) - SCAN_WINDOW_DAYS * DAY);
+  return deps.intake.aggregate(focusIntakeInput(input, rerun.focus ?? null, since));
 }
 
 /** The extra questions once they are found; [] while pending, failed or never asked. */
@@ -230,11 +274,15 @@ export function intakeRoutes(deps: AppDeps) {
   return new Hono<WorkspaceEnv>()
     .get("/", requireRole("viewer"), async (c) => {
       const workspaceId = c.get("workspaceId");
-      if (!(await formIsOpen(deps, workspaceId))) return c.json(NOT_READY, 409);
-      const proposal = await proposalOf(deps, workspaceId);
+      const state = await formState(deps, workspaceId);
+      if (!state.open) return c.json(notReady(state), 409);
+      const proposal = await proposalOf(deps, workspaceId, state.rerun);
       const edits = await listIntakeAnswers(deps.db, workspaceId);
       const extras = await extrasFor(deps, workspaceId, proposal, c.get("log"));
-      return c.json({ proposal, edits, extras } satisfies IntakeForm);
+      const rerun = state.rerun
+        ? { hint: state.rerun.hint ?? null, confirmed: state.confirmed }
+        : null;
+      return c.json({ proposal, edits, extras, rerun } satisfies IntakeForm);
     })
     .put(
       "/answers/:key",
@@ -249,8 +297,9 @@ export function intakeRoutes(deps: AppDeps) {
           const message = parsed.error.issues[0]?.message ?? "The answer is not valid";
           return c.json({ error: "invalid", message }, 400);
         }
-        if (!(await formIsOpen(deps, workspaceId))) return c.json(NOT_READY, 409);
-        if (await hasProfile(deps.db, workspaceId)) return c.json(CONFIRMED, 409);
+        const state = await formState(deps, workspaceId);
+        if (!state.open) return c.json(notReady(state), 409);
+        if (state.confirmed) return c.json(CONFIRMED, 409);
         if (isExtraKey(key)) {
           const questions = await currentQuestions(deps, workspaceId);
           if (!questions.some((q) => `extra.${q.slug}` === key)) {
@@ -270,28 +319,35 @@ export function intakeRoutes(deps: AppDeps) {
     )
     .post("/confirm", requireRole("editor"), validJson(ConfirmIntakeInputSchema), async (c) => {
       const workspaceId = c.get("workspaceId");
-      if (!(await formIsOpen(deps, workspaceId))) return c.json(NOT_READY, 409);
-      if (await hasProfile(deps.db, workspaceId)) return c.json(CONFIRMED, 409);
+      const state = await formState(deps, workspaceId);
+      if (!state.open) return c.json(notReady(state), 409);
+      if (state.confirmed) return c.json(CONFIRMED, 409);
       // Confirming now would save a profile without the extra questions, and they could never be
       // answered after: the profile takes no new keys.
       const extras = await getIntakeExtras(deps.db, workspaceId);
       if (extras?.status === "pending") return c.json(EXTRAS_PENDING, 409);
       const now = deps.clock.now();
       const entries = confirmedEntries({
-        proposal: await proposalOf(deps, workspaceId),
+        proposal: await proposalOf(deps, workspaceId, state.rerun),
         edits: await listIntakeAnswers(deps.db, workspaceId),
         questions: extras?.status === "done" ? extras.questions : [],
         at: now.toISOString(),
       });
       const created = await createConfirmedProfile(deps.db, workspaceId, {
-        name: c.req.valid("json").name ?? DEFAULT_PROFILE_NAME,
+        name: c.req.valid("json").name ?? (state.rerun ? RERUN_PROFILE_NAME : DEFAULT_PROFILE_NAME),
         entries,
         createdBy: c.get("user").id,
         at: now,
+        alongside: state.rerun !== null,
+        history: true,
       });
       if (!created.ok) return c.json(CONFIRMED, 409);
-      c.get("log").info("intake.confirmed", { profileId: created.profile.id });
+      c.get("log").info("intake.confirmed", {
+        profileId: created.profile.id,
+        kind: state.rerun ? "rerun" : "first",
+      });
       await deps.live.publish(workspaceId, { type: "intake.updated", data: {} });
+      await deps.live.publish(workspaceId, { type: "profiles.updated", data: {} });
       // The backlog is matched once the profile exists (F1.6): until now only the sender checks
       // could run.
       await requestReevaluation(deps, workspaceId, { all: true }, "intake.confirmed");

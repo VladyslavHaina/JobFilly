@@ -1,5 +1,11 @@
 import type { AiClient } from "@jobfilly/ai";
-import { countFirmAnswers, createConfidenceTracker, stopMessage } from "@jobfilly/core";
+import {
+  countFirmAnswers,
+  createConfidenceTracker,
+  focusFirst,
+  focusIntakeInput,
+  stopMessage,
+} from "@jobfilly/core";
 import {
   countNotAnalyzed,
   countScanAnalysis,
@@ -13,19 +19,21 @@ import {
   updateScanProgress,
   usageTotal,
 } from "@jobfilly/db";
-import type { MailClient } from "@jobfilly/mail";
 import {
   AI_BATCH_SIZE,
   type IntakeProposal,
   type LiveEvent,
+  SCAN_WINDOW_DAYS,
   type Scan,
   type ScanCheckpoint,
   type ScanCounts,
+  type ScanFocus,
   type ScanProgress,
   type StopReason,
   type StoredMessage,
   type Usage,
 } from "@jobfilly/schema";
+import { DAY } from "../../clock";
 import type { AppDeps } from "../../deps";
 import type { Logger } from "../../log";
 import {
@@ -33,6 +41,7 @@ import {
   aiFailed,
   analyzeBatch,
   FATAL,
+  type MailSource,
   mailItems,
   maxCalls,
   RunFailed,
@@ -46,6 +55,14 @@ import type { JobContext } from "../queue";
 // budget, retries included (TBD-17, TBD-66): a retry is only allowed while a call is left for it.
 // After every batch the run checkpoints, and the confidence tracker says whether it stops (F4.4).
 // Bodies are fetched for the model and never stored (F4.9).
+//
+// A re-run of setup (MVP 3, F1.1) runs the same way, with its hint's focus: its proposal is the
+// one its intake form shows (the mail of its window in focus, packages/core focusIntakeInput), so
+// the confidence tracker follows that form, and it reads the likely job mail with the focus's
+// words first (focusFirst over the next FOCUS_PAGE pending messages).
+
+/** How many pending likely job messages a re-run looks through for the focus's words. */
+const FOCUS_PAGE = 500;
 
 /** The scan was cancelled, or this replica is shutting down or lost the job: stop quietly. */
 class Interrupted extends Error {}
@@ -55,7 +72,10 @@ export interface RunInput {
   scan: Scan;
   checkpoint: ScanCheckpoint;
   ai: AiClient;
-  mail: MailClient;
+  /** Each message's own mailbox (the scan reads every mailbox of the workspace). */
+  mail: MailSource;
+  /** A re-run's focus, as focus.v1 read its hint; null for any other run or without a hint. */
+  focus?: ScanFocus | null;
   budget: number;
   log: Logger;
   progressIntervalMs: number;
@@ -63,6 +83,7 @@ export interface RunInput {
 
 export async function runScan(input: RunInput): Promise<void> {
   const { ctx, scan, ai, mail, budget, log } = input;
+  const focus = input.focus ?? null;
   const deps: AppDeps = ctx.deps;
   const { db } = deps;
   const workspaceId = scan.workspaceId;
@@ -204,7 +225,11 @@ export async function runScan(input: RunInput): Promise<void> {
 
   /** The proposal as it stands, and the "answers firming up" count. */
   async function propose(): Promise<IntakeProposal> {
-    const proposal = deps.intake.aggregate(await loadIntakeInput(db, workspaceId));
+    const intake = await loadIntakeInput(db, workspaceId);
+    const since = new Date(Date.parse(scan.startedAt) - SCAN_WINDOW_DAYS * DAY);
+    const proposal = deps.intake.aggregate(
+      scan.kind === "rerun" ? focusIntakeInput(intake, focus, since) : intake,
+    );
     counts.answersFirm = countFirmAnswers(proposal);
     const snapshot = JSON.stringify(proposal);
     if (lastProposal !== null && snapshot !== lastProposal) {
@@ -317,7 +342,14 @@ export async function runScan(input: RunInput): Promise<void> {
   async function readCandidates(): Promise<StopReason | null> {
     tracker.begin(await propose());
     while (!stopRequested()) {
-      const batch = await listPendingCandidates(db, workspaceId, { limit: AI_BATCH_SIZE });
+      const batch =
+        scan.kind === "rerun"
+          ? focusFirst(
+              await listPendingCandidates(db, workspaceId, { limit: FOCUS_PAGE }),
+              focus,
+              (row) => `${row.envelope.subject}\n${row.envelope.snippet}`,
+            ).slice(0, AI_BATCH_SIZE)
+          : await listPendingCandidates(db, workspaceId, { limit: AI_BATCH_SIZE });
       if (batch.length === 0) return "done";
       if (callsLeft() <= 0) return "budget";
       const before = counts.analyzed;

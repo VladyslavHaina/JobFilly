@@ -5,10 +5,9 @@ import {
   clearStageFailures,
   draftHistory,
   getEvaluations,
+  getRoleProfileChoices,
   getSenderChecks,
   getStageHolds,
-  listProfiles,
-  listRules,
   loadMessageInputs,
   markStale,
   recordStageFailure,
@@ -22,7 +21,6 @@ import {
   CHECK_FAILED_SIGNAL,
   MESSAGE_GONE_SIGNAL,
   type OriginalMessage,
-  type Profile,
   type RoleEvaluation,
   type SenderCheck,
 } from "@jobfilly/schema";
@@ -30,6 +28,7 @@ import { MINUTE } from "../clock";
 import type { AppDeps } from "../deps";
 import { failureFields } from "../log";
 import { connectMailbox } from "../mailbox";
+import { assignRole, loadWorkspaceProfiles } from "./assign";
 import { cvChoiceStage } from "./cv-choice";
 import { matchStage } from "./match";
 import { replyStage } from "./reply";
@@ -37,7 +36,8 @@ import { senderStage } from "./sender";
 import { MessageGoneError, type SenderStageResult, type StageContext, type Stages } from "./stages";
 
 // The analysis pipeline for one job message (F1.1, F1.6). Order: the sender stage, then per role
-// the cv-choice and match stages, then the reply stage.
+// the assign step (MVP 3, F1.3: the role's profile, ./assign.ts) and the cv-choice and match
+// stages with that profile and its rules, then the reply stage, each role with its own profile.
 //
 // - The sender stage runs only when the message's sender check is missing (new mail, the
 //   backlog) or stale (a sender mark changed). A re-evaluation after a rule, profile, decision or
@@ -90,11 +90,6 @@ export interface EvaluateOutcome {
   /** Positions evaluated now, and those whose stages failed. */
   evaluated: number[];
   failed: number[];
-}
-
-/** The workspace's confirmed profile (one per workspace in MVP 2), or null. */
-async function confirmedProfile(deps: AppDeps, ws: string): Promise<Profile | null> {
-  return (await listProfiles(deps.db, ws)).find((p) => p.confirmedAt !== null) ?? null;
 }
 
 /**
@@ -197,8 +192,10 @@ export async function evaluateMessage(
   outcome.found = true;
   const log = deps.log.child({ workspaceId: ws });
   const now = deps.clock.now();
-  const profile = await confirmedProfile(deps, ws);
-  const rules = profile ? await listRules(deps.db, ws, profile.id) : [];
+  // The first profile that is on stands for the workspace's; each role gets its own below.
+  const profiles = await loadWorkspaceProfiles(deps, ws);
+  const profile = profiles.on[0] ?? profiles.confirmed[0] ?? null;
+  const rules = profile ? (profiles.rules.get(profile.id) ?? []) : [];
 
   // The mailbox is opened only when a stage asks for the body or the original.
   const own = options.mailbox ? null : mailboxSession(deps, ws);
@@ -334,6 +331,7 @@ export async function evaluateMessage(
       const existing = new Map(
         (await getEvaluations(deps.db, ws, [messageId])).map((e) => [e.position, e]),
       );
+      const choices = await getRoleProfileChoices(deps.db, ws, messageId);
       for (const [position, facts] of message.facts.entries()) {
         const current = existing.get(position);
         if (current && !current.stale) continue;
@@ -344,11 +342,39 @@ export async function evaluateMessage(
         let stage: "cv_choice" | "match" = "cv_choice";
         try {
           const role = { position, facts };
-          const cvChoice = await stages.cvChoice({ message, role }, ctx);
+          const assigned = assignRole(profiles, {
+            facts,
+            senderAddress: message.from.address,
+            category: message.category,
+            chosen: choices.get(position) ?? null,
+          });
+          const own = profiles.confirmed.find((p) => p.id === assigned?.profileId) ?? profile;
+          const roleCtx: StageContext = {
+            ...ctx,
+            profile: own,
+            rules: profiles.rules.get(own.id) ?? [],
+          };
+          const cvChoice = await stages.cvChoice({ message, role }, roleCtx);
           stage = "match";
-          const evaluation = await stages.match({ message, role, cvChoice }, ctx);
-          await saveEvaluation(deps.db, ws, messageId, { ...evaluation, position }, now);
+          const evaluation = await stages.match({ message, role, cvChoice }, roleCtx);
+          const assignment = assigned
+            ? { profileId: assigned.profileId, reason: assigned.reason, source: assigned.source }
+            : null;
+          await saveEvaluation(
+            deps.db,
+            ws,
+            messageId,
+            { ...evaluation, position, profile: assignment },
+            now,
+          );
           await clearStageFailure(deps.db, ws, { messageId, stage: "match", position });
+          if (assignment && current?.profileId !== assignment.profileId) {
+            log.info("profile.assigned", {
+              position,
+              profileId: assignment.profileId,
+              source: assignment.source,
+            });
+          }
           outcome.evaluated.push(position);
         } catch (error) {
           outcome.failed.push(position);
@@ -356,9 +382,16 @@ export async function evaluateMessage(
         }
       }
 
-      const evaluations: RoleEvaluation[] = (await getEvaluations(deps.db, ws, [messageId]))
-        .filter((e) => !e.stale)
-        .map(({ messageId: _m, ...e }) => e);
+      const fresh = (await getEvaluations(deps.db, ws, [messageId])).filter((e) => !e.stale);
+      const evaluations: RoleEvaluation[] = fresh.map(
+        ({ messageId: _m, profileId: _p, ...e }) => e,
+      );
+      const roleProfiles = new Map(
+        fresh.map((e) => [
+          e.position,
+          profiles.confirmed.find((p) => p.id === e.profileId) ?? profile,
+        ]),
+      );
       const history = await draftHistory(
         deps.db,
         ws,
@@ -371,6 +404,7 @@ export async function evaluateMessage(
             // A check whose stage failed isn't one: the reply waits (sender_check_pending).
             sender: sender && !isFailedCheck(sender) ? sender : null,
             evaluations,
+            profiles: roleProfiles,
             draftHistory: new Map(
               message.facts.map((_, position) => [
                 position,

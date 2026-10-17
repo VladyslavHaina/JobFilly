@@ -4,9 +4,12 @@ import {
   countNotAnalyzed,
   countScanAnalysis,
   getAiSettings,
-  getMailboxConnection,
+  getMessageMailbox,
   getScan,
+  listScanMailboxes,
+  type StoredMailbox,
   saveEnvelopes,
+  saveScanFocus,
   stopScan,
   updateScanProgress,
   usageTotal,
@@ -17,15 +20,17 @@ import {
   type Scan,
   type ScanCheckpoint,
   ScanCheckpointSchema,
+  type ScanFocus,
   type ScanRunPayload,
   type StopCause,
+  type StoredMessage,
 } from "@jobfilly/schema";
 import { aiClientFor } from "../../ai-usage";
 import { DAY } from "../../clock";
 import type { AppDeps } from "../../deps";
 import type { Logger } from "../../log";
 import { connectStoredMailbox, MailboxSecretError } from "../../mailbox";
-import { RunFailed } from "../../pipeline/analyze";
+import { aiFailed, RunFailed } from "../../pipeline/analyze";
 import { openAiKey } from "../../secrets";
 import type { JobContext, JobHandler } from "../queue";
 import { runScan } from "./run";
@@ -37,6 +42,13 @@ import { runScan } from "./run";
 // the batches. A cancel stops the scan row; the worker notices it and ends without a second stop.
 // A run that can't go on stops as failed with what it ran into (StopCause): the mailbox, the AI
 // provider, or JobFilly itself (anything unexpected), so its stop message points the right way.
+//
+// MVP 3: a scan reads every mailbox of the workspace (F3.1): stage one sorts each one's window
+// and files what it stores under it, and the model reads each message from its own mailbox. A
+// re-run of setup (F1.1) runs stage one again over the last 90 days, so mail that came since the
+// first scan (and the user's newer replies, which the sync doesn't read) is in; before that, its
+// hint is read into a focus (focus.v1) once and stored with the scan. A focus.v1 call that gives
+// no answer stops the run as failed, like any other call the run can't do without.
 
 /** How often a running scan sends its progress, at the least (F4.6 asks for every 5 seconds). */
 const PROGRESS_INTERVAL_MS = 2000;
@@ -46,37 +58,58 @@ const START: Omit<ScanCheckpoint, "likely" | "handledWithoutAi" | "repliesRead">
   tracker: { lastAnswers: null, unchangedBatches: 0 },
 };
 
-/** The first scan's stage one: the window's envelopes sorted by headers and stored (F4.1, F4.2). */
+/**
+ * Stage one of the first scan and of a re-run: each mailbox's window sorted by headers and stored
+ * under it (F4.1, F4.2). Every mailbox's addresses are the user's own.
+ */
 async function sortWindow(
   deps: AppDeps,
   scan: Scan,
-  mail: MailClient,
-  ownAddresses: string[],
-  mailboxId: string,
+  mailboxes: { mailbox: StoredMailbox; mail: MailClient }[],
 ): Promise<ScanCheckpoint> {
   const since = new Date(Date.parse(scan.startedAt) - SCAN_WINDOW_DAYS * DAY);
-  let envelopes: Awaited<ReturnType<MailClient["fetchEnvelopes"]>>;
-  try {
-    envelopes = [
-      ...(await mail.fetchEnvelopes({ folder: "inbox", since })),
-      ...(await mail.fetchEnvelopes({ folder: "sent", since })),
-    ];
-  } catch {
-    throw new RunFailed("mailbox", "stage_one_error");
+  const ownAddresses = mailboxes.flatMap(({ mailbox }) => [mailbox.address, mailbox.username]);
+  let handledWithoutAi = 0;
+  for (const { mailbox, mail } of mailboxes) {
+    let envelopes: Awaited<ReturnType<MailClient["fetchEnvelopes"]>>;
+    try {
+      envelopes = [
+        ...(await mail.fetchEnvelopes({ folder: "inbox", since })),
+        ...(await mail.fetchEnvelopes({ folder: "sent", since })),
+      ];
+    } catch {
+      throw new RunFailed("mailbox", "stage_one_error");
+    }
+    const outcome = stageOne(envelopes, { ownAddresses, platforms: loadJobPlatforms() });
+    await saveEnvelopes(
+      deps.db,
+      scan.workspaceId,
+      [...outcome.handled, ...outcome.candidates, ...outcome.ownReplies],
+      { mailboxId: mailbox.mailboxId },
+    );
+    handledWithoutAi += outcome.handled.length;
   }
-  const outcome = stageOne(envelopes, { ownAddresses, platforms: loadJobPlatforms() });
-  await saveEnvelopes(
-    deps.db,
-    scan.workspaceId,
-    [...outcome.handled, ...outcome.candidates, ...outcome.ownReplies],
-    { mailboxId },
-  );
   return {
     ...START,
     likely: await countNotAnalyzed(deps.db, scan.workspaceId),
-    handledWithoutAi: outcome.handled.length,
+    handledWithoutAi,
     repliesRead: false,
   };
+}
+
+/** A re-run's hint read into its focus (focus.v1), stored with the scan; null without a hint. */
+async function readFocus(deps: AppDeps, scan: Scan, ai: AiClient): Promise<ScanFocus | null> {
+  if (scan.focus) return scan.focus;
+  if (!scan.hint) return null;
+  let result: Awaited<ReturnType<AiClient["focus"]>>;
+  try {
+    result = await ai.focus({ hint: scan.hint }, { maxCalls: 2 });
+  } catch {
+    throw new RunFailed("internal", "ai_client_error");
+  }
+  if (!result.ok) throw aiFailed(result.error);
+  await saveScanFocus(deps.db, scan.workspaceId, scan.id, result.data);
+  return result.data;
 }
 
 /**
@@ -140,9 +173,9 @@ export function createScanRunHandler(
     }
 
     const settings = await getAiSettings(deps.db, scan.workspaceId);
-    const mailbox = await getMailboxConnection(deps.db, scan.workspaceId);
+    const stored = await listScanMailboxes(deps.db, scan.workspaceId);
     if (!settings) return fail(deps, scan, log, "ai", "no_ai_settings");
-    if (!mailbox) return fail(deps, scan, log, "mailbox", "no_mailbox");
+    if (stored.length === 0) return fail(deps, scan, log, "mailbox", "no_mailbox");
 
     // A stored secret that won't open was sealed with another JOBFILLY_SECRET_KEY: the server's
     // configuration, not the user's settings. The mail password is opened by connectStoredMailbox.
@@ -168,30 +201,43 @@ export function createScanRunHandler(
     } catch {
       return fail(deps, scan, log, "ai", "ai_setup_error");
     }
-    let mail: MailClient;
+    const mailboxes: { mailbox: StoredMailbox; mail: MailClient }[] = [];
+    const closeAll = () => Promise.all(mailboxes.map(({ mail }) => mail.close().catch(() => {})));
     try {
-      mail = connectStoredMailbox(deps, mailbox);
+      for (const mailbox of stored) {
+        mailboxes.push({ mailbox, mail: connectStoredMailbox(deps, mailbox) });
+      }
     } catch (error) {
+      await closeAll();
       if (error instanceof MailboxSecretError) {
         return fail(deps, scan, log, "internal", "secret_error");
       }
       return fail(deps, scan, log, "mailbox", "mail_setup_error");
     }
+    const first = mailboxes[0] as { mailbox: StoredMailbox; mail: MailClient };
+    // Each message is read from its own mailbox; mail stored without one is the first's.
+    const mailOf = async (row: StoredMessage): Promise<MailClient> => {
+      const id = await getMessageMailbox(deps.db, scan.workspaceId, row.envelope.messageId);
+      return mailboxes.find((m) => m.mailbox.mailboxId === id)?.mail ?? first.mail;
+    };
 
     try {
       const saved = ScanCheckpointSchema.safeParse(ctx.checkpoint);
       let checkpoint: ScanCheckpoint;
+      let focus: ScanFocus | null = null;
+      if (scan.kind === "rerun") {
+        try {
+          focus = await readFocus(deps, scan, ai);
+        } catch (error) {
+          if (ctx.signal.aborted || !(error instanceof RunFailed)) throw error;
+          return await fail(deps, scan, log, error.stopCause, error.code);
+        }
+      }
       if (saved.success) {
         checkpoint = saved.data;
-      } else if (scan.kind === "first") {
+      } else if (scan.kind === "first" || scan.kind === "rerun") {
         try {
-          checkpoint = await sortWindow(
-            deps,
-            scan,
-            mail,
-            [mailbox.address, mailbox.username],
-            mailbox.mailboxId,
-          );
+          checkpoint = await sortWindow(deps, scan, mailboxes);
         } catch (error) {
           if (ctx.signal.aborted || !(error instanceof RunFailed)) throw error;
           return await fail(deps, scan, log, error.stopCause, error.code);
@@ -212,7 +258,8 @@ export function createScanRunHandler(
         scan,
         checkpoint,
         ai,
-        mail,
+        mail: mailOf,
+        focus,
         budget: settings.budgetPerRun,
         log,
         progressIntervalMs: options.progressIntervalMs ?? PROGRESS_INTERVAL_MS,
@@ -226,7 +273,7 @@ export function createScanRunHandler(
       }
       throw error;
     } finally {
-      await mail.close().catch(() => {});
+      await closeAll();
     }
   };
 }

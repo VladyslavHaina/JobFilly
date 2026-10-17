@@ -1,11 +1,13 @@
 import { stopMessage } from "@jobfilly/core";
 import {
+  clearIntake,
   countNotAnalyzed,
   createScan,
   getAiSettings,
   getLatestScan,
   getMailboxConnection,
   getScan,
+  hasProfile,
   stopScan,
   updateScanProgress,
   usageTotal,
@@ -16,6 +18,7 @@ import {
   type ScanKind,
   ScanParamsSchema,
   type ScanProgress,
+  StartScanInputSchema,
 } from "@jobfilly/schema";
 import { type Context, Hono } from "hono";
 import { NOT_FOUND, requireRole, validParam, type WorkspaceEnv } from "../access";
@@ -25,6 +28,11 @@ import type { AppDeps } from "../deps";
 // starting the first scan, cancelling a run and "Analyze them" (F4.10). Starting only queues the
 // 'scan.run' job together with the scan row; whichever replica claims the job runs it
 // (jobs/scan), and progress reaches every browser over SSE.
+//
+// MVP 3 (F1.1): POST / with `kind: rerun` and an optional hint re-runs setup once the first scan
+// has stopped and a profile is confirmed. It clears the intake form's answers and extra questions
+// (D18), so the re-run's form starts afresh; its Confirm makes a new profile next to the others.
+// The hint is kept with the scan, never logged.
 
 const RUNNING = { error: "running", message: "A scan is already running" } as const;
 const NO_MAILBOX = { error: "no_mailbox", message: "Connect a mailbox before starting a scan" };
@@ -34,6 +42,14 @@ const NO_FIRST_SCAN = {
   message: "The first scan has to finish before the rest can be analyzed",
 };
 const STOPPED = { error: "stopped", message: "This scan has already stopped" };
+const RERUN_NEEDS_FIRST = {
+  error: "no_first_scan",
+  message: "The first scan has to finish before setup can be re-run",
+};
+const NO_PROFILE = {
+  error: "no_profile",
+  message: "Confirm the intake form first; a re-run of setup makes a profile next to it",
+};
 
 function progressOf(scan: Scan): ScanProgress {
   return {
@@ -64,7 +80,7 @@ async function current(deps: AppDeps, workspaceId: string, scan: Scan | null) {
 
 export function scanRoutes(deps: AppDeps) {
   /** Queues a run of `kind` with its job, once the mailbox and the AI are set up. */
-  async function start(c: Context<WorkspaceEnv>, kind: ScanKind) {
+  async function start(c: Context<WorkspaceEnv>, kind: ScanKind, hint: string | null = null) {
     const workspaceId = c.get("workspaceId");
     if (!(await getMailboxConnection(deps.db, workspaceId))) return c.json(NO_MAILBOX, 409);
     if (!(await getAiSettings(deps.db, workspaceId))) return c.json(NO_AI, 409);
@@ -73,8 +89,13 @@ export function scanRoutes(deps: AppDeps) {
       startedBy: c.get("user").id,
       at: deps.clock.now(),
       enqueue: true,
+      hint,
     });
     if (!created.ok) return c.json(RUNNING, 409);
+    if (kind === "rerun") {
+      await clearIntake(deps.db, workspaceId);
+      await deps.live.publish(workspaceId, { type: "intake.updated", data: {} });
+    }
     await deps.live.publish(workspaceId, {
       type: "scan.progress",
       data: progressOf(created.scan),
@@ -87,7 +108,22 @@ export function scanRoutes(deps: AppDeps) {
       const workspaceId = c.get("workspaceId");
       return c.json(await current(deps, workspaceId, await getLatestScan(deps.db, workspaceId)));
     })
-    .post("/", requireRole("admin"), (c) => start(c, "first"))
+    .post("/", requireRole("admin"), async (c) => {
+      // MVP 1 clients send no body: that is the first scan.
+      const body = await c.req.json().catch(() => ({}));
+      const input = StartScanInputSchema.safeParse(body ?? {});
+      if (!input.success) {
+        const message = input.error.issues[0]?.message ?? "The request is not valid";
+        return c.json({ error: "invalid", message }, 400);
+      }
+      if (input.data.kind === "first") return start(c, "first");
+      const workspaceId = c.get("workspaceId");
+      const first = await getLatestScan(deps.db, workspaceId, "first");
+      if (!first) return c.json(RERUN_NEEDS_FIRST, 409);
+      if (first.status !== "stopped") return c.json(RUNNING, 409);
+      if (!(await hasProfile(deps.db, workspaceId))) return c.json(NO_PROFILE, 409);
+      return start(c, "rerun", input.data.hint || null);
+    })
     .post("/:scanId/cancel", requireRole("admin"), validParam(ScanParamsSchema), async (c) => {
       const workspaceId = c.get("workspaceId");
       const scan = await getScan(deps.db, workspaceId, c.req.valid("param").scanId);
