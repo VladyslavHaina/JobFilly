@@ -1,7 +1,6 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import {
-  type Category,
   type JobFacts,
   JobFactsSchema,
   type ProfileEntry,
@@ -18,8 +17,8 @@ import { assignProfile, type ProfileCandidate } from "./index";
 // The profiles are Maria's two once S1 has confirmed the re-run, oldest first: the one she
 // confirmed in MVP 1 S4 (her intake answers without Amsterdam, as packages/core's persona test
 // builds it) and "Germany permanent" with what the re-run's intake form proposes
-// (`mvp3.rerun.proposes`: German places, permanent, EUR per year). Neither has a rule that bears on
-// these roles. The facts are the fake AI's extract answers, which expected.json holds.
+// (`mvp3.rerun.proposes`: German places, permanent, EUR per year). Rules play no part in the
+// assignment. The facts are the fake AI's extract answers, which expected.json holds.
 
 const FIXTURES = fileURLToPath(new URL("../../../../e2e/fixtures/", import.meta.url));
 const readJson = <T>(path: string): T =>
@@ -28,7 +27,7 @@ const readJson = <T>(path: string): T =>
 const AT = "2026-10-15T12:00:00.000Z";
 
 interface Expected {
-  deliveries: Record<string, { category: Category | null; facts: unknown[] | null }>;
+  deliveries: Record<string, { facts: unknown[] | null }>;
   profile: { answers: Record<string, { values: unknown[] }> };
   mvp3: {
     profiles: { first: string; germany: string };
@@ -66,7 +65,6 @@ const first: ProfileCandidate = {
       ),
     ),
   },
-  rules: [],
 };
 
 const germany: ProfileCandidate = {
@@ -77,7 +75,6 @@ const germany: ProfileCandidate = {
       entry(key, values),
     ),
   },
-  rules: [],
 };
 
 describe("F1.4 against the fixtures' ground truth", () => {
@@ -89,8 +86,6 @@ describe("F1.4 against the fixtures' ground truth", () => {
         const facts: JobFacts = JobFactsSchema.parse(raw);
         const assigned = assignProfile({
           facts,
-          senderAddress: "",
-          category: truth?.category ?? null,
           profiles: [first, germany],
           chosen: null,
         });

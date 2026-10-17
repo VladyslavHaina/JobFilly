@@ -1,11 +1,13 @@
 import { type Assignment, assignProfile } from "@jobfilly/core";
 import { getEvaluations, listProfiles, listRules, type RoleRef } from "@jobfilly/db";
-import type { Category, JobFacts, Profile, Rule } from "@jobfilly/schema";
+import type { JobFacts, Profile, Rule } from "@jobfilly/schema";
 import type { AppDeps } from "../deps";
 
 // The assign step (MVP 3, F1.3): before a role's cv-choice and match stages, it goes to the best
 // profile that is on (packages/core assignProfile), or the one an editor chose for it; matching,
-// CV choice and drafting then use that profile and its rules. Profiles that are off get no roles.
+// CV choice and drafting then use that profile and its rules. Rules play no part in choosing the
+// profile, so a profile's hide rule hides the role in that profile instead of moving it to another.
+// Profiles that are off get no roles.
 // The evaluation stores the profile with its reason (role_evaluations.profile_id), which the inbox
 // shows and every later step of the role reads (profileOfRole).
 
@@ -27,17 +29,9 @@ export async function loadWorkspaceProfiles(deps: AppDeps, ws: string): Promise<
 /** The profile a role goes to now, or null when no profile is on. */
 export function assignRole(
   set: WorkspaceProfiles,
-  input: {
-    facts: JobFacts;
-    senderAddress: string;
-    category: Category | null;
-    chosen: string | null;
-  },
+  input: { facts: JobFacts; chosen: string | null },
 ): Assignment | null {
-  return assignProfile({
-    ...input,
-    profiles: set.on.map((profile) => ({ profile, rules: set.rules.get(profile.id) ?? [] })),
-  });
+  return assignProfile({ ...input, profiles: set.on.map((profile) => ({ profile })) });
 }
 
 /**

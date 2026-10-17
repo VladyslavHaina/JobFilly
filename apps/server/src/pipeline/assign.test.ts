@@ -5,6 +5,7 @@ import {
   ProfileChangeResultSchema,
   type ProfileEntry,
   RoleProfileSchema,
+  RuleSchema,
 } from "@jobfilly/schema";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../app";
@@ -26,6 +27,7 @@ import {
 } from "../testing";
 import { profileOfRole } from "./assign";
 import { evaluateMessage } from "./evaluate";
+import { matchStage } from "./match";
 
 // Every role goes to the best profile that is on, with the reason (MVP 3, F1.3): the cv-choice
 // and match stages work with that profile and its rules, the reply stage with each role's, the
@@ -221,6 +223,38 @@ describe("assigning each role to a profile (F1.3)", () => {
       profileId: germany.id,
       source: "you",
     });
+  });
+
+  it("hides a role by its own profile's hide rule instead of moving it to another", async () => {
+    // No title or skills, so the real match stage needs no model.
+    const id = "<hidden-munich@agency.example>";
+    await seedJobMail(deps, ws.workspaceId, mailbox, {
+      messageId: id,
+      receivedAt: new Date(NOW.getTime() - MINUTE),
+      roles: [
+        roleFacts({
+          title: null,
+          places: [{ country: "DE", city: "München" }],
+          workMode: "onsite",
+          languages: ["German"],
+          contract: "permanent",
+        }),
+      ],
+    });
+    const created = await editor.post(`${base()}/profiles/${germany.id}/rules`, {
+      when: [{ fact: "places.country", op: "in", value: ["DE"] }],
+      then: "hide",
+    });
+    expect(created.status).toBe(201);
+    const rule = RuleSchema.parse(await created.json());
+    stages.match = matchStage;
+    await evaluate(id);
+    expect(await detail(id)).toMatchObject({ profileId: germany.id, source: "auto" });
+    const [evaluation] = await getEvaluations(deps.db, ws.workspaceId, [id]);
+    expect(evaluation?.hidden).toMatchObject({ ruleId: rule.id });
+    expect(deps.logs.filter((l) => l.event === "rule.applied")).toMatchObject([
+      { ruleId: rule.id, action: "hide" },
+    ]);
   });
 
   it("refuses an unknown role or profile, and a profile that is off", async () => {
