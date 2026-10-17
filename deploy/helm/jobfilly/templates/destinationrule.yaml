@@ -1,0 +1,19 @@
+{{- /* Sticky sessions on the app's session cookie. No ttl: with one, Envoy would set its own cookie
+of that name on requests without one, clashing with the app's. Requests before sign-in carry no
+cookie and are spread as usual. */ -}}
+{{- if .Values.istio.destinationRule.enabled }}
+apiVersion: networking.istio.io/v1
+kind: DestinationRule
+metadata:
+  name: {{ include "jobfilly.fullname" . }}
+  labels:
+    {{- include "jobfilly.labels" . | nindent 4 }}
+spec:
+  host: {{ printf "%s.%s.svc.cluster.local" (include "jobfilly.fullname" .) .Release.Namespace }}
+  trafficPolicy:
+    loadBalancer:
+      consistentHash:
+        httpCookie:
+          name: {{ .Values.istio.destinationRule.cookieName }}
+          path: /
+{{- end }}

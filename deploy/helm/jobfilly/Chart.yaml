@@ -1,0 +1,8 @@
+apiVersion: v2
+name: jobfilly
+description: JobFilly, the self-hosted email client for a job search. One image serves the API and the web UI; all state lives in PostgreSQL.
+type: application
+# The chart's own version; bump it on every chart change.
+version: 0.1.0
+# The app release the chart deploys by default: image.tag falls back to it.
+appVersion: "0.3.0"

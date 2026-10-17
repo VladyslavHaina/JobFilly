@@ -1,0 +1,14 @@
+{{- /* Only with two or more replicas, so a single replica never blocks a node drain. */ -}}
+{{- if ge (int .Values.replicaCount) 2 }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "jobfilly.fullname" . }}
+  labels:
+    {{- include "jobfilly.labels" . | nindent 4 }}
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      {{- include "jobfilly.selectorLabels" . | nindent 6 }}
+{{- end }}

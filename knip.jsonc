@@ -2,6 +2,8 @@
   "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
   // Workflow scripts are run by Claude Code, not imported by the app.
   "ignore": [".claude/**"],
+  // e2e/helm.test.ts runs helm when it is on PATH and skips otherwise; it isn't a dependency.
+  "ignoreBinaries": ["helm"],
   // ignoreDependencies: dependencies installed ahead of the code that first uses them. Remove an
   // entry in the change that starts importing it. At every MVP sign-off this list may only hold
   // dependencies a later MVP needs. During MVP 2's build the slices edit this file only to add

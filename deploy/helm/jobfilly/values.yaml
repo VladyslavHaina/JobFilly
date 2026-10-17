@@ -1,0 +1,112 @@
+# JobFilly's Helm values. Everything the server reads comes from the environment
+# (docs/ARCHITECTURE.md, "Configuration"); this file maps onto those variables.
+
+# Replicas are interchangeable: any replica serves any request. With 2 or more, a
+# PodDisruptionBudget (minAvailable: 1) keeps one up during node drains.
+replicaCount: 2
+
+image:
+  # Built from docker/Dockerfile, e.g.
+  #   docker build -f docker/Dockerfile -t jobfilly:0.3.0 .
+  # then pushed to a registry your cluster can pull from.
+  repository: jobfilly
+  # Defaults to the chart's appVersion.
+  tag: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+# The port the server listens on inside the pod (PORT).
+port: 8787
+
+# Non-secret settings, rendered into a ConfigMap.
+config:
+  # The URL users open. Session cookies get Secure when it is https, and state-changing requests
+  # must come from its origin. Empty: https://<ingress.host> (http:// without ingress TLS) when the
+  # Ingress is on, otherwise http://127.0.0.1:8787 for `kubectl port-forward`.
+  publicUrl: ""
+  logLevel: info # debug, info, warn or error
+  syncIntervalSeconds: 120 # mail polling interval
+  # Optional overrides; empty means the server's own default.
+  rdapUrl: "" # default https://rdap.org
+  googleAuthorizeUrl: ""
+  googleTokenUrl: ""
+  googleImapHost: "" # e.g. imaps://imap.gmail.com:993
+  googleSmtpHost: "" # e.g. smtps://smtp.gmail.com:465
+  # Plain-text IMAP/SMTP. Only for test mail servers; never in a real deployment.
+  allowInsecureMail: false
+
+# Secret settings, rendered into a Secret unless existingSecret names one you made yourself.
+secret:
+  # postgres://user:password@host:5432/db. Left empty with postgresql.enabled, it points at the
+  # bundled database.
+  databaseUrl: ""
+  # 32 bytes, base64 (openssl rand -base64 32). It encrypts stored mail passwords and AI keys:
+  # keep it, or that data can't be read again.
+  secretKey: ""
+  # Sign in with Google: set both or neither.
+  googleClientId: ""
+  googleClientSecret: ""
+
+# The name of an existing Secret to use instead. Its keys are the variable names: DATABASE_URL,
+# JOBFILLY_SECRET_KEY and, optionally, JOBFILLY_GOOGLE_CLIENT_ID and JOBFILLY_GOOGLE_CLIENT_SECRET.
+existingSecret: ""
+
+# Placeholders until the soak run (MVP 3, F10.3) records the observed use; it sets the final values.
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    memory: 512Mi
+
+# Shutdown drains for 5 s, lets requests finish within 20 s and hands back jobs within 5 s; the
+# app needs at least 30 seconds (docs/ARCHITECTURE.md, "Kubernetes readiness").
+terminationGracePeriodSeconds: 30
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: false
+  className: ""
+  host: jobfilly.example.com
+  annotations: {}
+  tls:
+    # The Secret holding the certificate for ingress.host; empty means no TLS on the Ingress.
+    secretName: ""
+
+istio:
+  destinationRule:
+    # Sticky sessions on the session cookie. Off by default: the app doesn't need them.
+    enabled: false
+    # The app's session cookie (apps/server/src/auth/session.ts).
+    cookieName: jf_session
+
+# A bundled PostgreSQL for trying JobFilly out: one pod with a PersistentVolumeClaim, from the
+# official image. For real use, point secret.databaseUrl at a managed or backed-up database.
+postgresql:
+  enabled: false
+  image:
+    repository: postgres
+    tag: "17"
+  auth:
+    username: jobfilly
+    database: jobfilly
+    # Required when enabled. Hex keeps it valid inside DATABASE_URL: openssl rand -hex 24
+    password: ""
+  persistence:
+    size: 8Gi
+    storageClass: "" # empty: the cluster's default
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+
+podAnnotations: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
