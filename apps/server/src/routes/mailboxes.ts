@@ -1,8 +1,9 @@
 import {
   createMailbox,
   deleteMailbox,
-  getMailboxConnection,
+  getMailboxRemovalSummary,
   getMailboxSyncStatus,
+  listMailboxes,
   type StoredMailbox,
 } from "@jobfilly/db";
 import { FAILURE_MESSAGES, MAIL_PRESETS } from "@jobfilly/mail";
@@ -12,6 +13,7 @@ import {
   type MailboxList,
   MailboxParamsSchema,
   type MailboxPublic,
+  type MailboxRemovalSummary,
   type MailPresetList,
   type MailTestResult,
 } from "@jobfilly/schema";
@@ -21,13 +23,16 @@ import type { AppDeps } from "../deps";
 import type { Logger } from "../log";
 import { seal } from "../secrets";
 
-// The workspace's mailbox (F2): presets, test, connect, disconnect, and the continuous sync's
-// status for everyone in the workspace (MVP 2 F1.4). One mailbox per workspace in MVP 1 (F2.5).
-// The password is sealed before it is stored, never returned and never logged (F2.3); plain-text
-// IMAP is refused unless JOBFILLY_ALLOW_INSECURE_MAIL=true (F2.4). Connecting and disconnecting
-// tell every open browser of the workspace (MVP 2 F1.4): workspace.updated for the mailbox itself
-// and mailbox.updated for its sync status, so no one keeps showing a mailbox that is gone or a
-// status of one that isn't there.
+// The workspace's mailboxes (F2, MVP 3 F3.1): presets, test, connect, disconnect, and the
+// continuous sync's status for everyone in the workspace (MVP 2 F1.4). From MVP 3 a workspace
+// connects several, one per address; a Google mailbox is connected through routes/oauth.ts. The
+// password is sealed before it is stored, never returned and never logged (F2.3); plain-text
+// IMAP is refused unless JOBFILLY_ALLOW_INSECURE_MAIL=true (F2.4). Disconnecting (F7.4) says first
+// what goes with the mailbox (GET /:mailboxId/removal), then deletes its credentials, its synced
+// messages and everything tied to them. Connecting and disconnecting tell every open browser of
+// the workspace (MVP 2 F1.4): workspace.updated for the mailboxes themselves and mailbox.updated
+// for their sync status, so no one keeps showing a mailbox that is gone or a status of one that
+// isn't there.
 
 const INSECURE: MailTestResult = {
   ok: false,
@@ -37,10 +42,10 @@ const INSECURE: MailTestResult = {
 
 const EXISTS = {
   error: "exists",
-  message: "This workspace already has a mailbox. Disconnect it first to connect another one.",
+  message: "This mailbox is already connected to the workspace.",
 };
 
-function toPublic(m: StoredMailbox): MailboxPublic {
+export function toPublic(m: StoredMailbox): MailboxPublic {
   return {
     id: m.mailboxId,
     address: m.address,
@@ -50,7 +55,14 @@ function toPublic(m: StoredMailbox): MailboxPublic {
     username: m.username,
     sentFolderPath: m.sentFolderPath,
     status: m.status,
+    auth: m.authKind,
   };
+}
+
+/** Tells the workspace's open browsers that its mailboxes and their status changed. */
+export async function publishMailboxChange(deps: AppDeps, workspaceId: string) {
+  await deps.live.publish(workspaceId, { type: "workspace.updated", data: {} });
+  await deps.live.publish(workspaceId, { type: "mailbox.updated", data: {} });
 }
 
 export function mailboxRoutes(deps: AppDeps) {
@@ -74,25 +86,17 @@ export function mailboxRoutes(deps: AppDeps) {
     return result;
   }
 
-  /** Tells the workspace's open browsers that its mailbox and its status changed. */
-  async function publishChange(workspaceId: string) {
-    await deps.live.publish(workspaceId, { type: "workspace.updated", data: {} });
-    await deps.live.publish(workspaceId, { type: "mailbox.updated", data: {} });
-  }
-
   return new Hono<WorkspaceEnv>()
     .get("/", requireRole("viewer"), async (c) => {
       const workspaceId = c.get("workspaceId");
-      const stored = await getMailboxConnection(deps.db, workspaceId);
+      const stored = await listMailboxes(deps.db, workspaceId);
       const list: MailboxList = {
-        items: stored
-          ? [
-              {
-                ...toPublic(stored),
-                sync: await getMailboxSyncStatus(deps.db, workspaceId, stored.mailboxId),
-              },
-            ]
-          : [],
+        items: await Promise.all(
+          stored.map(async (m) => ({
+            ...toPublic(m),
+            sync: await getMailboxSyncStatus(deps.db, workspaceId, m.mailboxId),
+          })),
+        ),
       };
       return c.json(list);
     })
@@ -106,7 +110,6 @@ export function mailboxRoutes(deps: AppDeps) {
     .post("/", requireRole("admin"), validJson(MailboxInputSchema), async (c) => {
       const workspaceId = c.get("workspaceId");
       const input = c.req.valid("json");
-      if (await getMailboxConnection(deps.db, workspaceId)) return c.json(EXISTS, 409);
       // Saving tests again: only a mailbox that works is stored, with the Sent folder it found.
       const tested = await testConnection(input, c.get("log"));
       if (!tested.ok) {
@@ -124,20 +127,51 @@ export function mailboxRoutes(deps: AppDeps) {
       const created = await createMailbox(deps.db, workspaceId, stored);
       if (!created.ok) return c.json(EXISTS, 409);
       c.get("log").info("mailbox.connected", { mailboxId: created.mailboxId });
-      await publishChange(workspaceId);
+      await publishMailboxChange(deps, workspaceId);
       const body: MailboxPublic = toPublic({
         ...stored,
+        workspaceId,
         mailboxId: created.mailboxId,
         status: "connected",
         authKind: "password",
       });
       return c.json(body, 201);
     })
+    .get(
+      "/:mailboxId/removal",
+      requireRole("admin"),
+      validParam(MailboxParamsSchema),
+      async (c) => {
+        const summary = await getMailboxRemovalSummary(
+          deps.db,
+          c.get("workspaceId"),
+          c.req.valid("param").mailboxId,
+        );
+        if (!summary) return c.json(NOT_FOUND, 404);
+        return c.json(summary satisfies MailboxRemovalSummary);
+      },
+    )
     .delete("/:mailboxId", requireRole("admin"), validParam(MailboxParamsSchema), async (c) => {
       const workspaceId = c.get("workspaceId");
-      const deleted = await deleteMailbox(deps.db, workspaceId, c.req.valid("param").mailboxId);
-      if (!deleted) return c.json(NOT_FOUND, 404);
-      await publishChange(workspaceId);
+      const { mailboxId } = c.req.valid("param");
+      const removed = await getMailboxRemovalSummary(deps.db, workspaceId, mailboxId);
+      if (!removed || !(await deleteMailbox(deps.db, workspaceId, mailboxId))) {
+        return c.json(NOT_FOUND, 404);
+      }
+      c.get("log").info("mailbox.disconnected", {
+        mailboxId,
+        messages: removed.messages,
+        roles: removed.roles,
+        drafts: removed.drafts,
+        decisions: removed.decisions,
+      });
+      await publishMailboxChange(deps, workspaceId);
+      // Its mail went with it: the inbox, the drafts and the decision inbox show it at once.
+      if (removed.messages > 0) {
+        for (const type of ["messages.updated", "drafts.updated", "decisions.updated"] as const) {
+          await deps.live.publish(workspaceId, { type, data: {} });
+        }
+      }
       return c.body(null, 204);
     });
 }

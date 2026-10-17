@@ -1,13 +1,19 @@
 import {
   addMember,
   getMailboxConnection,
+  getRoles,
+  getStoredMessages,
+  markMailboxReconnectNeeded,
   recordSyncFailure,
   recordSyncSuccess,
+  saveAnalysis,
+  saveEnvelopes,
 } from "@jobfilly/db";
 import type { MailClient } from "@jobfilly/mail";
 import {
   MailboxListSchema,
   MailboxPublicSchema,
+  MailboxRemovalSummarySchema,
   type MailLogin,
   MailPresetListSchema,
   type MailTestResult,
@@ -20,7 +26,9 @@ import { open } from "../secrets";
 import {
   createTestDeps,
   fakeMailClient,
+  roleFacts,
   type SeededUser,
+  seedGoogleMailbox,
   seedMailbox,
   seedUser,
   seedWorkspace,
@@ -324,18 +332,48 @@ describe("connect (F2.1, F2.3)", () => {
   });
 });
 
-describe("one mailbox per workspace (F2.5)", () => {
-  it("refuses a second mailbox with a plain message", async () => {
+describe("several mailboxes (MVP 3 F3.1, replacing MVP 1 F2.5's one)", () => {
+  it("connects a second address, and refuses the same address twice", async () => {
     expect((await admin.post(url, form)).status).toBe(201);
-    const res = await admin.post(url, { ...form, address: "other@inbox.example" });
-    expect(res.status).toBe(409);
-    expect(await res.json()).toEqual({
+    const second = await admin.post(url, { ...form, address: "maria.home@post.example" });
+    expect(second.status).toBe(201);
+    const again = await admin.post(url, { ...form, address: "MARIA.HOME@post.example" });
+    expect(again.status).toBe(409);
+    expect(await again.json()).toEqual({
       error: "exists",
-      message: "This workspace already has a mailbox. Disconnect it first to connect another one.",
+      message: "This mailbox is already connected to the workspace.",
     });
-    expect((await getMailboxConnection(deps.db, workspaceId))?.address).toBe(
-      "maria.santos@inbox.example",
-    );
+    const { items } = MailboxListSchema.parse(await (await admin.get(url)).json());
+    expect(items.map((m) => [m.address, m.auth])).toEqual([
+      ["maria.santos@inbox.example", "password"],
+      ["maria.home@post.example", "password"],
+    ]);
+    expect(deps.logs.filter((l) => l.event === "mailbox.connected")).toHaveLength(2);
+  });
+
+  it("lists each mailbox with its own sync status and a Google one's reconnect state", async () => {
+    const work = MailboxPublicSchema.parse(await (await admin.post(url, form)).json());
+    const google = await seedGoogleMailbox(deps, workspaceId);
+    await markMailboxReconnectNeeded(deps.db, workspaceId, google.mailboxId);
+    await recordSyncSuccess(deps.db, workspaceId, work.id, {
+      folderPath: "INBOX",
+      uidValidity: 7,
+      lastUid: 3,
+      at: new Date("2026-10-15T10:42:00Z"),
+    });
+    const text = await (await admin.get(url)).text();
+    expect(MailboxListSchema.parse(JSON.parse(text)).items).toMatchObject([
+      { id: work.id, status: "connected", auth: "password", sync: { state: "ok" } },
+      {
+        id: google.mailboxId,
+        address: "maria.gmail@gmail.example",
+        status: "reconnect_needed",
+        auth: "google",
+        sync: { state: "never" },
+      },
+    ]);
+    // A Google mailbox's tokens never leave the server either.
+    expect(text).not.toContain("E2E-SECRET");
   });
 
   it("disconnecting deletes the row and its secret", async () => {
@@ -383,6 +421,117 @@ describe("one mailbox per workspace (F2.5)", () => {
     const { id } = MailboxPublicSchema.parse(await (await tomClient.post(tomUrl, form)).json());
     expect((await admin.delete(`${url}/${id}`)).status).toBe(404);
     expect(await getMailboxConnection(deps.db, tom.workspaceId)).not.toBeNull();
+  });
+});
+
+describe("disconnecting one of several mailboxes (F7.4)", () => {
+  const envelope = (n: number) => ({
+    envelope: {
+      messageId: `<m${n}@agency.example>`,
+      folder: "inbox" as const,
+      folderPath: "INBOX",
+      uidValidity: 7,
+      uid: n,
+      date: "2026-10-01T09:00:00.000Z",
+      from: { address: `r${n}@agency.example`, name: null },
+      to: [],
+      cc: [],
+      replyTo: [],
+      inReplyTo: null,
+      references: [],
+      subject: `Subject ${n}`,
+      listId: null,
+      listUnsubscribe: null,
+      precedence: null,
+      autoSubmitted: null,
+      snippet: "",
+    },
+    verdict: "likely_job" as const,
+    reason: null,
+  });
+
+  /** The work mailbox with m1, the home mailbox with m2 and m3 (two roles on m2). */
+  async function twoMailboxes() {
+    const work = MailboxPublicSchema.parse(await (await admin.post(url, form)).json());
+    const home = MailboxPublicSchema.parse(
+      await (await admin.post(url, { ...form, address: "maria.home@post.example" })).json(),
+    );
+    await saveEnvelopes(deps.db, workspaceId, [envelope(1)], { mailboxId: work.id });
+    await saveEnvelopes(deps.db, workspaceId, [envelope(2), envelope(3)], { mailboxId: home.id });
+    await saveAnalysis(deps.db, workspaceId, {
+      messageId: "<m2@agency.example>",
+      scanId: null,
+      category: "recruiter_outreach",
+      roles: [roleFacts(), roleFacts({ title: "Data Engineer" })],
+    });
+    return { work, home };
+  }
+
+  it("says first what goes with it, and that the mail in the mailbox stays", async () => {
+    const { home } = await twoMailboxes();
+    const res = await admin.get(`${url}/${home.id}/removal`);
+    expect(res.status).toBe(200);
+    expect(MailboxRemovalSummarySchema.parse(await res.json())).toEqual({
+      address: "maria.home@post.example",
+      messages: 2,
+      roles: 2,
+      drafts: 0,
+      decisions: 0,
+    });
+    expect((await admin.get(`${url}/8f0e1c62-0000-4000-8000-000000000000/removal`)).status).toBe(
+      404,
+    );
+  });
+
+  it("deletes its credentials and its messages, and keeps the other mailbox's", async () => {
+    const { work, home } = await twoMailboxes();
+    const seen: string[] = [];
+    deps.live.subscribe(
+      { workspaceId, userId: owner.id, sessionId: "s" },
+      (e) => seen.push(e.type),
+      () => {},
+    );
+    expect((await admin.delete(`${url}/${home.id}`)).status).toBe(204);
+
+    expect(await getMailboxConnection(deps.db, workspaceId, home.id)).toBeNull();
+    const left = await getStoredMessages(deps.db, workspaceId, [
+      "<m1@agency.example>",
+      "<m2@agency.example>",
+      "<m3@agency.example>",
+    ]);
+    expect(left.map((m) => m.envelope.messageId)).toEqual(["<m1@agency.example>"]);
+    expect(await getRoles(deps.db, workspaceId, "<m2@agency.example>")).toEqual([]);
+    const { items } = MailboxListSchema.parse(await (await admin.get(url)).json());
+    expect(items.map((m) => m.id)).toEqual([work.id]);
+    expect(deps.logs.find((l) => l.event === "mailbox.disconnected")).toMatchObject({
+      level: "info",
+      mailboxId: home.id,
+      messages: 2,
+      roles: 2,
+    });
+    expect(deps.rawLogs.join("\n")).not.toContain("post.example");
+    await expect
+      .poll(() => seen)
+      .toEqual([
+        "workspace.updated",
+        "mailbox.updated",
+        "messages.updated",
+        "drafts.updated",
+        "decisions.updated",
+      ]);
+  });
+
+  it("is for admins only, within the workspace", async () => {
+    const { home } = await twoMailboxes();
+    const app = createApp(deps);
+    const editor = await seedUser(deps);
+    await addMember(deps.db, workspaceId, editor.id, "editor");
+    const asEditor = await signedIn(app, deps, editor);
+    expect((await asEditor.get(`${url}/${home.id}/removal`)).status).toBe(403);
+    expect((await asEditor.delete(`${url}/${home.id}`)).status).toBe(403);
+    const outsider = await signedIn(app, deps, await seedUser(deps));
+    expect((await outsider.get(`${url}/${home.id}/removal`)).status).toBe(404);
+    expect(await getMailboxConnection(deps.db, workspaceId, home.id)).not.toBeNull();
   });
 });
 
