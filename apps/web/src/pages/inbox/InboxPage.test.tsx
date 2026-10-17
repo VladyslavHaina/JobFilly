@@ -191,9 +191,14 @@ const NO_SCAN: CurrentScan = { progress: null, stopMessage: null, stoppedAt: nul
 
 /** A fake inbox API that filters and searches like the server. */
 function inboxApi(
-  options: { role?: "viewer" | "editor" | "admin"; pages?: number; scan?: CurrentScan } = {},
+  options: {
+    role?: "viewer" | "editor" | "admin";
+    scope?: "everything" | "pipeline";
+    pages?: number;
+    scan?: CurrentScan;
+  } = {},
 ) {
-  const ws = testWorkspace({ role: options.role ?? "admin" });
+  const ws = testWorkspace({ role: options.role ?? "admin", scope: options.scope });
   const details = structuredClone(DETAILS);
   let scan = options.scan;
   const requests = fakeApi({
@@ -541,6 +546,23 @@ describe("opening a message (F5.2)", () => {
     const { ws } = inboxApi();
     renderApp(paths.message(ws.id, "<unknown@mail.example>"));
     expect(await screen.findByText("This message isn't in this workspace.")).toBeTruthy();
+  });
+});
+
+describe("a member who sees the job pipeline only (MVP 3, F6.1)", () => {
+  it("shows the facts but never asks for the message's text, and has no Drafts page", async () => {
+    const { ws, requests } = inboxApi({ role: "editor", scope: "pipeline" });
+    renderApp(paths.message(ws.id, RECRUITER.id));
+    expect(await screen.findByRole("region", { name: "Role 1" })).toBeTruthy();
+    expect(
+      screen.getByText(
+        "The message's text isn't shown: you see this workspace's job pipeline only.",
+      ),
+    ).toBeTruthy();
+    expect(requests.some((r) => r.path.endsWith("/body"))).toBe(false);
+    const nav = screen.getByRole("navigation", { name: "Main" });
+    expect(within(nav).queryByRole("link", { name: "Drafts" })).toBeNull();
+    expect(within(nav).getByRole("link", { name: "Pipeline" })).toBeTruthy();
   });
 });
 

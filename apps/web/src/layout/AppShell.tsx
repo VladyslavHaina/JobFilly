@@ -23,7 +23,9 @@ function useNavItems(): NavItem[] {
   const { workspaceId, can } = useWorkspace();
   return [
     { to: paths.inbox(workspaceId), label: "Inbox" },
-    { to: paths.drafts(workspaceId), label: "Drafts" },
+    { to: paths.pipeline(workspaceId), label: "Pipeline" },
+    // Drafts are mail content: not for a member who sees the job pipeline only (MVP 3, F6.1).
+    ...(can.mail ? [{ to: paths.drafts(workspaceId), label: "Drafts" }] : []),
     {
       to: paths.decisions(workspaceId),
       label: "Decisions",
@@ -36,6 +38,7 @@ function useNavItems(): NavItem[] {
     ...(can.admin
       ? [
           { to: paths.members(workspaceId), label: "Members" },
+          { to: paths.activity(workspaceId), label: "Activity" },
           { to: paths.settings(workspaceId, "mailbox"), label: "Settings" },
         ]
       : []),
@@ -84,7 +87,12 @@ function Header() {
         <WorkspaceSwitcher />
         <Nav />
         <div className="ml-auto flex items-center gap-3">
-          <span className="text-sm text-stone-600">{user?.name}</span>
+          <NavLink
+            to={paths.account()}
+            className="text-sm text-stone-600 hover:text-stone-900 hover:underline"
+          >
+            {user?.name}
+          </NavLink>
           <Button
             variant="ghost"
             busy={signOut.isPending}

@@ -1,6 +1,7 @@
 import {
   type Role,
   roleAtLeast,
+  scopeOf,
   WorkspaceListSchema,
   type WorkspaceSummary,
 } from "@jobfilly/schema";
@@ -21,8 +22,12 @@ export interface WorkspaceState {
   workspace: WorkspaceSummary;
   workspaceId: string;
   role: Role;
-  /** The UI mirrors the server's roles (F1.8): it hides or disables what the role can't do. */
-  can: { edit: boolean; admin: boolean };
+  /**
+   * The UI mirrors the server's roles (F1.8): it hides or disables what the role can't do. `mail`
+   * (MVP 3, F6.1) is false for a member who sees the job pipeline only: no message text, drafts
+   * or sending.
+   */
+  can: { edit: boolean; admin: boolean; mail: boolean };
 }
 
 const WorkspaceContext = createContext<WorkspaceState | null>(null);
@@ -35,6 +40,7 @@ function workspaceState(workspace: WorkspaceSummary): WorkspaceState {
     can: {
       edit: roleAtLeast(workspace.role, "editor"),
       admin: roleAtLeast(workspace.role, "admin"),
+      mail: scopeOf(workspace) === "everything",
     },
   };
 }

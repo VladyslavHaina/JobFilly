@@ -1,7 +1,7 @@
 // Every in-app URL is built here, the one place that knows them. A message is named by its RFC
 // Message-ID (angle brackets included), URL-encoded as one path segment.
 
-export type SettingsTab = "mailbox" | "ai";
+export type SettingsTab = "mailbox" | "sending" | "ai" | "data";
 export type OnboardingStep = "mailbox" | "ai" | "scan";
 
 const w = (workspaceId: string) => `/w/${encodeURIComponent(workspaceId)}`;
@@ -11,6 +11,8 @@ export const paths = {
   signIn: (next?: string) => (next ? `/sign-in?next=${encodeURIComponent(next)}` : "/sign-in"),
   register: (next?: string) => (next ? `/register?next=${encodeURIComponent(next)}` : "/register"),
   invitations: () => "/invitations",
+  /** MVP 3 (F7.3): the signed-in user's account. */
+  account: () => "/account",
   invite: (inviteId: string, token?: string) =>
     `/invites/${encodeURIComponent(inviteId)}${token ? `?token=${encodeURIComponent(token)}` : ""}`,
   workspace: (workspaceId: string) => w(workspaceId),
@@ -26,6 +28,9 @@ export const paths = {
   decisions: (workspaceId: string) => `${w(workspaceId)}/decisions`,
   profile: (workspaceId: string) => `${w(workspaceId)}/profile`,
   members: (workspaceId: string) => `${w(workspaceId)}/members`,
+  /** MVP 3: the application pipeline (F5) and the activity log (F9). */
+  pipeline: (workspaceId: string) => `${w(workspaceId)}/pipeline`,
+  activity: (workspaceId: string) => `${w(workspaceId)}/activity`,
   settings: (workspaceId: string, tab: SettingsTab = "mailbox") =>
     `${w(workspaceId)}/settings/${tab}`,
 };

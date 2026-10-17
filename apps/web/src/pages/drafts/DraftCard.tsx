@@ -3,6 +3,7 @@ import { useState } from "react";
 import { errorText } from "../../api";
 import { Alert, Badge, Button, Dialog, Textarea, TextField } from "../../components";
 import { useWorkspace } from "../../hooks";
+import { SendButton } from "../send";
 import { STATUS_LABELS, useDiscardDraft, useEditDraft } from "./queries";
 
 // One draft (F6.4, F6.7): its status, the failed reason, the reply text, and for editors Edit
@@ -113,6 +114,7 @@ export function DraftCard({ draft, heading }: { draft: Draft; heading?: string }
           <Button variant="danger" disabled={!can.edit} onClick={() => setConfirming(true)}>
             Discard
           </Button>
+          <SendButton draft={draft} />
           {!can.edit && (
             <span className="text-xs text-stone-500">
               Viewers can read drafts but not change them.

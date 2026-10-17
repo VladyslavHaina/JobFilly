@@ -3,13 +3,20 @@ import { PageHeader } from "../../components";
 import { useWorkspace } from "../../hooks";
 import { paths, type SettingsTab } from "../../paths";
 import { AiForm } from "../ai";
+import { DataSettings } from "../data";
 import { MailboxForm } from "../mailbox";
+import { SmtpSettings } from "../send";
 import { MailboxStatus, UsagePerDay } from "../sync";
 
 const TABS: { id: SettingsTab; label: string }[] = [
   { id: "mailbox", label: "Mailbox" },
+  // MVP 3: SMTP per mailbox (F4, the send slice) and the workspace's data (F7, workspace-admin).
+  { id: "sending", label: "Sending" },
   { id: "ai", label: "AI" },
+  { id: "data", label: "Data" },
 ];
+
+const isTab = (value: string | undefined): value is SettingsTab => TABS.some((t) => t.id === value);
 
 /**
  * Settings › Mailbox and Settings › AI, mounting the connect slice's forms in settings mode: the
@@ -18,7 +25,7 @@ const TABS: { id: SettingsTab; label: string }[] = [
 export function SettingsPage() {
   const { workspaceId } = useWorkspace();
   const { tab } = useParams();
-  const current: SettingsTab = tab === "ai" ? "ai" : "mailbox";
+  const current: SettingsTab = isTab(tab) ? tab : "mailbox";
   return (
     <div>
       <PageHeader title="Settings" />
@@ -39,17 +46,20 @@ export function SettingsPage() {
           </NavLink>
         ))}
       </nav>
-      {current === "mailbox" ? (
+      {current === "mailbox" && (
         <div className="flex flex-col gap-6">
           <MailboxStatus workspaceId={workspaceId} align="start" />
           <MailboxForm workspaceId={workspaceId} mode="settings" />
         </div>
-      ) : (
+      )}
+      {current === "sending" && <SmtpSettings workspaceId={workspaceId} />}
+      {current === "ai" && (
         <div className="flex flex-col gap-6">
           <AiForm workspaceId={workspaceId} mode="settings" />
           <UsagePerDay workspaceId={workspaceId} />
         </div>
       )}
+      {current === "data" && <DataSettings workspaceId={workspaceId} />}
     </div>
   );
 }

@@ -271,6 +271,7 @@ describe("the app shell (F1.7, F1.8)", () => {
         .map((a) => a.textContent),
     ).toEqual([
       "Inbox",
+      "Pipeline",
       "Drafts",
       "Decisions",
       "Scan",
@@ -278,6 +279,7 @@ describe("the app shell (F1.7, F1.8)", () => {
       "Profile",
       "CVs",
       "Members",
+      "Activity",
       "Settings",
     ]);
     await router.navigate(paths.inbox(other.id));

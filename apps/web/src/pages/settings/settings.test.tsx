@@ -87,3 +87,16 @@ describe("Settings › AI (F1.5)", () => {
     expect(requests.some((r) => r.path === `/api/workspaces/${W}/ai/usage`)).toBe(true);
   });
 });
+
+describe("Settings' MVP 3 tabs", () => {
+  it("lists Mailbox, Sending, AI and Data", async () => {
+    fakeApi({});
+    settings("mailbox");
+    const tabs = screen.getByRole("navigation", { name: "Settings" });
+    expect(
+      within(tabs)
+        .getAllByRole("link")
+        .map((a) => a.textContent),
+    ).toEqual(["Mailbox", "Sending", "AI", "Data"]);
+  });
+});

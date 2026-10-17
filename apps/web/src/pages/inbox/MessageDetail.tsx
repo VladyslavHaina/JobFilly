@@ -16,6 +16,7 @@ import { apiPaths, paths } from "../../paths";
 import { CvChoice } from "../cvs";
 import { DraftPanel } from "../drafts";
 import { MatchPanel } from "../match";
+import { RoleProfile } from "../profile/RoleProfile";
 import { SenderPanel } from "../senders";
 import { CategoryChip, CouldNotAnalyze, couldNotAnalyze } from "./badges";
 import {
@@ -227,8 +228,9 @@ function Status(props: { message: MessageDetail; onSetCategory: () => void }) {
   return null;
 }
 
-/** Each role's facts, with its CV choice, match and draft (the slices' slots). */
+/** Each role's facts, with its profile, CV choice, match and draft (the slices' slots). */
 function Facts({ workspaceId, message }: { workspaceId: string; message: MessageDetail }) {
+  const { can } = useWorkspace();
   if (message.ownReply || message.category === "not_job") return null;
   if (message.roles.length === 0) {
     if (message.analysisStatus !== "done") return null;
@@ -244,6 +246,12 @@ function Facts({ workspaceId, message }: { workspaceId: string; message: Message
         // biome-ignore lint/suspicious/noArrayIndexKey: see above
         <div key={i} className="flex flex-col gap-2">
           <RoleFacts role={role} heading={`Role ${i + 1}`} />
+          <RoleProfile
+            workspaceId={workspaceId}
+            messageId={message.id}
+            position={i}
+            profile={role.profile ?? null}
+          />
           <MatchPanel
             workspaceId={workspaceId}
             messageId={message.id}
@@ -256,7 +264,7 @@ function Facts({ workspaceId, message }: { workspaceId: string; message: Message
             position={i}
             choice={role.cvChoice}
           />
-          <DraftPanel workspaceId={workspaceId} messageId={message.id} position={i} />
+          {can.mail && <DraftPanel workspaceId={workspaceId} messageId={message.id} position={i} />}
         </div>
       ))}
     </div>
@@ -265,6 +273,7 @@ function Facts({ workspaceId, message }: { workspaceId: string; message: Message
 
 export function MessageDetailView(props: { workspaceId: string; messageId: string }) {
   const { workspaceId, messageId } = props;
+  const { can } = useWorkspace();
   const heading = useRef<HTMLHeadingElement>(null);
   const correction = useRef<HTMLDivElement>(null);
   const detail = useQuery({
@@ -349,7 +358,14 @@ export function MessageDetailView(props: { workspaceId: string; messageId: strin
       {!message.ownReply && <CategoryCorrection message={message} box={correction} />}
       <Facts workspaceId={workspaceId} message={message} />
       <section aria-label="Message" className="border-t border-stone-200 pt-4">
-        <Body workspaceId={workspaceId} messageId={messageId} />
+        {can.mail ? (
+          <Body workspaceId={workspaceId} messageId={messageId} />
+        ) : (
+          // MVP 3 (F6.1): the job pipeline only, no message text.
+          <p className="text-sm text-stone-500">
+            The message's text isn't shown: you see this workspace's job pipeline only.
+          </p>
+        )}
       </section>
     </Card>
   );

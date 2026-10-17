@@ -3,6 +3,8 @@ import { type RouteObject, useParams } from "react-router";
 import { useWorkspace } from "./hooks";
 import { AppShell, Home, NotFound, RequireSession, WorkspaceIndex } from "./layout";
 import { OnboardingPage } from "./onboarding";
+import { AccountPage } from "./pages/account";
+import { ActivityPage } from "./pages/activity";
 import { RegisterPage, SignInPage } from "./pages/auth";
 import { CvsPage } from "./pages/cvs";
 import { DecisionsPage } from "./pages/decisions";
@@ -11,6 +13,7 @@ import { InboxPage } from "./pages/inbox";
 import { IntakePage } from "./pages/intake";
 import { InvitationsPage, InviteLinkPage } from "./pages/invites";
 import { MembersPage } from "./pages/members";
+import { PipelinePage } from "./pages/pipeline";
 import { ProfilePage } from "./pages/profile";
 import { ScanPage } from "./pages/scan";
 import { NotAnalyzedBanner } from "./pages/scan/NotAnalyzedBanner";
@@ -43,6 +46,7 @@ export const routes: RouteObject[] = [
     children: [
       { path: "/", element: <Home /> },
       { path: "/invitations", element: <InvitationsPage /> },
+      { path: "/account", element: <AccountPage /> },
       { path: "/invites/:inviteId", element: <InviteLinkPage /> },
       {
         path: "/w/:workspaceId",
@@ -59,6 +63,9 @@ export const routes: RouteObject[] = [
           { path: "drafts", element: <WorkspacePage page={DraftsPage} /> },
           { path: "decisions", element: <WorkspacePage page={DecisionsPage} /> },
           { path: "members", element: <MembersPage /> },
+          // MVP 3
+          { path: "pipeline", element: <WorkspacePage page={PipelinePage} /> },
+          { path: "activity", element: <WorkspacePage page={ActivityPage} /> },
           { path: "settings/:tab", element: <SettingsPage /> },
           { path: "*", element: <NotFound /> },
         ],

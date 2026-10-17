@@ -20,6 +20,7 @@ import { Evidence } from "../intake/Evidence";
 import { profilesApi, profilesKey, useFormOpen, useProfiles } from "../intake/queries";
 import { ScanFirst } from "../intake/ScanFirst";
 import { RulesList } from "../rules";
+import { RerunSetup } from "../scan/RerunSetup";
 
 // The confirmed profile (F6.5): every entry with where it came from — the scan, or you — and a
 // name that can be changed. Editors change answers with the same clicks as the intake form;
@@ -210,6 +211,7 @@ export function ProfilePage({ workspaceId }: { workspaceId: string }) {
           <Alert tone="info">You can see the profile; only editors and admins can change it.</Alert>
         </div>
       )}
+      <RerunSetup workspaceId={workspaceId} />
       <div className="mb-4">
         <ProfileCvPrompt workspaceId={workspaceId} profileId={profile.id} />
       </div>
