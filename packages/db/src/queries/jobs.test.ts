@@ -149,6 +149,27 @@ describe("the job queue", () => {
   });
 });
 
+describe("delayed jobs (MVP 3, F4.2)", () => {
+  it("doesn't claim a job before its run_at, and claims it once that has come", async () => {
+    const later = await enqueueJob(conn.db, workspaceId, {
+      type: "scan.run",
+      payload: { n: 1 },
+      now: t0,
+      runAt: after(10_000),
+    });
+    expect(await claim("app-a", t0)).toBeNull();
+    expect(await claim("app-a", after(9_999))).toBeNull();
+    // A job due now, enqueued after it, goes first.
+    const now = await enqueueJob(conn.db, workspaceId, {
+      type: "scan.run",
+      payload: { n: 2 },
+      now: after(1),
+    });
+    expect((await claim("app-a", after(2)))?.id).toBe(now.id);
+    expect((await claim("app-b", after(10_000)))?.id).toBe(later.id);
+  });
+});
+
 describe("dedupe keys (TBD-178)", () => {
   const job = (dedupeKey: string, now = t0) =>
     enqueueJob(conn.db, workspaceId, { type: "scan.run", payload: {}, now, dedupeKey });

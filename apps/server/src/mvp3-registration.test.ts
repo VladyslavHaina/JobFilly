@@ -19,7 +19,8 @@ import {
 // The MVP 3 foundation registers every new route, job type and port ahead of the slice that
 // builds it (the plan): each route sits behind the membership check (404 for anyone else) and
 // its role (403), is closed or open to a member who sees the pipeline only as F6.1 says, and
-// answers 501 until its slice replaces the stub.
+// answers 501 until its slice replaces the stub; a built one answers `built` here (an empty body
+// or an unknown id).
 
 const DRAFT = "6f1c2f4e-8d3a-4b5c-9e7f-0a1b2c3d4e5f";
 const enc = encodeURIComponent;
@@ -54,17 +55,50 @@ interface Route {
   role: "viewer" | "editor" | "admin";
   /** Open to a member who sees the job pipeline only. */
   pipeline: boolean;
+  /** Once its slice has built it: what it answers here instead of 501. */
+  built?: number;
 }
 
 const ws = () => `/api/workspaces/${maria.workspaceId}`;
 const ROUTES = (): Route[] => [
   { method: "get", path: `${ws()}/pipeline`, role: "viewer", pipeline: true },
   { method: "put", path: `${ws()}/pipeline/stage`, role: "editor", pipeline: true },
-  { method: "get", path: `${ws()}/drafts/${DRAFT}/send`, role: "editor", pipeline: false },
-  { method: "post", path: `${ws()}/drafts/${DRAFT}/send`, role: "editor", pipeline: false },
-  { method: "delete", path: `${ws()}/drafts/${DRAFT}/send`, role: "editor", pipeline: false },
-  { method: "put", path: `${ws()}/mailboxes/${DRAFT}/smtp`, role: "admin", pipeline: true },
-  { method: "post", path: `${ws()}/mailboxes/${DRAFT}/smtp/test`, role: "admin", pipeline: true },
+  // The send slice: no such draft or mailbox, and an empty body.
+  {
+    method: "get",
+    path: `${ws()}/drafts/${DRAFT}/send`,
+    role: "editor",
+    pipeline: false,
+    built: 404,
+  },
+  {
+    method: "post",
+    path: `${ws()}/drafts/${DRAFT}/send`,
+    role: "editor",
+    pipeline: false,
+    built: 400,
+  },
+  {
+    method: "delete",
+    path: `${ws()}/drafts/${DRAFT}/send`,
+    role: "editor",
+    pipeline: false,
+    built: 404,
+  },
+  {
+    method: "put",
+    path: `${ws()}/mailboxes/${DRAFT}/smtp`,
+    role: "admin",
+    pipeline: true,
+    built: 400,
+  },
+  {
+    method: "post",
+    path: `${ws()}/mailboxes/${DRAFT}/smtp/test`,
+    role: "admin",
+    pipeline: true,
+    built: 400,
+  },
   { method: "post", path: `${ws()}/oauth/google/start`, role: "admin", pipeline: true },
   { method: "get", path: `${ws()}/export`, role: "admin", pipeline: false },
   { method: "get", path: `${ws()}/activity`, role: "admin", pipeline: true },
@@ -95,11 +129,11 @@ describe("the MVP 3 workspace routes", () => {
       expect([r.method, r.path, asViewer]).toEqual([
         r.method,
         r.path,
-        r.role === "viewer" ? 501 : 403,
+        r.role === "viewer" ? (r.built ?? 501) : 403,
       ]);
       const res = await call(clients.maria, r);
-      expect([r.method, r.path, res.status]).toEqual([r.method, r.path, 501]);
-      expect(await res.json()).toMatchObject({ error: "not_implemented" });
+      expect([r.method, r.path, res.status]).toEqual([r.method, r.path, r.built ?? 501]);
+      if (!r.built) expect(await res.json()).toMatchObject({ error: "not_implemented" });
     }
   });
 
@@ -107,7 +141,11 @@ describe("the MVP 3 workspace routes", () => {
     await setMemberScope(deps.db, maria.workspaceId, tom.id, "pipeline");
     for (const r of ROUTES()) {
       const status = (await call(clients.tom, r)).status;
-      expect([r.method, r.path, status]).toEqual([r.method, r.path, r.pipeline ? 501 : 404]);
+      expect([r.method, r.path, status]).toEqual([
+        r.method,
+        r.path,
+        r.pipeline ? (r.built ?? 501) : 404,
+      ]);
     }
   });
 

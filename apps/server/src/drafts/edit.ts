@@ -154,6 +154,10 @@ export async function discardDraft(
       const draft = await getDraft(deps.db, ws, draftId);
       if (!draft) return NOT_FOUND;
       if (draft.status === "discarded") return { ok: true, draft };
+      // MVP 3 (F4.4): it was sent; the row stays as the role's answer (D13).
+      if (draft.status === "sent") {
+        return { ok: false, error: "conflict", message: "This draft was sent" };
+      }
       if (draft.status === "saving") {
         return { ok: false, error: "conflict", message: "The draft is still being saved" };
       }

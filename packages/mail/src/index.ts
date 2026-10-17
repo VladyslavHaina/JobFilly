@@ -11,4 +11,11 @@ export {
 } from "./client";
 export { FAILURE_MESSAGES, MailError } from "./errors";
 export { MAIL_PRESETS } from "./presets";
-export { type SmtpOptions, sendSmtp, testSmtp } from "./smtp";
+export {
+  composeOutgoing,
+  type OutgoingMessage,
+  SmtpError,
+  type SmtpOptions,
+  sendSmtp,
+  testSmtp,
+} from "./smtp";
