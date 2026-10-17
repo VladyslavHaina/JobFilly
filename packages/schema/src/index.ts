@@ -3,6 +3,7 @@
 
 export * from "./ai";
 export * from "./ai-output";
+export * from "./applications";
 export * from "./assistant";
 export * from "./auth";
 export * from "./common";

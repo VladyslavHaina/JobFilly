@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  APPLICATION_STAGES,
   DraftStatusSchema,
   jobDedupeKey,
   MAIL_SEND_JOB,
@@ -8,9 +9,11 @@ import {
   MailboxStatusSchema,
   MailSendPayloadSchema,
   MessageListQuerySchema,
+  NO_REPLY_FLAG_DAYS,
   OAuthCallbackQuerySchema,
   OAuthMailConnectionSchema,
   OAuthTokensSchema,
+  PipelineItemSchema,
   ProfilePatchSchema,
   ProfileSchema,
   RoleProfileInputSchema,
@@ -20,6 +23,7 @@ import {
   SEND_DELAY_SECONDS,
   SendConfirmSchema,
   SendSchema,
+  SetStageInputSchema,
   SmtpLoginSchema,
   SmtpSettingsInputSchema,
   StartScanInputSchema,
@@ -185,5 +189,49 @@ describe("sending with confirmation (F4)", () => {
     expect(MAIL_SEND_JOB).toBe("mail.send");
     expect(jobDedupeKey.send(ID)).toBe(`send:${ID}`);
     expect(MailSendPayloadSchema.safeParse({ workspaceId: ID, sendId: ID }).success).toBe(true);
+  });
+});
+
+describe("the application pipeline (F5)", () => {
+  it("has the stages of the spec, in order, and the 21-day flag", () => {
+    expect(APPLICATION_STAGES).toEqual([
+      "new",
+      "replied",
+      "applied",
+      "interview",
+      "assessment",
+      "offer",
+      "rejected",
+      "closed",
+    ]);
+    expect(NO_REPLY_FLAG_DAYS).toBe(21);
+  });
+
+  it("keeps every sender of a role sent by two agencies on one item", () => {
+    const role = { messageId: "<a@agency.example>", position: 0 };
+    const item = {
+      role,
+      roles: [role, { messageId: "<b@other.example>", position: 0 }],
+      title: "Backend Engineer",
+      company: "Nordlicht",
+      senders: [
+        { address: "jo@agency.example", name: null },
+        { address: "al@other.example", name: "Al" },
+      ],
+      stage: "interview",
+      stageSource: "you",
+      since: "2026-10-01T12:00:00.000Z",
+      nextStep: "Prepare for the interview",
+      noReply: false,
+    };
+    expect(PipelineItemSchema.parse(item)).toEqual(item);
+    expect(PipelineItemSchema.safeParse({ ...item, roles: [] }).success).toBe(false);
+  });
+
+  it("sets a stage by hand or goes back to the derived one", () => {
+    const role = { messageId: "<a@agency.example>", position: 0 };
+    expect(SetStageInputSchema.safeParse({ role, stage: "interview" }).success).toBe(true);
+    expect(SetStageInputSchema.safeParse({ role, stage: null }).success).toBe(true);
+    expect(SetStageInputSchema.safeParse({ role, stage: "hired" }).success).toBe(false);
   });
 });
