@@ -5583,3 +5583,97 @@ These make sign-off possible; without them the build goes on and records an open
 - **Refs:** F8, MVP-2 "Quality with a real AI provider", requests.json #1 and #6
 - **Status:** open
 
+## TBD-446 · MVP 3 plan and foundation decisions (D1–D28)
+- **Kind:** decision
+- **Where:** MVP 3 · Plan and foundation (orchestrated build, 2026-10-17)
+- **Context:** The orchestrator planned MVP 3 as seven parallel slices on a shared foundation (8579de2..2a09d31). These choices were made on the owner's behalf, as the owner asked.
+- **Options:** Per decision, as written below.
+- **Chosen:**
+  - **D1 · Seven slices.** The workflow's plan check allows six; this plan uses seven so that no
+    slice owns another's files and the fixtures have one owner. Merging `send` into `mailboxes`
+    gets to six if required.
+  - **D2 · Foundation does the cross-cutting plumbing, not only stubs.** Mailbox addressing
+    (`messages.mailbox_id`, `connectMailbox(deps, ws, mailboxId)`), the inbox filter and row fields,
+    scope enforcement on the drafts/send mounts and in the messages routes, and `recordActivity` at
+    the existing "draft saved" point are done by the foundation, because otherwise three slices
+    would edit the same files. With one mailbox and one profile everything behaves as in MVP 2.
+  - **D3 · Same Message-ID in two mailboxes is one message.** Messages stay unique per workspace;
+    the first mailbox to store it keeps it. `messages.mailbox_id` is nullable (rows of a mailbox
+    disconnected before MVP 3) and backfilled for every other row; null reads as the workspace's
+    first mailbox.
+  - **D4 · Disconnect deletes the messages.** `messages.mailbox_id` cascades, so F7.4's "everything
+    tied to its messages" follows from the foreign keys (roles, evaluations, drafts, decisions rows,
+    sends).
+  - **D5 · OAuth endpoints and hosts.** `JOBFILLY_GOOGLE_IMAP_HOST`/`_SMTP_HOST` take a URL
+    (`imaps://imap.gmail.com:993`, `smtps://smtp.gmail.com:465`; plain `imap://`/`smtp://` only with
+    `JOBFILLY_ALLOW_INSECURE_MAIL`), so the test stack can point at GreenMail's plain ports. The
+    address comes from the token answer's `id_token` email claim (received directly from the token
+    endpoint, so no signature check), no extra userinfo URL. Redirect URI
+    `${PUBLIC_URL}/api/oauth/google/callback`; scope `https://mail.google.com/ openid email`.
+  - **D6 · Test stack OAuth account.** The Google mailbox is a third GreenMail account
+    (`maria.gmail@gmail.example`); the fake server's access token equals that account's password so
+    GreenMail's XOAUTH2 accepts it. If GreenMail has no XOAUTH2, S4 still completes the sign-in and
+    the IMAP login is proven in an integration test (F3.3 allows it).
+  - **D7 · Two new AI prompts, no new model slots.** `focus.v1` (the re-run hint read into places,
+    languages, contracts, work modes) runs on the `intake` model; `answer.v1` (a question answered
+    from tool results, with sources) runs on the `assistant` model. `ai_settings.models` doesn't
+    change, so no data migration.
+  - **D8 · Questions go through assistant.v1 first.** assistant.v1's answer gains `lookups` (read-only
+    tool requests, default empty); the server runs them and asks `answer.v1`. Answers come back as
+    JSON, never as provider tool calls (TBD-25).
+  - **D9 · Sending replaces MVP 2's "nothing is sent".** MVP-3's scope lists only MVP 1's one-mailbox
+    limit as replaced, but F4 replaces MVP 2 F6.6 too. The no-SMTP guard tests are narrowed (not
+    deleted): SMTP only in `packages/mail/src/smtp/`, only `apps/server/src/send/` sends, nothing
+    sends without a confirmed token.
+  - **D10 · Confirmation token is stateless.** An HMAC over workspace, draft, user and the draft's
+    content hash, 15 minutes; editing the draft changes the hash, so the user confirms again.
+  - **D11 · Delayed send is a queue feature.** `jobs.run_at`: the claim skips jobs not yet due;
+    Undo cancels the `sends` row, so the job does nothing.
+  - **D12 · Sent copy.** Appended over IMAP unless the preset says the provider saves it (Gmail);
+    the job looks for the Message-ID in Sent first, so a retry never adds a second copy.
+  - **D13 · A sent draft keeps its row.** `drafts.status = sent` keeps the role's one live draft, so
+    no new automatic draft is made for a role already answered.
+  - **D14 · Pipeline-only members.** They see roles, facts, matches, stages, the profile and the
+    decision inbox; not message bodies, drafts (and sending), non-job mail or the assistant's
+    message text tool. Hidden resources answer 404.
+  - **D15 · Pipeline stages are derived on read.** Only a manual stage is stored (`role_stages`);
+    `pipeline.stage_changed` is logged for manual changes. "Time in stage" is the date of the mail
+    that set it, or the manual change.
+  - **D16 · Activity log rows hold ids, not names or addresses.** Actor and target are user ids
+    (set null when the account goes: "Deleted user"), plus `actor_kind` user/system; so a deleted
+    account leaves neither name nor email in `pg_dump`.
+  - **D17 · Account deletion.** Owned workspaces are listed with their members and deleted after
+    confirmation; memberships elsewhere end; invites to the user's email go too; `scans.started_by`
+    becomes nullable (set null) so a scan someone else's workspace kept doesn't block it.
+  - **D18 · Re-run intake.** Starting a re-run clears the workspace's unconfirmed intake answers and
+    intake.v1 extras; Confirm makes a new profile and leaves the others untouched (the MVP 1
+    "exists" refusal goes for re-runs).
+  - **D19 · F1.4's fixture cross-check** is added by the integrator once `profiles` and `fixtures`
+    are both merged (as TBD-414 did in MVP 2); each slice proves its own part alone.
+  - **D20 · F2.3 "says how many changed"** answers with the impact preview's count (no model call)
+    at once; the re-evaluation itself finishes within the minute as before.
+  - **D21 · Fake OAuth through the proxy** on its own port (`127.0.0.1:8084`), the app reaches
+    `http://oauth:8080` inside the stack.
+  - **D22 · MVP 1 S7's "no second mailbox" step** is updated in the codify step, as MVP-3 says.
+  - **D23 · Dropping the one-mailbox unique isn't backward compatible for one step:** an MVP 2
+    replica's "connect a mailbox" fails during a rolling update to MVP 3 (its ON CONFLICT target is
+    gone). Everything else in 0003 is additive.
+  - **D24 · Pipeline-only members are closed by default (security review of 83b854a):** the two
+    message PUTs (category, CV override) let a pipeline-only editor change non-job mail. Fixed in
+    9bca444: `requireJobMail` on every per-message route, and `mount` closes every module to such a
+    member unless opened; export and sending are closed, decisions, CVs, intake, settings and
+    members stay open (no mail content). `access/scope.test.ts` proves each refused route 404s for
+    them and not for a full member.
+  - **D25 · A pipeline-only admin can't export:** the export holds drafts and every message's
+    metadata, so it is closed to that scope like drafts.
+  - **D26 · assistant.v1's `lookups` defaults to none,** so answers written before MVP 3 (fixtures,
+    stored tests) still read; it is not in the JSON Schema's `required`, which strict structured
+    output on an OpenAI-compatible server may refuse. The assistant slice decides with the real-AI run.
+  - **D27 · Account deletion asks for the password** (`DeleteAccountInputSchema`).
+  - **D28 · A flaky MVP 2 test fixed, not skipped:** `routes/drafts.test.ts` "shows each draft's
+    status" tied both drafts on the standing test clock; it now advances the clock a second
+    (d9dfc1c).
+- **If you decide otherwise:** Each decision names what it changes; reopen it here and the orchestrator updates the code.
+- **Refs:** docs/mvp/MVP-3.md F1–F9, docs/ARCHITECTURE.md
+- **Status:** accepted
+
