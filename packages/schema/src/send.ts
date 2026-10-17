@@ -17,14 +17,39 @@ export const SEND_DELAY_SECONDS = 10;
 /** How long a confirmation token is good for after the confirmation was shown. */
 export const SEND_TOKEN_TTL_MINUTES = 15;
 
+/** A DNS name: labels of letters, digits and inner hyphens, joined by dots. */
+const HOST_NAME =
+  /^(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\.)*[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?$/;
+/** An IPv6 literal in brackets. */
+const IPV6_LITERAL = /^\[[0-9A-Fa-f:.]+\]$/;
+
+/**
+ * An SMTP server's host name or IP address and nothing else: no scheme, user, path, port or
+ * space, so no URL trick can point the connection at anything but the host shown. Any host is
+ * allowed (self-hosted servers, as for IMAP).
+ */
+export const MailHostSchema = z
+  .string()
+  .trim()
+  .min(1, "Enter the server name")
+  .max(253)
+  .refine((v) => HOST_NAME.test(v) || IPV6_LITERAL.test(v), {
+    message: "Enter only the server name, like smtp.example.com",
+  });
+
+/** Any TCP port, as for IMAP. */
+const MailPortSchema = z.number().int().min(1).max(65535);
+
 /**
  * PUT /mailboxes/:mailboxId/smtp: a mailbox's SMTP settings (the preset fills them). `password`
- * is write-only; leaving it out keeps the stored one, or for a new password mailbox uses its IMAP
- * password. A Google mailbox sends with its OAuth token and takes no password.
+ * is write-only; leaving it out keeps the stored one, but only for the same host: a stored
+ * password never goes to a host other than the one it was given for, so the first settings and
+ * any change of host need it. A Google mailbox has nothing to set: it sends with its OAuth token
+ * through the server's Google SMTP host (JOBFILLY_GOOGLE_SMTP_HOST), never one typed here.
  */
 export const SmtpSettingsInputSchema = z.object({
-  host: z.string().trim().min(1, "Enter the server name"),
-  port: z.number().int().min(1).max(65535),
+  host: MailHostSchema,
+  port: MailPortSchema,
   tlsMode: TlsModeSchema,
   username: z.string().min(1, "Enter the user name"),
   password: z.string().min(1).optional(),
@@ -41,15 +66,15 @@ export type SmtpTestResult = z.infer<typeof SmtpTestResultSchema>;
 /** What packages/mail signs in to SMTP with: a password or an OAuth access token (XOAUTH2). */
 export const SmtpLoginSchema = z.union([
   z.object({
-    host: z.string().min(1),
-    port: z.number().int(),
+    host: MailHostSchema,
+    port: MailPortSchema,
     tlsMode: TlsModeSchema,
     username: z.string().min(1),
     password: z.string().min(1),
   }),
   z.object({
-    host: z.string().min(1),
-    port: z.number().int(),
+    host: MailHostSchema,
+    port: MailPortSchema,
     tlsMode: TlsModeSchema,
     username: z.string().min(1),
     accessToken: z.string().min(1),
