@@ -2,7 +2,7 @@
   "name": "@jobfilly/mail",
   "version": "0.0.0",
   "private": true,
-  "description": "Mail access: IMAP sync, message parsing, and drafts saved to the Drafts folder (no sending).",
+  "description": "Mail access: IMAP sync (password or XOAUTH2), message parsing, drafts saved to the Drafts folder, and one confirmed message built (composeOutgoing) and sent over SMTP (src/smtp).",
   "type": "module",
   "exports": {
     ".": "./src/index.ts"
