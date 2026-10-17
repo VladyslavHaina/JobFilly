@@ -299,6 +299,28 @@ describe("Undo", () => {
     expect((await maria.post(`${historyUrl()}/${added.id}/undo`)).status).toBe(409);
   });
 
+  it("sets the reply threshold by hand and undoes it back to the default (MVP 3, S3)", async () => {
+    deps.clock.advance(1_000);
+    const set = await maria.patch(`/api/workspaces/${ws.workspaceId}/profiles/${profile.id}`, {
+      entries: [{ key: "reply_threshold", value: [80] }],
+    });
+    expect(set.status).toBe(200);
+    const [latest] = await list(tom);
+    expect(latest).toMatchObject({
+      source: "you",
+      lines: [
+        {
+          label: "Fit score that gets an automatic reply",
+          before: null,
+          after: "80",
+        },
+      ],
+    });
+    expect((await maria.post(`${historyUrl()}/${latest?.id}/undo`)).status).toBe(200);
+    const [current] = await listProfiles(deps.db, ws.workspaceId);
+    expect(current?.entries.some((e) => e.key === "reply_threshold")).toBe(false);
+  });
+
   it("brings back a removed rule and removes an added one", async () => {
     const added = await change([{ op: "add", target: "rule", rule: asiaRule }], "assistant", "x");
     const [rule] = await listRules(deps.db, ws.workspaceId, profile.id);
