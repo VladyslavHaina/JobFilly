@@ -1,6 +1,8 @@
 import { join } from "node:path";
 import {
   AI_TEST_PATH,
+  ANSWER_ANSWERS_PATH,
+  type AnswerAnswerFile,
   type AnswerFile,
   ASSISTANT_ANSWERS_PATH,
   ASSISTANT_ANY_TURN,
@@ -12,6 +14,8 @@ import {
   type DraftAnswer,
   draftKey,
   type ExtractAnswer,
+  FOCUS_ANSWERS_PATH,
+  type FocusAnswerFile,
   type IntakeAnswer,
   isInvalid,
   type JobFacts,
@@ -30,7 +34,8 @@ import type { Prompt } from "./prompt.ts";
 // an answer only when every Message-ID it names has one; anything else is a missing fixture,
 // which the server turns into HTTP 500 so it is never silent. MVP 2's tasks are answered by their
 // key lines: cv.v1 by the CV's SHA-256, match.v1 by Message-ID and role position, draft.v1 also
-// by attempt, assistant.v1 by the user's message and the turn.
+// by attempt, assistant.v1 by the user's message and the turn. MVP 3's focus.v1 is answered by
+// the hint (its "message" block), answer.v1 like assistant.v1, by the question and the turn.
 
 export interface PersonaAnswers {
   classify: AnswerFile<ClassifyAnswer>;
@@ -52,6 +57,8 @@ export interface AnswerStore {
   none: IntakeAnswer;
   aiTest: unknown;
   assistant: AssistantAnswerFile;
+  focus: FocusAnswerFile;
+  answer: AnswerAnswerFile;
 }
 
 export function createStore(
@@ -59,6 +66,7 @@ export function createStore(
   none: IntakeAnswer,
   aiTest: unknown,
   assistant: AssistantAnswerFile,
+  mvp3: { focus?: FocusAnswerFile; answer?: AnswerAnswerFile } = {},
 ): AnswerStore {
   const owner = new Map<string, string>();
   for (const [name, a] of Object.entries(personas)) {
@@ -70,7 +78,15 @@ export function createStore(
       owner.set(key.replace(/(#\d+){1,2}$/, ""), name);
     }
   }
-  return { personas: new Map(Object.entries(personas)), owner, none, aiTest, assistant };
+  return {
+    personas: new Map(Object.entries(personas)),
+    owner,
+    none,
+    aiTest,
+    assistant,
+    focus: mvp3.focus ?? {},
+    answer: mvp3.answer ?? {},
+  };
 }
 
 /** Every answer under `fixturesDir` (e2e/fixtures). */
@@ -97,6 +113,7 @@ export function loadAnswers(fixturesDir: string): AnswerStore {
     read(NONE_INTAKE_PATH),
     read(AI_TEST_PATH),
     read(ASSISTANT_ANSWERS_PATH),
+    { focus: read(FOCUS_ANSWERS_PATH), answer: read(ANSWER_ANSWERS_PATH) },
   );
 }
 
@@ -224,6 +241,27 @@ function assistantAnswer(store: AnswerStore, prompt: Prompt): Answer {
     : missing(`no assistant.v1 answer for this message at turn ${turn}`);
 }
 
+/** focus.v1: by the hint, the prompt's "message" block. */
+function focusAnswer(store: AnswerStore, prompt: Prompt): Answer {
+  if (prompt.message === null) return missing("focus.v1 has no message block");
+  const answer = store.focus[assistantMessageKey(prompt.message)];
+  // The hint is the user's words, never logged.
+  return answer ? { ok: true, content: answer } : missing("no focus.v1 answer for this hint");
+}
+
+/** answer.v1: by the question, then by the Turn line or any turn, as assistant.v1. */
+function answerAnswer(store: AnswerStore, prompt: Prompt): Answer {
+  const turn = prompt.keys.Turn;
+  if (!turn || prompt.message === null) {
+    return missing("answer.v1 has no Turn line or no message block");
+  }
+  const byTurn = store.answer[assistantMessageKey(prompt.message)];
+  const answer = byTurn?.[turn] ?? byTurn?.[ASSISTANT_ANY_TURN];
+  return answer
+    ? { ok: true, content: answer }
+    : missing(`no answer.v1 answer for this question at turn ${turn}`);
+}
+
 /** The JSON the model would answer `prompt` with, or why there is none. */
 export function answerFor(store: AnswerStore, prompt: Prompt): Answer {
   const ids = prompt.messageIds;
@@ -283,6 +321,10 @@ export function answerFor(store: AnswerStore, prompt: Prompt): Answer {
       return roleAnswer(store, prompt);
     case "assistant.v1":
       return assistantAnswer(store, prompt);
+    case "focus.v1":
+      return focusAnswer(store, prompt);
+    case "answer.v1":
+      return answerAnswer(store, prompt);
     default:
       return missing(`no answers for task ${prompt.taskId}`);
   }

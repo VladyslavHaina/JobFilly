@@ -1,15 +1,19 @@
 import type {
   AiMailItem,
+  AnswerTaskInput,
   AssistantTaskInput,
   CvReadInput,
   DraftTaskInput,
+  FocusTaskInput,
   IntakeExtraInput,
   MatchTaskInput,
 } from "@jobfilly/schema";
 import { jsonLine, LINE_BREAK, messageIdLines, type Prompt, untrusted } from "./framing";
+import { answerPrompt } from "./tasks/answer";
 import { assistantPrompt } from "./tasks/assistant";
 import { cvPrompt } from "./tasks/cv";
 import { draftPrompt } from "./tasks/draft";
+import { focusPrompt } from "./tasks/focus";
 import { matchPrompt } from "./tasks/match";
 
 // The prompts of every task, in the layout of ./framing.ts (F3.5, TBD-25). The MVP 1 tasks are
@@ -74,12 +78,14 @@ export function buildPrompt(
   return { system, user };
 }
 
-/** The input each MVP 2 task's prompt is built from. */
+/** The input each MVP 2 and MVP 3 task's prompt is built from. */
 export interface TaskPromptInput {
   "cv.v1": CvReadInput;
   "match.v1": MatchTaskInput;
   "draft.v1": DraftTaskInput;
   "assistant.v1": AssistantTaskInput;
+  "focus.v1": FocusTaskInput;
+  "answer.v1": AnswerTaskInput;
 }
 
 const TASK_PROMPTS: { [T in keyof TaskPromptInput]: (input: TaskPromptInput[T]) => Prompt } = {
@@ -87,9 +93,11 @@ const TASK_PROMPTS: { [T in keyof TaskPromptInput]: (input: TaskPromptInput[T]) 
   "match.v1": matchPrompt,
   "draft.v1": draftPrompt,
   "assistant.v1": assistantPrompt,
+  "focus.v1": focusPrompt,
+  "answer.v1": answerPrompt,
 };
 
-/** The prompt of an MVP 2 task, from its own module in ./tasks. */
+/** The prompt of an MVP 2 or MVP 3 task, from its own module in ./tasks. */
 export function promptFor<T extends keyof TaskPromptInput>(
   taskId: T,
   input: TaskPromptInput[T],

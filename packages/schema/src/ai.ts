@@ -34,6 +34,10 @@ export const TASK_IDS = [
   "match.v1",
   "draft.v1",
   "assistant.v1",
+  // MVP 3: a re-run's hint read into what the scan focuses on (F1.1), on the intake model; and a
+  // question answered from read-only lookups (F8), on the assistant model.
+  "focus.v1",
+  "answer.v1",
 ] as const;
 export const TaskIdSchema = z.enum(TASK_IDS);
 export type TaskId = z.infer<typeof TaskIdSchema>;

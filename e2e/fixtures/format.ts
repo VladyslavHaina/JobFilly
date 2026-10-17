@@ -474,6 +474,8 @@ export interface AssistantAnswer {
   reply: string;
   clarify: { question: string; choices: string[] } | null;
   proposal: { summary: string; changes: unknown[] } | null;
+  /** MVP 3 (F8): the read-only lookups a question asks for; left out, none. */
+  lookups?: unknown[];
 }
 
 /**
@@ -596,3 +598,32 @@ export function personaPathsMvp2(persona: Persona) {
 }
 export const ASSISTANT_ANSWERS_PATH = "ai/assistant.json";
 export const ASSISTANT_REQUESTS_PATH = "assistant/requests.json";
+
+// --- MVP 3 ----------------------------------------------------------------------------------
+
+/**
+ * ai/focus.json (focus.v1, F1.1): what a re-run's hint asks the scan to focus on, by the hint
+ * (assistantMessageKey of the prompt's "message" block).
+ */
+export const FOCUS_ANSWERS_PATH = "ai/focus.json";
+export interface FocusAnswer {
+  countries: string[];
+  cities: string[];
+  languages: string[];
+  workModes: ("remote" | "hybrid" | "onsite")[];
+  contracts: string[];
+  words: string[];
+}
+export type FocusAnswerFile = Record<string, FocusAnswer>;
+
+/**
+ * ai/answer.json (answer.v1, F8): the assistant's answer to a question, by the user's message
+ * and then by turn, as ai/assistant.json (ASSISTANT_ANY_TURN for any turn). Its sources are refs
+ * the lookups return: "<Message-ID>#<position>" for a role or draft, a Message-ID, a group key.
+ */
+export const ANSWER_ANSWERS_PATH = "ai/answer.json";
+export interface AnswerAnswer {
+  text: string;
+  sources: { kind: "role" | "message" | "decision" | "draft"; ref: string }[];
+}
+export type AnswerAnswerFile = Record<string, Record<string, AnswerAnswer>>;

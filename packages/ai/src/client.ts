@@ -6,6 +6,9 @@ import {
   type AiTask,
   type AiTestOutput,
   AiTestOutputSchema,
+  type AnswerOutput,
+  AnswerOutputSchema,
+  type AnswerTaskInput,
   type AssistantAnswer,
   AssistantRequestSchema,
   type AssistantTaskInput,
@@ -22,6 +25,7 @@ import {
   type DraftTaskInput,
   type ExtractOutput,
   ExtractOutputSchema,
+  type FocusTaskInput,
   type IntakeExtraInput,
   type IntakeExtraOutput,
   IntakeExtraOutputSchema,
@@ -30,6 +34,8 @@ import {
   type MatchTaskInput,
   type Preferences,
   PrefsOutputSchema,
+  type ScanFocus,
+  ScanFocusSchema,
   type TaskId,
   type TaskResult,
   type Usage,
@@ -88,6 +94,10 @@ export interface AiClient {
    * entries (AssistantAnswerSchema): the caller refuses those with the reply kept (F8.7).
    */
   assistant(input: AssistantTaskInput, options?: CallOptions): Promise<TaskResult<AssistantAnswer>>;
+  /** focus.v1 (MVP 3): a re-run's hint read into what the scan focuses on (F1.1). */
+  focus(input: FocusTaskInput, options?: CallOptions): Promise<TaskResult<ScanFocus>>;
+  /** answer.v1 (MVP 3): a question answered from lookup results, with their refs (F8). */
+  answer(input: AnswerTaskInput, options?: CallOptions): Promise<TaskResult<AnswerOutput>>;
 }
 
 const MESSAGES = {
@@ -363,6 +373,23 @@ export function clientFromModels(modelFor: ModelFor, options: AiClientOptions = 
         opts?.maxCalls ?? 2,
         undefined,
         AssistantRequestSchema,
+      ),
+    // A re-run's hint is read on the intake model, a question answered on the assistant's.
+    focus: (input, opts) =>
+      single(
+        "intake",
+        "focus.v1",
+        promptFor("focus.v1", input),
+        ScanFocusSchema,
+        opts?.maxCalls ?? 2,
+      ),
+    answer: (input, opts) =>
+      single(
+        "assistant",
+        "answer.v1",
+        promptFor("answer.v1", input),
+        AnswerOutputSchema,
+        opts?.maxCalls ?? 2,
       ),
   };
 }

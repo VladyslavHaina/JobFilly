@@ -3,6 +3,7 @@ import { existsSync, readdirSync, statSync } from "node:fs";
 import { join, sep } from "node:path";
 import {
   AI_TEST_PATH,
+  ANSWER_ANSWERS_PATH,
   type AnswerFile,
   ASSISTANT_ANSWERS_PATH,
   ASSISTANT_REQUESTS_PATH,
@@ -21,6 +22,7 @@ import {
   type ExpectedRole,
   type ExtractAnswer,
   FIXTURE_REFERENCE_TIME,
+  FOCUS_ANSWERS_PATH,
   FOLDER_PATHS,
   type IntakeAnswer,
   isJobCategory,
@@ -41,6 +43,7 @@ import { domainsFile, zoneFiles } from "./domains.ts";
 import { buildEml, toHtml } from "./eml.ts";
 import { backendTitleFit, matchAnswer, nursingTitleFit, type PersonaJudge } from "./judge.ts";
 import { maria } from "./maria.ts";
+import { answerAnswers, focusAnswers } from "./mvp3.ts";
 import type { MessageSpec, PersonaSource } from "./spec.ts";
 import { tom } from "./tom.ts";
 
@@ -338,6 +341,8 @@ export function buildFixtures(): Map<string, FileContent> {
   files.set(AI_TEST_PATH, toJson({ ok: true }));
   files.set(ASSISTANT_ANSWERS_PATH, toJson(assistantAnswers()));
   files.set(ASSISTANT_REQUESTS_PATH, toJson(assistantRequests()));
+  files.set(FOCUS_ANSWERS_PATH, toJson(focusAnswers()));
+  files.set(ANSWER_ANSWERS_PATH, toJson(answerAnswers()));
   return files;
 }
 

@@ -130,7 +130,7 @@ describe("fixed ids", () => {
     expect(CategorySchema.safeParse("spam").success).toBe(false);
   });
 
-  it("has the nine task ids", () => {
+  it("has the eleven task ids", () => {
     expect(TASK_IDS).toEqual([
       "classify.v1",
       "extract.v1",
@@ -141,6 +141,8 @@ describe("fixed ids", () => {
       "match.v1",
       "draft.v1",
       "assistant.v1",
+      "focus.v1",
+      "answer.v1",
     ]);
   });
 

@@ -46,5 +46,7 @@ export function aiClientFor(
     match: (input, options) => recorded(client.match(input, options)),
     draft: (input, options) => recorded(client.draft(input, options)),
     assistant: (input, options) => recorded(client.assistant(input, options)),
+    focus: (input, options) => recorded(client.focus(input, options)),
+    answer: (input, options) => recorded(client.answer(input, options)),
   };
 }

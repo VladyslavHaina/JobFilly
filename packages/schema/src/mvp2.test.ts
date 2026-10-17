@@ -216,7 +216,8 @@ describe("rules, changes and the assistant (F3, F8)", () => {
       },
     };
     expect(AssistantOutputSchema.safeParse(proposal).success).toBe(true);
-    expect(AssistantAnswerSchema.safeParse(proposal).data).toEqual(proposal);
+    // An answer that names no lookups (MVP 3, F8) reads as asking for none.
+    expect(AssistantAnswerSchema.safeParse(proposal).data).toEqual({ ...proposal, lookups: [] });
   });
 
   it("lets a change outside rules and entries through assistant.v1's answer check (F8.7)", () => {

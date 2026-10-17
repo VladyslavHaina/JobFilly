@@ -1,8 +1,9 @@
 import { z } from "zod";
-import { ChangeSchema } from "./assistant";
+import { AnswerOutputSchema, AssistantLookupSchema, ChangeSchema } from "./assistant";
 import { CategorySchema } from "./category";
 import { TextSchema } from "./common";
 import { JobFactsAnswerSchema } from "./facts";
+import { ScanFocusSchema } from "./focus";
 import { ExtraQuestionSchema, MAX_EXTRA_QUESTIONS, PreferencesAnswerSchema } from "./profile";
 
 // The structured outputs the model must return, one per task id. packages/ai validates every
@@ -102,8 +103,14 @@ export const AssistantOutputSchema = z.object({
   reply: TextSchema,
   clarify: z.object({ question: TextSchema, choices: z.array(TextSchema) }).nullable(),
   proposal: z.object({ summary: TextSchema, changes: z.array(ChangeSchema) }).nullable(),
+  /**
+   * MVP 3 (F8): for a question, the read-only lookups whose results answer.v1 answers it from;
+   * empty otherwise. An answer without the field (before MVP 3) reads as none.
+   */
+  lookups: z.array(AssistantLookupSchema).default([]),
 });
-export type AssistantOutput = z.infer<typeof AssistantOutputSchema>;
+/** As the model writes it: `lookups` may be left out. */
+export type AssistantOutput = z.input<typeof AssistantOutputSchema>;
 
 /**
  * A Change as assistant.v1 asks the model for it: one flat object for every Change, with the
@@ -213,4 +220,6 @@ export const TASK_OUTPUT_SCHEMAS = {
   "match.v1": MatchAiOutputSchema,
   "draft.v1": DraftOutputSchema,
   "assistant.v1": AssistantRequestSchema,
+  "focus.v1": ScanFocusSchema,
+  "answer.v1": AnswerOutputSchema,
 } as const;

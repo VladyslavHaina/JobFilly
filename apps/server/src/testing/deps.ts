@@ -117,6 +117,8 @@ export function fakeAiClient(methods: Partial<AiClient>): AiClient {
     match: unused("match"),
     draft: unused("draft"),
     assistant: unused("assistant"),
+    focus: unused("focus"),
+    answer: unused("answer"),
     ...methods,
   };
 }

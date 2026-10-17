@@ -1,0 +1,21 @@
+{
+  "id": "chatcmpl-wire-answer-v1",
+  "object": "chat.completion",
+  "created": 1790000000,
+  "model": "fixture-model",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "{\"text\":\"The Singapore role got no draft: it is onsite in Singapore, outside the places you work.\",\"sources\":[{\"kind\":\"role\",\"ref\":\"<maria-deliver-singapore@merlion.example>#0\"}]}"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 260,
+    "completion_tokens": 45,
+    "total_tokens": 305
+  }
+}

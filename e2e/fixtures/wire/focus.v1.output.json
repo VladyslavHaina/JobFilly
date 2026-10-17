@@ -1,0 +1,18 @@
+{
+  "ok": true,
+  "data": {
+    "countries": ["DE"],
+    "cities": [],
+    "languages": ["de"],
+    "workModes": ["onsite", "hybrid"],
+    "contracts": ["permanent"],
+    "words": []
+  },
+  "usage": [
+    {
+      "task": "focus.v1",
+      "inputTokens": 180,
+      "outputTokens": 40
+    }
+  ]
+}

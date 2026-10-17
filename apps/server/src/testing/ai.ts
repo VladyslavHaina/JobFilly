@@ -2,6 +2,7 @@ import type { AiClient } from "@jobfilly/ai";
 import {
   type AiError,
   type AiTask,
+  type AnswerOutput,
   type AssistantAnswer,
   AssistantAnswerSchema,
   type BatchResult,
@@ -12,17 +13,19 @@ import {
   type JobFacts,
   type MatchAiOutput,
   type Preferences,
+  type ScanFocus,
   type TaskId,
   type TaskResult,
   type Usage,
 } from "@jobfilly/schema";
-import type { ZodType } from "zod";
+import type { ZodType, z } from "zod";
 import type { AiPort } from "../deps";
 
 // A fake AI behind the AiPort, keyed like the test stack's fake AI (tests only): classify,
 // extract and prefs by Message-ID, cv.v1 by the CV's content hash, match.v1 by
 // "<Message-ID>#<position>", draft.v1 by "<Message-ID>#<position>#<attempt>", assistant.v1 by
-// the user's text (or "<turn>#<text>" for one turn). A call it has no answer for fails the way a
+// the user's text (or "<turn>#<text>" for one turn); MVP 3's focus.v1 by the hint and answer.v1
+// like assistant.v1, by the question. A call it has no answer for fails the way a
 // provider does (provider_error), so a missing answer is never silent; an assistant.v1 answer
 // that doesn't fit AssistantAnswerSchema, the check packages/ai makes, fails as invalid_output.
 // One Usage per call; per-task call counts; failNext(task) fails that task's next call once.
@@ -35,7 +38,10 @@ export interface FakeAiAnswers {
   cv?: Record<string, CvReadOutput>;
   match?: Record<string, MatchAiOutput>;
   draft?: Record<string, DraftOutput>;
-  assistant?: Record<string, AssistantAnswer>;
+  /** As the model writes it: `lookups` may be left out (none). */
+  assistant?: Record<string, z.input<typeof AssistantAnswerSchema>>;
+  focus?: Record<string, ScanFocus>;
+  answer?: Record<string, AnswerOutput>;
 }
 
 export interface FakeAiClient {
@@ -65,6 +71,8 @@ export function createFakeAi(answers: FakeAiAnswers = {}): FakeAiClient {
     match: {},
     draft: {},
     assistant: {},
+    focus: {},
+    answer: {},
     ...answers,
   };
   const fake: FakeAiClient = {
@@ -110,10 +118,13 @@ export function createFakeAi(answers: FakeAiAnswers = {}): FakeAiClient {
         usage: usage(taskId),
       });
     }
+    // Read back through the check as packages/ai reads an answer, defaults filled in.
+    const data =
+      answer === undefined ? undefined : check ? check.parse(answer) : structuredClone(answer);
     return Promise.resolve<TaskResult<T>>(
-      answer === undefined
+      data === undefined
         ? { ok: false, error: NO_ANSWER, usage: usage(taskId) }
-        : { ok: true, data: structuredClone(answer), usage: usage(taskId) },
+        : { ok: true, data: data as T, usage: usage(taskId) },
     );
   }
 
@@ -188,7 +199,23 @@ export function createFakeAi(answers: FakeAiAnswers = {}): FakeAiClient {
       const answer = all.assistant[turnKey] ?? all.assistant[input.text];
       // Checked like packages/ai checks it: an answer the real client would reject (after its
       // retry) fails here too, so no test reaches a state production can't.
-      return single("assistant", "assistant.v1", turnKey, answer, AssistantAnswerSchema);
+      return single<AssistantAnswer>(
+        "assistant",
+        "assistant.v1",
+        turnKey,
+        answer as AssistantAnswer | undefined,
+        AssistantAnswerSchema,
+      );
+    },
+    focus: (input) => single("intake", "focus.v1", input.hint, all.focus[input.hint]),
+    answer: (input) => {
+      const turnKey = `${input.turn}#${input.text}`;
+      return single(
+        "assistant",
+        "answer.v1",
+        turnKey,
+        all.answer[turnKey] ?? all.answer[input.text],
+      );
     },
   };
   return fake;

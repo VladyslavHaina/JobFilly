@@ -79,6 +79,54 @@
                 "type": "null"
               }
             ]
+          },
+          "lookups": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "tool": {
+                  "type": "string",
+                  "enum": ["waiting", "find_roles", "role", "pipeline", "message_text", "profile"]
+                },
+                "words": {
+                  "type": ["string", "null"]
+                },
+                "messageId": {
+                  "type": ["string", "null"]
+                },
+                "position": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "stage": {
+                  "type": ["string", "null"]
+                },
+                "days": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": ["tool", "words", "messageId", "position", "stage", "days"],
+              "additionalProperties": false
+            }
           }
         },
         "required": ["reply", "clarify", "proposal"],

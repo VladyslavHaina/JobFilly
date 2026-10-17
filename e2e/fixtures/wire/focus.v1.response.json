@@ -1,0 +1,21 @@
+{
+  "id": "chatcmpl-wire-focus-v1",
+  "object": "chat.completion",
+  "created": 1790000000,
+  "model": "fixture-model",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "{\"countries\":[\"DE\"],\"cities\":[],\"languages\":[\"de\"],\"workModes\":[\"onsite\",\"hybrid\"],\"contracts\":[\"permanent\"],\"words\":[]}"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 180,
+    "completion_tokens": 40,
+    "total_tokens": 220
+  }
+}

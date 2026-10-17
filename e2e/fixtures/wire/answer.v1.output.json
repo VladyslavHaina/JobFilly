@@ -1,0 +1,19 @@
+{
+  "ok": true,
+  "data": {
+    "text": "The Singapore role got no draft: it is onsite in Singapore, outside the places you work.",
+    "sources": [
+      {
+        "kind": "role",
+        "ref": "<maria-deliver-singapore@merlion.example>#0"
+      }
+    ]
+  },
+  "usage": [
+    {
+      "task": "answer.v1",
+      "inputTokens": 260,
+      "outputTokens": 45
+    }
+  ]
+}

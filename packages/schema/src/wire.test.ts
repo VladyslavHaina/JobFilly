@@ -4,12 +4,14 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import {
   AiMailItemSchema,
+  AnswerTaskInputSchema,
   AssistantAnswerSchema,
   AssistantTaskInputSchema,
   batchResultSchema,
   CategorySchema,
   CvReadInputSchema,
   DraftTaskInputSchema,
+  FocusTaskInputSchema,
   IntakeExtraInputSchema,
   JobFactsSchema,
   MatchTaskInputSchema,
@@ -42,6 +44,8 @@ const INPUTS: Record<TaskId, z.ZodType> = {
   "match.v1": MatchTaskInputSchema,
   "draft.v1": DraftTaskInputSchema,
   "assistant.v1": AssistantTaskInputSchema,
+  "focus.v1": FocusTaskInputSchema,
+  "answer.v1": AnswerTaskInputSchema,
 };
 
 const OUTPUTS: Record<TaskId, z.ZodType> = {
@@ -57,6 +61,8 @@ const OUTPUTS: Record<TaskId, z.ZodType> = {
   "draft.v1": taskResultSchema(TASK_OUTPUT_SCHEMAS["draft.v1"]),
   // The provider writes AssistantRequestSchema's flat changes; packages/ai returns Changes.
   "assistant.v1": taskResultSchema(AssistantAnswerSchema),
+  "focus.v1": taskResultSchema(TASK_OUTPUT_SCHEMAS["focus.v1"]),
+  "answer.v1": taskResultSchema(TASK_OUTPUT_SCHEMAS["answer.v1"]),
 };
 
 /**

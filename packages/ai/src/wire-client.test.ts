@@ -51,6 +51,10 @@ function run(client: AiClient, taskId: TaskId, input: any) {
       return client.draft(input);
     case "assistant.v1":
       return client.assistant(input);
+    case "focus.v1":
+      return client.focus(input);
+    case "answer.v1":
+      return client.answer(input);
   }
 }
 

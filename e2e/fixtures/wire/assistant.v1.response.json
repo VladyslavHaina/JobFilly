@@ -8,7 +8,7 @@
       "index": 0,
       "message": {
         "role": "assistant",
-        "content": "{\"reply\":\"I can hide roles on Asian time zones for you. Here is a proposal.\",\"clarify\":null,\"proposal\":{\"summary\":\"Hide roles whose working hours are UTC+05:00 or later\",\"changes\":[{\"op\":\"add\",\"target\":\"rule\",\"ruleId\":null,\"key\":null,\"rule\":\"{\\\"description\\\":\\\"Hide roles whose working hours are UTC+05:00 or later\\\",\\\"when\\\":[{\\\"fact\\\":\\\"timeZones\\\",\\\"op\\\":\\\"within\\\",\\\"value\\\":{\\\"from\\\":\\\"UTC+05:00\\\",\\\"to\\\":\\\"UTC+14:00\\\"}}],\\\"then\\\":\\\"hide\\\",\\\"enabled\\\":true}\",\"value\":null}]}}"
+        "content": "{\"reply\":\"I can hide roles on Asian time zones for you. Here is a proposal.\",\"clarify\":null,\"proposal\":{\"summary\":\"Hide roles whose working hours are UTC+05:00 or later\",\"changes\":[{\"op\":\"add\",\"target\":\"rule\",\"ruleId\":null,\"key\":null,\"rule\":\"{\\\"description\\\":\\\"Hide roles whose working hours are UTC+05:00 or later\\\",\\\"when\\\":[{\\\"fact\\\":\\\"timeZones\\\",\\\"op\\\":\\\"within\\\",\\\"value\\\":{\\\"from\\\":\\\"UTC+05:00\\\",\\\"to\\\":\\\"UTC+14:00\\\"}}],\\\"then\\\":\\\"hide\\\",\\\"enabled\\\":true}\",\"value\":null}]},\"lookups\":[]}"
       },
       "finish_reason": "stop"
     }
