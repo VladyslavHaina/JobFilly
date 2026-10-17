@@ -253,6 +253,12 @@ export const ProfileSchema = z.object({
   name: z.string().min(1).max(100),
   entries: z.array(ProfileEntrySchema),
   confirmedAt: IsoDateTimeSchema.nullable(),
+  /**
+   * MVP 3 (F1.2): whether roles are assigned to it. Several profiles can be on; at least one stays
+   * on. A profile that is off keeps its entries and rules. Absent reads as on (a replica of the
+   * previous release doesn't send it during a rolling update).
+   */
+  enabled: z.boolean().optional(),
 });
 export type Profile = z.infer<typeof ProfileSchema>;
 
@@ -262,9 +268,13 @@ export type ProfileList = z.infer<typeof ProfileListSchema>;
 /** The path of PATCH /profiles/:profileId. */
 export const ProfileParamsSchema = z.object({ profileId: IdSchema });
 
-/** PATCH /profiles/:profileId: rename, and/or replace some entries' values (source: you). */
+/**
+ * PATCH /profiles/:profileId: rename, switch on or off (MVP 3, F1.2), and/or replace some entries'
+ * values (source: you).
+ */
 export const ProfilePatchSchema = z.object({
   name: TextSchema.trim().min(1).max(100).optional(),
+  enabled: z.boolean().optional(),
   entries: z
     .array(
       z.object({ key: ProfileKeySchema, value: ProfileValueSchema }).superRefine(checkValueForKey),
@@ -381,3 +391,28 @@ export const ConfirmIntakeInputSchema = z.object({
   name: TextSchema.trim().min(1).max(100).optional(),
 });
 export type ConfirmIntakeInput = z.infer<typeof ConfirmIntakeInputSchema>;
+
+// --- MVP 3: several profiles, and which one each role belongs to (F1.3) -----------------------
+
+/**
+ * Who assigned a role to its profile: the app, by the role's places, roles, language and rules
+ * (packages/core assignProfile), or an editor by hand, which wins until changed again.
+ */
+export const RoleProfileSourceSchema = z.enum(["auto", "you"]);
+export type RoleProfileSource = z.infer<typeof RoleProfileSourceSchema>;
+
+/**
+ * The profile a role belongs to, with why in plain words ("Munich role, German, permanent →
+ * 'Germany permanent'"). Matching, CV choice and drafting use this profile.
+ */
+export const RoleProfileSchema = z.object({
+  profileId: z.uuid(),
+  name: z.string(),
+  reason: z.string(),
+  source: RoleProfileSourceSchema,
+});
+export type RoleProfile = z.infer<typeof RoleProfileSchema>;
+
+/** PUT /messages/:messageId/roles/:position/profile: an editor reassigns the role. */
+export const RoleProfileInputSchema = z.object({ profileId: z.uuid() });
+export type RoleProfileInput = z.infer<typeof RoleProfileInputSchema>;

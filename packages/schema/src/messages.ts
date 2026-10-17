@@ -6,6 +6,7 @@ import { DraftStatusSchema } from "./drafts";
 import { JobFactsSchema } from "./facts";
 import { AddressSchema, EnvelopeSchema } from "./mailbox";
 import { RoleEvaluationSchema } from "./match";
+import { RoleProfileSchema } from "./profile";
 import { SenderCheckSchema, SenderVerdictSchema } from "./sender";
 
 export { CATEGORIES, type Category, CategorySchema, JOB_CATEGORIES } from "./category";
@@ -117,6 +118,11 @@ export type MessageList = z.infer<typeof MessageListSchema>;
 export const MessageRoleSchema = JobFactsSchema.extend({
   evaluation: RoleEvaluationSchema.nullable(),
   cvChoice: CvChoiceSchema.nullable(),
+  /**
+   * MVP 3 (F1.3): the profile the role belongs to and why; null until it is evaluated. Absent from
+   * a replica of the previous release.
+   */
+  profile: RoleProfileSchema.nullable().optional(),
 });
 export type MessageRole = z.infer<typeof MessageRoleSchema>;
 
