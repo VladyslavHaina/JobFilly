@@ -107,4 +107,22 @@ describe("invites", () => {
     expect(await revokeInvite(conn.db, other.workspaceId, created.id, t0)).toBe(false);
     expect(await listInvites(conn.db, other.workspaceId, t0)).toEqual([]);
   });
+
+  it("carries what the member will see into the membership (MVP 3, F6.1)", async () => {
+    expect((await invite()).scope).toBe("everything");
+    const created = await createInvite(conn.db, maria.workspaceId, {
+      email: "tom@inbox.example",
+      role: "viewer",
+      scope: "pipeline",
+      tokenHash: "pipeline",
+      invitedBy: maria.userId,
+      now: t0,
+      expiresAt: new Date(t0.getTime() + week),
+    });
+    expect(created.scope).toBe("pipeline");
+    expect(await acceptInvite(conn.db, created.id, { userId: tomId, now: t0 })).toMatchObject({
+      role: "viewer",
+      scope: "pipeline",
+    });
+  });
 });

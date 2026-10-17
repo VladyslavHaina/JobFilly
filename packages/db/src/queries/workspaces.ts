@@ -157,3 +157,62 @@ export async function removeMember(
     .returning({ userId: memberships.userId });
   return rows.length > 0 ? "ok" : "not_found";
 }
+
+export type OwnershipTransfer = "ok" | "not_found" | "not_owner" | "not_admin";
+
+/**
+ * Hands the workspace to another admin (MVP 3, F6.3): only its owner can, and only to a member
+ * who is an admin. The former owner stays an admin; the new one sees everything, as an owner
+ * always does.
+ */
+export async function transferOwnership(
+  db: Database,
+  workspaceId: string,
+  fromUserId: string,
+  toUserId: string,
+): Promise<OwnershipTransfer> {
+  return db.transaction(async (tx) => {
+    const [workspace] = await tx
+      .select({ ownerId: workspaces.ownerId })
+      .from(workspaces)
+      .where(eq(workspaces.id, workspaceId))
+      .for("update");
+    if (!workspace) return "not_found";
+    if (workspace.ownerId !== fromUserId) return "not_owner";
+    const [target] = await tx
+      .select({ role: memberships.role })
+      .from(memberships)
+      .where(and(eq(memberships.workspaceId, workspaceId), eq(memberships.userId, toUserId)));
+    if (!target) return "not_found";
+    if (target.role !== "admin" || toUserId === fromUserId) return "not_admin";
+    await tx.update(workspaces).set({ ownerId: toUserId }).where(eq(workspaces.id, workspaceId));
+    await tx
+      .update(memberships)
+      .set({ scope: "everything" })
+      .where(and(eq(memberships.workspaceId, workspaceId), eq(memberships.userId, toUserId)));
+    return "ok";
+  });
+}
+
+/**
+ * Deletes the workspace and everything it holds in Postgres (MVP 3, F7.2): every workspace-owned
+ * row goes with it by its foreign key (ON DELETE CASCADE), mailbox credentials, CV files and the
+ * activity log included. Returns the members it had, whose access ends; null when there was no
+ * such workspace.
+ */
+export async function deleteWorkspace(
+  db: Database,
+  workspaceId: string,
+): Promise<{ memberIds: string[] } | null> {
+  return db.transaction(async (tx) => {
+    const members = await tx
+      .select({ userId: memberships.userId })
+      .from(memberships)
+      .where(eq(memberships.workspaceId, workspaceId));
+    const deleted = await tx
+      .delete(workspaces)
+      .where(eq(workspaces.id, workspaceId))
+      .returning({ id: workspaces.id });
+    return deleted.length > 0 ? { memberIds: members.map((m) => m.userId) } : null;
+  });
+}

@@ -10,7 +10,7 @@ import type { WorkspaceEnv } from "./env";
 // without that role. Neither answer carries any data.
 
 export const NOT_FOUND = { error: "not_found" } as const;
-const FORBIDDEN = {
+export const FORBIDDEN = {
   error: "forbidden",
   message: "Your role in this workspace doesn't allow this",
 } as const;
