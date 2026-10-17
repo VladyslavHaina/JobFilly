@@ -196,3 +196,146 @@ describe("members (F6.3)", () => {
     expect((await tomApi.get(`/api/workspaces/${maria.workspaceId}/invites`)).status).toBe(200);
   });
 });
+
+describe("no one raises their own access (security review)", () => {
+  const invites = () => `/api/workspaces/${maria.workspaceId}/invites`;
+  let anna: SeededUser;
+  let annaApi: TestClient;
+  beforeEach(async () => {
+    anna = await seedUser(deps, { name: "Anna Berg", email: "anna.berg@inbox.example" });
+    annaApi = await signedIn(app, deps, anna);
+  });
+
+  it("only admins change roles or scopes, remove members or invite: 403, 404 for strangers", async () => {
+    await addMember(deps.db, maria.workspaceId, anna.id, "viewer");
+    for (const role of ["viewer", "editor"] as const) {
+      await addMember(deps.db, maria.workspaceId, tom.id, role);
+      for (const target of [tom.id, anna.id]) {
+        expect((await tomApi.patch(member(target), { role: "admin" })).status).toBe(403);
+        expect((await tomApi.patch(member(target), { scope: "everything" })).status).toBe(403);
+      }
+      expect((await tomApi.delete(member(anna.id))).status).toBe(403);
+      expect((await tomApi.post(invites(), { email: "x@y.example", role: "viewer" })).status).toBe(
+        403,
+      );
+      expect((await tomApi.post(`${member(tom.id)}/ownership`, { confirm: true })).status).toBe(
+        403,
+      );
+    }
+    // Someone who isn't a member gets 404 for all of it, before anything else.
+    const stranger = await signedIn(app, deps, await seedUser(deps));
+    expect((await stranger.patch(member(anna.id), { role: "admin" })).status).toBe(404);
+    expect((await stranger.delete(member(anna.id))).status).toBe(404);
+    expect((await stranger.post(invites(), { email: "x@y.example", role: "viewer" })).status).toBe(
+      404,
+    );
+    expect((await stranger.post(`${member(maria.id)}/ownership`, { confirm: true })).status).toBe(
+      404,
+    );
+    expect((await getMembership(deps.db, maria.workspaceId, anna.id))?.role).toBe("viewer");
+  });
+
+  it("an admin changes neither their own role nor scope, and becomes owner only by hand-over", async () => {
+    await addMember(deps.db, maria.workspaceId, tom.id, "admin");
+    await mariaApi.patch(member(tom.id), { scope: "pipeline" });
+    const own = await tomApi.patch(member(tom.id), { scope: "everything" });
+    expect(own.status).toBe(403);
+    expect(await own.json()).toMatchObject({ error: "own_membership" });
+    expect((await tomApi.patch(member(tom.id), { role: "editor" })).status).toBe(403);
+    expect((await tomApi.post(`${member(tom.id)}/ownership`, { confirm: true })).status).toBe(403);
+    expect(await getMembership(deps.db, maria.workspaceId, tom.id)).toMatchObject({
+      scope: "pipeline",
+      isOwner: false,
+    });
+  });
+
+  it("an admin who sees the pipeline only grants nothing wider, by change or invite", async () => {
+    await addMember(deps.db, maria.workspaceId, tom.id, "admin");
+    await addMember(deps.db, maria.workspaceId, anna.id, "editor");
+    await mariaApi.patch(member(tom.id), { scope: "pipeline" });
+    await mariaApi.patch(member(anna.id), { scope: "pipeline" });
+    const widen = await tomApi.patch(member(anna.id), { scope: "everything" });
+    expect(widen.status).toBe(403);
+    expect(await widen.json()).toMatchObject({ error: "wider_scope" });
+    expect((await tomApi.post(invites(), { email: "x@y.example", role: "viewer" })).status).toBe(
+      403,
+    );
+    expect(
+      (await tomApi.post(invites(), { email: "x@y.example", role: "viewer", scope: "everything" }))
+        .status,
+    ).toBe(403);
+    const ok = await tomApi.post(invites(), {
+      email: "x@y.example",
+      role: "viewer",
+      scope: "pipeline",
+    });
+    expect(ok.status).toBe(201);
+    expect((await getMembership(deps.db, maria.workspaceId, anna.id))?.scope).toBe("pipeline");
+  });
+
+  it("nobody else removes, demotes or re-scopes the owner, and the owner can't leave", async () => {
+    await addMember(deps.db, maria.workspaceId, tom.id, "admin");
+    expect((await tomApi.delete(member(maria.id))).status).toBe(409);
+    expect((await tomApi.patch(member(maria.id), { role: "editor" })).status).toBe(409);
+    expect((await tomApi.patch(member(maria.id), { scope: "pipeline" })).status).toBe(409);
+    expect((await mariaApi.delete(member(maria.id))).status).toBe(409);
+    expect(await getMembership(deps.db, maria.workspaceId, maria.id)).toMatchObject({
+      role: "admin",
+      scope: "everything",
+      isOwner: true,
+    });
+  });
+
+  it("hands ownership only to an admin of this workspace; the old owner stays an admin", async () => {
+    // Anna is an admin of her own workspace, not of Maria's.
+    expect((await mariaApi.post(`${member(anna.id)}/ownership`, { confirm: true })).status).toBe(
+      404,
+    );
+    await addMember(deps.db, maria.workspaceId, anna.id, "editor");
+    expect((await mariaApi.post(`${member(anna.id)}/ownership`, { confirm: true })).status).toBe(
+      409,
+    );
+    await addMember(deps.db, maria.workspaceId, anna.id, "admin");
+    expect((await mariaApi.post(`${member(anna.id)}/ownership`, { confirm: true })).status).toBe(
+      200,
+    );
+    expect(await getMembership(deps.db, maria.workspaceId, maria.id)).toMatchObject({
+      role: "admin",
+      isOwner: false,
+    });
+  });
+
+  it("refuses ids from another workspace", async () => {
+    // Tom belongs to Anna's workspace only; Maria can't touch him through hers.
+    await addMember(deps.db, anna.workspaceId, tom.id, "viewer");
+    expect((await mariaApi.patch(member(tom.id), { role: "admin" })).status).toBe(404);
+    expect((await mariaApi.delete(member(tom.id))).status).toBe(404);
+    expect((await getMembership(deps.db, anna.workspaceId, tom.id))?.role).toBe("viewer");
+    // An invite of Anna's workspace can't be revoked through Maria's.
+    const created = await annaApi.post(`/api/workspaces/${anna.workspaceId}/invites`, {
+      email: "x@y.example",
+      role: "viewer",
+    });
+    const { invite } = CreatedInviteSchema.parse(await created.json());
+    expect((await mariaApi.delete(`${invites()}/${invite.id}`)).status).toBe(404);
+  });
+
+  it("applies a change on the member's next request, and closes their open streams", async () => {
+    await addMember(deps.db, maria.workspaceId, tom.id, "editor");
+    const drafts = `/api/workspaces/${maria.workspaceId}/drafts`;
+    expect((await tomApi.get(drafts)).status).toBe(200);
+    let closed = 0;
+    deps.live.subscribe(
+      { workspaceId: maria.workspaceId, userId: tom.id, sessionId: crypto.randomUUID() },
+      () => {},
+      () => {
+        closed += 1;
+      },
+    );
+    await mariaApi.patch(member(tom.id), { scope: "pipeline" });
+    expect(closed).toBe(1);
+    expect((await tomApi.get(drafts)).status).toBe(404);
+    await mariaApi.patch(member(tom.id), { role: "viewer" });
+    expect((await tomApi.patch(member(anna.id), { role: "viewer" })).status).toBe(403);
+  });
+});

@@ -21,6 +21,7 @@ import {
   InviteParamsSchema,
   type MemberList,
   MemberParamsSchema,
+  type MemberScope,
   roleAtLeast,
   scopeOf,
   TransferOwnershipInputSchema,
@@ -41,6 +42,22 @@ import { DAY } from "../clock";
 import type { AppDeps } from "../deps";
 
 const OWNER = { error: "owner", message: "The owner is always an admin and can't be removed" };
+const OWN_MEMBERSHIP = {
+  error: "own_membership",
+  message: "You can't change your own role or what you see; another admin can",
+};
+const WIDER_SCOPE = {
+  error: "wider_scope",
+  message: "You can't let someone see more than you do",
+};
+
+/**
+ * True when `scope` would let a member see more than the admin granting it does (MVP 3, F6.1):
+ * an admin who sees the job pipeline only grants only that, by invite or change.
+ */
+function widens(granter: { scope?: MemberScope }, scope: MemberScope): boolean {
+  return scope === "everything" && scopeOf(granter) !== "everything";
+}
 
 /** True when `token` is the one whose hash was stored (constant time). */
 export function tokenMatches(token: string | undefined, storedHash: string): boolean {
@@ -98,6 +115,10 @@ export function membersRoutes(deps: AppDeps) {
           if (!member) return c.json(NOT_FOUND, 404);
           if (member.isOwner) return c.json(OWNER, 409);
           const me = c.get("user").id;
+          if (memberId === me) return c.json(OWN_MEMBERSHIP, 403);
+          if (scope !== undefined && widens(c.get("membership"), scope)) {
+            return c.json(WIDER_SCOPE, 403);
+          }
           // Only what changes is changed, logged and recorded.
           if (role !== undefined && role !== member.role) {
             const result = await setMemberRole(deps.db, workspaceId, memberId, role);
@@ -123,6 +144,9 @@ export function membersRoutes(deps: AppDeps) {
               refs: { scope },
             });
           }
+          // Every request reads the membership afresh; their open streams close too, and the
+          // browser reconnects under the new role and scope.
+          await deps.live.revoke({ type: "member.removed", workspaceId, userId: memberId });
           await deps.live.publish(workspaceId, { type: "workspace.updated", data: {} });
           return c.json({ items: await listMembers(deps.db, workspaceId) } satisfies MemberList);
         },
@@ -210,6 +234,10 @@ export function workspaceInvitesRoutes(deps: AppDeps) {
       const members = await listMembers(deps.db, workspaceId);
       if (members.some((m) => m.email === input.email)) {
         return c.json({ error: "already_member", message: "They are already a member" }, 409);
+      }
+      // The role can't exceed the inviter's (they are an admin); the scope can't either.
+      if (widens(c.get("membership"), input.scope ?? "everything")) {
+        return c.json(WIDER_SCOPE, 403);
       }
       const token = newToken();
       const now = deps.clock.now();
