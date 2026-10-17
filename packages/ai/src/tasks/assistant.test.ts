@@ -109,6 +109,16 @@ describe("assistant.v1's instruction", () => {
     expect(system).toContain(`There are at most ${MAX_LOOKUP_ROUNDS} rounds.`);
   });
 
+  it("takes a role by its Message-ID or a whole ref, the position optional, and searches on a miss", () => {
+    expect(system).toContain(
+      '`role`: one role in full by `messageId`, its Message-ID as a lookup result or an earlier answer\'s refs name it (a whole ref "<Message-ID>#<position>" is taken too',
+    );
+    expect(system).toContain("and optionally `position` (null for 0");
+    expect(system).toContain(
+      "When a result says a Message-ID was not found, ask for the `find_roles` search",
+    );
+  });
+
   it("proposes for the profile shown, and reads a profile's name as the answer to which one", () => {
     expect(system).toContain("those of the profile a change would go to");
     expect(system).toContain("propose that request's changes");
