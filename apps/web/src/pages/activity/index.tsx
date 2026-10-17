@@ -4,17 +4,18 @@ import { api, errorText } from "../../api";
 import { Alert, Button, Card, Loading, PageHeader } from "../../components";
 import { queryKeys, useWorkspace } from "../../hooks";
 import { apiPaths } from "../../paths";
+import { formatFullDate } from "../inbox/format";
 
 // The activity log (MVP 3, F9.1): who did which outward or sharing action, when. Admins only;
 // newest first, a page at a time. Its query sits under the "workspace" area, so a member change
 // refetches it.
 
 function Entry({ entry }: { entry: ActivityEntry }) {
-  const at = new Date(entry.at);
   return (
     <li className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-3">
+      {/* The app's usual date and time ("Oct 17, 2026, 1:15 AM"), as in profile history. */}
       <time dateTime={entry.at} className="w-40 shrink-0 text-xs text-stone-500">
-        {at.toLocaleString()}
+        {formatFullDate(entry.at)}
       </time>
       <span className="text-sm font-medium text-stone-900">{entry.actor?.name ?? "JobFilly"}</span>
       <span className="min-w-0 flex-1 text-sm text-stone-700">{entry.what}</span>

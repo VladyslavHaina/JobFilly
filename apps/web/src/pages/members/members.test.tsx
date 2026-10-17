@@ -13,6 +13,7 @@ import {
 import { AccountPage } from "../account";
 import { ActivityPage } from "../activity";
 import { DataSettings } from "../data";
+import { formatFullDate } from "../inbox/format";
 import { MembersPage } from "./MembersPage";
 
 // MVP 3's sharing and data pages against a fake API: what a member sees and handing ownership
@@ -151,6 +152,10 @@ describe("Activity (F9.1)", () => {
     renderInWorkspace(<ActivityPage workspaceId={W} />);
     expect(await screen.findByText("Made Tom Okafor Editor")).toBeTruthy();
     expect(screen.getByText("Deleted user")).toBeTruthy();
+    // The app's usual date and time, not "10/16/2026, 10:00:00 AM".
+    const time = document.querySelector("time");
+    expect(time?.textContent).toBe(formatFullDate("2026-10-16T10:00:00.000Z"));
+    expect(time?.textContent).toMatch(/Oct 16, 2026|16 Oct 2026/);
     await userEvent.click(screen.getByRole("button", { name: "Show older" }));
     expect(await screen.findByText("Made Tom Okafor Viewer")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Show older" })).toBeNull();
