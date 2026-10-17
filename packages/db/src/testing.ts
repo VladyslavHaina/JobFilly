@@ -64,6 +64,8 @@ function pgliteNotifier(db: PGlite): Notifier {
 export interface TestDatabaseOptions {
   /** Leave the database empty (no migrations applied), to test migrating itself. */
   migrated?: boolean;
+  /** Sees every statement the queries send, to test how one is written (its plan, its locks). */
+  logQuery?: (query: string, params: unknown[]) => void;
 }
 
 /**
@@ -80,7 +82,8 @@ export async function openTestDatabase(
       extensions: { pg_trgm },
       ...(migrated ? { loadDataDir: await migratedTemplate() } : {}),
     }));
-  const db = drizzle({ client: pglite });
+  const logQuery = options.logQuery;
+  const db = drizzle({ client: pglite, ...(logQuery ? { logger: { logQuery } } : {}) });
   const notifier = pgliteNotifier(pglite);
   let closed = false;
   return {

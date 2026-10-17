@@ -1,6 +1,7 @@
 import type { Envelope, JobFacts, RoleEvaluation } from "@jobfilly/schema";
+import { sql } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { DatabaseConnection } from "../client";
+import { type Database, type DatabaseConnection, queryRows } from "../client";
 import { openTestDatabase } from "../testing";
 import { registerAccount } from "./accounts";
 import { claimDraft, markDraftFailed } from "./draft-claims";
@@ -47,6 +48,20 @@ beforeEach(async () => {
 afterEach(() => conn.close());
 
 const id = (n: number) => `<e${n}@agency.example>`;
+
+/** The plan of a statement the queries sent, its parameters written in as literals. */
+async function explain(db: Database, query: string, params: unknown[]): Promise<string[]> {
+  const literal = (v: unknown) =>
+    typeof v === "number" || typeof v === "boolean"
+      ? String(v)
+      : `'${String(v instanceof Date ? v.toISOString() : v).replaceAll("'", "''")}'`;
+  const text = query.replace(/\$(\d+)/g, (_, n: string) => literal(params[Number(n) - 1]));
+  const rows = await queryRows<{ "QUERY PLAN": string }>(
+    db,
+    sql.raw(`explain (costs off) ${text}`),
+  );
+  return rows.map((r) => r["QUERY PLAN"]);
+}
 
 function envelope(n: number, from = `r${n}@agency.example`): Envelope {
   return {
@@ -215,6 +230,40 @@ describe("what the pipeline has to evaluate", () => {
       evaluations: 0,
       senderChecks: 0,
     });
+  });
+
+  it("locks the rows it marks in id order, so two at once can't deadlock", async () => {
+    // Two plain `UPDATE … WHERE workspace_id = $1` at once lock the same rows in their scans'
+    // orders, which differ once a row has moved, and Postgres finds a deadlock (40P01); seen when
+    // three CV reads on two replicas each marked everything stale. PGlite runs one statement at
+    // a time, so this checks the statement's plan instead: rows are locked (LockRows) only as
+    // they come out of a sort by id, for every scope.
+    const sent: { query: string; params: unknown[] }[] = [];
+    const logged = await openTestDatabase({
+      logQuery: (query, params) => sent.push({ query, params }),
+    });
+    try {
+      const scopes: Parameters<typeof markStale>[2][] = [
+        { all: true },
+        { roles: [{ messageId: id(1), position: 0 }] },
+        { messageIds: [id(1)] },
+        { senderAddress: "ann@agency.example" },
+      ];
+      for (const scope of scopes) {
+        sent.length = 0;
+        await markStale(logged.db, ws, scope, t0);
+        const update = sent.find((s) => s.query.startsWith('update "role_evaluations"'));
+        if (!update) throw new Error("markStale sent no role_evaluations update");
+        const plan = await explain(logged.db, update.query, update.params);
+        const shown = plan.join("\n");
+        const lockRows = plan.findIndex((line) => /^\s*(->\s+)?LockRows$/.test(line));
+        expect(lockRows, shown).toBeGreaterThanOrEqual(0);
+        expect(plan[lockRows + 1], shown).toMatch(/^\s*->\s+Sort$/);
+        expect(plan[lockRows + 2], shown).toMatch(/^\s*Sort Key: (\w+\.)?id$/);
+      }
+    } finally {
+      await logged.close();
+    }
   });
 
   it("saves an evaluation as current again, and reads it back", async () => {

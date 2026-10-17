@@ -133,10 +133,20 @@ export async function markStale(
   } else if (!("all" in scope)) {
     roleFilter = sql`${roleEvaluations.messageId} in (${messagesOfScope(workspaceId, scope)})`;
   }
+  // The rows are locked in id order before they are updated. Two markStale calls of a workspace
+  // at once (three CV reads on two replicas each re-evaluate everything) lock many of the same
+  // rows, and a plain UPDATE locks them in whatever order its scan meets them, which differs
+  // between two statements once a row has moved: they deadlocked (40P01). One order can't.
+  const ordered = db
+    .select({ id: roleEvaluations.id })
+    .from(roleEvaluations)
+    .where(and(eq(roleEvaluations.workspaceId, workspaceId), roleFilter))
+    .orderBy(roleEvaluations.id)
+    .for("update");
   const evaluations = await db
     .update(roleEvaluations)
     .set({ stale: true, staleSince: at })
-    .where(and(eq(roleEvaluations.workspaceId, workspaceId), roleFilter))
+    .where(and(eq(roleEvaluations.workspaceId, workspaceId), inArray(roleEvaluations.id, ordered)))
     .returning({ id: roleEvaluations.id });
 
   const senderScope = messagesOfScope(workspaceId, scope);
