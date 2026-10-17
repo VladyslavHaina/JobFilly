@@ -441,7 +441,7 @@
           "words": null,
           "messageId": null,
           "position": null,
-          "stage": null,
+          "stage": "interview",
           "days": 30
         }
       ]
@@ -480,7 +480,7 @@
       "lookups": [
         {
           "tool": "find_roles",
-          "words": "HireWave",
+          "words": "Python Developer",
           "messageId": null,
           "position": null,
           "stage": null,
@@ -564,15 +564,15 @@
       ]
     }
   },
-  "which role did two agencies send me?": {
+  "did two agencies send me the möwe mobility role?": {
     "*": {
       "reply": "Let me check your pipeline.",
       "clarify": null,
       "proposal": null,
       "lookups": [
         {
-          "tool": "pipeline",
-          "words": null,
+          "tool": "find_roles",
+          "words": "Möwe Mobility",
           "messageId": null,
           "position": null,
           "stage": null,

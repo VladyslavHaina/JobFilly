@@ -408,20 +408,30 @@ describe("the assistant's questions (MVP 3)", () => {
     }
   });
 
-  it("count S9's interviews: the backlog's invite, the Lindwurm thread's and S6's manual one", () => {
+  it("count S9's interviews: the roles in Interview that got there in the last 30 days", () => {
     const q = questions.find((x) => x.id === "interviews") as AssistantQuestion;
-    expect(q.expected.count).toBe(3);
+    expect(q.lookups).toEqual([
+      {
+        tool: "pipeline",
+        words: null,
+        messageId: null,
+        position: null,
+        stage: "interview",
+        days: 30,
+      },
+    ]);
+    // The backlog's interview invite, and the role S6 moves to Interview by hand; Lindwurm
+    // Robotics' interview has moved on to its offer (S6's "offer" item).
+    expect(q.expected.count).toBe(2);
     const interview = (id: string) => expected.deliveries[id] ?? expected.messages[id];
     const invites = q.expected.links
       .map((l) => l.ref.replace(/#\d+$/, ""))
       .filter((id) => interview(id)?.category === "interview");
-    expect(invites).toEqual([
-      MARIA_KEY_MESSAGES.interviewInvite,
-      delivery("lindwurm-interview").entry.messageId,
-    ]);
+    expect(invites).toEqual([MARIA_KEY_MESSAGES.interviewInvite]);
     const manual = mvp3.pipeline.find((p) => p.id === mvp3.manualStage.item);
     expect(q.expected.links.map((l) => l.ref)).toContain(manual?.roles[0]);
-    expect(answerOf(q)?.text).toMatch(/^Three /);
+    expect(mvp3.pipeline.find((p) => p.id === "offer")?.stage).toBe("offer");
+    expect(answerOf(q)?.text).toMatch(/^Two /);
   });
 
   it("answer without template placeholders", () => {

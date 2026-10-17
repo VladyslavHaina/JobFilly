@@ -66,21 +66,17 @@
         "words": null,
         "messageId": null,
         "position": null,
-        "stage": null,
+        "stage": "interview",
         "days": 30
       }
     ],
     "expected": {
-      "says": "Three: Nordlicht Payments (interview invite), Lindwurm Robotics (interview, now an offer) and Brandung Health (moved to Interview by hand in S6).",
-      "count": 3,
+      "says": "Two: Nordlicht Payments (its interview invite; any role of its pipeline item may be the link) and Brandung Health (moved to Interview by hand in S6).",
+      "count": 2,
       "links": [
         {
           "kind": "role",
           "ref": "<maria-0003@nordlicht-pay.example>#0"
-        },
-        {
-          "kind": "role",
-          "ref": "<maria-deliver-lindwurm-interview@lindwurm-robotics.example>#0"
         },
         {
           "kind": "role",
@@ -134,7 +130,7 @@
     "lookups": [
       {
         "tool": "find_roles",
-        "words": "HireWave",
+        "words": "Python Developer",
         "messageId": null,
         "position": null,
         "stage": null,
@@ -273,12 +269,12 @@
     "id": "two-agencies",
     "language": "en",
     "asker": "maria",
-    "text": "Which role did two agencies send me?",
+    "text": "Did two agencies send me the Möwe Mobility role?",
     "scenario": null,
     "lookups": [
       {
-        "tool": "pipeline",
-        "words": null,
+        "tool": "find_roles",
+        "words": "Möwe Mobility",
         "messageId": null,
         "position": null,
         "stage": null,

@@ -83,23 +83,19 @@
   },
   "how many interviews did i have in the last 30 days?": {
     "*": {
-      "text": "Three in the last 30 days: Nordlicht Payments invited you to an interview, Lindwurm Robotics interviewed you and has since made an offer, and you moved Brandung Health to Interview yourself.",
+      "text": "Two in the last 30 days: Nordlicht Payments invited you to an interview, and you moved Brandung Health to Interview yourself.",
       "sources": [
+        {
+          "kind": "role",
+          "ref": "<maria-0067@linkedin.com>#0"
+        },
         {
           "kind": "role",
           "ref": "<maria-0003@nordlicht-pay.example>#0"
         },
         {
           "kind": "role",
-          "ref": "<maria-deliver-lindwurm-applied@greenhouse-mail.io>#0"
-        },
-        {
-          "kind": "role",
-          "ref": "<maria-deliver-lindwurm-interview@lindwurm-robotics.example>#0"
-        },
-        {
-          "kind": "role",
-          "ref": "<maria-deliver-lindwurm-offer@lindwurm-robotics.example>#0"
+          "ref": "<maria-0002@linkedin.com>#0"
         },
         {
           "kind": "role",
@@ -126,6 +122,10 @@
         {
           "kind": "message",
           "ref": "<maria-0004@hirewave.example>"
+        },
+        {
+          "kind": "role",
+          "ref": "<maria-0004@hirewave.example>#0"
         }
       ]
     }
@@ -171,9 +171,9 @@
       ]
     }
   },
-  "which role did two agencies send me?": {
+  "did two agencies send me the möwe mobility role?": {
     "*": {
-      "text": "The Senior Backend Engineer role at Möwe Mobility in Frankfurt came from two agencies, Elbe Talent Partners and Nordstern Personalberatung. Your pipeline shows it once, with both senders.",
+      "text": "Yes: the Senior Backend Engineer role at Möwe Mobility in Frankfurt came from two agencies, Elbe Talent Partners and Nordstern Personalberatung. Your pipeline shows it once, with both senders.",
       "sources": [
         {
           "kind": "role",
