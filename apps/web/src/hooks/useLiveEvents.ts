@@ -86,7 +86,7 @@ const AREA: Record<LiveEvent["type"], LiveArea[]> = {
   "profiles.updated": ["profiles"],
   "assistant.updated": ["assistant", "usage"],
   "mailbox.updated": ["mailbox"],
-  "pipeline.updated": ["pipeline"],
+  "pipeline.updated": ["pipeline", "messages"],
   // A sent draft leaves the Drafts page and its inbox row.
   "sends.updated": ["sends", "drafts", "messages"],
 };

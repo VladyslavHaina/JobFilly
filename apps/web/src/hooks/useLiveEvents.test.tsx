@@ -137,6 +137,8 @@ describe("useLiveInvalidation", () => {
     expect(areas("profiles.updated")).toEqual(["profiles"]);
     expect(areas("assistant.updated")).toEqual(["assistant", "usage"]);
     expect(areas("mailbox.updated")).toEqual(["mailbox"]);
+    // The pipeline query sits under "messages", so another member's stage change shows (F5.1).
+    expect(areas("pipeline.updated")).toEqual(["pipeline", "messages"]);
   });
 
   it("refetches the model usage (F1.5) on every event a model call leads to, and only those", () => {
