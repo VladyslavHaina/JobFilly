@@ -3,7 +3,13 @@ import { cleanup, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Route, Routes } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fakeApi, renderInWorkspace, TEST_USER, testWorkspace } from "../../components/testing";
+import {
+  type FakeRequest,
+  fakeApi,
+  renderInWorkspace,
+  TEST_USER,
+  testWorkspace,
+} from "../../components/testing";
 import { AccountPage } from "../account";
 import { ActivityPage } from "../activity";
 import { DataSettings } from "../data";
@@ -125,7 +131,7 @@ describe("Activity (F9.1)", () => {
     });
     const older = "00000000-0000-4000-8000-0000000000c1";
     fakeApi({
-      "GET /api/workspaces/:id/activity": (req) =>
+      "GET /api/workspaces/:id/activity": (req: FakeRequest) =>
         req.search.get("before") === older
           ? page("00000000-0000-4000-8000-0000000000c2", "Made Tom Okafor Viewer", null)
           : page(older, "Made Tom Okafor Editor", older),

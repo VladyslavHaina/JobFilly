@@ -204,7 +204,8 @@ function InviteForm() {
     mutationFn: () =>
       api(`${apiPaths.workspace(workspaceId)}/invites`, CreatedInviteSchema, {
         method: "POST",
-        body: { email, role, scope },
+        // Everything is the server's default, so only a narrower choice is sent.
+        body: scope === "everything" ? { email, role } : { email, role, scope },
       }),
     onSuccess: (result) => {
       setCreated(result);
