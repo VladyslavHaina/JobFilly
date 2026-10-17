@@ -5752,3 +5752,16 @@ These make sign-off possible; without them the build goes on and records an open
 - **Refs:** MVP-3 F10, S10, H1–H5
 - **Status:** accepted
 
+## TBD-453 · F3.3's real Gmail run stops at connect and sign-in
+- **Kind:** decision
+- **Where:** MVP 3 · Sign-off (F3.3, real Gmail account)
+- **Context:** The Gmail account given for the run is a full real job-search mailbox (6,611 inbox messages, recruiter labels), not an empty test account. Going on to the AI analysis, a draft and a send would have sent real mail to the model and written drafts for real recruiter mail into its Drafts folder. Run folder: e2e/reports/mvp-3/20261017T124337Z-real-gmail (app.log, screenshots).
+- **Options:**
+  1. Accept what passed
+  2. Use a fresh empty Gmail account for the full flow
+  3. Use this account with a low budget and allow drafts on real mail
+- **Chosen:** Option 1, by the owner (2026-10-17). Proven with real Gmail: the Gmail preset connects with the app password over TLS (imap.gmail.com:993), finds Inbox and [Gmail]/Sent Mail, and the SMTP sign-in to smtp.gmail.com:465 is accepted and saved; the app password and the AI key appear in neither app.log nor a pg_dump. Drafting into the mailbox and sending are proven by S5 against the test mail server. The account was left unchanged. Found on the way: the test stack's DNS zone for gmail.com blocked real Gmail hostnames (fixed in the test setup).
+- **If you decide otherwise:** Provide an empty Gmail test account and app password; the run then appends one test email, drafts and sends one reply to the account itself, and cleans up.
+- **Refs:** MVP-3 F3.3, S4, S5
+- **Status:** accepted
+
