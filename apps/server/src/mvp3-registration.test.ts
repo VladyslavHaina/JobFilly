@@ -64,8 +64,9 @@ interface Route {
 
 const ws = () => `/api/workspaces/${maria.workspaceId}`;
 const ROUTES = (): Route[] => [
-  { method: "get", path: `${ws()}/pipeline`, role: "viewer", pipeline: true },
-  { method: "put", path: `${ws()}/pipeline/stage`, role: "editor", pipeline: true },
+  // The applications slice: the empty pipeline, and an empty body.
+  { method: "get", path: `${ws()}/pipeline`, role: "viewer", pipeline: true, built: 200 },
+  { method: "put", path: `${ws()}/pipeline/stage`, role: "editor", pipeline: true, built: 400 },
   // The send slice: no such draft or mailbox, and an empty body.
   {
     method: "get",

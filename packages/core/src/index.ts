@@ -3,6 +3,7 @@
 // Pure functions over data defined in @jobfilly/schema: no network, disk, mail or AI calls here,
 // so every rule is testable alone.
 
+export * from "./applications/index";
 export * from "./assistant/index";
 export * from "./cv/index";
 export * from "./decisions/index";
